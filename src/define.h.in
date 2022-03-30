@@ -1,0 +1,6 @@
+#ifndef DEFINE_H_IN
+#define DEFINE_H_IN
+
+#define LOADER_PATH "@LOADER_PATH@"
+
+#endif // DEFINE_H_IN

@@ -1,0 +1,7 @@
+[Unit]
+Description=Deepin Application Manager service
+
+[Service]
+Type=DBus
+BusName=org.deskspec.ApplicationManager
+ExecStart=/usr/bin/deepin-application-service

@@ -1,0 +1,20 @@
+<interface name='org.desktopspec.ApplicationManager'>
+    <method name='Run'>
+        <arg type='s' name='id' direction='in'/>
+        <arg type='o' name='instance' direction='out'/>
+    </method>
+    <method name='GetInformation'>
+        <arg type='s' name='id' direction='in' />
+        <arg type='o' name='info' direction='out' />
+    </method>
+    <method name='GetId'>
+        <arg type='i' name='pid' direction='in' />
+        <arg type='o' name='instance' direction='out' />
+    </method>
+    <method name='GetInstances'>
+        <arg type='s' name='id' direction='in' />
+        <arg type='ao' name='instances' direction='out' />
+    </method>
+    <property access='read' type='ao' name='list' />
+    <property access='read' type='ao' name='instances' />
+</interface>

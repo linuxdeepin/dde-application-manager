@@ -1,0 +1,39 @@
+pkg_check_modules(LIBCAP REQUIRED IMPORTED_TARGET libcap)
+
+set(SRCS
+    ./main.cpp
+    ../modules/tools/desktop_deconstruction.hpp
+    ../modules/socket/client.h
+    ../modules/socket/client.cpp
+    ../modules/methods/task.hpp
+    ../modules/methods/basic.h
+    ../modules/methods/instance.hpp
+    ../modules/methods/quit.hpp
+    ../modules/methods/registe.hpp
+    ../modules/util/common.cpp
+    ../modules/util/common.h
+    ../modules/util/debug
+    ../modules/util/filesystem.cpp
+    ../modules/util/filesystem.h
+    ../modules/util/json.h
+    ../modules/util/logger.cpp
+    ../modules/util/logger.h
+    ../modules/util/macro.h
+    ../modules/util/oci_runtime.h
+    ../modules/util/platform.cpp
+    ../modules/util/platform.h
+    ../modules/util/semaphore.cpp
+    ../modules/util/semaphore.h
+    ../modules/util/util.h
+    ../modules/util/debug/debug.h
+    ../modules/util/debug/debug.cpp
+)
+
+add_executable(deepin-application-loader ${SRCS})
+
+target_link_libraries(deepin-application-loader
+    pthread
+    PkgConfig::LIBCAP
+    stdc++fs
+)
+install(TARGETS deepin-application-loader DESTINATION bin)

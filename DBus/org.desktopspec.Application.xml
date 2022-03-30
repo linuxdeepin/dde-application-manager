@@ -1,0 +1,15 @@
+<interface name='org.desktopspec.Application'>
+    <method name='Name'>
+        <arg type='s' name='locale' direction='in' />
+        <arg type='s' name='value' direction='out' />
+    </method>
+    <method name='Comment'>
+        <arg type='s' name='comment' direction='in' />
+        <arg type='s' name='value' direction='out' />
+    </method>
+    <property access='read' type='as' name='categories' />
+    <property access='read' type='as' name='mimetypes' />
+    <property access='read' type='s' name='id' />
+    <property access="read" type='s' name='icon' />
+    <property access='read' type='ao' name='instances' />
+</interface>
