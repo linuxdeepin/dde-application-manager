@@ -67,27 +67,29 @@ struct ClientPrivate {
 
         return true;
     }
-    nlohmann::json get(const nlohmann::json& call)
-    {
+
+    QByteArray get(const QByteArray &call) {
         send(call);
 
-        char        buf[512];
+        char buf[512];
         std::string result;
-        int         bytesRead;
+        int bytesRead;
         while ((bytesRead = recv(socket_fd, buf, 512, 0)) > 0) {
-            for (int i = 0; i < bytesRead; i++) {
+            for (int i = 0; i < bytesRead; ++i) {
                 result += buf[i];
             }
+
             if (buf[bytesRead - 1] == '\0') {
                 break;
             }
-        };
-        return nlohmann::json::parse(result);
+        }
+
+        QJsonDocument doc = QJsonDocument::fromRawData(result.data(), result.size());
+        return doc.toJson();
     }
 
-    size_t send(const nlohmann::json& call)
-    {
-        std::string data = call.dump();
+    size_t send(const QByteArray &call) {
+        std::string data = call.data();
         data += '\0';
         return write(socket_fd, data.c_str(), data.length());
     }
@@ -102,12 +104,12 @@ bool Client::connect(const std::string& host)
     return d_ptr->connect(host);
 }
 
-nlohmann::json Client::get(const nlohmann::json& call)
+QByteArray Client::get(const QByteArray &call)
 {
     return d_ptr->get(call);
 }
 
-size_t Client::send(const nlohmann::json& call)
+size_t Client::send(const QByteArray &call)
 {
     return d_ptr->send(call);
 }

@@ -35,5 +35,6 @@ target_link_libraries(deepin-application-loader
     pthread
     PkgConfig::LIBCAP
     stdc++fs
+    Qt5::Core
 )
 install(TARGETS deepin-application-loader DESTINATION bin)

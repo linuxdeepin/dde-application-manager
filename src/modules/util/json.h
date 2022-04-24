@@ -13,46 +13,56 @@
 
 #define JSON_USE_IMPLICIT_CONVERSIONS 0
 
-#include <nlohmann/json.hpp>
 #include <optional>
 
 #define tl std
 
-namespace nlohmann {
+// namespace nlohmann {
 
-template<class J, class T>
-inline void from_json(const J &j, tl::optional<T> &v)
-{
-    if (j.is_null()) {
-        v = tl::nullopt;
-    } else {
-        v = j.template get<T>();
-    }
-}
+// template<class J, class T>
+// inline void from_json(const J &j, tl::optional<T> &v)
+// {
+//     if (j.is_null()) {
+//         v = tl::nullopt;
+//     } else {
+//         v = j.template get<T>();
+//     }
+// }
 
-template<class J, class T>
-inline void to_json(J &j, const tl::optional<T> &o)
-{
-    if (o.has_value()) {
-        j = o.value();
-    }
-}
+// template<class J, class T>
+// inline void to_json(J &j, const tl::optional<T> &o)
+// {
+//     if (o.has_value()) {
+//         j = o.value();
+//     }
+// }
 
-} // namespace nlohmann
+// } // namespace nlohmann
 
-namespace linglong {
+// namespace linglong {
 
-template<class T>
-tl::optional<T> optional(const nlohmann::json &j, const char *key)
-{
-    tl::optional<T> o;
-    auto iter = j.template find(key);
-    if (iter != j.end()) {
-        o = iter->template get<tl::optional<T>>();
-    }
-    return o;
-}
+// template<class T>
+// tl::optional<T> optional(const QJsonObject &j, const char *key)
+// {
+//     tl::optional<T> o;
+//     auto iter = j.template find(key);
+//     if (iter != j.end()) {
+//         o = iter->template get<tl::optional<T>>();
+//     }
+//     return o;
+// }
 
-} // namespace linglong
+// template<class T>
+// tl::optional<T> optional(const nlohmann::json &j, const char *key)
+// {
+//     tl::optional<T> o;
+//     auto iter = j.template find(key);
+//     if (iter != j.end()) {
+//         o = iter->template get<tl::optional<T>>();
+//     }
+//     return o;
+// }
+
+// } // namespace linglong
 
 #endif /* LINGLONG_BOX_SRC_UTIL_JSON_H_ */

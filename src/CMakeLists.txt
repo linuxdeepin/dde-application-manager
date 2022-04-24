@@ -1,5 +1,6 @@
 include(FindPkgConfig)
 find_package(PkgConfig REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Core DBus Concurrent)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_definitions(-DDEFINE_LOADER_PATH)

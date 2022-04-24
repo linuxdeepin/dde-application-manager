@@ -1,17 +1,32 @@
 #ifndef BASIC_H_
 #define BASIC_H_
+#include <QDebug>
+#include <QJsonObject>
+#include <QJsonDocument>
 
-#include <nlohmann/json.hpp>
+namespace Methods
+{
+	struct Basic
+	{
+		QString type;
+	};
 
-namespace Methods {
-struct Basic {
-  std::string type;
-};
+	inline void fromJson(const QByteArray &array, Basic &basic)
+	{
+		QJsonDocument doc = QJsonDocument::fromJson(array);
+		if (!doc.isObject()) {
+			qWarning() << "fromJson basic failed";
+			return;
+		}
 
-using json = nlohmann::json;
-inline void from_json(const json &j, Basic &basic) {
-    j.at("type").get_to(basic.type);
-}
+		QJsonObject obj = doc.object();
+		if (!obj.contains("type")) {
+			qWarning() << "type not exist in basic array";
+			return;
+		}
+
+		basic.type = obj.value("type").toString();
+	}
 
 } // namespace Methods
 

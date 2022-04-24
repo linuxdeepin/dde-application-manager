@@ -5,7 +5,6 @@
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <nlohmann/json.hpp>
 #include <thread>
 
 #include "../../modules/methods/basic.h"
@@ -18,19 +17,20 @@
 #include "application_instance.h"
 #include "applicationinstanceadaptor.h"
 
-class ApplicationManagerPrivate : public QObject {
+class ApplicationManagerPrivate : public QObject
+{
     Q_OBJECT
     ApplicationManager *q_ptr = nullptr;
     Q_DECLARE_PUBLIC(ApplicationManager);
 
-    QList<QSharedPointer<Application>>                              applications;
-    Socket::Server                                                  server;
+    QList<QSharedPointer<Application>> applications;
+    Socket::Server server;
     std::multimap<std::string, QSharedPointer<ApplicationInstance>> tasks;
 
 public:
     ApplicationManagerPrivate(ApplicationManager *parent) : QObject(parent), q_ptr(parent)
     {
-        const QString socketPath{ QString("/run/user/%1/deepin-application-manager.socket").arg(getuid()) };
+        const QString socketPath{QString("/run/user/%1/deepin-application-manager.socket").arg(getuid())};
         connect(&server, &Socket::Server::onReadyRead, this, &ApplicationManagerPrivate::recvClientData, Qt::QueuedConnection);
         server.listen(socketPath.toStdString());
     }
@@ -43,43 +43,47 @@ private:
         for (char c : data) {
             tmp += c;
         }
-        using namespace nlohmann;
-        if (json::parse(tmp).is_null()) {
-            server.close(socket);
-            return;
-        }
-        Methods::Basic basic = json::parse(tmp);
+
+        QByteArray jsonArray = data.data();
+        Methods::Basic basic;
+        Methods::fromJson(jsonArray, basic);
+        QByteArray tmpArray;
         do {
             if (basic.type == "instance") {
-                Methods::Instance instance = nlohmann::json::parse(tmp);
-                auto              find     = tasks.find(instance.hash);
-                if (find != tasks.end()) {
-                    nlohmann::json result = find->second->taskInfo();
-                    write(socket, result.dump());
+                Methods::Instance instance;
+                Methods::fromJson(jsonArray, instance);
+                auto find = tasks.find(instance.hash.toStdString());
+                if (find != tasks.end())
+                {
+                    Methods::Task task = find->second->taskInfo();
+                    Methods::toJson(tmpArray, task);
+                    write(socket, tmpArray.toStdString());
                     tasks.erase(find);
                     break;
                 }
             }
             if (basic.type == "quit") {
-                Methods::Quit quit = json::parse(tmp);
+                Methods::Quit quit;
+                Methods::fromJson(jsonArray, quit);
                 server.close(socket);
                 std::cout << "client quit" << std::endl;
                 break;
             }
             if (basic.type == "registe") {
-                Methods::Registe registe = nlohmann::json::parse(tmp);
+                Methods::Registe registe;
+                Methods::fromJson(jsonArray, registe);
                 Methods::Registe result;
                 result.state = false;
-                //std::lock_guard<std::mutex> lock(task_mutex);
+                // std::lock_guard<std::mutex> lock(task_mutex);
                 for (auto it = tasks.begin(); it != tasks.end(); ++it) {
                     result.state = true;
-                    result.hash  = it->first;
+                    result.hash = QString::fromStdString(it->first);
                 }
-                write(socket, json(result).dump());
-                std::cout << "registe a new client" << std::endl;
+                Methods::toJson(tmpArray, result);
+                write(socket, tmpArray.toStdString());
                 break;
             }
-            write(socket, json().dump());
+            write(socket, jsonArray.toStdString());
         } while (false);
     }
 
@@ -150,8 +154,8 @@ QDBusObjectPath ApplicationManager::Run(const QString &id)
     for (const QSharedPointer<Application> &app : d->applications) {
         if (app->id() == id) {
             // 创建任务所需的数据，并记录到任务队列，等待 loader 消耗
-            QSharedPointer<ApplicationInstance> instance{ app->createInstance() };
-            const std::string                   hash{ instance->hash().toStdString() };
+            QSharedPointer<ApplicationInstance> instance{app->createInstance()};
+            const std::string hash{instance->hash().toStdString()};
             connect(instance.get(), &ApplicationInstance::taskFinished, this, [=] {
                 for (auto it = d->tasks.begin(); it != d->tasks.end(); ++it) {
                     if (it->first == hash) {

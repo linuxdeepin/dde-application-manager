@@ -88,7 +88,7 @@ int child(void* _arg)
     prctl(PR_SET_PDEATHSIG, SIGTERM);
     prctl(PR_SET_PDEATHSIG, SIGHUP);
 
-    App         app = parseApp(task->runId);
+    App         app = parseApp(task->runId.toStdString());
     std::string path{ "/usr/share/applications/" + app.id + ".desktop" };
     if (app.type == "user") {
         struct passwd* user = getpwuid(getuid());
@@ -111,15 +111,17 @@ int child(void* _arg)
     mount.data                      = { "ro" };
     runtime.hostname                = "hostname";
     runtime.process.cwd             = "/";
-    std::filesystem::path container_root_path(annotations.container_root_path);
+    std::filesystem::path container_root_path(annotations.container_root_path.toStdString());
     if (!std::filesystem::exists(container_root_path)) {
         if (!std::filesystem::create_directories(container_root_path)) {
           std::cout << "[Loader] [Warning] cannot create container root path." << std::endl;
           return -1;
         }
     }
-    std::transform(task->environments.begin(), task->environments.end(), std::back_inserter(runtime.process.env),
-                   [](const std::pair<std::string, std::string>& pair) -> std::string { return pair.first + "=" + pair.second; });
+
+    for (auto it = task->environments.begin(); it != task->environments.end(); ++it) {
+        runtime.process.env.append(it.key() + "=" + it.value());
+    }
 
     std::istringstream stream(dd.value<std::string>("Exec"));
     std::string        s;
@@ -132,10 +134,12 @@ int child(void* _arg)
         if (s.length() == 2 && s[0] == '%') {
             continue;
         }
-        runtime.process.args.push_back(s);
+        runtime.process.args.push_back(QString::fromStdString(s));
     }
 
-    std::cout << nlohmann::json(runtime).dump() << std::endl;
+    QByteArray runtimeArray;
+    toJson(runtimeArray, runtime);
+    qWarning() << "runtimeArray: " << runtimeArray;
 
     int pipeEnds[2];
     if (pipe(pipeEnds) != 0) {
@@ -161,8 +165,9 @@ int child(void* _arg)
         exit(ret);
     }
     else {
-        nlohmann::json    json = runtime;
-        const std::string data = std::move(json.dump());
+        QByteArray runtimeArray;
+        linglong::toJson(runtimeArray, runtime);
+        const std::string data = runtimeArray.data();
         close(pipeEnds[0]);
         write(pipeEnds[1], data.c_str(), data.size());
         close(pipeEnds[1]);
@@ -192,15 +197,17 @@ int main(int argc, char* argv[])
     Socket::Client client;
     client.connect(socketPath);
 
+    QByteArray registerArray;
     Methods::Registe registe;
     registe.id   = dam_task_type;
     registe.hash = dam_task_hash;
+    Methods::toJson(registerArray, registe);
 
     Methods::Registe registe_result;
     registe_result.state = false;
-    auto result          = client.get(registe);
-    if (!result.is_null()) {
-        registe_result = result;
+    auto result          = client.get(registerArray);
+    if (!result.isEmpty()) {
+        Methods::fromJson(result, registe_result);
     }
     if (!registe_result.state) {
         return -3;
@@ -209,9 +216,12 @@ int main(int argc, char* argv[])
     Methods::Instance instance;
     instance.hash = registe_result.hash;
     std::cout << "get task" << std::endl;
-    result             = client.get(instance);
-    Methods::Task task = result;
-    std::cout << "[result] " << result << std::endl;
+    QByteArray instanceArray;
+    Methods::toJson(instanceArray, instance);
+    result = client.get(instanceArray);
+    Methods::Task task;
+    Methods::toJson(result, task);
+    qWarning() << "[result] " << result;
 
     pthread_attr_t attr;
     size_t         stack_size;
@@ -246,7 +256,9 @@ int main(int argc, char* argv[])
     Methods::Quit quit;
     quit.code = exitCode;
     quit.id   = task.id;
-    client.send(quit);
+    QByteArray quitArray;
+    Methods::toJson(quitArray, quit);
+    client.send(quitArray);
 
     return exitCode;
 }

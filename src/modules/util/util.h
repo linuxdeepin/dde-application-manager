@@ -20,25 +20,25 @@
 
 #include <fstream>
 
-namespace linglong {
-namespace util {
-namespace json {
+// namespace linglong {
+// namespace util {
+// namespace json {
 
-inline nlohmann::json fromByteArray(const std::string &content)
-{
-    return nlohmann::json::parse(content);
-}
+// inline nlohmann::json fromByteArray(const std::string &content)
+// {
+//     return nlohmann::json::parse(content);
+// }
 
-inline nlohmann::json fromFile(const std::string &filepath)
-{
-    std::ifstream f(filepath);
-    std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    auto j = fromByteArray(str);
-    return j;
-}
+// inline nlohmann::json fromFile(const std::string &filepath)
+// {
+//     std::ifstream f(filepath);
+//     std::string str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+//     auto j = fromByteArray(str);
+//     return j;
+// }
 
-} // namespace json
-} // namespace util
-} // namespace linglong
+// } // namespace json
+// } // namespace util
+// } // namespace linglong
 
 #endif /* LINGLONG_BOX_SRC_UTIL_UTIL_H_ */

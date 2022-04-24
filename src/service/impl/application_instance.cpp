@@ -140,15 +140,15 @@ Methods::Task ApplicationInstance::taskInfo() const
     Q_D(const ApplicationInstance);
 
     Methods::Task task;
-    task.id    = d->m_id.toStdString();
-    task.runId = d->application->id().toStdString();
-    task.date  = QString::number(startuptime()).toStdString();
+    task.id    = d->m_id;
+    task.runId = d->application->id();
+    task.date  = QString::number(startuptime());
 
     // TODO: debug to display environment
-    task.environments.insert({ "DISPLAY", ":0" });
+    task.environments.insert( "DISPLAY", ":0" );
     auto sysEnv = QProcessEnvironment::systemEnvironment();
     for (const auto& key : sysEnv.keys()) {
-        task.environments.insert({ key.toStdString(), sysEnv.value(key).toStdString() });
+        task.environments.insert( key, sysEnv.value(key) );
     }
 
     return task;

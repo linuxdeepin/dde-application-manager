@@ -1,36 +1,76 @@
 #ifndef B0B88BD6_CF1E_4E87_926A_E6DBE6B9B19C
 #define B0B88BD6_CF1E_4E87_926A_E6DBE6B9B19C
 
-#include <map>
-#include <nlohmann/json.hpp>
+
 #include <utility>
-#include <vector>
+#include <QList>
+#include <QMap>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QDebug>
 
-namespace Methods {
-struct Task {
-    std::string                             id;
-    std::string                             runId;
-    std::string                             type{ "task" };
-    std::string                             date;
-    std::vector<std::string>                arguments;
-    std::multimap<std::string, std::string> environments;
-};
-
-using json = nlohmann::json;
-inline void to_json(json &j, const Task &task)
+namespace Methods
 {
-    j = json{ { "type", task.type }, { "id", task.id }, { "run_id", task.runId }, { "date", task.date }, { "arguments", task.arguments }, { "environments", task.environments } };
-}
+    struct Task
+    {
+        QString id;
+        QString runId;
+        QString type{"task"};
+        QString date;
+        QList<QString> arguments;
+        QMap<QString, QString> environments;
+    };
 
-inline void from_json(const json &j, Task &task)
-{
-    j.at("id").get_to(task.id);
-    j.at("run_id").get_to(task.runId);
-    j.at("date").get_to(task.date);
-    j.at("arguments").get_to(task.arguments);
-    j.at("environments").get_to(task.environments);
-}
+    inline void toJson(QByteArray &array, const Task &task) {
+        QJsonArray argArray;
+        for (auto arg : task.arguments) {
+            argArray.append(arg);
+        }
 
-}  // namespace Methods
+        QVariantMap envsMap;
+        for (auto it = task.environments.constBegin(); it != task.environments.constEnd(); ++it) {
+            envsMap.insert(it.key(), it.value());
+        }
+
+        QJsonObject obj = {
+            {"type", task.type},
+            {"id", task.id},
+            {"run_id", task.runId},
+            {"date", task.date},
+            {"arguments",  argArray},
+            {"environments", QJsonObject::fromVariantMap(envsMap)}
+        };
+
+        array = QJsonDocument(obj).toJson();
+    }
+
+    inline void fromJson(const QByteArray &array, Task &task) {
+        QJsonDocument doc = QJsonDocument::fromJson(array);
+		if (!doc.isObject()) {
+			qWarning() << "fromJson task failed";
+			return;
+		}
+
+        QJsonObject obj = doc.object();
+        if (!obj.contains("id") || !obj.contains("runId") || !obj.contains("date") \
+            || !obj.contains("arguments") || !obj.contains("environments")) {
+            qWarning() << "id runId date arguments environments not exist in task array";
+            return;
+        }
+
+        task.id = obj.value("id").toString();
+        task.runId = obj.value("runId").toString();
+        task.date = obj.value("date").toString();
+        for (auto arg : obj.value("arguments").toArray()) {
+            task.arguments.append(arg.toString());
+        }
+        
+        QVariantMap envsMap = obj.value("environments").toObject().toVariantMap();
+        for (auto it = envsMap.constBegin(); it != envsMap.constEnd(); ++it) {
+            task.environments.insert(it.key(), it.value().toString());
+        }
+    }
+} // namespace Methods
 
 #endif /* B0B88BD6_CF1E_4E87_926A_E6DBE6B9B19C */

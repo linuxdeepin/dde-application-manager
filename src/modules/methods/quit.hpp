@@ -1,27 +1,46 @@
 #ifndef QUIT_H_
 #define QUIT_H_
-
-#include <nlohmann/json.hpp>
+#include <QDebug>
+#include <QJsonObject>
+#include <QJsonDocument>
 
 namespace Methods {
 struct Quit {
-    std::string date;
-    std::string type{ "quit" };
-    std::string id;
-    int         code;
+    QString date;
+    QString type{ "quit" };
+    QString id;
+    int     code;
 };
-using json = nlohmann::json;
-inline void to_json(json &j, const Quit &quit)
-{
-    j = json{ { "type", quit.type }, { "date", quit.date }, { "id", quit.id }, { "code", quit.code } };
+
+inline void toJson(QByteArray &array, const Quit &quit) {
+    QJsonObject obj {
+        { "type", quit.type },
+        { "date", quit.date },
+        { "id", quit.id },
+        { "code", quit.code }
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
-inline void from_json(const json &j, Quit &quit)
-{
-    j.at("id").get_to(quit.id);
-    j.at("date").get_to(quit.date);
-    j.at("code").get_to(quit.code);
+inline void fromJson(const QByteArray &array, Quit &quit) {
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson quit failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("id") || !obj.contains("date") || !obj.contains("code")) {
+        qWarning() << "id date code not exist in quit array";
+        return;
+    }
+
+    quit.id = obj.value("id").toString();
+    quit.date = obj.value("date").toString();
+    quit.code = obj.value("code").toInt();
 }
+
 }  // namespace Methods
 
 #endif  // QUIT_H_

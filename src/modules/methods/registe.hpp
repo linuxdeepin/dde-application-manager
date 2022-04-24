@@ -1,29 +1,50 @@
 #ifndef REGISTER_H_
 #define REGISTER_H_
-
-#include <nlohmann/json.hpp>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QDebug>
 
 namespace Methods {
 struct Registe {
-    std::string date;
-    std::string id;
-    std::string type{ "registe" };
-    std::string hash;
+    QString date;
+    QString id;
+    QString type{ "registe" };
+    QString hash;
     bool        state;
 };
 
-using json = nlohmann::json;
-inline void to_json(json &j, const Registe &registe)
-{
-    j = json{ { "type", registe.type }, { "id", registe.id }, { "hash", registe.hash }, { "state", registe.state }, { "date", registe.date } };
+inline void toJson(QByteArray &array, const Registe &registe) {
+    QJsonObject obj = {
+        { "type", registe.type },
+        { "id", registe.id },
+        { "hash", registe.hash },
+        { "state", registe.state },
+        { "date", registe.date }
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
-inline void from_json(const json &j, Registe &registe)
-{
-    j.at("id").get_to(registe.id);
-    j.at("date").get_to(registe.date);
-    j.at("hash").get_to(registe.hash);
-    j.at("state").get_to(registe.state);
+
+inline void fromJson(const QByteArray &array, Registe &registe) {
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson registe failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("id") || !obj.contains("date") || !obj.contains("hash")\
+        || !obj.contains("state")) {
+        qWarning() << "id date code state not exist in registe array";
+        return;
+    }
+    
+    registe.id = obj.value("id").toString();
+    registe.date = obj.value("date").toString();
+    registe.hash = obj.value("hash").toString();
+    registe.state = obj.value("state").toBool();
 }
+
 }  // namespace Methods
 
 #endif  // REGISTER_H_

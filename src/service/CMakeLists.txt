@@ -2,8 +2,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Core DBus Concurrent)
-
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
                      ../../DBus/org.desktopspec.ApplicationManager.xml
                      impl/application_manager.h

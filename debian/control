@@ -6,7 +6,6 @@ Build-Depends:
  cmake,
  debhelper-compat (= 11),
  pkg-config,
- nlohmann-json3-dev,
  libcap-dev,
  qt5-qmake,
  qtbase5-dev,

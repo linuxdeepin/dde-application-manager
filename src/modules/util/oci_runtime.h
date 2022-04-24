@@ -13,55 +13,105 @@
 
 #include <sys/mount.h>
 
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QDebug>
+
+#include <QVariant>
+#include <QVector>
+#include <QMap>
+
 #include "util.h"
 
 namespace linglong {
 
-#define LLJS_FROM(KEY) (o.KEY = j.at(#KEY).get<decltype(o.KEY)>())
-#define LLJS_FROM_OPT(KEY) (o.KEY = optional<decltype(o.KEY)::value_type>(j, #KEY))
-
-#define LLJS_TO(KEY) (j[#KEY] = o.KEY)
-
-#define LLJS_FROM_OBJ(TYPE) inline void from_json(const nlohmann::json &j, TYPE &o)
-#define LLJS_TO_OBJ(TYPE) inline void to_json(nlohmann::json &j, const TYPE &o)
-
 #undef linux
 
 struct Root {
-    std::string path;
-    tl::optional<bool> readonly;
+    QString path;
+    // 删除 std::optional 和 宏定义
+    bool readonly;
 };
 
-LLJS_FROM_OBJ(Root)
+inline void fromJson(const QByteArray &array, Root &o)
 {
-    LLJS_FROM(path);
-    LLJS_FROM_OPT(readonly);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson root failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    // readonly 可以不存在
+    if (!obj.contains("path")) {
+        return;
+    }
+
+    o.path = obj.value("path").toString();
+    if (obj.contains("readonly")) {
+        o.readonly = obj.value("readonly").toBool();
+    }
 }
 
-LLJS_TO_OBJ(Root)
+inline void toJson(QByteArray &array, const Root &o)
 {
-    LLJS_TO(path);
-    LLJS_TO(readonly);
+    QJsonObject obj {
+        {"path", o.path},
+        {"readonly", o.readonly}
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Process {
-    util::str_vec args;
-    util::str_vec env;
-    std::string cwd;
+    QList<QString> args;
+    QList<QString> env;
+    QString cwd;
 };
 
-inline void from_json(const nlohmann::json &j, Process &o)
+inline void fromJson(const QByteArray &array, Process &o)
 {
-    o.args = j.at("args").get<util::str_vec>();
-    o.env = j.at("env").get<util::str_vec>();
-    o.cwd = j.at("cwd").get<std::string>();
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson process failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("args") || !obj.contains("env") || !obj.contains("cwd")) {
+        std::cout << "process json invalid format" << std::endl;
+        return;
+    }
+
+    for (auto arg : obj.value("args").toArray()) {
+        o.args.append(arg.toString());
+    }
+    for (auto env : obj.value("env").toArray()) {
+        o.env.append(env.toString());
+    }
+    o.cwd = obj.value("cwd").toString();
 }
 
-inline void to_json(nlohmann::json &j, const Process &o)
+
+inline void toJson(QByteArray &array, const Process &o)
 {
-    j["args"] = o.args;
-    j["env"] = o.env;
-    j["cwd"] = o.cwd;
+    QJsonArray argsArray;
+    for (auto arg : o.args) {
+        argsArray.append(arg);
+    }
+    QJsonArray envsArray;
+    for (auto env : o.env) {
+        envsArray.append(env);
+    }
+
+    QJsonObject obj = {
+        {"args", argsArray},
+        {"env", envsArray},
+        {"cwd", o.cwd}
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Mount {
@@ -76,18 +126,25 @@ struct Mount {
         Cgroup,
         Cgroup2,
     };
-    std::string destination;
-    std::string type;
-    std::string source;
-    util::str_vec data;
+    QString destination;
+    QString type;
+    QString source;
+    QList<QString> data;
 
     Type fsType;
     uint32_t flags = 0u;
 };
 
-inline void from_json(const nlohmann::json &j, Mount &o)
+inline void fromJson(const QByteArray &array, Mount &o)
 {
-    static std::map<std::string, Mount::Type> fsTypes = {
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson mount failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    static QMap<QString, Mount::Type> fsTypes = {
         {"bind", Mount::Bind},   {"proc", Mount::Proc},   {"devpts", Mount::Devpts}, {"mqueue", Mount::Mqueue},
         {"tmpfs", Mount::Tmpfs}, {"sysfs", Mount::Sysfs}, {"cgroup", Mount::Cgroup}, {"cgroup2", Mount::Cgroup2},
     };
@@ -97,7 +154,7 @@ inline void from_json(const nlohmann::json &j, Mount &o)
         uint32_t flag;
     };
 
-    static std::map<std::string, mountFlag> optionFlags = {
+    static QMap<QVariant, mountFlag> optionFlags = {
         {"acl", {false, MS_POSIXACL}},
         {"async", {true, MS_SYNCHRONOUS}},
         {"atime", {true, MS_NOATIME}},
@@ -135,38 +192,53 @@ inline void from_json(const nlohmann::json &j, Mount &o)
         // {"symfollow",{true, MS_NOSYMFOLLOW}}, // since kernel 5.10
     };
 
-    o.destination = j.at("destination").get<std::string>();
-    o.type = j.at("type").get<std::string>();
-    o.fsType = fsTypes.find(o.type)->second;
+    if (!obj.contains("destination") || !obj.contains("type") || !obj.contains("source") \
+        || !obj.contains("options")) {
+        std::cout << "mount json invalid format" << std::endl;
+        return;
+    }
+
+    o.destination = obj.value("destination").toString();
+    o.type = obj.value("type").toString();
+    o.fsType = fsTypes.find(o.type).value();
     if (o.fsType == Mount::Bind) {
         o.flags = MS_BIND;
     }
-    o.source = j.at("source").get<std::string>();
+    o.source = obj.value("source").toString();
     o.data = {};
 
     // Parse options to data and flags.
     // FIXME: support "propagation flags" and "recursive mount attrs"
     // https://github.com/opencontainers/runc/blob/c83abc503de7e8b3017276e92e7510064eee02a8/libcontainer/specconv/spec_linux.go#L958
-    auto options = j.value("options", util::str_vec());
+    auto options = obj.value("options").toArray().toVariantList();
     for (auto const &opt : options) {
         auto it = optionFlags.find(opt);
         if (it != optionFlags.end()) {
-            if (it->second.clear) {
-                o.flags &= ~it->second.flag;
+            if (it.value().clear) {
+                o.flags &= ~it.value().flag;
             } else
-                o.flags |= it->second.flag;
+                o.flags |= it.value().flag;
         } else {
-            o.data.push_back(opt);
+            o.data.push_back(opt.toString());
         }
     }
 }
 
-inline void to_json(nlohmann::json &j, const Mount &o)
+inline void toJson(QByteArray &array, const Mount &o)
 {
-    j["destination"] = o.destination;
-    j["source"] = o.source;
-    j["type"] = o.type;
-    j["options"] = o.data; // FIXME: this data is not original options, some of them have been prased to flags.
+    QJsonArray dataArray;
+    for (auto const &data : o.data) {
+        dataArray.append(data);
+    }
+
+    QJsonObject obj = {
+        {"destination", o.destination},
+        {"source", o.source},
+        {"type", o.type},
+        {"options", dataArray},// FIXME: this data is not original options, some of them have been prased to flags.
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Namespace {
@@ -178,16 +250,33 @@ static std::map<std::string, int> namespaceType = {
     {"network", CLONE_NEWNET}, {"ipc", CLONE_NEWIPC}, {"user", CLONE_NEWUSER},
 };
 
-inline void from_json(const nlohmann::json &j, Namespace &o)
+inline void fromJson(const QByteArray &array, Namespace &o)
 {
-    o.type = namespaceType.find(j.at("type").get<std::string>())->second;
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson namespace failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("type")) {
+        std::cout << "namespace json invalid format" << std::endl;
+        return;
+    }
+
+    o.type = namespaceType.find(obj.value("type").toString().toStdString())->second;
 }
 
-inline void to_json(nlohmann::json &j, const Namespace &o)
+inline void toJson(QByteArray &array, const Namespace &o)
 {
     auto matchPair = std::find_if(std::begin(namespaceType), std::end(namespaceType),
                                   [&](const std::pair<std::string, int> &pair) { return pair.second == o.type; });
-    j["type"] = matchPair->first;
+
+    QJsonObject obj = {
+        {"type", matchPair->second},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct IDMap {
@@ -196,84 +285,190 @@ struct IDMap {
     uint64_t size = 0u;
 };
 
-inline void from_json(const nlohmann::json &j, IDMap &o)
+inline void fromJson(const QByteArray &array, IDMap &o)
 {
-    o.hostID = j.value("hostID", 0);
-    o.containerID = j.value("containerID", 0);
-    o.size = j.value("size", 0);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson idmap failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("hostID") || !obj.contains("containerID") || !obj.contains("size")) {
+        std::cout << "idmap json invalid format" << std::endl;
+        return;
+    }
+
+    o.hostID = obj.value("hostID").toVariant().ULongLong;
+    o.containerID = obj.value("containerID").toVariant().ULongLong;
+    o.size = obj.value("size").toVariant().ULongLong;
 }
 
-inline void to_json(nlohmann::json &j, const IDMap &o)
+inline void toJson(QByteArray &array, const IDMap &o)
 {
-    j["hostID"] = o.hostID;
-    j["containerID"] = o.containerID;
-    j["size"] = o.size;
+    QJsonObject obj = {
+        {"hostID", QString::number(o.hostID, 10)},
+        {"containerID", QString::number(o.containerID, 10)},
+        {"size", QString::number(o.size, 10)},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
-typedef std::string SeccompAction;
-typedef std::string SeccompArch;
+typedef QString SeccompAction;
+typedef QString SeccompArch;
 
 struct SyscallArg {
     u_int index; // require
     u_int64_t value; // require
     u_int64_t valueTwo; // optional
-    std::string op; // require
+    QString op; // require
 };
 
-inline void from_json(const nlohmann::json &j, SyscallArg &o)
+inline void fromJson(const QByteArray &array, SyscallArg &o)
 {
-    o.index = j.at("index").get<u_int>();
-    o.value = j.at("value").get<u_int64_t>();
-    o.valueTwo = j.value("valueTwo", u_int64_t());
-    o.op = j.at("op").get<std::string>();
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson SyscallArg failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("index") || !obj.contains("value") \
+        || !obj.contains("valueTwo") || !obj.contains("op")) {
+        qWarning() << "syscallarg json invalid format";
+        return;
+    }
+
+    o.index = obj.value("index").toVariant().UInt;
+    o.value = obj.value("value").toVariant().ULongLong;
+    o.valueTwo = obj.value("valueTwo").toVariant().ULongLong;
+    o.op = obj.value("op").toString();
 }
 
-inline void to_json(nlohmann::json &j, const SyscallArg &o)
+inline void toJson(QByteArray &array, const SyscallArg &o)
 {
-    j["index"] = o.index;
-    j["value"] = o.value;
-    j["valueTwo"] = o.valueTwo;
-    j["op"] = o.op;
+    QJsonObject obj = {
+        {"index", QString::number(o.index, 10)},
+        {"value", QString::number(o.value, 10)},
+        {"valueTwo", QString::number(o.valueTwo, 10)},
+        {"op", o.op},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Syscall {
-    util::str_vec names;
+    QList<QString> names;
     SeccompAction action;
-    std::vector<SyscallArg> args;
+    QList<SyscallArg> args;
 };
 
-inline void from_json(const nlohmann::json &j, Syscall &o)
+inline void fromJson(const QByteArray &array, Syscall &o)
 {
-    o.names = j.at("names").get<util::str_vec>();
-    o.action = j.at("action").get<SeccompAction>();
-    o.args = j.value("args", std::vector<SyscallArg>());
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Syscall failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("names") || !obj.contains("action") || !obj.contains("args")) {
+        std::cout << "syscall json invalid format" << std::endl;
+        return;
+    }
+
+    o.action = obj.value("action").toString();
+    for (auto const &name : obj.value("names").toArray()) {
+        o.names.append(name.toString());
+    }
+
+    QJsonValue argsValue = obj.take("args");
+    SyscallArg tmpArgs;
+    for (const auto &arg : argsValue.toArray()) {
+        fromJson(QJsonDocument(arg.toObject()).toJson(), tmpArgs);
+        o.args.append(tmpArgs);
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Syscall &o)
+inline void toJson(QByteArray &array, const Syscall &o)
 {
-    j["names"] = o.names;
-    j["action"] = o.action;
-    j["args"] = o.args;
+    QByteArray argsArray;
+    QJsonArray argsJsonArray;
+    for (const auto &arg : o.args) {
+        toJson(argsArray, arg);
+        argsJsonArray.append(QJsonDocument::fromJson(argsArray).array());
+    }
+
+    QByteArray namesArray;
+    QJsonArray namesJsonArray;
+    for (const auto &name : o.names) {
+        namesJsonArray.append(name);
+    }
+
+    QJsonObject obj = {
+      { "names", namesJsonArray },
+      { "action", o.action },
+      { "args", argsJsonArray },
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Seccomp {
     SeccompAction defaultAction = "INVALID_ACTION";
-    std::vector<SeccompArch> architectures;
-    std::vector<Syscall> syscalls;
+    QList<QString> architectures;
+    QList<Syscall> syscalls;
 };
 
-inline void from_json(const nlohmann::json &j, Seccomp &o)
+inline void fromJson(const QByteArray &array, Seccomp &o)
 {
-    o.defaultAction = j.at("defaultAction").get<std::string>();
-    o.architectures = j.value("architectures", std::vector<SeccompArch> {});
-    o.syscalls = j.value("syscalls", std::vector<Syscall> {});
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Seccomp failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("defaultAction") || !obj.contains("architectures") \
+        || !obj.contains("syscalls")) {
+        qWarning() << "seccomp json invalid format";
+        return;
+    }
+
+    o.defaultAction = obj.value("defaultAction").toString();
+    for (auto const &arch : obj.value("architectures").toArray()) {
+        o.architectures.append(arch.toString());
+    }
+
+    Syscall syscallsArray;
+    for (auto const &syscall : obj.value("syscalls").toArray()) {
+        fromJson(QJsonDocument(syscall.toObject()).toJson(), syscallsArray);
+        o.syscalls.append(syscallsArray);
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Seccomp &o)
+inline void toJson(QByteArray &array, const Seccomp &o)
 {
-    j["defaultAction"] = o.defaultAction;
-    j["architectures"] = o.architectures;
-    j["syscalls"] = o.syscalls;
+    QJsonArray syscallsJsonArray;
+    QByteArray syscallsByteArray;
+    for (auto const &syscall : o.syscalls) {
+        toJson(syscallsByteArray, syscall);
+        syscallsJsonArray.append(QJsonDocument::fromJson(syscallsByteArray).array());
+    }
+
+    QJsonArray archArray;
+    for (auto const &arch : o.architectures) {
+        archArray.append(arch);
+    }
+
+    QJsonObject obj = {
+      { "defaultAction", o.defaultAction },
+      { "architectures", archArray },
+      { "syscalls", syscallsJsonArray },
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 // https://github.com/containers/crun/blob/main/crun.1.md#memory-controller
@@ -283,18 +478,34 @@ struct ResourceMemory {
     int64_t swap = -1;
 };
 
-inline void from_json(const nlohmann::json &j, ResourceMemory &o)
+inline void fromJson(const QByteArray &array, ResourceMemory &o)
 {
-    o.limit = j.value("limit", -1);
-    o.reservation = j.value("reservation", -1);
-    o.swap = j.value("swap", -1);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson ResourceMemory failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("limit") || !obj.contains("reservation") || !obj.contains("swap")) {
+        qWarning() << "resourceMemory json invalid format";
+        return;
+    }
+
+    o.limit = obj.value("limit").toVariant().toLongLong();
+    o.reservation = obj.value("reservation").toVariant().toLongLong();
+    o.swap = obj.value("swap").toVariant().toLongLong();
 }
 
-inline void to_json(nlohmann::json &j, const ResourceMemory &o)
+inline void toJson(QByteArray &array, const ResourceMemory &o)
 {
-    j["limit"] = o.limit;
-    j["reservation"] = o.reservation;
-    j["swap"] = o.swap;
+    QJsonObject obj = {
+        {"limit", static_cast<qint64>(o.limit)},
+        {"reservation", static_cast<qint64>(o.reservation)},
+        {"swap", static_cast<qint64>(o.swap)},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 // https://github.com/containers/crun/blob/main/crun.1.md#cpu-controller
@@ -309,18 +520,34 @@ struct ResourceCPU {
     //    std::string mems;
 };
 
-inline void from_json(const nlohmann::json &j, ResourceCPU &o)
+inline void fromJson(const QByteArray &array, ResourceCPU &o)
 {
-    o.shares = j.value("shares", 1024);
-    o.quota = j.value("quota", 100000);
-    o.period = j.value("period", 100000);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson ResourceCPU failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("shares") || !obj.contains("quota") || !obj.contains("period")) {
+        qWarning() << "resourcecpu json invalid format";
+        return;
+    }
+
+    o.shares = obj.value("shares").toVariant().toULongLong();
+    o.quota = obj.value("quota").toVariant().toLongLong();
+    o.period = obj.value("period").toVariant().toULongLong();
 }
 
-inline void to_json(nlohmann::json &j, const ResourceCPU &o)
+inline void toJson(QByteArray &array, const ResourceCPU &o)
 {
-    j["shares"] = o.shares;
-    j["quota"] = o.quota;
-    j["period"] = o.period;
+    QJsonObject obj = {
+        {"shares", QString::number(o.shares, 10)},
+        {"quota", static_cast<qint64>(o.quota)},
+        {"period", QString::number(o.period, 10)},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Resources {
@@ -328,45 +555,131 @@ struct Resources {
     ResourceCPU cpu;
 };
 
-inline void from_json(const nlohmann::json &j, Resources &o)
+inline void fromJson(const QByteArray &array, Resources &o)
 {
-    o.cpu = j.value("cpu", ResourceCPU());
-    o.memory = j.value("memory", ResourceMemory());
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Resources failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("cpu") || !obj.contains("memory")) {
+        qWarning() << "resources json invalid format";
+        return;
+    }
+
+    fromJson(QJsonDocument(obj.value("cpu").toObject()).toJson(), o.cpu);
+    fromJson(QJsonDocument(obj.value("memory").toObject()).toJson(), o.cpu);
 }
 
-inline void to_json(nlohmann::json &j, const Resources &o)
+inline void toJson(QByteArray &array, const Resources &o)
 {
-    j["cpu"] = o.cpu;
-    j["memory"] = o.memory;
+    QByteArray cpuArray;
+    toJson(cpuArray, o.cpu);
+    QByteArray memoryArray;
+    toJson(memoryArray, o.memory);
+    QJsonObject obj = {
+        {"cpu", QJsonDocument::fromJson(cpuArray).array()},
+        {"memory", QJsonDocument::fromJson(memoryArray).array()},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Linux {
-    std::vector<Namespace> namespaces;
-    std::vector<IDMap> uidMappings;
-    std::vector<IDMap> gidMappings;
-    tl::optional<Seccomp> seccomp;
-    std::string cgroupsPath;
+    QList<Namespace> namespaces;
+    QList<IDMap> uidMappings;
+    QList<IDMap> gidMappings;
+    Seccomp seccomp;
+    QString cgroupsPath;
     Resources resources;
 };
 
-inline void from_json(const nlohmann::json &j, Linux &o)
+inline void fromJson(const QByteArray &array, Linux &o)
 {
-    o.namespaces = j.at("namespaces").get<std::vector<Namespace>>();
-    o.uidMappings = j.value("uidMappings", std::vector<IDMap> {});
-    o.gidMappings = j.value("gidMappings", std::vector<IDMap> {});
-    o.seccomp = optional<decltype(o.seccomp)::value_type>(j, "seccomp");
-    o.cgroupsPath = j.value("cgroupsPath", "");
-    o.resources = j.value("resources", Resources());
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Linux failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("namespaces") || !obj.contains("uidMappings") || !obj.contains("gidMappings") \
+        || !obj.contains("cgroupsPath") || !obj.contains("resources")) {
+        qWarning() << "linux json invalid format";
+        return;
+    }
+
+    Namespace nameArray;
+    for (auto name : obj.take("namespaces").toArray()) {
+        fromJson(QJsonDocument(name.toObject()).toJson(), nameArray);
+        o.namespaces.append(nameArray);
+    }
+
+    {
+        IDMap uidMap;
+        for (auto uid : obj.take("uidMappings").toArray()) {
+            fromJson(QJsonDocument(uid.toObject()).toJson(), uidMap);
+            o.uidMappings.append(uidMap);
+        }
+    }
+
+    {
+        IDMap gidMap;
+        for (auto gid : obj.take("gidMappings").toArray()) {
+            fromJson(QJsonDocument(gid.toObject()).toJson(), gidMap);
+            o.gidMappings.append(gidMap);
+        }
+    }
+
+    o.cgroupsPath = obj.value("cgroupsPath").toString();
+    fromJson(QJsonDocument(obj.value("resources").toObject()).toJson(), o.resources);
+
+    if (obj.contains("seccomp")) {
+        fromJson(QJsonDocument(obj.value("seccomp").toObject()).toJson(), o.seccomp);
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Linux &o)
+inline void toJson(QByteArray &array, const Linux &o)
 {
-    j["namespaces"] = o.namespaces;
-    j["uidMappings"] = o.uidMappings;
-    j["gidMappings"] = o.gidMappings;
-    j["seccomp"] = o.seccomp;
-    j["cgroupsPath"] = o.cgroupsPath;
-    j["resources"] = o.resources;
+    QJsonArray nameSpacesJsonArray;
+    QByteArray nameSpacesByteArray;
+    for (auto const &nameSpace : o.namespaces) {
+        toJson(nameSpacesByteArray, nameSpace);
+        nameSpacesJsonArray.append(QJsonDocument::fromJson(nameSpacesByteArray).array());
+    }
+
+    QJsonArray uidMapsJsonArray;
+    QByteArray uidMapsByteArray;
+    for (auto const &uid : o.uidMappings) {
+        toJson(uidMapsByteArray, uid);
+        uidMapsJsonArray.append(QJsonDocument::fromJson(uidMapsByteArray).array());
+    }
+
+    QJsonArray gidMapsJsonArray;
+    QByteArray gidMapsByteArray;
+    for (auto const &gid : o.gidMappings) {
+        toJson(gidMapsByteArray, gid);
+        gidMapsJsonArray.append(QJsonDocument::fromJson(gidMapsByteArray).array());
+    }
+
+    QByteArray seccompArray;
+    toJson(seccompArray, o.seccomp);
+
+    QByteArray resourcesArray;
+    toJson(resourcesArray, o.resources);
+
+    QJsonObject obj = {
+        {"namespaces", nameSpacesJsonArray},
+        {"uidMappings", uidMapsJsonArray},
+        {"gidMappings", gidMapsJsonArray},
+        {"seccomp", QJsonDocument::fromJson(seccompArray).array()},
+        {"cgroupsPath", o.cgroupsPath},
+        {"resources", QJsonDocument::fromJson(resourcesArray).array()},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 /*
@@ -397,146 +710,347 @@ inline void to_json(nlohmann::json &j, const Linux &o)
  */
 
 struct Hook {
-    std::string path;
-    tl::optional<util::str_vec> args;
-    tl::optional<std::vector<std::string>> env;
+    QString path;
+    QList<QString> args;
+    QList<QString> env;
 };
 
-inline void from_json(const nlohmann::json &j, Hook &o)
+inline void fromJson(const QByteArray &array, Hook &o)
 {
-    LLJS_FROM(path);
-    LLJS_FROM_OPT(args);
-    LLJS_FROM_OPT(env);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Hook failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("path")) {
+        qWarning() << "hook json invalid format";
+        return;
+    }
+
+    o.path = obj.value("path").toString();
+
+    if (obj.contains("args")) {
+        for (auto const &arg : obj.value("args").toArray()) {
+            o.args.append(arg.toString());
+        }
+    }
+
+    if (obj.contains("env")) {
+        for (auto const &env : obj.value("env").toArray()) {
+            o.env.append(env.toString());
+        }
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Hook &o)
+inline void toJson(QByteArray &array, const Hook &o)
 {
-    j["path"] = o.path;
-    j["args"] = o.args;
-    j["env"] = o.env;
+    QJsonArray argsArray;
+    for (auto const &arg : o.args) {
+        argsArray.append(arg);
+    }
+
+    QJsonArray envArray;
+    for (auto const &env : o.env) {
+        envArray.append(env);
+    }
+
+    QJsonObject obj = {
+        {"path", o.path},
+        {"args", argsArray},
+        {"env", envArray},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Hooks {
-    tl::optional<std::vector<Hook>> prestart;
-    tl::optional<std::vector<Hook>> poststart;
-    tl::optional<std::vector<Hook>> poststop;
+    QList<Hook> prestart;
+    QList<Hook> poststart;
+    QList<Hook> poststop;
 };
 
-inline void from_json(const nlohmann::json &j, Hooks &o)
+inline void fromJson(const QByteArray &array, Hooks &o)
 {
-    LLJS_FROM_OPT(prestart);
-    LLJS_FROM_OPT(poststart);
-    LLJS_FROM_OPT(poststop);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Hooks failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    Hook hook;
+    if (obj.contains("prestart")) {
+        for (auto prestart : obj.take("prestart").toArray()) {
+            fromJson(QJsonDocument(prestart.toObject()).toJson(), hook);
+            o.prestart.append(hook);
+        }
+    }
+
+    if (obj.contains("poststart")) {
+        for (auto poststart : obj.take("poststart").toArray()) {
+            fromJson(QJsonDocument(poststart.toObject()).toJson(), hook);
+            o.poststart.append(hook);
+        }
+    }
+
+    if (obj.contains("poststop")) {
+        for (auto poststop : obj.take("poststop").toArray()) {
+            fromJson(QJsonDocument(poststop.toObject()).toJson(), hook);
+            o.poststop.append(hook);
+        }
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Hooks &o)
+inline void toJson(QByteArray &array, const Hooks &o)
 {
-    j["poststop"] = o.poststop;
-    j["poststart"] = o.poststart;
-    j["prestart"] = o.prestart;
+    QJsonArray poststartJsonArray;
+    QByteArray poststartByteArray;
+    for (auto const &poststart : o.poststart) {
+        toJson(poststartByteArray, poststart);
+        poststartJsonArray.append(QJsonDocument::fromJson(poststartByteArray).array());
+    }
+
+    QJsonArray poststopJsonArray;
+    QByteArray poststopByteArray;
+    for (auto const &poststop : o.poststop) {
+        toJson(poststopByteArray, poststop);
+        poststopJsonArray.append(QJsonDocument::fromJson(poststopByteArray).array());
+    }
+
+    QJsonArray prestartJsonArray;
+    QByteArray prestartByteArray;
+    for (auto const &prestart : o.prestart) {
+        toJson(prestartByteArray, prestart);
+        prestartJsonArray.append(QJsonDocument::fromJson(prestartByteArray).array());
+    }
+
+    QJsonObject obj = {
+        {"prestart", prestartJsonArray},
+        {"poststart", poststartJsonArray},
+        {"poststop", poststopJsonArray},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct AnnotationsOverlayfs {
-    std::string lower_parent;
-    std::string upper;
-    std::string workdir;
-    std::vector<Mount> mounts;
+    QString lower_parent;
+    QString upper;
+    QString workdir;
+    QList<Mount> mounts;
 };
 
-LLJS_FROM_OBJ(AnnotationsOverlayfs)
+inline void fromJson(const QByteArray &array, AnnotationsOverlayfs &o)
 {
-    LLJS_FROM(lower_parent);
-    LLJS_FROM(upper);
-    LLJS_FROM(workdir);
-    LLJS_FROM(mounts);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson AnnotationsOverlayfs failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("lower_parent") || !obj.contains("upper") \
+        || !obj.contains("workdir") || !obj.contains("mounts")) {
+        qWarning() << "annotationsOverlayfs json invalid format";
+        return;
+    }
+
+    o.lower_parent = obj.value("lower_parent").toString();
+    o.upper = obj.value("upper").toString();
+    o.workdir = obj.value("workdir").toString();
+
+    Mount mount;
+    for (auto mountArray : obj.take("mounts").toArray()) {
+        fromJson(QJsonDocument(mountArray.toObject()).toJson(), mount);
+        o.mounts.append(mount);
+    }
 }
 
-LLJS_TO_OBJ(AnnotationsOverlayfs)
+
+inline void toJson(QByteArray &array, const AnnotationsOverlayfs &o)
 {
-    LLJS_TO(lower_parent);
-    LLJS_TO(upper);
-    LLJS_TO(workdir);
-    LLJS_TO(mounts);
+    QJsonArray MountsJsonArray;
+    QByteArray MountsByteArray;
+    for (auto const &mount : o.mounts) {
+        toJson(MountsByteArray, mount);
+        MountsJsonArray.append(QJsonDocument::fromJson(MountsByteArray).array());
+    }
+
+    QJsonObject obj = {
+        {"lower_parent", o.lower_parent},
+        {"upper", o.upper},
+        {"workdir", o.workdir},
+        {"mounts", MountsJsonArray},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct AnnotationsNativeRootfs {
-    std::vector<Mount> mounts;
+    QList<Mount> mounts;
 };
 
-LLJS_FROM_OBJ(AnnotationsNativeRootfs)
+inline void fromJson(const QByteArray &array, AnnotationsNativeRootfs &o)
 {
-    LLJS_FROM(mounts);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson AnnotationsNativeRootfs failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("mounts")) {
+        qWarning() << "annotationsNativeRootfs json invalid format";
+        return;
+    }
+
+    Mount mount;
+    for (auto uid : obj.take("mounts").toArray()) {
+        fromJson(QJsonDocument(uid.toObject()).toJson(), mount);
+        o.mounts.append(mount);
+    }
 }
 
-LLJS_TO_OBJ(AnnotationsNativeRootfs)
+inline void toJson(QByteArray &array, const AnnotationsNativeRootfs &o)
 {
-    LLJS_TO(mounts);
+    QJsonArray mountsJsonArray;
+    QByteArray mountsByteArray;
+    for (auto const &mount : o.mounts) {
+        toJson(mountsByteArray, mount);
+        mountsJsonArray.append(QJsonDocument::fromJson(mountsByteArray).array());
+    }
+
+    QJsonObject obj = {
+        {"mounts", mountsJsonArray},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Annotations {
-    std::string container_root_path;
-    tl::optional<AnnotationsOverlayfs> overlayfs;
-    tl::optional<AnnotationsNativeRootfs> native;
+    QString container_root_path;
+    AnnotationsOverlayfs overlayfs;
+    AnnotationsNativeRootfs native;
 };
 
-LLJS_FROM_OBJ(Annotations)
+inline void fromJson(const QByteArray &array, Annotations &o)
 {
-    LLJS_FROM(container_root_path);
-    LLJS_FROM_OPT(overlayfs);
-    LLJS_FROM_OPT(native);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Linux failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("container_root_path")) {
+        qWarning() << "annotations json invalid format";
+        return;
+    }
+
+    o.container_root_path = obj.value("container_root_path").toString();
+    if (obj.contains("overlayfs")) {
+        fromJson(QJsonDocument(obj.value("overlayfs").toObject()).toJson(), o.overlayfs);
+    }
+    if (obj.contains("native")) {
+        fromJson(QJsonDocument(obj.value("native").toObject()).toJson(), o.native);
+    }
 }
 
-LLJS_TO_OBJ(Annotations)
+inline void toJson(QByteArray &array, const Annotations &o)
 {
-    LLJS_TO(container_root_path);
-    LLJS_TO(overlayfs);
-    LLJS_TO(native);
+    QByteArray overlayfsArray;
+    toJson(overlayfsArray, o.overlayfs);
+    QByteArray nativeArray;
+    toJson(nativeArray, o.native);
+
+    QJsonObject obj = {
+        {"overlayfs", QJsonDocument::fromJson(overlayfsArray).array()},
+        {"native", QJsonDocument::fromJson(nativeArray).array()},
+        {"container_root_path", o.container_root_path}
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 struct Runtime {
-    std::string version;
+    QString version;
     Root root;
     Process process;
-    std::string hostname;
+    QString hostname;
     Linux linux;
-    tl::optional<std::vector<Mount>> mounts;
-    tl::optional<Hooks> hooks;
-    tl::optional<Annotations> annotations;
+    QList<Mount> mounts;
+    Hooks hooks;
+    Annotations annotations;
 };
 
-inline void from_json(const nlohmann::json &j, Runtime &o)
+inline void fromJson(const QByteArray &array, Runtime &o)
 {
-    o.version = j.at("ociVersion").get<std::string>();
-    o.hostname = j.at("hostname").get<std::string>();
-    LLJS_FROM(process);
-    o.mounts = optional<decltype(o.mounts)::value_type>(j, "mounts");
-    LLJS_FROM(linux);
-    // maybe optional
-    LLJS_FROM(root);
-    o.hooks = optional<decltype(o.hooks)::value_type>(j, "hooks");
-    LLJS_FROM_OPT(annotations);
+    QJsonDocument doc = QJsonDocument::fromJson(array);
+    if (!doc.isObject()) {
+        qWarning() << "fromJson Runtime failed";
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    if (!obj.contains("version") || !obj.contains("root") || !obj.contains("process") \
+        || !obj.contains("hostname") || !obj.contains("linux")) {
+        qWarning() << "runtime json invalid format";
+        return;
+    }
+
+    o.version = obj.value("version").toString();
+    o.hostname = obj.value("hostname").toString();
+    fromJson(QJsonDocument(obj.value("root").toObject()).toJson(), o.root);
+    fromJson(QJsonDocument(obj.value("process").toObject()).toJson(), o.process);
+    fromJson(QJsonDocument(obj.value("linux").toObject()).toJson(), o.linux);
+
+    // mounts hooks annotations 可不存在
+    if (!obj.contains("mounts") || !obj.contains("hooks") || !obj.contains("annotations")) {
+        return;
+    }
+    fromJson(QJsonDocument(obj.value("hooks").toObject()).toJson(), o.hooks);
+    fromJson(QJsonDocument(obj.value("annotations").toObject()).toJson(), o.annotations);
+    Mount mount;
+    for (auto uid : obj.take("mounts").toArray()) {
+        fromJson(QJsonDocument(uid.toObject()).toJson(), mount);
+        o.mounts.append(mount);
+    }
 }
 
-inline void to_json(nlohmann::json &j, const Runtime &o)
+inline void toJson(QByteArray &array, const Runtime &o)
 {
-    j["ociVersion"] = o.version;
-    j["hostname"] = o.hostname;
-    j["process"] = o.process;
-    j["mounts"] = o.mounts;
-    j["linux"] = o.linux;
-    j["root"] = o.root;
-    j["hooks"] = o.hooks;
-    LLJS_TO(annotations);
-}
+    QByteArray rootArray;
+    QByteArray processArray;
+    QByteArray linuxArray;
+    QByteArray hooksArray;
+    QByteArray annotationsArray;
+    toJson(rootArray, o.root);
+    toJson(processArray, o.process);
+    toJson(linuxArray, o.linux);
+    toJson(hooksArray, o.hooks);
+    toJson(annotationsArray, o.annotations);
 
-inline static Runtime fromFile(const std::string &filepath)
-{
-    return util::json::fromFile(filepath).get<Runtime>();
-}
+    QJsonArray MountsJsonArray;
+    QByteArray MountsByteArray;
+    for (auto const &mount : o.mounts) {
+        toJson(MountsByteArray, mount);
+        MountsJsonArray.append(QJsonDocument::fromJson(MountsByteArray).array());
+    }
 
-inline static Runtime fromString(const std::string &content)
-{
-    return util::json::fromByteArray(content).get<Runtime>();
+    QJsonObject obj = {
+        {"version", o.version},
+        {"root", QJsonDocument::fromJson(rootArray).array()},
+        {"process", QJsonDocument::fromJson(processArray).array()},
+        {"hostname", o.hostname},
+        {"linux", QJsonDocument::fromJson(linuxArray).array()},
+        {"hooks", QJsonDocument::fromJson(hooksArray).array()},
+        {"annotations", QJsonDocument::fromJson(annotationsArray).array()},
+        {"mounts", MountsJsonArray},
+    };
+
+    array = QJsonDocument(obj).toJson();
 }
 
 } // namespace linglong
