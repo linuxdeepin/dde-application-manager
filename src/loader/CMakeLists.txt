@@ -12,7 +12,6 @@ set(SRCS
     ../modules/methods/registe.hpp
     ../modules/util/common.cpp
     ../modules/util/common.h
-    ../modules/util/debug
     ../modules/util/filesystem.cpp
     ../modules/util/filesystem.h
     ../modules/util/json.h

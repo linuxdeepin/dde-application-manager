@@ -1,0 +1,146 @@
+{
+	"magic": "dsg.config.meta",
+	"version": "1.0",
+	"contents": {
+		"Window_Size_Fashion": {
+			"value": 48,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Window_Size_Fashion",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Icon_Size": {
+			"value": 36,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Icon_Size",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Position": {
+			"value": "bottom",
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Position",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Wireless_Scan_Interval": {
+			"value": 5,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Wireless_Scan_Interval",
+			"name[zh_CN]": "*****",
+			"description": "wireless scan interval",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Hide_Timeout": {
+			"value": 0,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Hide_Timeout",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Hide_Mode": {
+			"value": "keep-showing",
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Hide_Mode",
+			"name[zh_CN]": "*****",
+			"description": "The value will influence when the dock is shown or hidden.",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Show_Timeout": {
+			"value": 100,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Show_Timeout",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Window_Size_Efficient": {
+			"value": 40,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Window_Size_Efficient",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Plugin_Settings": {
+			"value": "{}",
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Plugin_Settings",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Docked_Apps": {
+			"value": ["/S@dde-file-manager", "/S@uos-browser", "/S@org.deepin.browser", "/S@deepin-appstore", "/S@deepin-app-store", "/S@com.deepin.store.intranet", "/S@deepin-album", "/S@deepin-music", "/S@deepin-contacts", "/S@dde-calendar", "/S@dde-control-center"],
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Docked_Apps",
+			"name[zh_CN]": "*****",
+			"description": "The default apps which is docked when dock is started.",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Win_Icon_Preferred_Apps": {
+			"value": ["apps.com.qq.im", "deepin.com.qq.im", "apps.com.qq.im.light", "apps.com.qq.b.eim", "apps.com.qq.rtxclient"],
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Win_Icon_Preferred_Apps",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Delay_Plugins_Time": {
+			"value": 0,
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Delay_Plugins_Time",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Force_Quit_App": {
+			"value": "enabled",
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Force_Quit_App",
+			"name[zh_CN]": "*****",
+			"description": "",
+			"permissions": "readwrite",
+			"visibility": "private"
+		},
+		"Display_Mode": {
+			"value": "efficient",
+			"serial": 0,
+			"flags": ["global"],
+			"name": "Display_Mode",
+			"name[zh_CN]": "*****",
+			"description": "The dock gets different display mode, for instance, dock looks like win7 taskbar on classic mode.",
+			"permissions": "readwrite",
+			"visibility": "private"
+		}
+	}
+}

@@ -5,9 +5,15 @@
 #include "applicationmanageradaptor.h"
 #include "applicationadaptor.h"
 #include "../modules/applicationhelper/helper.h"
+#include "../modules/apps/appmanager.h"
+#include "../modules/launcher/launchermanager.h"
+#include "../modules/dock/dockmanager.h"
 
 #include <QDir>
+#include <DLog>
 #include <pwd.h>
+
+DCORE_USE_NAMESPACE
 
 QFileInfoList scan(const QString &path)
 {
@@ -56,11 +62,18 @@ QList<QSharedPointer<Application>> scanFiles()
     return applications;
 }
 
-
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
+    app.setOrganizationName("deepin");
+    app.setApplicationName("dde-application-manager");
 
+    DLogManager::registerConsoleAppender();
+    DLogManager::registerFileAppender();
+
+    new AppManager(ApplicationManager::Instance());
+    new LauncherManager(ApplicationManager::Instance());
+    new DockManager(ApplicationManager::Instance());
     new ApplicationManagerAdaptor(ApplicationManager::Instance());
 
     QDBusConnection::sessionBus().registerService("org.desktopspec.Application");
