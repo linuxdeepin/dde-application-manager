@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -49,14 +49,14 @@ private:
     std::string getFile(const std::string &name);
     std::vector<std::string> readFile(std::string fileName);
 
-    int pid;
-    std::vector<std::string> cmdLine;
-    std::string cwd;
-    std::string exe;
-    std::vector<std::string> environ;
-    Status status;
-    std::vector<int> uids;
-    int ppid;
+    int m_pid;
+    std::vector<std::string> m_cmdLine;
+    std::string m_cwd;
+    std::string m_exe;
+    std::vector<std::string> m_environ;
+    Status m_status;
+    std::vector<int> m_uids;
+    int m_ppid;
 };
 
 #endif // PROCESS_H

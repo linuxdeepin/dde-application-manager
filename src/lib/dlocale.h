@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -59,8 +59,8 @@ private:
     Components explodeLocale(std::string locale);
     std::string guessCategoryValue(std::string categoryName);
     std::string unaliasLang(std::string);
-    std::map<std::string, std::string> aliases;
-    LanguageNameCache languageNames;
+    std::map<std::string, std::string> m_aliases;
+    LanguageNameCache m_languageNames;
 };
 
 #endif

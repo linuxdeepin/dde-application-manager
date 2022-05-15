@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -31,80 +31,80 @@
 #define FILECONTENLEN 2048
 
 Process::Process()
- : pid(0)
- , ppid(0)
+ : m_pid(0)
+ , m_ppid(0)
 {
 
 }
 
 Process::Process(int _pid)
- : pid(_pid)
- , ppid(0)
+ : m_pid(_pid)
+ , m_ppid(0)
 {
 
 }
 
 bool Process::isExist()
 {
-    std::string procDir = "/proc/" + std::to_string(pid);
+    std::string procDir = "/proc/" + std::to_string(m_pid);
     return DFile::isExisted(procDir);
 }
 
 std::vector<std::string> Process::getCmdLine()
 {
-    if (cmdLine.size() == 0) {
+    if (m_cmdLine.size() == 0) {
         std::string cmdlineFile = getFile("cmdline");
-        cmdLine = readFile(cmdlineFile);
+        m_cmdLine = readFile(cmdlineFile);
     }
 
-    return cmdLine;
+    return m_cmdLine;
 }
 
 std::string Process::getCwd()
 {
-    if (cwd.empty()) {
+    if (m_cwd.empty()) {
         std::string cwdFile = getFile("cwd");
         char path[MAX_FILEPATH_LEN] = {};
         ssize_t len = readlink(cwdFile.c_str(), path, MAX_FILEPATH_LEN);
         if (len > 0 && len < MAX_FILEPATH_LEN) {
-            cwd = std::string(path) + "/";
+            m_cwd = std::string(path) + "/";
         }
     }
 
-    return cwd;
+    return m_cwd;
 }
 
 std::string Process::getExe()
 {
-    if (exe.empty()) {
+    if (m_exe.empty()) {
         std::string cmdLineFile = getFile("exe");
         char path[MAX_FILEPATH_LEN] = {};
         ssize_t len = readlink(cmdLineFile.c_str(), path, MAX_FILEPATH_LEN);
         if (len > 0 && len < MAX_FILEPATH_LEN) {
-            exe = std::string(path);
+            m_exe = std::string(path);
         }
     }
 
-    return exe;
+    return m_exe;
 }
 
 std::vector<std::string> Process::getEnviron()
 {
-    if (environ.size() == 0) {
+    if (m_environ.size() == 0) {
         std::string envFile = getFile("environ");
-        environ = readFile(envFile);
+        m_environ = readFile(envFile);
     }
 
-    return environ;
+    return m_environ;
 }
 
 std::string Process::getEnv(const std::string &key)
 {
-    if (environ.size() == 0)
-        environ = getEnviron();
+    if (m_environ.size() == 0)
+        m_environ = getEnviron();
 
     std::string keyPrefix = key + "=";
-    for (auto & env : environ) {
+    for (auto & env : m_environ) {
         if (DString::startWith(env, keyPrefix)) {
             ulong len = keyPrefix.size();
             return env.substr(len, env.size() - len);
@@ -116,59 +116,59 @@ std::string Process::getEnv(const std::string &key)
 
 Status Process::getStatus()
 {
-    if (status.size() == 0) {
+    if (m_status.size() == 0) {
         std::string statusFile = getFile("status");
         FILE *fp = fopen(statusFile.c_str(), "r");
         if (!fp)
-            return status;
+            return m_status;
 
         char line[MAX_LINE_LEN] = {0};
         while (fgets(line, MAX_LINE_LEN, fp)) {
             std::string info(line);
             std::vector<std::string> parts = DString::splitStr(info, ':');
             if (parts.size() == 2)
-            status[parts[0]] = parts[1];
+            m_status[parts[0]] = parts[1];
         }
         fclose(fp);
     }
 
-    return status;
+    return m_status;
 }
 
 std::vector<int> Process::getUids()
 {
-    if (uids.size() == 0) {
-        if (status.find("Uid") != status.end()) {
-            std::string uidGroup = status["Uid"];
+    if (m_uids.size() == 0) {
+        if (m_status.find("Uid") != m_status.end()) {
+            std::string uidGroup = m_status["Uid"];
             std::vector<std::string> parts = DString::splitStr(uidGroup, '\t');
-            uids.reserve(parts.size());
-            std::transform(parts.begin(), parts.end(), uids.begin(),
+            m_uids.reserve(parts.size());
+            std::transform(parts.begin(), parts.end(), m_uids.begin(),
                            [](std::string idStr) -> int {return std::stoi(idStr);});
         }
     }
 
-    return uids;
+    return m_uids;
 }
 
 int Process::getPid()
 {
-    return pid;
+    return m_pid;
 }
 
 int Process::getPpid()
 {
-    if (ppid == 0) {
-        if (status.find("PPid") != status.end()) {
-            ppid = std::stoi(status["PPid"]);
+    if (m_ppid == 0) {
+        if (m_status.find("PPid") != m_status.end()) {
+            m_ppid = std::stoi(m_status["PPid"]);
         }
     }
 
-    return ppid;
+    return m_ppid;
 }
 
 std::string Process::getFile(const std::string &name)
 {
-    return "/proc/" + std::to_string(pid) + "/" + name;
+    return "/proc/" + std::to_string(m_pid) + "/" + name;
 }
 
 // /proc is not real file system

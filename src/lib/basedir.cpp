@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -39,11 +39,11 @@ std::string BaseDir::homeDir()
     return std::string(home) + "/";
 }
 
-std::string BaseDir::uerDataDir()
+std::string BaseDir::userDataDir()
 {
     // default $HOME/.local/share
     std::string home = homeDir();
-    std::string defaultDir = home.size() > 0 ? home + ".local/share/" : "";
+    std::string defaultDir = (home.size() > 0) ? home + ".local/share/" : "";
     const char *xdgDataHomePtr = getenv("XDG_DATA_HOME");
     if (!xdgDataHomePtr)
         return defaultDir;
@@ -106,7 +106,7 @@ std::vector<std::string> BaseDir::sysConfigDirs()
 std::string BaseDir::userCacheDir()
 {
     std::string home = homeDir();
-    std::string defaultDir = home.size() > 0 ? home + ".cache/" : "";
+    std::string defaultDir = (home.size() > 0) ? home + ".cache/" : "";
     const char *xdgCacheHomePtr = getenv("XDG_CACHE_HOME");
     if (!xdgCacheHomePtr)
         return  defaultDir;
@@ -120,8 +120,8 @@ std::string BaseDir::userCacheDir()
 
 std::string BaseDir::userAppDir()
 {
-    std::string dataDir = uerDataDir();
-    return dataDir.size() > 0 ?  dataDir + "appliations/" : "";
+    std::string dataDir = userDataDir();
+    return (dataDir.size() > 0) ?  dataDir + "appliations/" : "";
 }
 
 std::vector<std::string> BaseDir::sysAppDirs()
@@ -148,6 +148,11 @@ std::vector<std::string> BaseDir::autoStartDirs()
                    [](std::string dir) -> std::string {return dir + "autostart/";});
 
     return autoStartDirs;
+}
+
+std::string BaseDir::userAutoStartDir()
+{
+    return userConfigDir() + "autostart/";
 }
 
 void BaseDir::filterNotAbs(std::vector<std::string> &dirs)

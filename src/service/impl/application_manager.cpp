@@ -2,6 +2,11 @@
 
 #include <unistd.h>
 
+#include <QDBusMessage>
+#include <QDBusConnectionInterface>
+#include <QDBusConnection>
+#include <QDebug>
+
 #include <iostream>
 #include <map>
 #include <mutex>
@@ -105,7 +110,13 @@ private:
     }
 };
 
-ApplicationManager::ApplicationManager(QObject *parent) : QObject(parent), dd_ptr(new ApplicationManagerPrivate(this)) {}
+ApplicationManager::ApplicationManager(QObject *parent)
+ : QObject(parent)
+ , dd_ptr(new ApplicationManagerPrivate(this))
+ , startManager(new StartManager(this))
+{
+    connect(startManager, &StartManager::autostartChanged, this, &ApplicationManager::AutostartChanged);
+}
 
 ApplicationManager::~ApplicationManager() {}
 
@@ -116,14 +127,12 @@ void ApplicationManager::addApplication(const QList<QSharedPointer<Application>>
     d->applications = list;
 }
 
-QDBusObjectPath ApplicationManager::GetId(int pid)
-{
-    return {};
-}
-
 QDBusObjectPath ApplicationManager::GetInformation(const QString &id)
 {
     Q_D(ApplicationManager);
+
+    if (!checkDMsgUid())
+        return {};
 
     for (const QSharedPointer<Application> &app : d->applications) {
         if (app->id() == id) {
@@ -136,6 +145,8 @@ QDBusObjectPath ApplicationManager::GetInformation(const QString &id)
 QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
 {
     Q_D(const ApplicationManager);
+    if (!checkDMsgUid())
+        return {};
 
     for (const auto &app : d->applications) {
         if (app->id() == id) {
@@ -149,6 +160,8 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
 QDBusObjectPath ApplicationManager::Run(const QString &id)
 {
     Q_D(ApplicationManager);
+    if (!checkDMsgUid())
+        return {};
 
     // 创建一个实例
     for (const QSharedPointer<Application> &app : d->applications) {
@@ -169,6 +182,102 @@ QDBusObjectPath ApplicationManager::Run(const QString &id)
         }
     }
     return {};
+}
+
+bool ApplicationManager::AddAutostart(QString fileName)
+{
+    if (!checkDMsgUid())
+        return false;
+
+    return startManager->addAutostart(fileName);
+}
+
+bool ApplicationManager::RemoveAutostart(QString fileName)
+{
+    if (!checkDMsgUid())
+        return false;
+
+    return startManager->removeAutostart(fileName);
+}
+
+QStringList ApplicationManager::AutostartList()
+{
+    if (!checkDMsgUid())
+        return {};
+
+    return startManager->autostartList();
+}
+
+QString ApplicationManager::DumpMemRecord()
+{
+    if (!checkDMsgUid())
+        return {};
+
+    return startManager->dumpMemRecord();
+}
+
+bool ApplicationManager::IsAutostart(QString fileName)
+{
+    if (!checkDMsgUid())
+        return false;
+
+    return startManager->isAutostart(fileName);
+}
+
+bool ApplicationManager::IsMemSufficient()
+{
+    if (!checkDMsgUid())
+        return true;
+
+    return startManager->isMemSufficient();
+}
+
+void ApplicationManager::LaunchApp(QString desktopFile, uint32_t timestamp, QStringList files)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->launchApp(desktopFile, timestamp, files);
+}
+
+void ApplicationManager::LaunchAppAction(QString desktopFile, QString action, uint32_t timestamp)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->launchAppAction(desktopFile, action, timestamp);
+}
+
+void ApplicationManager::LaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->launchAppWithOptions(desktopFile, timestamp, files, options);
+}
+
+void ApplicationManager::RunCommand(QString exe, QStringList args)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->runCommand(exe, args);
+}
+
+void ApplicationManager::RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->runCommandWithOptions(exe, args, options);
+}
+
+void ApplicationManager::TryAgain(bool launch)
+{
+    if (!checkDMsgUid())
+        return;
+
+    startManager->tryAgain(launch);
 }
 
 QList<QDBusObjectPath> ApplicationManager::instances() const
@@ -194,6 +303,12 @@ QList<QDBusObjectPath> ApplicationManager::list() const
     }
 
     return result;
+}
+
+bool ApplicationManager::checkDMsgUid()
+{
+    QDBusReply<uint> reply = connection().interface()->serviceUid(message().service());
+    return reply.isValid() && (reply.value() == getuid());
 }
 
 #include "application_manager.moc"

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -38,7 +38,7 @@ const char charAt = '@';
 
 Locale::Locale()
 {
-    pthread_mutex_init(&languageNames.mutex, nullptr);
+    pthread_mutex_init(&m_languageNames.mutex, nullptr);
 
     // init aliases
     FILE *fp = fopen(aliasFile, "r");
@@ -74,15 +74,18 @@ Locale::Locale()
             parts = DString::splitStr(line, '\t');
 
         if (parts.size() == 2) {
-            aliases[parts[0]] = parts[1];
+            m_aliases[parts[0]] = parts[1];
         }
     }
     fclose(fp);
     }
 }
 
-// wayland environment is useful?
-// ExplodeLocale Break an X/Open style locale specification into components
+/**
+ * @brief Locale::explodeLocale 拆分locale
+ * @param locale
+ * @return
+ */
 Locale::Components Locale::explodeLocale(std::string locale)
 {
     Components cmp;
@@ -146,19 +149,16 @@ std::string Locale::guessCategoryValue(std::string categoryName)
 
 std::string Locale::unaliasLang(std::string lang)
 {
-    if (aliases.find(lang) != aliases.end())
-        return aliases[lang];
+    if (m_aliases.find(lang) != m_aliases.end())
+        return m_aliases[lang];
     else
         return lang;
 }
 
-// wayland environment is useful?
-/*
- * Compute all interesting variants for a given locale name -
- * by stripping off different components of the value.
- *
- * For simplicity, we assume that the locale is in
- * X/Open format: language[_territory][.codeset][@modifier]
+/**
+ * @brief Locale::getLocaleVariants
+ * @param locale
+ * @return
  */
 std::vector<std::string> Locale::getLocaleVariants(const std::string &locale)
 {
@@ -192,19 +192,19 @@ std::vector<std::string> Locale::getLanguageNames()
         return names;
     }
 
-    pthread_mutex_lock(&languageNames.mutex);
-    if (languageNames.language != value) {
-        languageNames.language = value;
-        languageNames.names.clear();
+    pthread_mutex_lock(&m_languageNames.mutex);
+    if (m_languageNames.language != value) {
+        m_languageNames.language = value;
+        m_languageNames.names.clear();
         std::vector<std::string> langs = DString::splitStr(value, ':');
         for (const auto & lang : langs) {
             std::vector<std::string> localeVariant = getLocaleVariants(unaliasLang(lang));
             for (const auto & var : localeVariant)
-                languageNames.names.push_back(var);
+                m_languageNames.names.push_back(var);
         }
-        languageNames.names.push_back("C");
+        m_languageNames.names.push_back("C");
     }
-    pthread_mutex_unlock(&languageNames.mutex);
+    pthread_mutex_unlock(&m_languageNames.mutex);
 
-    return languageNames.names;
+    return m_languageNames.names;
 }

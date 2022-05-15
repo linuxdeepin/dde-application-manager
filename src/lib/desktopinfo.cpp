@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -34,52 +34,51 @@
 std::vector<std::string> DesktopInfo::currentDesktops;
 
 DesktopInfo::DesktopInfo(const std::string &_fileName)
- : kf(KeyFile())
- , fileName(_fileName)
- , isValid(true)
+ : m_isValid(true)
+ , m_keyFile(KeyFile())
 {
-    if (!DString::endWith(fileName, ".desktop"))
-        fileName += ".desktop";
+    std::string fileNameWithSuffix(_fileName);
+    if (!DString::endWith(_fileName, ".desktop"))
+        fileNameWithSuffix += ".desktop";
 
-    if (!DFile::isAbs(fileName)) {
+    m_fileName = fileNameWithSuffix;
+
+    if (!DFile::isAbs(m_fileName)) {
         // fileName是文件名，增加目录
         bool isExisted = false;
         for (const auto &dir : BaseDir::appDirs()) {
-            fileName = dir + fileName;
-            if (DFile::isExisted(fileName)) {
+            m_fileName = dir + fileNameWithSuffix;
+            if (DFile::isExisted(m_fileName)) {
                 isExisted = true;
                 break;
             }
         }
 
         if (!isExisted) {
-            isValid = false;
+            m_isValid = false;
             return;
         }
     }
 
-    kf.loadFile(fileName);
+    m_keyFile.loadFile(m_fileName);
 
     // check DesktopInfo valid
-    if (fileName.find(".desktop") == std::string::npos)
-        isValid = false;
-
-    std::vector<std::string> mainKeys = kf.getMainKeys();
+    std::vector<std::string> mainKeys = m_keyFile.getMainKeys();
     if (mainKeys.size() == 0)
-        isValid = false;
+        m_isValid = false;
 
     bool found = std::any_of(mainKeys.begin(), mainKeys.end(),
                              [](const auto &key) {return key == MainSection;});
 
     if (!found)
-        isValid = false;
+        m_isValid = false;
 
-    if (kf.getStr(MainSection, KeyType) != TypeApplication)
-        isValid = false;
+    if (m_keyFile.getStr(MainSection, KeyType) != TypeApplication)
+        m_isValid = false;
 
-    name = kf.getLocaleStr(MainSection, KeyName, "");
-    icon = kf.getStr(MainSection, KeyIcon);
-    id = getId();
+    m_name = m_keyFile.getLocaleStr(MainSection, KeyName, "");
+    m_icon = m_keyFile.getStr(MainSection, KeyIcon);
+    m_id = getId();
 }
 
 DesktopInfo::~DesktopInfo()
@@ -89,12 +88,12 @@ DesktopInfo::~DesktopInfo()
 
 std::string DesktopInfo::getFileName()
 {
-    return fileName;
+    return m_fileName;
 }
 
 bool DesktopInfo::isValidDesktop()
 {
-    return isValid;
+    return m_isValid;
 }
 
 bool DesktopInfo::shouldShow()
@@ -108,12 +107,12 @@ bool DesktopInfo::shouldShow()
 
 bool DesktopInfo::getNoDisplay()
 {
-    return kf.getBool(MainSection, KeyNoDisplay);
+    return m_keyFile.getBool(MainSection, KeyNoDisplay);
 }
 
 bool DesktopInfo::getIsHidden()
 {
-    return kf.getBool(MainSection, KeyHidden);
+    return m_keyFile.getBool(MainSection, KeyHidden);
 }
 
 bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
@@ -127,8 +126,8 @@ bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
         desktopEnvs.assign(currentDesktops.begin(), currentDesktops.end());
     }
 
-    std::vector<std::string> onlyShowIn = kf.getStrList(MainSection, KeyOnlyShowIn);
-    std::vector<std::string> notShowIn = kf.getStrList(MainSection, KeyNotShowIn);
+    std::vector<std::string> onlyShowIn = m_keyFile.getStrList(MainSection, KeyOnlyShowIn);
+    std::vector<std::string> notShowIn = m_keyFile.getStrList(MainSection, KeyNotShowIn);
 
     for (const auto &desktop : desktopEnvs) {
         bool ret = std::any_of(onlyShowIn.begin(), onlyShowIn.end(),
@@ -147,7 +146,7 @@ bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
 
 std::string DesktopInfo::getExecutable()
 {
-    return kf.getStr(MainSection, KeyExec);
+    return m_keyFile.getStr(MainSection, KeyExec);
 }
 
 bool DesktopInfo::isExecutableOk()
@@ -182,25 +181,31 @@ bool DesktopInfo::isExecutableOk()
 
 bool DesktopInfo::isInstalled()
 {
-    const char *name = fileName.c_str();
+    const char *name = m_fileName.c_str();
     const char *found = strstr(name, "/applications/");
     if (!found)
         return false;
 
     auto appDirs = BaseDir::appDirs();
     return std::any_of(appDirs.begin(), appDirs.end(),
-                [&name, &found] (std::string dir) -> bool {return strneq(dir.c_str(), name, size_t(found - name));});
+                       [&name, &found] (std::string dir) -> bool {return strneq(dir.c_str(), name, size_t(found - name));});
+}
+
+// [Desktop Action new-window] or [Full_Screenshot Shortcut Group]
+bool DesktopInfo::isDesktopAction(std::string name)
+{
+    return DString::startWith(name.c_str(), "Desktop Action") || DString::endWith(name.c_str(), "Shortcut Group");
 }
 
 std::vector<DesktopAction> DesktopInfo::getActions()
 {
     std::vector<DesktopAction> actions;
-    for (const auto &mainKey : kf.getMainKeys()) {
+    for (const auto &mainKey : m_keyFile.getMainKeys()) {
         if (DString::startWith(mainKey, "Desktop Action")
                 || DString::endWith(mainKey, "Shortcut Group")) {
             DesktopAction action;
-            action.name = kf.getLocaleStr(mainKey, KeyName, "");
-            action.exec = kf.getStr(mainKey, KeyExec);
+            action.name = m_keyFile.getLocaleStr(mainKey, KeyName, "");
+            action.exec = m_keyFile.getStr(mainKey, KeyExec);
             actions.push_back(action);
         }
     }
@@ -225,10 +230,15 @@ DesktopInfo DesktopInfo::getDesktopInfoById(std::string appId)
     return DesktopInfo("");
 }
 
+bool DesktopInfo::getTerminal()
+{
+    return m_keyFile.getBool(MainSection, KeyTerminal);
+}
+
 // TryExec is Path to an executable file on disk used to determine if the program is actually installed
 std::string DesktopInfo::getTryExec()
 {
-    return kf.getStr(MainSection, KeyTryExec);
+    return m_keyFile.getStr(MainSection, KeyTryExec);
 }
 
 // 按$PATH路径查找执行文件
@@ -239,22 +249,26 @@ bool DesktopInfo::findExecutable(std::string &exec)
     return std::any_of(paths.begin(), paths.end(), [&exec](std::string path) {return DFile::isExisted(path + "/" +exec);});
 }
 
-// filename must has suffix desktopExt
-// example:
-// /usr/share/applications/a.desktop -> a
-// /usr/share/applications/kde4/a.desktop -> kde4/a
-// /xxxx/dir/a.desktop -> /xxxx/dir/a
+/**
+ * @brief DesktopInfo::getId
+ * filename must has suffix desktopExt
+ * example:
+ * /usr/share/applications/a.desktop -> a
+ * /usr/share/applications/kde4/a.desktop -> kde4/a
+ * /xxxx/dir/a.desktop -> /xxxx/dir/a
+ * @return
+ */
 std::string DesktopInfo::getId()
 {
-    if (!id.empty())
-        return id;
+    if (!m_id.empty())
+        return m_id;
 
     std::string idStr;
-    auto const suffixPos = fileName.find(".desktop");
+    auto const suffixPos = m_fileName.find(".desktop");
     if (suffixPos == std::string::npos)
         return "";
 
-    idStr = fileName.substr(0, fileName.size() - 8); // trim suffix
+    idStr = m_fileName.substr(0, m_fileName.size() - 8); // trim suffix
     size_t dirPos = idStr.find("/applications/");
     if (dirPos == std::string::npos)
         return "";
@@ -265,45 +279,55 @@ std::string DesktopInfo::getId()
                                  [&baseDir](const auto &dir) {return dir == baseDir;});
 
     if (installed) {
-        id = idStr.substr(baseDir.size(), idStr.size());
+        m_id = idStr.substr(baseDir.size(), idStr.size());
     }
 
-    return id;
+    return m_id;
 }
 
 std::string DesktopInfo::getGenericName()
 {
-    return kf.getLocaleStr(MainSection, KeyGenericName, "");
+    return m_keyFile.getLocaleStr(MainSection, KeyGenericName, "");
 }
 
 std::string DesktopInfo::getName()
 {
-    return name;
+    return m_name;
 }
 
 std::string DesktopInfo::getIcon()
 {
-    return icon;
+    return m_icon;
 }
 
 std::string DesktopInfo::getCommandLine()
 {
-    return kf.getStr(MainSection, KeyExec);
+    return m_keyFile.getStr(MainSection, KeyExec);
 }
 
 std::vector<std::string> DesktopInfo::getKeywords()
 {
-    return kf.getLocaleStrList(MainSection, KeyKeywords, "");
+    return m_keyFile.getLocaleStrList(MainSection, KeyKeywords, "");
 }
 
 std::vector<std::string> DesktopInfo::getCategories()
 {
-    return kf.getStrList(MainSection, KeyCategories);
+    return m_keyFile.getStrList(MainSection, KeyCategories);
+}
+
+void DesktopInfo::setDesktopOverrideExec(const std::string &execStr)
+{
+    m_overRideExec = execStr;
+}
+
+KeyFile *DesktopInfo::getKeyFile()
+{
+    return &m_keyFile;
 }
 
 // class AppsDir
 AppsDir::AppsDir(const std::string &dirPath)
- : path(dirPath)
+ : m_path(dirPath)
 {
 
 }
@@ -315,7 +339,7 @@ AppsDir::~AppsDir()
 
 std::string AppsDir::getPath()
 {
-    return path;
+    return m_path;
 }
 
 
@@ -325,11 +349,10 @@ std::map<std::string, bool> AppsDir::getAppNames()
     DIR* dp;
     struct dirent* ep;
 
-    dp = opendir(path.c_str());
-    if (dp == nullptr)
-    {
-        std::cout << "Couldn't open directory " << path << std::endl;
-        return appNames;
+    dp = opendir(m_path.c_str());
+    if (!dp) {
+        std::cout << "Couldn't open directory " << m_path << std::endl;
+        return m_appNames;
     }
 
     while ((ep = readdir(dp))) {
@@ -339,11 +362,11 @@ std::map<std::string, bool> AppsDir::getAppNames()
         if (!DString::endWith(ep->d_name, ".desktop"))
             continue;
 
-        appNames.insert({ep->d_name, true});
+        m_appNames.insert({ep->d_name, true});
     }
     closedir(dp);
 
-    return appNames;
+    return m_appNames;
 }
 
 // 获取所有应用信息

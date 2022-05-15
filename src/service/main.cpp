@@ -8,6 +8,7 @@
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
 #include "../modules/dock/dockmanager.h"
+#include "../modules/startmanager/startmanager.h"
 
 #include <QDir>
 #include <DLog>
@@ -74,6 +75,7 @@ int main(int argc, char *argv[])
     new AppManager(ApplicationManager::Instance());
     new LauncherManager(ApplicationManager::Instance());
     new DockManager(ApplicationManager::Instance());
+    new StartManager(ApplicationManager::Instance());
     new ApplicationManagerAdaptor(ApplicationManager::Instance());
 
     QDBusConnection::sessionBus().registerService("org.desktopspec.Application");

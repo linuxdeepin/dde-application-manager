@@ -7,6 +7,7 @@ find_package(DtkCore REQUIRED)
 
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb-icccm xcb-ewmh xcb)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
                      ../../DBus/org.desktopspec.ApplicationManager.xml
@@ -63,6 +64,12 @@ set(SRCS
     ../lib/basedir.cpp
     ../lib/xcbutils.h
     ../lib/xcbutils.cpp
+    ../lib/applaunchcontext.h
+    ../lib/applaunchcontext.cpp
+    ../lib/meminfo.h
+    ../lib/meminfo.cpp
+    ../lib/gsetting.h
+    ../lib/gsetting.cpp
     ../utils/settings.h
     ../utils/settings.cpp
     ../utils/synmodulebase.h
@@ -122,6 +129,13 @@ set(SRCS
     ../modules/dock/dbusadaptordock.cpp
     ../modules/dock/dbusadaptorentry.h
     ../modules/dock/dbusadaptorentry.cpp
+    ../modules/startmanager/common.h
+    ../modules/startmanager/startmanager.h
+    ../modules/startmanager/startmanager.cpp
+    ../modules/startmanager/startmanagersettings.h
+    ../modules/startmanager/startmanagersettings.cpp
+    ../modules/startmanager/startmanagerdbushandler.h
+    ../modules/startmanager/startmanagerdbushandler.cpp
     ../frameworkdbus/types/launcheriteminfo.h
     ../frameworkdbus/types/launcheriteminfo.cpp
     ../frameworkdbus/types/launcheriteminfolist.h
@@ -168,10 +182,12 @@ target_link_libraries(deepin-application-manager
     pthread
     PkgConfig::XCB
     PkgConfig::X11
+    PkgConfig::GIO
 )
 
 target_include_directories(deepin-application-manager PUBLIC
     PkgConfig::XCB
+    PkgConfig::GIO
     ../lib
     ../utils
     ../frameworkdbus

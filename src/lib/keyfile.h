@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -37,10 +37,12 @@ public:
     ~KeyFile();
 
     bool getBool(const std::string &section, const std::string &key, bool defaultValue = false);
+    void setBool(const std::string &section, const std::string &key, const std::string &defaultValue = "false");
     std::vector<bool> getBoolList(const std::string &section, const std::string &key, bool defaultValue = false);
     int getInt(const std::string &section, const std::string &key, int defaultValue = 0);
     std::vector<int> getIntList(const std::string &section, const std::string &key, int defaultValue = 0);
     int64_t getInt64(const std::string &section, const std::string &key, int64_t defaultValue = 0);
+    uint64_t getUint64(const std::string &section, const std::string &key, int64_t defaultValue = 0);
     float getFloat(const std::string &section, const std::string &key, float defaultValue = 0);
     std::string getStr(const std::string &section, const std::string &key, std::string defaultValue = "");
     bool containKey(const std::string &section, const std::string &key);
@@ -57,11 +59,11 @@ public:
     void print();
 
 private:
-    MainKeyMap mainKeyMap; // section -> key : value
-    std::string filePath;
-    FILE *fp;
-    bool modified;
-    char listSeparator;
+    MainKeyMap m_mainKeyMap; // section -> key : value
+    std::string m_filePath;
+    FILE *m_fp;
+    bool m_modified;
+    char m_listSeparator;
 };
 
 #endif // KEYFILE_H

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -113,7 +113,8 @@ QVector<QString> LauncherSettings::getHiddenApps()
     return ret;
 }
 
-LauncherSettings::LauncherSettings(QObject *parent) : QObject(parent)
+LauncherSettings::LauncherSettings(QObject *parent)
+ : QObject(parent)
 {
     // 绑定属性
     connect(dconfig, &DConfig::valueChanged, this, [&] (const QString &key) {

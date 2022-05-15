@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -46,7 +46,7 @@ void AppInfo::init(DesktopInfo &info)
         return;
     }
 
-    std::string xDeepinVendor= info.kf.getStr(MainSection, "X-Deepin-Vendor");
+    std::string xDeepinVendor= info.getKeyFile()->getStr(MainSection, "X-Deepin-Vendor");
     if (xDeepinVendor == "deepin") {
         name = info.getGenericName().c_str();
         if (name.isEmpty())

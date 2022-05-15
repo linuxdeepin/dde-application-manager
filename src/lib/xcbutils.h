@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -42,6 +42,7 @@ typedef xcb_map_notify_event_t MapEvent;
 typedef xcb_configure_notify_event_t ConfigureEvent;
 typedef xcb_property_notify_event_t PropertyEvent;
 typedef xcb_event_mask_t EventMask;
+
 typedef struct {
     std::string instanceName;
     std::string className;
@@ -77,8 +78,8 @@ public:
     void store(std::string name, XCBAtom value);
 
 public:
-    std::map<std::string, XCBAtom> atoms;
-    std::map<XCBAtom, std::string> atomNames;
+    std::map<std::string, XCBAtom> m_atoms;
+    std::map<XCBAtom, std::string> m_atomNames;
 };
 
 // XCB接口封装， 参考getCurrentWMDesktop
@@ -94,9 +95,6 @@ public:
         static XCBUtils instance;
         return &instance;
     }
-
-    // test
-    xcb_connection_t *getConnect() {return connect;}
 
     /************************* xcb method ***************************/
     // 分配XID
@@ -262,11 +260,11 @@ public:
 
 
 private:
-    xcb_connection_t *connect;
-    int screenNum;
+    xcb_connection_t *m_connect;
+    int m_screenNum;
 
-    xcb_ewmh_connection_t ewmh;
-    AtomCache atomCache;  // 和ewmh中Atom类型存在重复部分，扩张了自定义类型
+    xcb_ewmh_connection_t m_ewmh;
+    AtomCache m_atomCache;  // 和ewmh中Atom类型存在重复部分，扩张了自定义类型
 };
 
 #endif // XCBUTILS_H

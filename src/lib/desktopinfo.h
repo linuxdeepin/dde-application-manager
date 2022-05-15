@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -57,7 +57,14 @@ const std::string TypeDirectory   = "Directory";
 
 const std::string envDesktopEnv         = "XDG_CURRENT_DESKTOP";
 
-typedef struct DesktopAction {
+typedef struct DesktopAction
+{
+    DesktopAction()
+        : section("")
+        , name("")
+        , exec("")
+    {
+    }
     std::string section;
     std::string name;
     std::string exec;
@@ -78,8 +85,10 @@ public:
     bool getShowIn(std::vector<std::string> desktopEnvs);
     bool isExecutableOk();
     bool isInstalled();
+    static bool isDesktopAction(std::string name);
     std::vector<DesktopAction> getActions();
     static DesktopInfo getDesktopInfoById(std::string appId);
+    bool getTerminal();
 
     std::string getId();
     std::string getGenericName();
@@ -88,19 +97,23 @@ public:
     std::string getCommandLine();
     std::vector<std::string> getKeywords();
     std::vector<std::string> getCategories();
+    void setDesktopOverrideExec(const std::string &execStr);
 
-    KeyFile kf;
+    KeyFile *getKeyFile();
 
 private:
     std::string getTryExec();
     bool findExecutable(std::string &exec);
-    std::string fileName;
-    std::string id;
-    std::string name;
-    std::string icon;
-    std::string overRideExec;
-    bool isValid;
+
     static std::vector<std::string> currentDesktops;
+
+    std::string m_fileName;
+    std::string m_id;
+    std::string m_name;
+    std::string m_icon;
+    std::string m_overRideExec;
+    bool m_isValid;
+    KeyFile m_keyFile;
 };
 
 // 应用目录类
@@ -114,8 +127,8 @@ public:
     static std::vector<DesktopInfo> getAllDesktopInfos();
 
 private:
-    std::string path;
-    std::map<std::string, bool> appNames;
+    std::string m_path;
+    std::map<std::string, bool> m_appNames;
 };
 
 #endif // DESKTOPINFO_H

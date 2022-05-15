@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -32,7 +32,7 @@ public:
     BaseDir();
 
     static std::string homeDir();
-    static std::string uerDataDir();
+    static std::string userDataDir();
     static std::vector<std::string> sysDataDirs();
     static std::string userConfigDir();
     static std::vector<std::string> sysConfigDirs();
@@ -41,6 +41,7 @@ public:
     static std::vector<std::string> sysAppDirs();
     static std::vector<std::string> appDirs();
     static std::vector<std::string> autoStartDirs();
+    static std::string userAutoStartDir();
 
 private:
     static void filterNotAbs(std::vector<std::string> &dirs);

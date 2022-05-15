@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -262,7 +262,7 @@ void X11Manager::handleRootWindowPropertyNotifyEvent(XCBAtom atom)
     else if (atom == XCB->getAtom("_NET_ACTIVE_WINDOW"))
         handleActiveWindowChangedX();
     else if (atom == XCB->getAtom("_NET_SHOWING_DESKTOP"))
-        Q_EMIT needUpdateHideState(false);
+        Q_EMIT requestUpdateHideState(false);
 }
 
 // destory event
@@ -302,7 +302,7 @@ void X11Manager::handleConfigureNotifyEvent(XWindow xid, int x, int y, int width
     if (wmClass.className.c_str() == frontendWindowWmClass)
         return;     // ignore frontend window ConfigureNotify event
 
-    Q_EMIT needUpdateHideState(winInfo->isGeometryChanged(x, y, width, height));
+    Q_EMIT requestUpdateHideState(winInfo->isGeometryChanged(x, y, width, height));
 }
 
 // property changed event

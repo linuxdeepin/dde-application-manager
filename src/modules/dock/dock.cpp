@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 ~ 2023 Deepin Technology Co., Ltd.
+ * Copyright (C) 2021 ~ 2022 Deepin Technology Co., Ltd.
  *
  * Author:     weizhixiang <weizhixiang@uniontech.com>
  *
@@ -81,7 +81,7 @@ Dock::Dock(QObject *parent)
         });
         thread.detach();
         x11Manager->listenRootWindowXEvent();
-        connect(x11Manager, SIGNAL(X11Manager::needUpdateHideState), this, SLOT(updateHideState));
+        connect(x11Manager, SIGNAL(X11Manager::requestUpdateHideState), this, SLOT(updateHideState));
     }
     Q_EMIT serviceRestarted();
 }
