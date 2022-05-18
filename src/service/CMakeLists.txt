@@ -10,17 +10,17 @@ pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../DBus/org.desktopspec.ApplicationManager.xml
+                     ../../dbus/org.desktopspec.ApplicationManager.xml
                      impl/application_manager.h
                      ApplicationManager)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../DBus/org.desktopspec.Application.xml
+                     ../../dbus/org.desktopspec.Application.xml
                      impl/application.h
                      Application)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../DBus/org.desktopspec.ApplicationInstance.xml
+                     ../../dbus/org.desktopspec.ApplicationInstance.xml
                      impl/application_instance.h
                      ApplicationInstance)
 

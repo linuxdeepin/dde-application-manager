@@ -1,8 +1,6 @@
 #ifndef A2862DC7_5DA3_4129_9796_671D88015BED
 #define A2862DC7_5DA3_4129_9796_671D88015BED
 
-#include "../../modules/startmanager/startmanager.h"
-
 #include <QObject>
 #include <QDBusObjectPath>
 #include <QList>
@@ -20,17 +18,10 @@ class ApplicationManager : public QObject, public QDBusContext
     QScopedPointer<ApplicationManagerPrivate> dd_ptr;
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), ApplicationManager)
 
-    ApplicationManager(QObject *parent = nullptr);
-    bool checkDMsgUid();
-
-    StartManager *startManager;
-
 public:
+    ApplicationManager(QObject *parent = nullptr);
     ~ApplicationManager() override;
-    static ApplicationManager* Instance() {
-        static ApplicationManager manager;
-        return &manager;
-    }
+    static ApplicationManager* Instance();
 
     void addApplication(const QList<QSharedPointer<Application>> &list);
 
@@ -62,6 +53,7 @@ public Q_SLOTS: // METHODS
     void RunCommand(QString exe, QStringList args);
     void RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
     void TryAgain(bool launch);
+
 };
 
 #endif /* A2862DC7_5DA3_4129_9796_671D88015BED */

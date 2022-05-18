@@ -5,3 +5,4 @@ Description=Deepin Application Manager service
 Type=DBus
 BusName=org.deskspec.ApplicationManager
 ExecStart=/usr/bin/deepin-application-service
+Slice=services.slice

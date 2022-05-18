@@ -6,3 +6,4 @@ Type=simple
 Environment="DAM_TASK_HASH=%I"
 Environment="DAM_TASK_TYPE=freedesktop"
 ExecStart=/usr/bin/deepin-application-loader
+Slice=applications.slice
