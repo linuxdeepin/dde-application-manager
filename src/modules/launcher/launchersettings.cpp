@@ -31,88 +31,6 @@ DCORE_USE_NAMESPACE
 
 static DConfig *dconfig = Settings::ConfigPtr(configLauncher);
 
-QString LauncherSettings::getDisplayMode()
-{
-    return dconfig ? dconfig->value(keyDisplayMode).toString() : "";
-}
-
-void LauncherSettings::setDisplayMode(QString value)
-{
-    if (dconfig) {
-        dconfig->setValue(keyDisplayMode, value);
-    }
-}
-
-int LauncherSettings::getFullscreenMode()
-{
-    return dconfig ? dconfig->value(keyFullscreen).toBool() : false;
-}
-
-void LauncherSettings::setFullscreenMode(int value)
-{
-    if (dconfig) {
-        dconfig->setValue(keyFullscreen, value);
-    }
-}
-
-QVector<QString> LauncherSettings::getDisableScalingApps()
-{
-    QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> apps = dconfig->value(keyAppsDisableScaling).toList();
-        for (auto app : apps) {
-            ret.push_back(app.toString());
-        }
-    }
-    return ret;
-}
-
-void LauncherSettings::setDisableScalingApps(const QVector<QString> &value)
-{
-    if (dconfig) {
-        QList<QVariant> apps;
-        for (const auto &app : value)
-            apps.push_back(app);
-
-        dconfig->setValue(keyAppsDisableScaling, apps);
-    }
-}
-
-QVector<QString> LauncherSettings::getUseProxyApps()
-{
-    QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> apps = dconfig->value(keyAppsUseProxy).toList();
-        for (auto app : apps) {
-            ret.push_back(app.toString());
-        }
-    }
-    return ret;
-}
-
-void LauncherSettings::setUseProxy(const QVector<QString> &value)
-{
-    if (dconfig) {
-        QList<QVariant> apps;
-        for (const auto &app : value)
-            apps.push_back(app);
-
-        dconfig->setValue(keyAppsUseProxy, apps);
-    }
-}
-
-QVector<QString> LauncherSettings::getHiddenApps()
-{
-    QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> hiddenApps = dconfig->value(keyAppsHidden).toList();
-        for (auto app : hiddenApps) {
-            ret.push_back(app.toString());
-        }
-    }
-    return ret;
-}
-
 LauncherSettings::LauncherSettings(QObject *parent)
  : QObject(parent)
 {
@@ -126,4 +44,122 @@ LauncherSettings::LauncherSettings(QObject *parent)
             Q_EMIT hiddenAppsChanged();
         }
     });
+}
+
+/**
+ * @brief LauncherSettings::getDisplayMode 获取配置显示模式
+ * @return
+ */
+QString LauncherSettings::getDisplayMode()
+{
+    return dconfig ? dconfig->value(keyDisplayMode).toString() : "";
+}
+
+/**
+ * @brief LauncherSettings::setDisplayMode 设置配置显示模式
+ * @param value
+ */
+void LauncherSettings::setDisplayMode(QString value)
+{
+    if (dconfig) {
+        dconfig->setValue(keyDisplayMode, value);
+    }
+}
+
+/**
+ * @brief LauncherSettings::getFullscreenMode 获取配置全屏模式
+ * @return
+ */
+int LauncherSettings::getFullscreenMode()
+{
+    return dconfig ? dconfig->value(keyFullscreen).toBool() : false;
+}
+
+/**
+ * @brief LauncherSettings::setFullscreenMode 设置配置全屏模式
+ * @param value 全屏模式
+ */
+void LauncherSettings::setFullscreenMode(int value)
+{
+    if (dconfig) {
+        dconfig->setValue(keyFullscreen, value);
+    }
+}
+
+/**
+ * @brief LauncherSettings::getDisableScalingApps 获取配置禁用缩放应用
+ * @return
+ */
+QVector<QString> LauncherSettings::getDisableScalingApps()
+{
+    QVector<QString> ret;
+    if (dconfig) {
+        QList<QVariant> apps = dconfig->value(keyAppsDisableScaling).toList();
+        for (auto app : apps) {
+            ret.push_back(app.toString());
+        }
+    }
+    return ret;
+}
+
+/**
+ * @brief LauncherSettings::setDisableScalingApps 设置配置禁用缩放应用
+ * @param value 应用禁用缩放应用
+ */
+void LauncherSettings::setDisableScalingApps(const QVector<QString> &value)
+{
+    if (dconfig) {
+        QList<QVariant> apps;
+        for (const auto &app : value)
+            apps.push_back(app);
+
+        dconfig->setValue(keyAppsDisableScaling, apps);
+    }
+}
+
+/**
+ * @brief LauncherSettings::getUseProxyApps 获取配置代理应用
+ * @return
+ */
+QVector<QString> LauncherSettings::getUseProxyApps()
+{
+    QVector<QString> ret;
+    if (dconfig) {
+        QList<QVariant> apps = dconfig->value(keyAppsUseProxy).toList();
+        for (auto app : apps) {
+            ret.push_back(app.toString());
+        }
+    }
+    return ret;
+}
+
+/**
+ * @brief LauncherSettings::setUseProxy 设置配置代理应用
+ * @param value 代理应用
+ */
+void LauncherSettings::setUseProxy(const QVector<QString> &value)
+{
+    if (dconfig) {
+        QList<QVariant> apps;
+        for (const auto &app : value)
+            apps.push_back(app);
+
+        dconfig->setValue(keyAppsUseProxy, apps);
+    }
+}
+
+/**
+ * @brief LauncherSettings::getHiddenApps 获取配置隐藏应用
+ * @return
+ */
+QVector<QString> LauncherSettings::getHiddenApps()
+{
+    QVector<QString> ret;
+    if (dconfig) {
+        QList<QVariant> hiddenApps = dconfig->value(keyAppsHidden).toList();
+        for (auto app : hiddenApps) {
+            ret.push_back(app.toString());
+        }
+    }
+    return ret;
 }

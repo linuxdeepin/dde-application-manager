@@ -25,7 +25,11 @@
 #define _likely_(x) (__builtin_expect(!!(x), 1))
 #define _unlikely_(x) (__builtin_expect(!!(x), 0))
 
+#define MAX(x, y) (x) > (y) ? (x) : (y)
+#define MIN(x, y) (x) < (y) ? (x) : (y)
+
 #define MAX_FILEPATH_LEN 256
 #define MAX_LINE_LEN 256
+
 
 #endif // MACRO_H

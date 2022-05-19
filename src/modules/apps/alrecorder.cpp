@@ -35,30 +35,19 @@ AlRecorder::AlRecorder(DFWatcher *_watcher, QObject *parent)
  , watcher(_watcher)
  , mutex(QMutex(QMutex::NonRecursive))
 {
-    QDBusConnection con = QDBusConnection::sessionBus();
-    if (!con.registerService("org.deepin.daemon.AlRecorder1"))
-    {
-        qWarning() << "register service AlRecorder1 error:" << con.lastError().message();
-        return;
-    }
-
-    if (!con.registerObject("/org/deepin/daemon/AlRecorder1", this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals))
-    {
-        qWarning() << "register object AlRecorder1 error:" << con.lastError().message();
-        return;
-    }
-
     connect(watcher, &DFWatcher::Event, this, &AlRecorder::onDFChanged, Qt::QueuedConnection);
-    Q_EMIT ServiceRestarted();
+    Q_EMIT serviceRestarted();
 }
 
 AlRecorder::~AlRecorder()
 {
-    QDBusConnection::sessionBus().unregisterObject("/org/deepin/daemon/AlRecorder1");
 }
 
-// 获取未启动应用列表
-QMap<QString, QStringList> AlRecorder::GetNew()
+/**
+ * @brief AlRecorder::getNew 获取未启动应用列表
+ * @return
+ */
+QMap<QString, QStringList> AlRecorder::getNew()
 {
     QMap<QString, QStringList> ret;
     QMutexLocker locker(&mutex);
@@ -76,8 +65,11 @@ QMap<QString, QStringList> AlRecorder::GetNew()
     return ret;
 }
 
-// 标记应用已启动状态
-void AlRecorder::MarkLaunched(const QString &filePath)
+/**
+ * @brief AlRecorder::markLaunched 标记应用已启动状态
+ * @param filePath
+ */
+void AlRecorder::markLaunched(const QString &filePath)
 {
     if (!filePath.endsWith(".desktop"))
         return;
@@ -102,12 +94,15 @@ void AlRecorder::MarkLaunched(const QString &filePath)
     end:
     if (info.isDir()) {
         saveStatusFile(info.absolutePath() + "/");
-        Q_EMIT Launched(filePath);
+        Q_EMIT launched(filePath);
     }
 }
 
-// 记录Launcher服务卸载应用信息, 终端卸载不会调用该函数， desktopFiles为绝对路径
-void AlRecorder::UninstallHints(const QStringList &desktopFiles)
+/**
+ * @brief AlRecorder::uninstallHints 记录Launcher服务卸载应用信息, 终端卸载不会调用该函数， desktopFiles为绝对路径
+ * @param desktopFiles
+ */
+void AlRecorder::uninstallHints(const QStringList &desktopFiles)
 {
     QMutexLocker locker(&mutex);
     for (auto desktop : desktopFiles) {
@@ -121,8 +116,11 @@ void AlRecorder::UninstallHints(const QStringList &desktopFiles)
     }
 }
 
-// 监控目录
-void AlRecorder::WatchDirs(const QStringList &dataDirs)
+/**
+ * @brief AlRecorder::watchDirs 监控目录
+ * @param dataDirs
+ */
+void AlRecorder::watchDirs(const QStringList &dataDirs)
 {
     for (auto dirPath : dataDirs) {
         if (subRecoders.contains(dirPath))
@@ -143,7 +141,10 @@ void AlRecorder::WatchDirs(const QStringList &dataDirs)
     }
 }
 
-// 初始化应用目录记录
+/**
+ * @brief AlRecorder::initSubRecoder 初始化应用目录记录
+ * @param dirPath
+ */
 void AlRecorder::initSubRecoder(const QString &dirPath)
 {
     subRecorder sub;
@@ -191,6 +192,11 @@ void AlRecorder::initSubRecoder(const QString &dirPath)
     subRecoders[dirPath] = sub;
 }
 
+/**
+ * @brief AlRecorder::onDFChanged 处理desktopFile文件改变事件
+ * @param filePath
+ * @param op
+ */
 void AlRecorder::onDFChanged(const QString &filePath, uint32_t op)
 {
     QFileInfo info(filePath);
@@ -232,6 +238,10 @@ void AlRecorder::onDFChanged(const QString &filePath, uint32_t op)
     }
 }
 
+/**
+ * @brief AlRecorder::saveStatusFile 保存状态文件
+ * @param dirPath
+ */
 void AlRecorder::saveStatusFile(const QString &dirPath)
 {
     subRecorder sub = subRecoders[dirPath];
@@ -252,6 +262,6 @@ void AlRecorder::saveStatusFile(const QString &dirPath)
     // 覆盖原文件
     QFile::remove(sub.statusFile);
     QFile::rename(tmpFile, sub.statusFile);
-    Q_EMIT StatusSaved(dirPath, sub.statusFile, ok);
+    Q_EMIT statusSaved(dirPath, sub.statusFile, ok);
 }
 

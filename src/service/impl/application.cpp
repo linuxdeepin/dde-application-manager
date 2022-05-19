@@ -6,7 +6,7 @@
 #include <QThread>
 #include <algorithm>
 
-#include "../modules/applicationhelper/helper.h"
+#include "../applicationhelper.h"
 #include "../modules/tools/desktop_deconstruction.hpp"
 #include "application_instance.h"
 
@@ -141,11 +141,11 @@ QString Application::filePath() const
     return d->helper->desktop();
 }
 
-QSharedPointer<ApplicationInstance> Application::createInstance()
+QSharedPointer<ApplicationInstance> Application::createInstance(QStringList files)
 {
     Q_D(Application);
 
-    d->instances << QSharedPointer<ApplicationInstance>(new ApplicationInstance(this, d->helper));
+    d->instances << QSharedPointer<ApplicationInstance>(new ApplicationInstance(this, d->helper, files));
 
     connect(d->instances.last().get(), &ApplicationInstance::taskFinished, this, [=] {
         for (auto it = d->instances.begin(); it != d->instances.end(); ++it) {

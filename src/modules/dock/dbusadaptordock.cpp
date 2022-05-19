@@ -212,6 +212,31 @@ QString DBusAdaptorDock::QueryWindowIdentifyMethod(uint win)
     return parent()->queryWindowIdentifyMethod(win);
 }
 
+QStringList DBusAdaptorDock::GetDockedAppsDesktopFiles()
+{
+    return parent()->getDockedAppsDesktopFiles();
+}
+
+QString DBusAdaptorDock::GetPluginSettings()
+{
+    return parent()->getPluginSettings();
+}
+
+void DBusAdaptorDock::SetPluginSettings(QString jsonStr)
+{
+    parent()->setPluginSettings(jsonStr);
+}
+
+void DBusAdaptorDock::MergePluginSettings(QString jsonStr)
+{
+    parent()->mergePluginSettings(jsonStr);
+}
+
+void DBusAdaptorDock::RemovePluginSettings(QString key1, QStringList key2List)
+{
+    parent()->removePluginSettings(key1, key2List);
+}
+
 bool DBusAdaptorDock::RequestDock(const QString &desktopFile, int index)
 {
     return parent()->requestDock(desktopFile, index);

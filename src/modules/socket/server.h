@@ -8,7 +8,29 @@
 #include <QObject>
 
 namespace Socket {
-class ServerPrivate;
+
+class Server;
+class ServerPrivate : public QObject {
+    Q_OBJECT
+public:
+    Server  *q_ptr;
+    int      socket_fd;
+    QThread *workThread;
+
+Q_SIGNALS:
+    void requestStart();
+
+public:
+    ServerPrivate(Server *server);
+    ~ServerPrivate();
+
+    void work();
+    bool listen(const std::string &host);
+    void write(int socket, const std::vector<char> &data);
+    void closeClient(int socket);
+};
+
+
 class Server : public QObject {
     Q_OBJECT
     std::unique_ptr<ServerPrivate> d_ptr;

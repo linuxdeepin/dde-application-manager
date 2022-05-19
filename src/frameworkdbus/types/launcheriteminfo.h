@@ -26,12 +26,13 @@
 #include <QDBusMetaType>
 
 struct LauncherItemInfo {
-    QString Path;
-    QString Name;
-    QString ID;
-    QString Icon;
-    qint64 CategoryID;
-    qint64 TimeInstalled;
+    QString path;
+    QString name;
+    QString id;
+    QString icon;
+    qint64 categoryId;
+    qint64 timeInstalled;
+    QStringList keywords;
     bool operator!=(const LauncherItemInfo &versionInfo);
 };
 

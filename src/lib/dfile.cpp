@@ -21,7 +21,9 @@
 
 #include "dfile.h"
 #include "macro.h"
+#include "dstring.h"
 
+#include<sys/stat.h>
 #include <unistd.h>
 #include <cstring>
 
@@ -30,14 +32,39 @@ DFile::DFile()
 
 }
 
-bool DFile::isAbs(std::string file)
+// 符号连接
+bool DFile::isLink(std::string file)
 {
-    char resolved_path[MAX_FILEPATH_LEN];
-    if (realpath(file.c_str(), resolved_path)) {
-        std::string filePath(resolved_path);
-        if (filePath == file)
-            return true;
-    }
+    if (file.empty())
+        return false;
+
+    struct stat fileStat;
+    if (!stat(file.c_str(), &fileStat))
+        return S_ISLNK(fileStat.st_mode);
+
+    return false;
+}
+
+bool DFile::isRegularFile(std::string file)
+{
+    if (file.empty())
+        return false;
+
+    struct stat fileStat;
+    if (!stat(file.c_str(), &fileStat))
+        return S_ISREG(fileStat.st_mode);
+
+    return true;
+}
+
+bool DFile::isDir(std::string dir)
+{
+    if (dir.empty())
+        return false;
+
+    struct stat fileStat;
+    if (!stat(dir.c_str(), &fileStat))
+        return S_ISDIR(fileStat.st_mode);
 
     return false;
 }
@@ -47,13 +74,15 @@ bool DFile::isExisted(std::string file)
     return !access(file.c_str(), F_OK);
 }
 
-std::string DFile::dir(std::string file)
+std::string DFile::dir(std::string path)
 {
     std::string ret;
-    if (isAbs(file)) {
-        size_t pos = file.find_last_of("/");
+    if (isDir(path)) {
+        ret = path;
+    } else {
+        size_t pos = path.find_last_of("/");
         if (pos != std::string::npos) {
-            ret.assign(file, 0, pos + 1); // 包含结尾斜杠/
+            ret.assign(path, 0, pos + 1); // 包含结尾斜杠/
         }
     }
 

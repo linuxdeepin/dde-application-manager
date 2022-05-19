@@ -30,6 +30,7 @@ class StartManagerDBusHandler;
 class DesktopInfo;
 class QProcess;
 class QFileSystemWatcher;
+class ApplicationManager;
 
 class StartManager : public QObject
 {
@@ -76,6 +77,7 @@ private:
     StartManagerDBusHandler *dbusHandler;
     QStringList autostartFiles;
     QFileSystemWatcher *fileWatcher;
+    ApplicationManager *am;
 };
 
 #endif // STARTMANAGER_H

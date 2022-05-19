@@ -17,112 +17,111 @@
 #include "../../modules/methods/quit.hpp"
 #include "../../modules/methods/registe.hpp"
 #include "../../modules/methods/task.hpp"
-#include "../../modules/socket/server.h"
 #include "../../modules/startmanager/startmanager.h"
 #include "application.h"
 #include "application_instance.h"
 #include "applicationinstanceadaptor.h"
 
-class ApplicationManagerPrivate : public QObject
-{
-    Q_OBJECT
-    ApplicationManager *q_ptr = nullptr;
-    Q_DECLARE_PUBLIC(ApplicationManager);
-
-    QList<QSharedPointer<Application>> applications;
-    Socket::Server server;
-    std::multimap<std::string, QSharedPointer<ApplicationInstance>> tasks;
-
-    StartManager *startManager;
-
-public:
-    ApplicationManagerPrivate(ApplicationManager *parent)
+ApplicationManagerPrivate::ApplicationManagerPrivate(ApplicationManager *parent)
     : QObject(parent)
     , q_ptr(parent)
     , startManager(new StartManager(this))
-    {
+{
         const QString socketPath{QString("/run/user/%1/deepin-application-manager.socket").arg(getuid())};
         connect(&server, &Socket::Server::onReadyRead, this, &ApplicationManagerPrivate::recvClientData, Qt::QueuedConnection);
         server.listen(socketPath.toStdString());
-    }
-    ~ApplicationManagerPrivate() {}
+}
 
-    bool checkDMsgUid()
-    {
-        QDBusReply<uint> reply = q_ptr->connection().interface()->serviceUid(q_ptr->message().service());
-        return reply.isValid() && (reply.value() == getuid());
-    }
+ApplicationManagerPrivate::~ApplicationManagerPrivate()
+{
 
-private:
-    void recvClientData(int socket, const std::vector<char> &data)
-    {
-        std::string tmp;
-        for (char c : data) {
-            tmp += c;
+}
+
+bool ApplicationManagerPrivate::checkDMsgUid()
+{
+    QDBusReply<uint> reply = q_ptr->connection().interface()->serviceUid(q_ptr->message().service());
+    return reply.isValid() && (reply.value() == getuid());
+}
+
+/**
+ * @brief ApplicationManagerPrivate::recvClientData 接受客户端数据，进行校验
+ * @param socket 客户端套接字
+ * @param data 接受到客户端数据
+ */
+void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<char> &data)
+{
+    QByteArray jsonArray = data.data();
+    Methods::Basic basic;
+    Methods::fromJson(jsonArray, basic);
+    QByteArray tmpArray;
+    do {
+        // 运行实例
+        if (basic.type == "instance") {
+            Methods::Instance instance;
+            Methods::fromJson(jsonArray, instance);
+
+            // 校验实例信息
+            auto find = tasks.find(instance.hash.toStdString());
+            if (find != tasks.end()) {
+                Methods::Task task = find->second->taskInfo();
+                Methods::toJson(tmpArray, task);
+
+                // 通过校验，传入应用启动信息
+                write(socket, tmpArray.toStdString());
+                tasks.erase(find);
+                break;
+            }
         }
 
-        QByteArray jsonArray = data.data();
-        Methods::Basic basic;
-        Methods::fromJson(jsonArray, basic);
-        QByteArray tmpArray;
-        do {
-            if (basic.type == "instance") {
-                Methods::Instance instance;
-                Methods::fromJson(jsonArray, instance);
-                auto find = tasks.find(instance.hash.toStdString());
-                if (find != tasks.end())
-                {
-                    Methods::Task task = find->second->taskInfo();
-                    Methods::toJson(tmpArray, task);
-                    write(socket, tmpArray.toStdString());
-                    tasks.erase(find);
-                    break;
-                }
-            }
-            if (basic.type == "quit") {
-                Methods::Quit quit;
-                Methods::fromJson(jsonArray, quit);
-                server.close(socket);
-                std::cout << "client quit" << std::endl;
-                break;
-            }
-            if (basic.type == "registe") {
-                Methods::Registe registe;
-                Methods::fromJson(jsonArray, registe);
-                Methods::Registe result;
-                result.state = false;
-                // std::lock_guard<std::mutex> lock(task_mutex);
-                for (auto it = tasks.begin(); it != tasks.end(); ++it) {
-                    result.state = true;
-                    result.hash = QString::fromStdString(it->first);
-                }
-                Methods::toJson(tmpArray, result);
-                write(socket, tmpArray.toStdString());
-                break;
-            }
-            write(socket, jsonArray.toStdString());
-        } while (false);
-    }
+        // 退出
+        if (basic.type == "quit") {
+            Methods::Quit quit;
+            Methods::fromJson(jsonArray, quit);
+            server.close(socket);
+            std::cout << "client quit" << std::endl;
+            break;
+        }
 
-    void write(int socket, const std::vector<char> &data)
-    {
-        std::vector<char> tmp = data;
-        tmp.push_back('\0');
-        server.write(socket, tmp);
-    }
-    void write(int socket, const std::string &data)
-    {
-        std::vector<char> result;
-        std::copy(data.cbegin(), data.cend(), std::back_inserter(result));
-        return write(socket, result);
-    }
-    void write(int socket, const char c)
-    {
-        return write(socket, std::vector<char>(c));
-    }
-};
+        // 注册应用
+        if (basic.type == "registe") {
+            Methods::Registe registe;
+            Methods::fromJson(jsonArray, registe);
+            Methods::Registe result;
+            result.state = false;
+            // std::lock_guard<std::mutex> lock(task_mutex);
+            for (auto it = tasks.begin(); it != tasks.end(); ++it) {
+                result.state = true;
+                result.hash = QString::fromStdString(it->first);
+            }
+            Methods::toJson(tmpArray, result);
+            write(socket, tmpArray.toStdString());
+            break;
+        }
+        write(socket, jsonArray.toStdString());
+    } while (false);
+}
 
-ApplicationManager* ApplicationManager::Instance() {
+void ApplicationManagerPrivate::write(int socket, const std::vector<char> &data)
+{
+    std::vector<char> tmp = data;
+    tmp.push_back('\0');
+    server.write(socket, tmp);
+}
+
+void ApplicationManagerPrivate::write(int socket, const std::string &data)
+{
+    std::vector<char> result;
+    std::copy(data.cbegin(), data.cend(), std::back_inserter(result));
+    return write(socket, result);
+}
+
+void ApplicationManagerPrivate::write(int socket, const char c)
+{
+    return write(socket, std::vector<char>(c));
+}
+
+
+ApplicationManager* ApplicationManager::instance() {
     static ApplicationManager manager;
     return &manager;
 }
@@ -143,6 +142,23 @@ void ApplicationManager::addApplication(const QList<QSharedPointer<Application>>
     Q_D(ApplicationManager);
 
     d->applications = list;
+}
+
+/**
+ * @brief ApplicationManager::launchAutostartApps 加载自启动应用
+ * TODO 待优化点： 多个loader使用同一个套接字通信，串行执行，效率低
+ */
+void ApplicationManager::launchAutostartApps()
+{
+    /*
+    Launch("/freedesktop/system/seahorse", QStringList());
+    QTimer::singleShot(1000, [&] {
+        for (auto app : startManager->autostartList()) {
+            QString id = app.split("/").last().split(".").first();
+            Launch(id, QStringList());
+        }
+    });
+    */
 }
 
 QDBusObjectPath ApplicationManager::GetInformation(const QString &id)
@@ -175,7 +191,13 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
     return {};
 }
 
-QDBusObjectPath ApplicationManager::Run(const QString &id)
+/**
+ * @brief ApplicationManager::Launch 启动应用
+ * @param id   QString("/%1/%2/%3").arg(Apptype).arg(d->m_type == Application::Type::System ? "system" : "user").arg(appId)
+ * @param files 应用打开的文件
+ * @return
+ */
+QDBusObjectPath ApplicationManager::Launch(const QString &id, QStringList files)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
@@ -183,9 +205,10 @@ QDBusObjectPath ApplicationManager::Run(const QString &id)
 
     // 创建一个实例
     for (const QSharedPointer<Application> &app : d->applications) {
+        QString appId = app->id();
         if (app->id() == id) {
             // 创建任务所需的数据，并记录到任务队列，等待 loader 消耗
-            QSharedPointer<ApplicationInstance> instance{app->createInstance()};
+            QSharedPointer<ApplicationInstance> instance{app->createInstance(files)};
             const std::string hash{instance->hash().toStdString()};
             connect(instance.get(), &ApplicationInstance::taskFinished, this, [=] {
                 for (auto it = d->tasks.begin(); it != d->tasks.end(); ++it) {

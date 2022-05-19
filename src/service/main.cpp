@@ -4,7 +4,7 @@
 #include "impl/application.h"
 #include "applicationmanageradaptor.h"
 #include "applicationadaptor.h"
-#include "../modules/applicationhelper/helper.h"
+#include "applicationhelper.h"
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
 #include "../modules/dock/dockmanager.h"
@@ -72,15 +72,15 @@ int main(int argc, char *argv[])
     DLogManager::registerConsoleAppender();
     DLogManager::registerFileAppender();
 
-    new AppManager(ApplicationManager::Instance());
-    new LauncherManager(ApplicationManager::Instance());
-    new DockManager(ApplicationManager::Instance());
-    new StartManager(ApplicationManager::Instance());
-    new ApplicationManagerAdaptor(ApplicationManager::Instance());
+    new AppManager(ApplicationManager::instance());
+    new LauncherManager(ApplicationManager::instance());
+    new DockManager(ApplicationManager::instance());
+    new StartManager(ApplicationManager::instance());
+    new ApplicationManagerAdaptor(ApplicationManager::instance());
 
     QDBusConnection::sessionBus().registerService("org.desktopspec.Application");
     QDBusConnection::sessionBus().registerService("org.desktopspec.ApplicationManager");
-    QDBusConnection::sessionBus().registerObject("/org/desktopspec/ApplicationManager", "org.desktopspec.ApplicationManager", ApplicationManager::Instance());
+    QDBusConnection::sessionBus().registerObject("/org/desktopspec/ApplicationManager", "org.desktopspec.ApplicationManager", ApplicationManager::instance());
 
     QList<QSharedPointer<Application>> apps{ scanFiles() };
     QList<QSharedPointer<ApplicationAdaptor>> appAdapters;
@@ -90,7 +90,9 @@ int main(int argc, char *argv[])
         QDBusConnection::sessionBus().registerObject(app->path().path(), "org.desktopspec.Application", app.get());
     }
 
-    ApplicationManager::Instance()->addApplication(apps);
+    ApplicationManager::instance()->addApplication(apps);
+
+    ApplicationManager::instance()->launchAutostartApps();
 
     return app.exec();
 }

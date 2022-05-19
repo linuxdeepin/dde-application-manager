@@ -53,9 +53,11 @@ static App parseApp(const std::string& app)
     }
 
     App result;
-    result.prefix = strings[0];
-    result.type   = strings[1];
-    result.id     = strings[2];
+    if (strings.size() == 3) {
+        result.prefix = strings[0];
+        result.type   = strings[1];
+        result.id     = strings[2];
+    }
 
     return result;
 }
@@ -80,20 +82,12 @@ int runLinglong(void* _arg)
     return 0;
 }
 
-int child(void* _arg)
+int child(Methods::Task* task, std::string path)
 {
-    Methods::Task* task = (Methods::Task*) _arg;
-
     prctl(PR_SET_PDEATHSIG, SIGKILL);
     prctl(PR_SET_PDEATHSIG, SIGTERM);
     prctl(PR_SET_PDEATHSIG, SIGHUP);
 
-    App         app = parseApp(task->runId.toStdString());
-    std::string path{ "/usr/share/applications/" + app.id + ".desktop" };
-    if (app.type == "user") {
-        struct passwd* user = getpwuid(getuid());
-        path                = std::string(user->pw_dir) + "/.local/share/applications/" + app.id + ".desktop";
-    }
     DesktopDeconstruction dd(path);
     dd.beginGroup("Desktop Entry");
     std::cout << dd.value<std::string>("Exec") << std::endl;
@@ -114,8 +108,8 @@ int child(void* _arg)
     std::filesystem::path container_root_path(annotations.container_root_path.toStdString());
     if (!std::filesystem::exists(container_root_path)) {
         if (!std::filesystem::create_directories(container_root_path)) {
-          std::cout << "[Loader] [Warning] cannot create container root path." << std::endl;
-          return -1;
+            std::cout << "[Loader] [Warning] cannot create container root path." << std::endl;
+            return -1;
         }
     }
 
@@ -137,10 +131,12 @@ int child(void* _arg)
         runtime.process.args.push_back(QString::fromStdString(s));
     }
 
+    // 应用运行信息
     QByteArray runtimeArray;
     toJson(runtimeArray, runtime);
     qWarning() << "runtimeArray: " << runtimeArray;
 
+    // 使用Pipe进行父子进程通信
     int pipeEnds[2];
     if (pipe(pipeEnds) != 0) {
         return EXIT_FAILURE;
@@ -153,22 +149,29 @@ int child(void* _arg)
     }
 
     if (pid == 0) {
+        // 子进程
         (void) close(pipeEnds[1]);
+
+        // 重定向到LINGLONG
         if (dup2(pipeEnds[0], LINGLONG) == -1) {
             return EXIT_FAILURE;
         }
         (void) close(pipeEnds[0]);
+
+        // 初始化运行命令和参数，并执行
         char const* const args[] = { "/usr/bin/ll-box", LL_TOSTRING(LINGLONG), nullptr };
         int               ret    = execvp(args[0], (char**) args);
         std::cout << "[Loader] [Fork] " << ret << std::endl;
         //std::filesystem::remove(container_root_path);
         exit(ret);
-    }
-    else {
+    } else {
+        // 父进程
         QByteArray runtimeArray;
         linglong::toJson(runtimeArray, runtime);
         const std::string data = runtimeArray.data();
         close(pipeEnds[0]);
+
+        // 将运行时信息通过pipe传递给子进程
         write(pipeEnds[1], data.c_str(), data.size());
         close(pipeEnds[1]);
     }
@@ -190,22 +193,24 @@ int main(int argc, char* argv[])
         return -2;
     }
 
-    // TODO: move to a utils.h
-    std::string socketPath{ "/run/user/1000/deepin-application-manager.socket" };
+    char socketPath[50];
+    sprintf(socketPath, "/run/user/%d/deepin-application-manager.socket", getuid());
 
     // register client and run quitConnect
     Socket::Client client;
     client.connect(socketPath);
 
+    // 初始化应用注册信息
     QByteArray registerArray;
     Methods::Registe registe;
     registe.id   = dam_task_type;
     registe.hash = dam_task_hash;
     Methods::toJson(registerArray, registe);
 
+    // 向AM注册应用信息进行校验
     Methods::Registe registe_result;
     registe_result.state = false;
-    auto result          = client.get(registerArray);
+    QByteArray result          = client.get(registerArray);
     if (!result.isEmpty()) {
         Methods::fromJson(result, registe_result);
     }
@@ -213,15 +218,30 @@ int main(int argc, char* argv[])
         return -3;
     }
 
+    // 初始化应用实例信息
     Methods::Instance instance;
     instance.hash = registe_result.hash;
-    std::cout << "get task" << std::endl;
     QByteArray instanceArray;
     Methods::toJson(instanceArray, instance);
+
+    // 向AM注册应用实例信息进行校验
     result = client.get(instanceArray);
     Methods::Task task;
-    Methods::toJson(result, task);
+    Methods::fromJson(result, task);       // fromJson TODO 数据解析异常
     qWarning() << "[result] " << result;
+
+    // 校验task内容
+    App         app = parseApp(task.runId.toStdString());
+    if (task.id.isEmpty() || app.id.empty() || app.type.empty() || app.prefix.empty()) {
+        std::cout << "get task error" << std::endl;
+        return -4;
+    }
+
+    std::string path{ "/usr/share/applications/" + app.id + ".desktop" };
+    if (app.type == "user") {
+        struct passwd* user = getpwuid(getuid());
+        path                = std::string(user->pw_dir) + "/.local/share/applications/" + app.id + ".desktop";
+    }
 
     pthread_attr_t attr;
     size_t         stack_size;
@@ -237,7 +257,7 @@ int main(int argc, char* argv[])
 
     //char* stack = (char*) malloc(stack_size);
     //pid_t pid   = clone(child, stack + stack_size, CLONE_NEWPID | SIGCHLD, static_cast<void*>(&task));
-    pid_t pid = child(&task);
+    pid_t pid = child(&task, path);
     // TODO: 启动线程，创建新的连接去接受服务器的消息
 
     /* 设置捕捉函数 */

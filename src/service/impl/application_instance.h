@@ -18,8 +18,10 @@ class ApplicationInstance : public QObject {
     Q_OBJECT
     QScopedPointer<ApplicationInstancePrivate> dd_ptr;
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), ApplicationInstance)
+
+    QStringList m_files; // 实例打开的文件
 public:
-    ApplicationInstance(Application* parent, QSharedPointer<modules::ApplicationHelper::Helper> helper);
+    ApplicationInstance(Application* parent, QSharedPointer<modules::ApplicationHelper::Helper> helper, QStringList files);
     ~ApplicationInstance() override;
 
 public:  // PROPERTIES

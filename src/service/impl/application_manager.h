@@ -1,6 +1,9 @@
 #ifndef A2862DC7_5DA3_4129_9796_671D88015BED
 #define A2862DC7_5DA3_4129_9796_671D88015BED
 
+#include "../../modules/startmanager/startmanager.h"
+#include "../../modules/socket/server.h"
+
 #include <QObject>
 #include <QDBusObjectPath>
 #include <QList>
@@ -9,7 +12,34 @@
 
 class Application;
 class ApplicationInstance;
-class ApplicationManagerPrivate;
+class ApplicationManagerPrivate : public QObject
+{
+    Q_OBJECT
+    ApplicationManager *q_ptr = nullptr;
+    Q_DECLARE_PUBLIC(ApplicationManager);
+
+    QList<QSharedPointer<Application>> applications;
+    Socket::Server server;
+    std::multimap<std::string, QSharedPointer<ApplicationInstance>> tasks;
+    StartManager *startManager;
+
+public:
+    ApplicationManagerPrivate(ApplicationManager *parent);
+    ~ApplicationManagerPrivate();
+
+    // 检测调用方身份
+    bool checkDMsgUid();
+
+private:
+    void recvClientData(int socket, const std::vector<char> &data);
+
+    void write(int socket, const std::vector<char> &data);
+
+    void write(int socket, const std::string &data);
+
+    void write(int socket, const char c);
+};
+
 class ApplicationManager : public QObject, public QDBusContext
 {
     Q_OBJECT
@@ -21,9 +51,10 @@ class ApplicationManager : public QObject, public QDBusContext
 public:
     ApplicationManager(QObject *parent = nullptr);
     ~ApplicationManager() override;
-    static ApplicationManager* Instance();
+    static ApplicationManager* instance();
 
     void addApplication(const QList<QSharedPointer<Application>> &list);
+    void launchAutostartApps();
 
 Q_SIGNALS:
     void AutostartChanged(QString status, QString filePath);
@@ -35,7 +66,7 @@ public: // PROPERTIES
 public Q_SLOTS: // METHODS
     QDBusObjectPath GetInformation(const QString &id);
     QList<QDBusObjectPath> GetInstances(const QString &id);
-    QDBusObjectPath Run(const QString &id);
+    QDBusObjectPath Launch(const QString &id, QStringList files);
 
     // com.deepin.StartManager
     bool AddAutostart(QString fileName);
@@ -53,7 +84,6 @@ public Q_SLOTS: // METHODS
     void RunCommand(QString exe, QStringList args);
     void RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
     void TryAgain(bool launch);
-
 };
 
 #endif /* A2862DC7_5DA3_4129_9796_671D88015BED */

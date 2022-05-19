@@ -44,6 +44,7 @@ struct ClientPrivate {
             return false;
         }
 
+        // TODO readFunc function?
         if (readFunc) {
             readThread = new std::thread([=] {
                 char              buf[512];
@@ -72,11 +73,11 @@ struct ClientPrivate {
         send(call);
 
         char buf[512];
-        std::string result;
+        std::vector<char> data;
         int bytesRead;
         while ((bytesRead = recv(socket_fd, buf, 512, 0)) > 0) {
             for (int i = 0; i < bytesRead; ++i) {
-                result += buf[i];
+                data.push_back(buf[i]);
             }
 
             if (buf[bytesRead - 1] == '\0') {
@@ -84,12 +85,12 @@ struct ClientPrivate {
             }
         }
 
-        QJsonDocument doc = QJsonDocument::fromRawData(result.data(), result.size());
-        return doc.toJson();
+        return data.data();
     }
 
     size_t send(const QByteArray &call) {
         std::string data = call.data();
+        // \0 作为结尾标记
         data += '\0';
         return write(socket_fd, data.c_str(), data.length());
     }

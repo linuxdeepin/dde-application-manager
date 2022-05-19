@@ -48,9 +48,10 @@ void DockSettings::init()
                 } else if(key == keyDisplayMode) {
                     Q_EMIT displayModeChanged(DisplayMode(dockSettings->value(key).toInt()));
                 } else if (key == keyPosition) {
-                    Q_EMIT positionModeChanged(PositonMode(dockSettings->value(key).toInt()));
+                    Q_EMIT positionModeChanged(PositionMode(dockSettings->value(key).toInt()));
                 } else if (key == keyForceQuitApp){
-                    Q_EMIT forceQuitAppChanged(dockSettings->value(key).toBool());
+                    QString mode = dockSettings->value(key).toString();
+                    Q_EMIT forceQuitAppChanged(ForceQuitAppModeHandler(mode).toEnum());
                 }
             });
     }
@@ -92,21 +93,21 @@ void DockSettings::setDisplayMode(DisplayMode mode)
     }
 }
 
-PositonMode DockSettings::getPositionMode()
+PositionMode DockSettings::getPositionMode()
 {
-    PositonMode ret = PositonMode::Unknown;
+    PositionMode ret = PositionMode::Unknown;
     if (dockSettings) {
         QString mode = dockSettings->value(keyPosition).toString();
-        PositonModeHandler handler(mode);
+        PositionModeHandler handler(mode);
         ret = handler.toEnum();
     }
     return ret;
 }
 
-void DockSettings::setPositionMode(PositonMode mode)
+void DockSettings::setPositionMode(PositionMode mode)
 {
     if (dockSettings) {
-        dockSettings->setValue(keyPosition, PositonModeHandler(mode).toString());
+        dockSettings->setValue(keyPosition, PositionModeHandler(mode).toString());
     }
 }
 

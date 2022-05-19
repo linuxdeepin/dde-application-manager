@@ -50,7 +50,7 @@ public: // PROPERTIES
 
     QString filePath() const;
 
-    QSharedPointer<ApplicationInstance> createInstance();
+    QSharedPointer<ApplicationInstance> createInstance(QStringList files);
 
 public Q_SLOTS: // METHODS
     QString Comment(const QString &locale);

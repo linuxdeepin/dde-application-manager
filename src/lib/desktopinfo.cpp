@@ -43,7 +43,7 @@ DesktopInfo::DesktopInfo(const std::string &_fileName)
 
     m_fileName = fileNameWithSuffix;
 
-    if (!DFile::isAbs(m_fileName)) {
+    if (DFile::dir(m_fileName).empty()) {
         // fileName是文件名，增加目录
         bool isExisted = false;
         for (const auto &dir : BaseDir::appDirs()) {

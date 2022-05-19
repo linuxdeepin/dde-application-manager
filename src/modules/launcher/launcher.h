@@ -25,6 +25,7 @@
 #include "common.h"
 #include "synmodule.h"
 #include "category.h"
+#include "launcheriteminfolist.h"
 
 #include <QObject>
 #include <QMap>
@@ -53,19 +54,19 @@ struct ItemInfo
 {
     QString path;
     QString name;
-    QString enName;
     QString id;
     QString icon;
     Categorytype categoryId;
     int64_t timeInstalled;
+    //QStringList keywords; // 存放前端搜索关键字 name enName
 };
 
 // 应用信息类
 struct Item {
    inline bool isValid() {return !info.path.isEmpty();}
 
-   ItemInfo info;
-   QStringList keywords;
+   LauncherItemInfo info;
+   QStringList desktopKeywords; //desktop file keywords
    QStringList categories;
    QString xDeepinCategory;
    QString exec;
@@ -91,12 +92,12 @@ public:
     int getDisplayMode();
     bool getFullScreen();
     void setDisplayMode(int value);
-    void setFullScreen(bool isFull);
+    void setFullscreen(bool isFull);
 
-    QVector<ItemInfo> getAllItemInfos();
+    LauncherItemInfoList getAllItemInfos();
     QStringList getAllNewInstalledApps();
     bool getDisableScaling(QString appId);
-    ItemInfo getItemInfo(QString appId);
+    LauncherItemInfo getItemInfo(QString appId);
     bool getUseProxy(QString appId);
     bool isItemOnDesktop(QString appId);
     bool requestRemoveFromDesktop(QString appId);
@@ -106,10 +107,10 @@ public:
     void setUseProxy(QString appId, bool value);
 
 Q_SIGNALS:
-    void ItemChanged(QString status, ItemInfo itemInfo, Categorytype ty);
-    void NewAppLaunched(QString appId);
-    void UninstallSuccess(QString appId);
-    void UninstallFailed(QString appId, QString errMsg);
+    void itemChanged(QString status, LauncherItemInfo itemInfo, qint64 ty);
+    void newAppLaunched(QString appId);
+    void uninstallSuccess(QString appId);
+    void uninstallFailed(QString appId, QString errMsg);
 
     void displayModeChanged(int mode);
     void fullScreenChanged(bool isFull);

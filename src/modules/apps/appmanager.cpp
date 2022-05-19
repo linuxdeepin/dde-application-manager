@@ -23,6 +23,7 @@
 #include "dfwatcher.h"
 #include "alrecorder.h"
 #include "basedir.h"
+#include "dbusalrecorderadaptor.h"
 
 #include <QDebug>
 #include <QDir>
@@ -32,12 +33,27 @@ AppManager::AppManager(QObject *parent)
  , watcher(new DFWatcher(this))
  , recorder(new AlRecorder(watcher, this))
 {
+    new DBusAdaptorRecorder(recorder);
+    QDBusConnection con = QDBusConnection::sessionBus();
+    if (!con.registerService("org.deepin.daemon.AlRecorder1"))
+    {
+        qWarning() << "register service AlRecorder1 error:" << con.lastError().message();
+        return;
+    }
+
+    if (!con.registerObject("/org/deepin/daemon/AlRecorder1", recorder))
+    {
+        qWarning() << "register object AlRecorder1 error:" << con.lastError().message();
+        return;
+    }
+
+
     QStringList dataDirs;
     dataDirs << BaseDir::userAppDir().c_str();
     for (auto &dir : BaseDir::sysAppDirs())
         dataDirs << dir.c_str();
 
-    recorder->WatchDirs(dataDirs);     // 监控应用desktop
+    recorder->watchDirs(dataDirs);     // 监控应用desktop
 }
 
 AppManager::~AppManager()

@@ -65,7 +65,6 @@ public:
     void attachOrDetachWindow(WindowInfoBase *info);
     void attachWindow(WindowInfoBase *info);
     void detachWindow(WindowInfoBase *info);
-    void markAppLaunched(const QString &filePath);
     void launchApp(uint32_t timestamp, QStringList files);
     void launchAppAction(uint32_t timestamp, QString file,  QString section);
     bool is3DWM();
@@ -164,6 +163,7 @@ private:
     WindowInfoK *findWindowByXidK(XWindow xid);
     bool isWindowDockOverlapX(XWindow xid);
     bool isWindowDockOverlapK(WindowInfoBase *info);
+    bool hasInterSectionK(const Rect &windowRect, QRect dockRect);
     Entry *getDockedEntryByDesktopFile(const QString &desktopFile);
     bool shouldHideOnSmartHideMode();
     QVector<XWindow> getActiveWinGroup(XWindow xid);

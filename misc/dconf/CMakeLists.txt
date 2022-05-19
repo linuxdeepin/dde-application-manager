@@ -3,7 +3,7 @@ set(DCONFIG_FILES
     com.deepin.dde.dock.json
     com.deepin.dde.appearance.json
     com.deepin.dde.startdde.json
-    com.deepin.dde.xsettings.json
+    com.deepin.xsettings.json
 )
 
 install(FILES ${DCONFIG_FILES} DESTINATION /usr/share/dsg/configs/dde-application-manager)

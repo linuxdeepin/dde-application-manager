@@ -67,13 +67,13 @@ void DBusHandler::listenWaylandWMSignals()
 
 void DBusHandler::handleLauncherItemChanged(const QString &status, LauncherItemInfo itemInfo, qlonglong categoryID)
 {
-    qInfo() << "handleLauncherItemChanged status:" << status << " Name:" << itemInfo.Name << " ID:" << itemInfo.ID;
+    qInfo() << "handleLauncherItemChanged status:" << status << " Name:" << itemInfo.name << " ID:" << itemInfo.id;
     if (status == "deleted") {
-        dock->handleLauncherItemDeleted(itemInfo.Path);
+        dock->handleLauncherItemDeleted(itemInfo.path);
     } else if (status == "created") {
         // don't need to download to dock when app reinstall
     } else if (status == "updated") {
-        dock->handleLauncherItemUpdated(itemInfo.Path);
+        dock->handleLauncherItemUpdated(itemInfo.path);
     }
 }
 
@@ -186,7 +186,10 @@ PlasmaWindow *DBusHandler::createPlasmaWindow(QString objPath)
     return new PlasmaWindow("com.deepin.daemon.KWayland.PlasmaWindow", objPath, session, this);
 }
 
-// 取消关联信号
+/**
+ * @brief DBusHandler::removePlasmaWindowHandler 取消关联信号 TODO
+ * @param window
+ */
 void DBusHandler::removePlasmaWindowHandler(PlasmaWindow *window)
 {
 

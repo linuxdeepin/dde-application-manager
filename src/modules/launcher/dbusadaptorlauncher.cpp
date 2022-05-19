@@ -8,6 +8,10 @@ DBusAdaptorLauncher::DBusAdaptorLauncher(QObject *parent)
 
     Launcher *launcher = static_cast<Launcher *>(QObject::parent());
     if (launcher) {
+        connect(launcher, &Launcher::itemChanged, this, &DBusAdaptorLauncher::ItemChanged);
+        connect(launcher, &Launcher::newAppLaunched, this, &DBusAdaptorLauncher::NewAppLaunched);
+        connect(launcher, &Launcher::uninstallFailed, this, &DBusAdaptorLauncher::UninstallFailed);
+        connect(launcher, &Launcher::uninstallSuccess, this, &DBusAdaptorLauncher::UninstallSuccess);
         connect(launcher, &Launcher::displayModeChanged, this, &DBusAdaptorLauncher::DisplayModeChanged);
         connect(launcher, &Launcher::fullScreenChanged, this, &DBusAdaptorLauncher::FullScreenChanged);
     }
@@ -40,21 +44,19 @@ bool DBusAdaptorLauncher::fullscreen() const
 
 void DBusAdaptorLauncher::setFullscreen(bool value)
 {
-    parent()->setFullScreen(value);
+    parent()->setFullscreen(value);
 }
 
 bool DBusAdaptorLauncher::AddAutostart(const QString &desktopFile)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    QDBusInterface interface = QDBusInterface("com.deepin.SessionManager", "/com/deepin/StartManager", "com.deepin.StartManager");
     QDBusReply<bool> reply = interface.call("AddAutostart", desktopFile);
     return reply.isValid() ? reply.value() : false;
 }
 
-// TODO
-QString DBusAdaptorLauncher::GetAllItemInfos()
+LauncherItemInfoList DBusAdaptorLauncher::GetAllItemInfos()
 {
-    // return parent()->getAllItemInfos();
-    return "";
+    return parent()->getAllItemInfos();
 }
 
 QStringList DBusAdaptorLauncher::GetAllNewInstalledApps()
@@ -67,11 +69,9 @@ bool DBusAdaptorLauncher::GetDisableScaling(const QString &id)
     return parent()->getDisableScaling(id);
 }
 
-// TODO
-QString DBusAdaptorLauncher::GetItemInfo(const QString &id)
+LauncherItemInfo DBusAdaptorLauncher::GetItemInfo(const QString &id)
 {
-    //return parent()->getItemInfo();
-    return "";
+    return parent()->getItemInfo(id);
 }
 
 bool DBusAdaptorLauncher::GetUseProxy(const QString &id)
@@ -85,16 +85,16 @@ bool DBusAdaptorLauncher::IsItemOnDesktop(const QString &id)
 }
 
 bool DBusAdaptorLauncher::LaunchWithTimestamp(const QString &desktopFile, int time)
-{   
+{
 
-    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    QDBusInterface interface = QDBusInterface("com.deepin.SessionManager", "/com/deepin/StartManager", "com.deepin.StartManager");
     QDBusReply<bool> reply = interface.call("LaunchWithTimestamp", desktopFile, time);
     return reply.isValid() ? reply.value() : false;
 }
 
 bool DBusAdaptorLauncher::RemoveAutostart(const QString &desktopFile)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    QDBusInterface interface = QDBusInterface("com.deepin.SessionManager", "/com/deepin/StartManager", "com.deepin.StartManager");
     QDBusReply<bool> reply = interface.call("RemoveAutostart", desktopFile);
     return reply.isValid() ? reply.value() : false;
 }

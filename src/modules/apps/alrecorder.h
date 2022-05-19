@@ -46,18 +46,18 @@ public:
     ~AlRecorder();
 
 Q_SIGNALS:
-    void Launched(const QString &file);
-    void StatusSaved(const QString &root, const QString &file, bool ok);
-    void ServiceRestarted();
+    void launched(const QString &file);
+    void statusSaved(const QString &root, const QString &file, bool ok);
+    void serviceRestarted();
 
 private Q_SLOTS:
     void onDFChanged(const QString &filePath, uint32_t op);
 
 public Q_SLOTS:
-    QMap<QString, QStringList> GetNew();
-    void MarkLaunched(const QString &filePath);
-    void UninstallHints(const QStringList &desktopFiles);
-    void WatchDirs(const QStringList &dataDirs);
+    QMap<QString, QStringList> getNew();
+    void markLaunched(const QString &filePath);
+    void uninstallHints(const QStringList &desktopFiles);
+    void watchDirs(const QStringList &dataDirs);
 
 private:
     void initSubRecoder(const QString &dirPath);

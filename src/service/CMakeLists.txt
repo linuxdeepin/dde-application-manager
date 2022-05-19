@@ -29,6 +29,7 @@ add_definitions(-DUSE_QT)
 set(SRCS ${PROJECT_BINARY_DIR}/src/define.h)
 
 set(SRCS
+    ./applicationhelper.h
     ./main.cpp
     ./impl/application_manager.h
     ./impl/application_manager.cpp
@@ -36,7 +37,6 @@ set(SRCS
     ./impl/application.cpp
     ./impl/application_instance.h
     ./impl/application_instance.cpp
-    ../modules/applicationhelper/helper.h
     ../modules/tools/desktop_deconstruction.hpp
     ../modules/socket/server.h
     ../modules/socket/server.cpp
@@ -45,7 +45,6 @@ set(SRCS
     ../modules/methods/instance.hpp
     ../modules/methods/quit.hpp
     ../modules/methods/registe.hpp
-
     ../lib/desktopinfo.h
     ../lib/desktopinfo.cpp
     ../lib/dlocale.h
@@ -82,6 +81,8 @@ set(SRCS
     ../modules/apps/appmanager.cpp
     ../modules/apps/dfwatcher.h
     ../modules/apps/dfwatcher.cpp
+    ../modules/apps/dbusalrecorderadaptor.h
+    ../modules/apps/dbusalrecorderadaptor.cpp
     ../modules/launcher/common.h
     ../modules/launcher/launcher.h
     ../modules/launcher/launcher.cpp
@@ -142,6 +143,8 @@ set(SRCS
     ../frameworkdbus/types/launcheriteminfolist.cpp
     ../frameworkdbus/types/rect.h
     ../frameworkdbus/types/rect.cpp
+    ../frameworkdbus/types/unlaunchedappmap.h
+    ../frameworkdbus/types/unlaunchedappmap.cpp
     ../frameworkdbus/dbuslauncherfront.h
     ../frameworkdbus/dbuslauncherfront.cpp
     ../frameworkdbus/dbuslauncher.h
@@ -192,6 +195,7 @@ target_include_directories(deepin-application-manager PUBLIC
     ../utils
     ../frameworkdbus
     ../frameworkdbus/qtdbusextended
+    ../frameworkdbus/types
 )
 
 install(TARGETS deepin-application-manager DESTINATION bin)

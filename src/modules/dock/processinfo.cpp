@@ -21,7 +21,9 @@
 
 #include "processinfo.h"
 #include "dstring.h"
-#include "dfile.h"
+
+#include <QFileInfo>
+#include <QDir>
 
 ProcessInfo::ProcessInfo(int pid)
  : hasPid(true)
@@ -43,10 +45,14 @@ ProcessInfo::ProcessInfo(int pid)
     }
     // args
     auto verifyExe =  [](std::string exe, std::string cwd, std::string firstArg){
-        if (DFile::base(firstArg) == firstArg)
+        if (firstArg.size() == 0)
+            return false;
+
+        QFileInfo info(firstArg.c_str());
+        if (info.baseName() == firstArg.c_str())
             return true;
 
-        if (!DFile::isAbs(firstArg))
+        if (!QDir::isAbsolutePath(firstArg.c_str()))
             firstArg = cwd + firstArg;
 
         return exe == firstArg;

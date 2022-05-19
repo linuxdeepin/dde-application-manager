@@ -27,9 +27,14 @@
 #include <QObject>
 #include <QVector>
 
+// 启动器相关配置
 class LauncherSettings : public QObject
 {
     Q_OBJECT
+    LauncherSettings(QObject *paret = nullptr);
+    LauncherSettings(const LauncherSettings &);
+    LauncherSettings& operator= (const LauncherSettings &);
+
 public:
     static inline LauncherSettings *instance() {
         static LauncherSettings instance;
@@ -54,11 +59,6 @@ Q_SIGNALS:
     void displayModeChanged(QString mode);
     void fullscreenChanged(bool isFull);
     void hiddenAppsChanged();
-
-private:
-    LauncherSettings(QObject *paret = nullptr);
-    LauncherSettings(const LauncherSettings &);
-    LauncherSettings& operator= (const LauncherSettings &);
 };
 
 #endif // LAUNCHERSETTINGS_H

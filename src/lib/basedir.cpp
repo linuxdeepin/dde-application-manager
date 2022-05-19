@@ -48,7 +48,7 @@ std::string BaseDir::userDataDir()
     if (!xdgDataHomePtr)
         return defaultDir;
 
-    if (!DFile::isAbs(xdgDataHomePtr))
+    if (!DFile::isDir(xdgDataHomePtr))
         return defaultDir;
 
     return std::string(xdgDataHomePtr) + "/";
@@ -80,7 +80,7 @@ std::string BaseDir::userConfigDir()
         return defaultDir;
 
     std::string xdgConfigHome(xdgConfigHomePtr);
-    if (!DFile::isAbs(xdgConfigHome))
+    if (!DFile::isDir(xdgConfigHome))
         return defaultDir;
 
     return xdgConfigHome + "/";
@@ -112,7 +112,7 @@ std::string BaseDir::userCacheDir()
         return  defaultDir;
 
     std::string xdgCacheHome(xdgCacheHomePtr);
-    if (!DFile::isAbs(xdgCacheHome))
+    if (!DFile::isDir(xdgCacheHome))
         return defaultDir;
 
     return xdgCacheHome + "/";
@@ -158,7 +158,7 @@ std::string BaseDir::userAutoStartDir()
 void BaseDir::filterNotAbs(std::vector<std::string> &dirs)
 {
     for (auto iter = dirs.begin(); iter != dirs.end();) {       // erase element in vector
-        if (!DFile::isAbs(*iter))
+        if (!DFile::isDir(*iter))
             iter = dirs.erase(iter);
         else
             iter++;

@@ -114,7 +114,7 @@ public:
 };
 
 // 显示位置
-enum class PositonMode {
+enum class PositionMode {
     TOP,
     Right,
     Bottom,
@@ -122,45 +122,45 @@ enum class PositonMode {
     Unknown,
 };
 
-class PositonModeHandler {
-    PositonMode modeEnum;
+class PositionModeHandler {
+    PositionMode modeEnum;
     QString modeStr;
 
 public:
-    PositonModeHandler(PositonMode mode) : modeEnum(mode), modeStr("") {}
-    PositonModeHandler(QString mode) : modeEnum(PositonMode::Unknown), modeStr(mode) {}
+    PositionModeHandler(PositionMode mode) : modeEnum(mode), modeStr("") {}
+    PositionModeHandler(QString mode) : modeEnum(PositionMode::Unknown), modeStr(mode) {}
 
-    bool equal(PositonModeHandler displayMode) {
+    bool equal(PositionModeHandler displayMode) {
         return toString() == displayMode.toString() || toEnum() == displayMode.toEnum();
     }
 
     QString toString() {
         switch (modeEnum) {
-        case PositonMode::TOP:
+        case PositionMode::TOP:
             return "top";
-        case PositonMode::Right:
+        case PositionMode::Right:
             return "right";
-        case PositonMode::Bottom:
+        case PositionMode::Bottom:
             return "bottom";
-        case PositonMode::Left:
+        case PositionMode::Left:
             return "left";
-        case PositonMode::Unknown:
+        case PositionMode::Unknown:
         default:
             return "unknown";
         }
     }
 
-    PositonMode toEnum() {
+    PositionMode toEnum() {
         if (modeStr == "top")
-            return PositonMode::TOP;
+            return PositionMode::TOP;
         else if (modeStr == "right")
-            return PositonMode::Right;
+            return PositionMode::Right;
         else if (modeStr == "bottom")
-            return PositonMode::Bottom;
+            return PositionMode::Bottom;
         else if (modeStr == "left")
-            return PositonMode::Left;
+            return PositionMode::Left;
         else
-            return PositonMode::Unknown;
+            return PositionMode::Unknown;
     }
 };
 
@@ -228,8 +228,8 @@ public:
     void setHideMode(HideMode mode);
     DisplayMode getDisplayMode();
     void setDisplayMode(DisplayMode mode);
-    PositonMode getPositionMode();
-    void setPositionMode(PositonMode mode);
+    PositionMode getPositionMode();
+    void setPositionMode(PositionMode mode);
     ForceQuitAppMode getForceQuitAppMode();
     void setForceQuitAppMode(ForceQuitAppMode mode);
     uint getIconSize();
@@ -261,9 +261,9 @@ Q_SIGNALS:
     // 显示样式改变
     void displayModeChanged(DisplayMode mode);
     // 显示位置改变
-    void positionModeChanged(PositonMode mode);
+    void positionModeChanged(PositionMode mode);
     // 强制退出应用开关改变
-    void forceQuitAppChanged(bool forced);
+    void forceQuitAppChanged(ForceQuitAppMode mode);
 
 
 private:

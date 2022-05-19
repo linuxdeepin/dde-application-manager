@@ -69,11 +69,12 @@ Launcher::Launcher(QObject *parent)
                                           "Event", "",      // TODO 修正事件参数
                                           this, SLOT(handleFSWatcherEvents(QDBusMessage)));
 
+    // 监控应用目录
+    watchDataDirs();
     // 关联org.deepin.daemon.LRecorder1接口事件ServiceRestarted
-    watchDataDirs(); // 监控应用目录
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecoder1",
-                                          "/org/deepin/daemon/AlRecoder1",
-                                          "org.deepin.daemon.AlRecoder1",
+    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
+                                          "/org/deepin/daemon/AlRecorder1",
+                                          "org.deepin.daemon.AlRecorder1",
                                           "ServiceRestarted",
                                           this, SLOT(handleLRecoderRestart(QDBusMessage)));
 
@@ -87,15 +88,15 @@ Launcher::Launcher(QObject *parent)
     });
 
     // 关联org.deepin.daemon.LRecorder1接口事件Launched
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecoder1",
-                                          "/org/deepin/daemon/AlRecoder1",
-                                          "org.deepin.daemon.AlRecoder1",
+    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
+                                          "/org/deepin/daemon/AlRecorder1",
+                                          "org.deepin.daemon.AlRecorder1",
                                           "Launched", "sa",
                                           this, SLOT([&](QDBusMessage msg) {
                                               QString path = msg.arguments().at(0).toString();
                                               Item item = getItemByPath(path);
                                               if (item.isValid())
-                                              Q_EMIT NewAppLaunched(item.id);
+                                              Q_EMIT newAppLaunched(item.id);
                                           }));
 }
 
@@ -145,27 +146,33 @@ void Launcher::setDisplayMode(int value)
     SETTING->setDisplayMode(value == 1 ? "category" : "free");
 }
 
-void Launcher::setFullScreen(bool isFull)
+void Launcher::setFullscreen(bool isFull)
 {
     SETTING->setFullscreenMode(isFull);
 }
 
-// 获取所有应用信息
-QVector<ItemInfo> Launcher::getAllItemInfos()
+/**
+ * @brief Launcher::getAllItemInfos 获取所有应用信息
+ * @return
+ */
+LauncherItemInfoList Launcher::getAllItemInfos()
 {
-    QVector<ItemInfo> ret;
+    LauncherItemInfoList ret;
     for (auto item : itemsMap) {
         ret.push_back(item.info);
     }
     return ret;
 }
 
-// 获取未打开的应用
+/**
+  * @brief Launcher::getAllNewInstalledApps 获取所有新安装且未打开的应用
+  * @return
+  */
  QStringList Launcher::getAllNewInstalledApps()
 {
     QStringList ret;
     QMap<QString, QStringList> newApps;
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecoder1", "/org/deepin/daemon/AlRecoder1", "org.deepin.daemon.AlRecoder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
     QDBusReply<QMap<QString, QStringList>> reply = interface.call("GetNew");
     if (reply.isValid())
         newApps = reply;
@@ -178,7 +185,11 @@ QVector<ItemInfo> Launcher::getAllItemInfos()
     return ret;
 }
 
-// 获取应用是否缩放
+ /**
+ * @brief Launcher::getDisableScaling 获取应用是否禁用缩放
+ * @param appId
+ * @return
+ */
 bool Launcher::getDisableScaling(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -191,10 +202,14 @@ bool Launcher::getDisableScaling(QString appId)
     return false;
 }
 
-// 获取应用信息
-ItemInfo Launcher::getItemInfo(QString appId)
+/**
+ * @brief Launcher::getItemInfo 获取应用信息
+ * @param appId
+ * @return
+ */
+LauncherItemInfo Launcher::getItemInfo(QString appId)
 {
-    ItemInfo info;
+    LauncherItemInfo info;
     if (itemsMap.find(appId) == itemsMap.end())
         return info;
 
@@ -202,7 +217,11 @@ ItemInfo Launcher::getItemInfo(QString appId)
     return info;
 }
 
-// 获取应用是否代理
+/**
+ * @brief Launcher::getUseProxy 获取应用是否代理
+ * @param appId
+ * @return
+ */
 bool Launcher::getUseProxy(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -215,7 +234,11 @@ bool Launcher::getUseProxy(QString appId)
     return false;
 }
 
-// 桌面是否存在应用desktop文件
+/**
+ * @brief Launcher::isItemOnDesktop 桌面是否存在应用desktop文件
+ * @param appId
+ * @return
+ */
 bool Launcher::isItemOnDesktop(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -226,7 +249,11 @@ bool Launcher::isItemOnDesktop(QString appId)
     return info.exists();
 }
 
-// 移除桌面快捷方式
+/**
+ * @brief Launcher::requestRemoveFromDesktop 移除桌面快捷方式
+ * @param appId
+ * @return
+ */
 bool Launcher::requestRemoveFromDesktop(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -241,7 +268,11 @@ bool Launcher::requestRemoveFromDesktop(QString appId)
     return file.remove();
 }
 
-// 发送应用到桌面
+/**
+ * @brief Launcher::requestSendToDesktop 发送应用到桌面
+ * @param appId
+ * @return
+ */
 bool Launcher::requestSendToDesktop(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -268,7 +299,10 @@ bool Launcher::requestSendToDesktop(QString appId)
     return true;
 }
 
-// 卸载应用
+/**
+ * @brief Launcher::requestUninstall 卸载应用
+ * @param appId
+ */
 void Launcher::requestUninstall(QString appId)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -283,7 +317,7 @@ void Launcher::requestUninstall(QString appId)
     QString result = QString::fromUtf8(process.readAllStandardOutput());
     qInfo() << "RequestUninstall fucntion called by :" << result;
     process.close();
-    if (result == launcherExe) {
+    if (result != launcherExe) {
         qWarning() << result << " has no right to uninstall " << appId;
         return;
     }
@@ -296,13 +330,13 @@ void Launcher::requestUninstall(QString appId)
             return;
 
         // 即将卸载appId
-        QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecoder1", "/org/deepin/daemon/AlRecoder1", "org.deepin.daemon.AlRecoder1");
-        interface.call("UninstallHints", item.info.path);
+        QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
+        interface.call("UninstallHints", QStringList() << item.info.path);
 
         bool ret = doUninstall(info, item); // 阻塞等待
         if (!ret) {
             QString msg = QString("uninstall %1 result %2").arg(info.getName().c_str()).arg(ret);
-            Q_EMIT UninstallFailed(appId, msg);
+            Q_EMIT uninstallFailed(appId, msg);
             qInfo() << msg;
             return;
         }
@@ -311,12 +345,16 @@ void Launcher::requestUninstall(QString appId)
         QString filePath(QDir::homePath() + "/.config/autostart/" + appId + ".desktop");
         QFile file(filePath);
         file.remove();
-        Q_EMIT UninstallSuccess(appId);
+        Q_EMIT uninstallSuccess(appId);
     }, appId);
     thread.detach();
 }
 
-// 设置应用禁用缩放
+/**
+ * @brief Launcher::setDisableScaling 设置应用是否禁用缩放
+ * @param appId
+ * @param value
+ */
 void Launcher::setDisableScaling(QString appId, bool value)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -346,7 +384,11 @@ void Launcher::setDisableScaling(QString appId, bool value)
     SETTING->setDisableScalingApps(apps);
 }
 
-// 设置用户代理
+/**
+ * @brief Launcher::setUseProxy 设置用户代理
+ * @param appId
+ * @param value
+ */
 void Launcher::setUseProxy(QString appId, bool value)
 {
     if (itemsMap.find(appId) == itemsMap.end())
@@ -376,6 +418,10 @@ void Launcher::setUseProxy(QString appId, bool value)
     SETTING->setUseProxy(apps);
 }
 
+/**
+ * @brief Launcher::handleFSWatcherEvents 处理文件改变事件
+ * @param msg
+ */
 void Launcher::handleFSWatcherEvents(QDBusMessage msg)
 {
     QList<QVariant> ret = msg.arguments();
@@ -398,8 +444,8 @@ void Launcher::handleFSWatcherEvents(QDBusMessage msg)
 
             Item &item = itemsMap[id];
             Categorytype ty = queryCategoryId(&item);
-            if (ty != item.info.categoryId) {
-                item.info.categoryId = ty;
+            if (qint64(ty) != item.info.categoryId) {
+                item.info.categoryId = qint64(ty);
                 emitItemChanged(&item, appStatusModified);
             }
             noPkgItemIds.remove(id);
@@ -417,6 +463,9 @@ void Launcher::  handleLRecoderRestart(QDBusMessage msg)
     watchDataDirs();
 }
 
+/**
+ * @brief Launcher::initSettings 初始化启动器配置
+ */
 void Launcher::initSettings()
 {
     connect(SETTING, &LauncherSettings::displayModeChanged, this, [&](QString mode) {
@@ -428,7 +477,9 @@ void Launcher::initSettings()
     appsHidden = SETTING->getHiddenApps();
 }
 
-// 加载应用包信息
+/**
+ * @brief Launcher::loadDesktopPkgMap 加载应用包信息
+ */
 void Launcher::loadDesktopPkgMap()
 {
     QFile file(desktopPkgMapFile);
@@ -455,7 +506,9 @@ void Launcher::loadDesktopPkgMap()
     }
 }
 
-// 加载应用类型信息
+/**
+ * @brief Launcher::loadPkgCategoryMap 加载应用类型信息
+ */
 void Launcher::loadPkgCategoryMap()
 {
     QFile file(applicationsFile);
@@ -523,7 +576,9 @@ void Launcher::checkDesktopFile(QString filePath)
     }
 }
 
-// 响应DConfig中隐藏应用配置变化
+/**
+ * @brief Launcher::handleAppHiddenChanged 响应DConfig中隐藏应用配置变化
+ */
 void Launcher::handleAppHiddenChanged()
 {
     auto hiddenApps = SETTING->getHiddenApps();
@@ -569,7 +624,9 @@ void Launcher::handleAppHiddenChanged()
     }
 }
 
-// 加载翻译应用信息
+/**
+ * @brief Launcher::loadNameMap 加载翻译应用信息
+ */
 void Launcher::loadNameMap()
 {
     QFile file(appNameTranslationsFile);
@@ -607,7 +664,9 @@ void Launcher::loadNameMap()
     }
 }
 
-// 初始化应用信息
+/**
+ * @brief Launcher::initItems 初始化应用信息
+ */
 void Launcher::initItems()
 {
     std::vector<DesktopInfo> infos = AppsDir::getAllDesktopInfos();
@@ -638,7 +697,7 @@ void Launcher::addItem(Item item)
             item.info.name = name;
     }
 
-    item.info.categoryId = queryCategoryId(&item);
+    item.info.categoryId = qint64(queryCategoryId(&item));
     itemsMap[item.info.id] = item;
 }
 
@@ -660,7 +719,11 @@ Categorytype Launcher::queryCategoryId(const Item *item)
     return getXCategory(item);
 }
 
-// 获取应用类型
+/**
+ * @brief Launcher::getXCategory 获取应用类型
+ * @param item
+ * @return
+ */
 Categorytype Launcher::getXCategory(const Item *item)
 {
     // 统计应用类型
@@ -720,7 +783,11 @@ Categorytype Launcher::getXCategory(const Item *item)
     return maxCatogories[0];
 }
 
-// 使用dpkg -S，通过文件路径查包
+/**
+ * @brief Launcher::queryPkgNameWithDpkg 使用dpkg -S，通过文件路径查包
+ * @param itemPath
+ * @return
+ */
 QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
 {
     QProcess process;
@@ -741,7 +808,12 @@ QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
     return "";
 }
 
-// 通过id、path查询包名
+/**
+ * @brief Launcher::queryPkgName 通过id、path查询包名
+ * @param itemID
+ * @param itemPath
+ * @return
+ */
 QString Launcher::queryPkgName(const QString &itemID, const QString &itemPath)
 {
     if (!itemPath.isEmpty()) {
@@ -789,7 +861,11 @@ QString Launcher::queryPkgName(const QString &itemID, const QString &itemPath)
     return "";
 }
 
-// 根据desktop路径获取Item信息
+/**
+ * @brief Launcher::getItemByPath 根据desktop路径获取Item信息
+ * @param itemPath
+ * @return
+ */
 Item Launcher::getItemByPath(QString itemPath)
 {
     QString appId = getAppIdByFilePath(itemPath, appDirs);
@@ -802,20 +878,22 @@ Item Launcher::getItemByPath(QString itemPath)
     return Item();
 }
 
-// 监控应用数据目录
+/**
+ * @brief Launcher::watchDataDirs 监控应用数据目录
+ */
 void Launcher::watchDataDirs()
 {
     QStringList dataDirs;
     dataDirs << QDir::homePath() + ".local/share";
     dataDirs << "/usr/local/share" << "/usr/share";
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecoder1", "/org/deepin/daemon/AlRecoder1", "org.deepin.daemon.AlRecoder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
     interface.call("WatchDirs", dataDirs);
 }
 
 void Launcher::emitItemChanged(const Item *item, QString status)
 {
-    ItemInfo info(item->info);
-    Q_EMIT ItemChanged(status, info, info.categoryId);
+    LauncherItemInfo info(item->info);
+    Q_EMIT itemChanged(status, info, info.categoryId);
 }
 
 AppType Launcher::getAppType(DesktopInfo &info, const Item &item)
@@ -875,6 +953,12 @@ end:
     return ty;
 }
 
+/**
+ * @brief Launcher::doUninstall 执行卸载操作
+ * @param info
+ * @param item
+ * @return
+ */
 bool Launcher::doUninstall(DesktopInfo &info, const Item &item)
 {
     bool ret = false;
@@ -916,7 +1000,12 @@ bool Launcher::doUninstall(DesktopInfo &info, const Item &item)
     return ret;
 }
 
-// 卸载flatpak应用
+/**
+ * @brief Launcher::uninstallFlatpak 卸载flatpak应用
+ * @param info
+ * @param item
+ * @return
+ */
 bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
 {
     struct FlatpakApp {
@@ -971,7 +1060,11 @@ bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
     return true;
 }
 
-// 卸载wine应用
+/**
+ * @brief Launcher::uninstallWineApp 卸载wine应用
+ * @param item
+ * @return
+ */
 bool Launcher::uninstallWineApp(const Item &item)
 {
     QProcess process;
@@ -983,19 +1076,27 @@ bool Launcher::uninstallWineApp(const Item &item)
     return res;
 }
 
-// 卸载
+/**
+ * @brief Launcher::uninstallSysApp 卸载系统App
+ * @param name
+ * @param pkg
+ * @return
+ */
 bool Launcher::uninstallSysApp(const QString &name, const QString &pkg)
 {
     QDBusInterface lastoreDbus = QDBusInterface("com.deepin.lastore", "/com/deepin/lastore", "com.deepin.lastore.Manager", QDBusConnection::systemBus());
-    QDBusReply<QString> reply = lastoreDbus.call("RemovePackage", name, pkg);  // TODO replay为空?
-    QString jobPath = reply.isValid() ? reply.value() : "";
-    if (jobPath.isEmpty())
+    QDBusReply<QDBusObjectPath> reply = lastoreDbus.call("RemovePackage", name, pkg);
+    QDBusObjectPath jobPath;
+    if (reply.isValid())
+        reply.value();
+
+    if (jobPath.path().isEmpty())
         return false;
 
     QEventLoop loop;
     bool ret = false;
     QDBusConnection::sessionBus().connect("com.deepin.lastore",
-                                          jobPath,
+                                          jobPath.path(),
                                           "com.deepin.lastore.Job",
                                           "Status",
                                           "sa",
@@ -1015,7 +1116,11 @@ bool Launcher::uninstallSysApp(const QString &name, const QString &pkg)
     return ret;
 }
 
-// 移除desktop文件
+/**
+ * @brief Launcher::removeDesktop 移除desktop文件
+ * @param item
+ * @return
+ */
 bool Launcher::removeDesktop(const Item &item)
 {
     // 移除desktop文件
@@ -1029,7 +1134,11 @@ bool Launcher::removeDesktop(const Item &item)
     return ret;
 }
 
-// 发送卸载结果
+/**
+ * @brief Launcher::notifyUninstallDone 发送卸载结果
+ * @param item
+ * @param result
+ */
 void Launcher::notifyUninstallDone(const Item &item, bool result)
 {
     QString msg;
@@ -1042,7 +1151,11 @@ void Launcher::notifyUninstallDone(const Item &item, bool result)
     interface.call("Notify", "deepin-app-store", 0, "deepin-appstore", msg, "", QVariant(), QVariant(), -1);
 }
 
-// deepin custom app
+/**
+ * @brief Launcher::isDeepinCustomDesktopFile 检测是否为Deepin定制应用
+ * @param fileName
+ * @return
+ */
 bool Launcher::isDeepinCustomDesktopFile(QString fileName)
 {
     QFileInfo fileInfo(fileName);
@@ -1074,7 +1187,7 @@ Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
     Item item;
     item.info.path = appFileName;
     item.info.name = appName;
-    item.info.enName = enName;
+    //item.info.keywords << enName << appName;
     item.info.id = getAppIdByFilePath(item.info.path, appDirs);
     item.info.timeInstalled = ctime;
     item.exec = info.getCommandLine().c_str();
@@ -1083,7 +1196,7 @@ Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
     xDeepinCategory = xDeepinCategory.toLower();
 
     for (auto &keyWord : info.getKeywords()) {
-        item.keywords.push_back(QString(keyWord.c_str()).toLower());
+        item.desktopKeywords.push_back(QString(keyWord.c_str()).toLower());
     }
 
     for (auto &category : info.getCategories()) {

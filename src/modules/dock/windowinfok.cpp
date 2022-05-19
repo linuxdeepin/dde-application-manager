@@ -176,6 +176,15 @@ void WindowInfoK::updateProcessInfo()
     processInfo = new ProcessInfo(pid);
 }
 
+/**
+ * @brief WindowInfoK::getGeometry 获取窗口大小
+ * @return
+ */
+Rect WindowInfoK::getGeometry()
+{
+    return geometry;
+}
+
 int64_t WindowInfoK::getCreatedTime()
 {
     return createdTime;

@@ -12,109 +12,119 @@
 #include <iostream>
 
 namespace Socket {
-class ServerPrivate : public QObject {
-    Q_OBJECT
-public:
-    Server  *q_ptr;
-    int      socket_fd;
-    QThread *workThread;
 
-Q_SIGNALS:
-    void requestStart();
+ServerPrivate::ServerPrivate(Server *server)
+ : QObject()
+ , q_ptr(server)
+ , socket_fd(-1)
+ , workThread(nullptr)
+{
+    if ((socket_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+        std::cout << "socket() failed" << std::endl;
+        return;
+    }
 
-public:
-    ServerPrivate(Server *server) : QObject(), q_ptr(server), socket_fd(-1)
-    {
-        if ((socket_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-            std::cout << "socket() failed" << std::endl;
+    connect(this, &ServerPrivate::requestStart, this, &ServerPrivate::work, Qt::QueuedConnection);
+}
+
+ServerPrivate::~ServerPrivate()
+{
+
+}
+
+void ServerPrivate::work()
+{
+    // 处理客户端数据
+    while (true) {
+        // 阻塞等待客户端连接
+        int socket = accept(socket_fd, nullptr, nullptr);
+        if (socket == -1) {
+            std::cout << "accept() failed" << std::endl;
             return;
         }
-
-        connect(this, &ServerPrivate::requestStart, this, &ServerPrivate::work, Qt::QueuedConnection);
-    }
-    ~ServerPrivate() {}
-
-    void work()
-    {
-        // start a thread to listen client read
-        while (true) {
-            int socket = accept(socket_fd, nullptr, nullptr);
-            if (socket == -1) {
-                std::cout << "accept() failed" << std::endl;
-                return;
-            }
-            QtConcurrent::run([=] {
-                int               readBytes = 0;
-                char              buffer[1024];
-                std::vector<char> data;
-                while (true) {
-                    readBytes = recv(socket, buffer, 1024, 0);
-                    if (readBytes == -1) {
-                        std::cout << "client connect closed" << std::endl;
-                        break;
-                    }
-
-                    if (readBytes == 0) {
-                        break;
-                    }
-
-                    for (int i = 0; i != readBytes; i++) {
-                        data.push_back(buffer[i]);
-                    }
-
-                    if (buffer[readBytes - 1] == '\0') {
-                        emit q_ptr->onReadyRead(socket, data);
-                        data.clear();
-                    }
+        QtConcurrent::run([=] {
+            int               readBytes = 0;
+            char              buffer[1024];
+            std::vector<char> data;
+            while (true) {
+                readBytes = recv(socket, buffer, 1024, 0);
+                if (readBytes == -1) {
+                    std::cout << "client connect closed" << std::endl;
+                    break;
                 }
-            });
-        }
+
+                if (readBytes == 0) {
+                    break;
+                }
+
+                for (int i = 0; i != readBytes; i++) {
+                    data.push_back(buffer[i]);
+                }
+
+                if (buffer[readBytes - 1] == '\0') {
+                    emit q_ptr->onReadyRead(socket, data);
+                    data.clear();
+                }
+            }
+        });
+    }
+}
+
+bool ServerPrivate::listen(const std::string &host)
+{
+    if (socket_fd < 0) {
+        return false;
     }
 
-    bool listen(const std::string &host)
-    {
-        if (socket_fd < 0) {
-            return false;
-        }
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(struct sockaddr_un));
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, host.size() + 1, "%s", host.c_str());
 
-        struct sockaddr_un addr;
-        memset(&addr, 0, sizeof(struct sockaddr_un));
-        addr.sun_family = AF_UNIX;
-        snprintf(addr.sun_path, host.size() + 1, "%s", host.c_str());
-
-        if (remove(host.c_str()) == -1 && errno != ENOENT) {
-            std::cout << "remove() failed" << std::endl;
-            return false;
-        }
-        if (bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-            std::cout << "bind() failed" << std::endl;
-            return false;
-        }
-
-        if (::listen(socket_fd, sizeof(uint)) < 0) {
-            std::cout << "listen() failed" << std::endl;
-            return false;
-        }
-
-        return true;
+    // 移除原有套接字文件
+    if (remove(host.c_str()) == -1 && errno != ENOENT) {
+        std::cout << "remove() failed" << std::endl;
+        return false;
     }
 
-    void write(int socket, const std::vector<char> &data)
-    {
-        ::write(socket, data.data(), data.size());
+    // 绑定套接字文件
+    if (bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        std::cout << "bind() failed" << std::endl;
+        return false;
     }
 
-    void closeClient(int socket)
-    {
-        ::close(socket);
+    // 监听客户端连接
+    if (::listen(socket_fd, 20) < 0) {
+        std::cout << "listen() failed" << std::endl;
+        return false;
     }
-};
 
-Server::Server() : QObject(nullptr), d_ptr(new ServerPrivate(this))
+    return true;
+}
+
+void ServerPrivate::write(int socket, const std::vector<char> &data)
+{
+    ::write(socket, data.data(), data.size());
+}
+
+void ServerPrivate::closeClient(int socket)
+{
+    ::close(socket);
+}
+
+
+Server::Server()
+    : QObject(nullptr)
+    , d_ptr(new ServerPrivate(this))
 {
     qRegisterMetaType<std::vector<char>>("VectorChar");
 }
-Server::~Server() {}
+
+Server::~Server()
+{
+
+}
+
 bool Server::listen(const std::string &host)
 {
     if (d_ptr->workThread) {
@@ -142,6 +152,7 @@ void Server::close(int socket)
 {
     d_ptr->closeClient(socket);
 }
+
 }  // namespace Socket
 
 #include "server.moc"

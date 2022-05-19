@@ -32,7 +32,7 @@ StartManagerDBusHandler::StartManagerDBusHandler(QObject *parent)
 
 void StartManagerDBusHandler::markLaunched(QString desktopFile)
 {
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecoder1", "/org/deepin/daemon/AlRecoder1", "org.deepin.daemon.AlRecoder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
     interface.call("MarkLaunched", desktopFile);
 }
 

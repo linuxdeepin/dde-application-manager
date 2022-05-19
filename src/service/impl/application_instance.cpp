@@ -9,7 +9,7 @@
 #include <QUuid>
 #include <QtConcurrent/QtConcurrent>
 
-#include "../../modules/applicationhelper/helper.h"
+#include "../applicationhelper.h"
 #include "application.h"
 #include "applicationinstanceadaptor.h"
 
@@ -46,6 +46,7 @@ public:
     void run()
     {
 #ifdef DEFINE_LOADER_PATH
+
         const QString task_hash{ QString("DAM_TASK_HASH=%1").arg(m_id) };
         const QString task_type{ "DAM_TASK_TYPE=freedesktop " };
         QProcess*     p = new QProcess(q_ptr);
@@ -88,7 +89,10 @@ public:
     void _kill() {}
 };
 
-ApplicationInstance::ApplicationInstance(Application* parent, QSharedPointer<modules::ApplicationHelper::Helper> helper) : QObject(nullptr), dd_ptr(new ApplicationInstancePrivate(this))
+ApplicationInstance::ApplicationInstance(Application* parent, QSharedPointer<modules::ApplicationHelper::Helper> helper, QStringList files)
+ : QObject(nullptr)
+ , dd_ptr(new ApplicationInstancePrivate(this))
+ , m_files(files)
 {
     Q_D(ApplicationInstance);
 
@@ -143,6 +147,7 @@ Methods::Task ApplicationInstance::taskInfo() const
     task.id    = d->m_id;
     task.runId = d->application->id();
     task.date  = QString::number(startuptime());
+    task.arguments = m_files;
 
     // TODO: debug to display environment
     task.environments.insert( "DISPLAY", ":0" );

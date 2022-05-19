@@ -27,6 +27,7 @@
 #include "startmanagersettings.h"
 #include "startmanagerdbushandler.h"
 #include "meminfo.h"
+#include "../../service/impl/application_manager.h"
 
 #include <QFileSystemWatcher>
 #include <QDebug>
@@ -47,6 +48,11 @@ StartManager::StartManager(QObject *parent)
     , dbusHandler(new StartManagerDBusHandler(this))
     , fileWatcher(new QFileSystemWatcher(this))
 {
+    am = static_cast<ApplicationManager *>(parent);
+    if (!am) {
+        qWarning() << "StartManager init error";
+    }
+
     // load sysMemLimitConfig
     loadSysMemLimitConfig();
 

@@ -14,7 +14,6 @@ public:
     friend const QDBusArgument &operator>>(const QDBusArgument &arg, Rect &rect);
     friend QDBusArgument &operator<<(QDBusArgument &arg, const Rect &rect);
 
-private:
     qint32 X, Y, Width, Height;
 };
 

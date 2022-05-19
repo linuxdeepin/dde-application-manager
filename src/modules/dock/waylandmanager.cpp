@@ -34,7 +34,10 @@ WaylandManager::WaylandManager(Dock *_dock, QObject *parent)
 }
 
 
-// 注册窗口
+/**
+ * @brief WaylandManager::registerWindow 注册窗口
+ * @param objPath
+ */
 void WaylandManager::registerWindow(const QString &objPath)
 {
     qInfo() << "registerWindow: " << objPath;

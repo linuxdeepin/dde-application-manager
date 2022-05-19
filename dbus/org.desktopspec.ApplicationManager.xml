@@ -1,15 +1,8 @@
 <interface name='org.desktopspec.ApplicationManager'>
-    <method name='Run'>
+    <method name='Launch'>
         <arg type='s' name='id' direction='in'/>
+        <arg type='as' name='files' direction='in' />
         <arg type='o' name='instance' direction='out'/>
-    </method>
-    <method name='GetInformation'>
-        <arg type='s' name='id' direction='in' />
-        <arg type='o' name='info' direction='out' />
-    </method>
-    <method name='GetInstances'>
-        <arg type='s' name='id' direction='in' />
-        <arg type='ao' name='instances' direction='out' />
     </method>
     <method name='AddAutostart'>
         <arg type='s' name='fileNamae' direction='in' />
@@ -31,11 +24,6 @@
     </method>
     <method name='IsMemSufficient'>
         <arg type='b' name='outArg0' direction='out' />
-    </method>
-    <method name='LaunchApp'>
-        <arg type='s' name='desktopFile' direction='in' />
-        <arg type='u' name='timestamp' direction='in' />
-        <arg type='as' name='files' direction='in' />
     </method>
     <method name='LaunchAppAction'>
         <arg type='s' name='desktopFile' direction='in' />

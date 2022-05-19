@@ -31,6 +31,8 @@
 #include "windowinfobase.h"
 #include "dbusplasmawindow.h"
 
+#include "macro.h"
+
 #include <QDir>
 #include <QMap>
 #include <QTimer>
@@ -40,6 +42,7 @@
 
 Dock::Dock(QObject *parent)
  : SynModule(parent)
+ , entriesSum(0)
  , windowIdentify(new WindowIdentify(this))
  , entries(new Entries(this))
  , ddeLauncherVisible(true)
@@ -91,7 +94,11 @@ Dock::~Dock()
 
 }
 
-// 驻留
+/**
+ * @brief Dock::dockEntry 驻留应用
+ * @param entry 应用实例
+ * @return
+ */
 bool Dock::dockEntry(Entry *entry)
 {
     if (entry->getIsDocked())
@@ -176,7 +183,10 @@ bool Dock::dockEntry(Entry *entry)
     return true;
 }
 
-// 取消驻留
+/**
+ * @brief Dock::undockEntry 取消驻留
+ * @param entry 应用实例
+ */
 void Dock::undockEntry(Entry *entry)
 {
     if (!entry->getIsDocked()) {
@@ -232,12 +242,20 @@ void Dock::undockEntry(Entry *entry)
     saveDockedApps();
 }
 
+/**
+ * @brief Dock::allocEntryId 分配应用实例id
+ * @return
+ */
 QString Dock::allocEntryId()
 {
-    int num = entriesSum++;
-    return QString::number(num);
+    return QString("e%1T%2").arg(++entriesSum).arg(QString::number(QDateTime::currentMSecsSinceEpoch(), 16));
 }
 
+/**
+ * @brief Dock::shouldShowOnDock 判断是否应该显示到任务栏
+ * @param info
+ * @return
+ */
 bool Dock::shouldShowOnDock(WindowInfoBase *info)
 {
     if (info->getWindowType() == "X11") {
@@ -256,56 +274,101 @@ bool Dock::shouldShowOnDock(WindowInfoBase *info)
     return false;
 }
 
+/**
+ * @brief Dock::setDdeLauncherVisible 记录当前启动器是否可见
+ * @param visible
+ */
 void Dock::setDdeLauncherVisible(bool visible)
 {
     ddeLauncherVisible = visible;
 }
 
+/**
+ * @brief Dock::getWMName 获取窗管名称
+ * @return
+ */
 QString Dock::getWMName()
 {
     return wmName;
 }
 
+/**
+ * @brief Dock::setWMName 设置窗管名称
+ * @param name 窗管名称
+ */
 void Dock::setWMName(QString name)
 {
     wmName = name;
 }
 
+/**
+ * @brief Dock::setSynConfig 同步配置 TODO
+ * @param ba 配置数据
+ */
 void Dock::setSynConfig(QByteArray ba)
 {
 
 }
 
+/**
+ * @brief Dock::getSyncConfig 获取配置 TODO
+ * @return 配置数据
+ */
 QByteArray Dock::getSyncConfig()
 {
     return QByteArray();
 }
 
+/**
+ * @brief Dock::createPlasmaWindow 创建wayland下窗口
+ * @param objPath
+ * @return
+ */
 PlasmaWindow *Dock::createPlasmaWindow(QString objPath)
 {
     return dbusHandler->createPlasmaWindow(objPath);
 }
 
+/**
+ * @brief Dock::listenKWindowSignals
+ * @param windowInfo
+ */
 void Dock::listenKWindowSignals(WindowInfoK *windowInfo)
 {
     dbusHandler->listenKWindowSignals(windowInfo);
 }
 
+/**
+ * @brief Dock::removePlasmaWindowHandler 关闭窗口后需求对应的connect
+ * @param window
+ */
 void Dock::removePlasmaWindowHandler(PlasmaWindow *window)
 {
     dbusHandler->removePlasmaWindowHandler(window);
 }
 
+/**
+ * @brief Dock::presentWindows 显示窗口
+ * @param windows 窗口id
+ */
 void Dock::presentWindows(QList<uint> windows)
 {
     dbusHandler->presentWindows(windows);
 }
 
+/**
+ * @brief Dock::getDockHideMode 获取任务栏隐藏模式  一直显示/一直隐藏/智能隐藏
+ * @return
+ */
 HideMode Dock::getDockHideMode()
 {
     return SETTING->getHideMode();
 }
 
+/**
+ * @brief Dock::getActiveWindow 获取当前活跃窗口
+ * @return
+ */
 WindowInfoBase *Dock::getActiveWindow()
 {
     WindowInfoBase *ret = nullptr;
@@ -317,12 +380,19 @@ WindowInfoBase *Dock::getActiveWindow()
     return ret;
 }
 
+/**
+ * @brief Dock::getClientList 获取窗口client列表
+ * @return
+ */
 QList<XWindow> Dock::getClientList()
 {
     return QList<XWindow>(clientList);
 }
 
-// 关闭窗口
+/**
+ * @brief Dock::closeWindow 关闭窗口
+ * @param windowId 窗口id
+ */
 void Dock::closeWindow(uint32_t windowId)
 {
     qInfo() << "Close Window " << windowId;
@@ -335,13 +405,22 @@ void Dock::closeWindow(uint32_t windowId)
     }
 }
 
-// 获取所有应用Id for debug
+/**
+ * @brief Dock::getEntryIDs 获取所有应用Id
+ * @return
+ */
 QStringList Dock::getEntryIDs()
 {
     return entries->getEntryIDs();
 }
 
-// 设置任务栏Rect
+/**
+ * @brief Dock::setFrontendWindowRect 设置任务栏Rect
+ * @param x
+ * @param y
+ * @param width
+ * @param height
+ */
 void Dock::setFrontendWindowRect(int32_t x, int32_t y, uint width, uint height)
 {
     if (frontendWindowRect == QRect(x, y, width, height)) {
@@ -358,14 +437,23 @@ void Dock::setFrontendWindowRect(int32_t x, int32_t y, uint width, uint height)
     Q_EMIT frontendWindowRectChanged();
 }
 
-// 应用是否驻留
+/**
+ * @brief Dock::isDocked 应用是否驻留
+ * @param desktopFile
+ * @return
+ */
 bool Dock::isDocked(const QString desktopFile)
 {
     auto entry = getDockedEntryByDesktopFile(desktopFile);
     return !!entry;
 }
 
-// 驻留应用
+/**
+ * @brief Dock::requestDock 驻留应用
+ * @param desktopFile desktopFile全路径
+ * @param index
+ * @return
+ */
 bool Dock::requestDock(QString desktopFile, int index)
 {
     qInfo() << "RequestDock: " << desktopFile;
@@ -394,6 +482,11 @@ bool Dock::requestDock(QString desktopFile, int index)
     return true;
 }
 
+/**
+ * @brief Dock::requestUndock 取消驻留应用
+ * @param desktopFile desktopFile文件全路径
+ * @return
+ */
 bool Dock::requestUndock(QString desktopFile)
 {
    auto entry = getDockedEntryByDesktopFile(desktopFile);
@@ -404,26 +497,41 @@ bool Dock::requestUndock(QString desktopFile)
    return true;
 }
 
-// 移动驻留程序顺序
+/**
+ * @brief Dock::moveEntry 移动驻留程序顺序
+ * @param oldIndex
+ * @param newIndex
+ */
 void Dock::moveEntry(int oldIndex, int newIndex)
 {
     entries->move(oldIndex, newIndex);
     saveDockedApps();
 }
 
-// 是否在任务栏
+/**
+ * @brief Dock::isOnDock 是否在任务栏
+ * @param desktopFile desktopFile文件全路径
+ * @return
+ */
 bool Dock::isOnDock(QString desktopFile)
 {
-    return !!getDockedEntryByDesktopFile(desktopFile);
+    return !!entries->getByDesktopFilePath(desktopFile);
 }
 
-// 查询窗口识别方式
+/**
+ * @brief Dock::queryWindowIdentifyMethod 查询窗口识别方式
+ * @param windowId 窗口id
+ * @return
+ */
 QString Dock::queryWindowIdentifyMethod(XWindow windowId)
 {
     return entries->queryWindowIdentifyMethod(windowId);
 }
 
-// 获取驻留应用desktop文件
+/**
+ * @brief Dock::getDockedAppsDesktopFiles 获取驻留应用desktop文件
+ * @return
+ */
 QStringList Dock::getDockedAppsDesktopFiles()
 {
     QStringList ret;
@@ -434,31 +542,46 @@ QStringList Dock::getDockedAppsDesktopFiles()
     return ret;
 }
 
-// 获取任务栏插件配置
+/**
+ * @brief Dock::getPluginSettings 获取任务栏插件配置
+ * @return
+ */
 QString Dock::getPluginSettings()
 {
     return SETTING->getPluginSettings();
 }
 
-// 设置任务栏插件配置
+/**
+ * @brief Dock::setPluginSettings 设置任务栏插件配置
+ * @param jsonStr
+ */
 void Dock::setPluginSettings(QString jsonStr)
 {
     SETTING->setPluginSettings(jsonStr);
 }
 
-// 合并任务栏插件配置
+/**
+ * @brief Dock::mergePluginSettings 合并任务栏插件配置
+ * @param jsonStr
+ */
 void Dock::mergePluginSettings(QString jsonStr)
 {
     SETTING->mergePluginSettings(jsonStr);
 }
 
-// 移除任务栏插件配置
+/**
+ * @brief Dock::removePluginSettings 移除任务栏插件配置
+ * @param pluginName
+ * @param settingkeys
+ */
 void Dock::removePluginSettings(QString pluginName, QStringList settingkeys)
 {
     SETTING->removePluginSettings(pluginName, settingkeys);
 }
 
-// 智能隐藏
+/**
+ * @brief Dock::smartHideModeTimerExpired 设置智能隐藏
+ */
 void Dock::smartHideModeTimerExpired()
 {
     HideState state = shouldHideOnSmartHideMode() ? HideState::Hide : HideState::Show;
@@ -466,31 +589,40 @@ void Dock::smartHideModeTimerExpired()
     setPropHideMode(state);
 }
 
+/**
+ * @brief Dock::initSettings 初始化配置
+ */
 void Dock::initSettings()
 {
     SETTING->init();
+    forceQuitAppStatus = SETTING->getForceQuitAppMode();
     connect(SETTING, &DockSettings::hideModeChanged, this, [&](HideMode mode) {
         this->updateHideState(false);
     });
     connect(SETTING, &DockSettings::displayModeChanged, this, [](DisplayMode mode) {
        qInfo() << "display mode change to " << static_cast<int>(mode);
     });
-    connect(SETTING, &DockSettings::positionModeChanged, this, [](PositonMode mode) {
+    connect(SETTING, &DockSettings::positionModeChanged, this, [](PositionMode mode) {
        qInfo() << "position mode change to " << static_cast<int>(mode);
     });
-    connect(SETTING, &DockSettings::forceQuitAppChanged, this, [&](bool mode) {
-       qInfo() << "forceQuitApp change to " << mode;
+    connect(SETTING, &DockSettings::forceQuitAppChanged, this, [&](ForceQuitAppMode mode) {
+       qInfo() << "forceQuitApp change to " << int(mode);
+       forceQuitAppStatus = mode;
        entries->updateEntriesMenu();
     });
 }
 
-// 更新所有应用菜单
+/**
+ * @brief Dock::updateMenu 更新所有应用菜单 TODO
+ */
 void Dock::updateMenu()
 {
 
 }
 
-// 初始化应用
+/**
+ * @brief Dock::initEntries 初始化应用
+ */
 void Dock::initEntries()
 {
     initDockedApps();
@@ -498,6 +630,9 @@ void Dock::initEntries()
         initClientList();
 }
 
+/**
+ * @brief Dock::initDockedApps 初始化驻留应用
+ */
 void Dock::initDockedApps()
 {
     // 初始化驻留应用信息
@@ -526,7 +661,9 @@ void Dock::initDockedApps()
     saveDockedApps();
 }
 
-#include "processinfo.h"
+/**
+ * @brief Dock::initClientList 初始化窗口列表，关联到对应应用
+ */
 void Dock::initClientList()
 {
     QList<XWindow> clients;
@@ -542,40 +679,103 @@ void Dock::initClientList()
     }
 }
 
+/**
+ * @brief Dock::findWindowByXidX 通过id获取窗口信息
+ * @param xid
+ * @return
+ */
 WindowInfoX *Dock::findWindowByXidX(XWindow xid)
 {
     return x11Manager->findWindowByXid(xid);
 }
 
+/**
+ * @brief Dock::findWindowByXidK 通过xid获取窗口  TODO wayland和x11下窗口尽量完全剥离， 不应该存在通过xid查询wayland窗口的情况
+ * @param xid
+ * @return
+ */
 WindowInfoK *Dock::findWindowByXidK(XWindow xid)
 {
     return waylandManager->findWindowByXid(xid);
 }
 
+/**
+ * @brief Dock::isWindowDockOverlapX 判断X环境下窗口和任务栏是否重叠 TODO
+ * @param xid
+ * @return
+ */
 bool Dock::isWindowDockOverlapX(XWindow xid)
 {
-
     return false;
 }
 
-// 判断窗口和任务栏是否重叠
+/**
+ * @brief Dock::isWindowDockOverlapK 判断Wayland环境下窗口和任务栏是否重叠
+ * @param info
+ * @return
+ */
 bool Dock::isWindowDockOverlapK(WindowInfoBase *info)
 {
-    if (!info) {
-        qInfo() << "isWindowDockOverlapK: info is nullptr";
+    WindowInfoK *infoK = static_cast<WindowInfoK *>(info);
+    if (!infoK) {
+        qInfo() << "isWindowDockOverlapK: infoK is nullptr";
         return false;
     }
 
-    //TODO check
+    Rect rect = infoK->getGeometry();
+    bool isActiveWin = infoK->getPlasmaWindow()->IsActive();
+    QString appId = infoK->getAppId();
+    if (!isActiveWin) {
+        qInfo() << "isWindowDockOverlapK: check window " << appId << " is not active";
+        return false;
+    }
 
-    return false;
+    QStringList appList = {"dde-desktop", "dde-lock", "dde-shutdown"};
+    if (appList.contains(appId)) {
+        qInfo() << "isWindowDockOverlapK: appId in white list";
+        return false;
+    }
+
+    return hasInterSectionK(rect, frontendWindowRect);
 }
 
+/**
+ * @brief Dock::hasInterSectionK Wayland环境下判断活动窗口和任务栏区域是否重叠
+ * @param windowRect 活动窗口rect
+ * @param dockRect 任务栏窗口rect
+ * @return
+ */
+bool Dock::hasInterSectionK(const Rect &windowRect, QRect dockRect)
+{
+    int position = getPosition();
+    int ltX = MAX(windowRect.X, dockRect.x());
+    int ltY = MAX(windowRect.Y, dockRect.y());
+    int rbX = MIN(windowRect.X + windowRect.Width, dockRect.x() + dockRect.width());
+    int rbY = MIN(windowRect.Y + windowRect.Height, dockRect.y() + dockRect.height());
+
+    if (position == int(PositionMode::Left) || position == int(PositionMode::Right)) {
+        return ltX <= rbX && ltY < rbY;
+    } else if (position == int(PositionMode::TOP) || position == int(PositionMode::Bottom)) {
+        return ltX < rbX && ltY <= rbY;
+    } else {
+        return ltX < rbX && ltY < rbY;
+    }
+}
+
+/**
+ * @brief Dock::getDockedEntryByDesktopFile 获取应用实例
+ * @param desktopFile desktopFile文件全路径
+ * @return
+ */
 Entry *Dock::getDockedEntryByDesktopFile(const QString &desktopFile)
 {
     return entries->getDockedEntryByDesktopFile(desktopFile);
 }
 
+/**
+ * @brief Dock::shouldHideOnSmartHideMode 判断智能隐藏模式下当前任务栏是否应该隐藏
+ * @return
+ */
 bool Dock::shouldHideOnSmartHideMode()
 {
     if (!activeWindow || ddeLauncherVisible)
@@ -602,6 +802,11 @@ bool Dock::shouldHideOnSmartHideMode()
     }
 }
 
+/**
+ * @brief Dock::getActiveWinGroup
+ * @param xid
+ * @return
+ */
 QVector<XWindow> Dock::getActiveWinGroup(XWindow xid)
 {
     QVector<XWindow> ret;
@@ -665,7 +870,10 @@ QVector<XWindow> Dock::getActiveWinGroup(XWindow xid)
     return ret;
 }
 
-// 更新任务栏隐藏状态
+/**
+ * @brief Dock::updateHideState 更新任务栏隐藏状态
+ * @param delay
+ */
 void Dock::updateHideState(bool delay)
 {
     if (ddeLauncherVisible) {
@@ -691,6 +899,10 @@ void Dock::updateHideState(bool delay)
     }
 }
 
+/**
+ * @brief Dock::setPropHideMode 设置隐藏属性
+ * @param state
+ */
 void Dock::setPropHideMode(HideState state)
 {
     if (state == HideState::Unknown) {
@@ -704,6 +916,10 @@ void Dock::setPropHideMode(HideState state)
     }
 }
 
+/**
+ * @brief Dock::attachOrDetachWindow 关联或分离窗口
+ * @param info
+ */
 void Dock::attachOrDetachWindow(WindowInfoBase *info)
 {
     if (!info)
@@ -742,9 +958,13 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
     }
 }
 
+/**
+ * @brief Dock::attachWindow 关联窗口
+ * @param info 窗口信息
+ */
 void Dock::attachWindow(WindowInfoBase *info)
 {
-    Entry *entry = entries->getByInnerId(info->getEntryInnerId());
+    Entry *entry = entries->getByInnerId(info->getEntryInnerId()); // entries中存在innerid为空的entry， 导致后续新应用通过innerid获取应用一直能获取到
     if (entry) {
         // entry existed
         entry->attachWindow(info);
@@ -757,6 +977,10 @@ void Dock::attachWindow(WindowInfoBase *info)
     }
 }
 
+/**
+ * @brief Dock::detachWindow 分离窗口
+ * @param info 窗口信息
+ */
 void Dock::detachWindow(WindowInfoBase *info)
 {
     auto entry = entries->getByWindowId(info->getXid());
@@ -768,21 +992,31 @@ void Dock::detachWindow(WindowInfoBase *info)
         removeAppEntry(entry);
 }
 
-void Dock::markAppLaunched(const QString &filePath)
-{
-    dbusHandler->markAppLaunched(filePath);
-}
-
+/**
+ * @brief Dock::launchApp 启动应用
+ * @param timestamp 时间
+ * @param files 应用打开文件
+ */
 void Dock::launchApp(uint32_t timestamp, QStringList files)
 {
     dbusHandler->launchApp(timestamp, files);
 }
 
+/**
+ * @brief Dock::launchAppAction 启动应用响应
+ * @param timestamp
+ * @param file
+ * @param section
+ */
 void Dock::launchAppAction(uint32_t timestamp, QString file, QString section)
 {
     dbusHandler->launchAppAction(timestamp, file, section);
 }
 
+/**
+ * @brief Dock::is3DWM 当前窗口模式 2D/3D
+ * @return
+ */
 bool Dock::is3DWM()
 {
     bool ret = false;
@@ -795,16 +1029,29 @@ bool Dock::is3DWM()
     return ret;
 }
 
+/**
+ * @brief Dock::isWaylandEnv 当前环境
+ * @return
+ */
 bool Dock::isWaylandEnv()
 {
     return isWayland;
 }
 
+/**
+ * @brief Dock::handleActiveWindowChangedK 处理活动窗口改变事件 wayland环境
+ * @param activeWin
+ * @return
+ */
 WindowInfoK *Dock::handleActiveWindowChangedK(uint activeWin)
 {
     return waylandManager->handleActiveWindowChangedK(activeWin);
 }
 
+/**
+ * @brief Dock::handleActiveWindowChanged 处理活动窗口改变事件 X11环境
+ * @param info
+ */
 void Dock::handleActiveWindowChanged(WindowInfoBase *info)
 {
     qInfo() << "handleActiveWindowChanged";
@@ -820,9 +1067,11 @@ void Dock::handleActiveWindowChanged(WindowInfoBase *info)
     updateHideState(true);
 }
 
+/**
+ * @brief Dock::saveDockedApps 保存驻留应用信息
+ */
 void Dock::saveDockedApps()
 {
-    // 保存驻留应用信息
     QList<QString> dockedApps;
     for (auto entry : entries->filterDockedEntries()) {
         QString path = entry->getApp()->getFileName();
@@ -838,6 +1087,10 @@ void Dock::saveDockedApps()
     SETTING->setDockedApps(dockedApps);
 }
 
+/** 移除应用实例
+ * @brief Dock::removeAppEntry
+ * @param entry
+ */
 void Dock::removeAppEntry(Entry *entry)
 {
     if (entry) {
@@ -845,6 +1098,9 @@ void Dock::removeAppEntry(Entry *entry)
     }
 }
 
+/**
+ * @brief Dock::handleWindowGeometryChanged 智能隐藏模式下窗口矩形变化，同步更新任务栏隐藏状态
+ */
 void Dock::handleWindowGeometryChanged()
 {
     if (SETTING->getHideMode() == HideMode::SmartHide)
@@ -853,31 +1109,59 @@ void Dock::handleWindowGeometryChanged()
     updateHideState(false);
 }
 
+/**
+ * @brief Dock::getEntryByWindowId 根据窗口id获取应用实例
+ * @param windowId
+ * @return
+ */
 Entry *Dock::getEntryByWindowId(XWindow windowId)
 {
     return entries->getByWindowId(windowId);
 }
 
+/**
+ * @brief Dock::getDesktopFromWindowByBamf 通过bamf软件服务获取指定窗口的desktop文件
+ * @param windowId
+ * @return
+ */
 QString Dock::getDesktopFromWindowByBamf(XWindow windowId)
 {
     return dbusHandler->getDesktopFromWindowByBamf(windowId);
 }
 
+/**
+ * @brief Dock::registerWindowWayland 注册wayland窗口
+ * @param objPath
+ */
 void Dock::registerWindowWayland(const QString &objPath)
 {
     return waylandManager->registerWindow(objPath);
 }
 
+/**
+ * @brief Dock::unRegisterWindowWayland 取消注册wayland窗口
+ * @param objPath
+ */
 void Dock::unRegisterWindowWayland(const QString &objPath)
 {
     return waylandManager->unRegisterWindow(objPath);
 }
 
+/**
+ * @brief Dock::identifyWindow 识别窗口
+ * @param winInfo
+ * @param innerId
+ * @return
+ */
 AppInfo *Dock::identifyWindow(WindowInfoBase *winInfo, QString &innerId)
 {
     return windowIdentify->identifyWindow(winInfo, innerId);
 }
 
+/**
+ * @brief Dock::markAppLaunched 标识应用已启动
+ * @param appInfo
+ */
 void Dock::markAppLaunched(AppInfo *appInfo)
 {
     if (!appInfo || !appInfo->isValidApp())
@@ -888,21 +1172,37 @@ void Dock::markAppLaunched(AppInfo *appInfo)
     dbusHandler->markAppLaunched(desktopFile);
 }
 
+/**
+ * @brief Dock::deleteWindow 删除窗口  TODO 检查必要性
+ * @param xid
+ */
 void Dock::deleteWindow(XWindow xid)
 {
     entries->deleteWindow(xid);
 }
 
+/**
+ * @brief Dock::getForceQuitAppStatus 获取强制关闭应用状态
+ * @return
+ */
 ForceQuitAppMode Dock::getForceQuitAppStatus()
 {
     return forceQuitAppStatus;
 }
 
+/**
+ * @brief Dock::getWinIconPreferredApps 获取推荐的应用窗口图标
+ * @return
+ */
 QVector<QString> Dock::getWinIconPreferredApps()
 {
     return SETTING->getWinIconPreferredApps();
 }
 
+/**
+ * @brief Dock::handleLauncherItemDeleted 处理launcher item被删除信号
+ * @param itemPath
+ */
 void Dock::handleLauncherItemDeleted(QString itemPath)
 {
     for (auto entry : entries->filterDockedEntries()) {
@@ -913,7 +1213,10 @@ void Dock::handleLauncherItemDeleted(QString itemPath)
     }
 }
 
-// 在收到 launcher item 更新的信号后，需要更新相关信息，包括 appInfo、innerId、名称、图标、菜单。
+/**
+ * @brief Dock::handleLauncherItemUpdated 在收到 launcher item 更新的信号后，需要更新相关信息，包括 appInfo、innerId、名称、图标、菜单。
+ * @param itemPath
+ */
 void Dock::handleLauncherItemUpdated(QString itemPath)
 {
     Entry * entry = entries->getByDesktopFilePath(itemPath);
@@ -928,31 +1231,55 @@ void Dock::handleLauncherItemUpdated(QString itemPath)
     entry->forceUpdateIcon(); // 可能存在Icon图片改变,但Icon名称未改变的情况,因此强制发Icon的属性改变信号
 }
 
+/**
+ * @brief Dock::getOpacity 获取透明度
+ * @return
+ */
 double Dock::getOpacity()
 {
     return SETTING->getOpacity();
 }
 
+/**
+ * @brief Dock::getFrontendWindowRect 获取任务栏rect
+ * @return
+ */
 QRect Dock::getFrontendWindowRect()
 {
     return frontendWindowRect;
 }
 
+/**
+ * @brief Dock::getDisplayMode 获取显示模式
+ * @return
+ */
 int Dock::getDisplayMode()
 {
     return int(SETTING->getDisplayMode());
 }
 
+/**
+ * @brief Dock::setDisplayMode 设置显示模式
+ * @param mode
+ */
 void Dock::setDisplayMode(int mode)
 {
     SETTING->setDisplayMode(DisplayMode(mode));
 }
 
+/**
+ * @brief Dock::getDockedApps 获取驻留应用
+ * @return
+ */
 QStringList Dock::getDockedApps()
 {
     return SETTING->getDockedApps();
 }
 
+/**
+ * @brief Dock::getEntryPaths 获取应用实例路径
+ * @return
+ */
 QStringList Dock::getEntryPaths()
 {
     QStringList ret;
@@ -963,81 +1290,145 @@ QStringList Dock::getEntryPaths()
     return ret;
 }
 
+/**
+ * @brief Dock::getHideMode 获取隐藏模式
+ * @return
+ */
 HideMode Dock::getHideMode()
 {
     return SETTING->getHideMode();
 }
 
+/**
+ * @brief Dock::setHideMode 设置隐藏模式
+ * @param mode
+ */
 void Dock::setHideMode(HideMode mode)
 {
     SETTING->setHideMode(mode);
 }
 
+/**
+ * @brief Dock::getHideState 获取隐藏状态
+ * @return
+ */
 Dock::HideState Dock::getHideState()
 {
     return hideState;
 }
 
+/**
+ * @brief Dock::setHideState 设置任务栏隐藏状态
+ * @param state
+ */
 void Dock::setHideState(Dock::HideState state)
 {
     hideState = state;
 }
 
+/**
+ * @brief Dock::getHideTimeout 获取执行隐藏动作超时时间
+ * @return
+ */
 uint Dock::getHideTimeout()
 {
     return SETTING->getHideTimeout();
 }
 
+/**
+ * @brief Dock::setHideTimeout 设置执行隐藏动作超时时间
+ * @param timeout
+ */
 void Dock::setHideTimeout(uint timeout)
 {
     SETTING->setHideTimeout(timeout);
 }
 
+/**
+ * @brief Dock::getIconSize 获取应用图标大小
+ * @return
+ */
 uint Dock::getIconSize()
 {
     return SETTING->getIconSize();
 }
 
+/**
+ * @brief Dock::setIconSize 设置应用图标大小
+ * @param size
+ */
 void Dock::setIconSize(uint size)
 {
     SETTING->setIconSize(size);
 }
 
+/**
+ * @brief Dock::getPosition 获取当前任务栏位置
+ * @return
+ */
 int Dock::getPosition()
 {
     return int(SETTING->getPositionMode());
 }
 
+/**
+ * @brief Dock::setPosition 设置任务栏位置
+ * @param position
+ */
 void Dock::setPosition(int position)
 {
-    SETTING->setPositionMode(PositonMode(position));
+    SETTING->setPositionMode(PositionMode(position));
 }
 
+/**
+ * @brief Dock::getShowTimeout 获取显示超时接口
+ * @return
+ */
 uint Dock::getShowTimeout()
 {
     return SETTING->getShowTimeout();
 }
 
+/**
+ * @brief Dock::setShowTimeout 设置显示超时
+ * @param timeout
+ */
 void Dock::setShowTimeout(uint timeout)
 {
     return SETTING->setShowTimeout(timeout);
 }
 
+/**
+ * @brief Dock::getWindowSizeEfficient 获取任务栏高效模式大小
+ * @return
+ */
 uint Dock::getWindowSizeEfficient()
 {
     return SETTING->getWindowSizeEfficient();
 }
 
+/**
+ * @brief Dock::setWindowSizeEfficient 设置任务栏高效模式大小
+ * @param size
+ */
 void Dock::setWindowSizeEfficient(uint size)
 {
     SETTING->setWindowSizeEfficient(size);
 }
 
+/**
+ * @brief Dock::getWindowSizeFashion 获取任务栏时尚模式大小
+ * @return
+ */
 uint Dock::getWindowSizeFashion()
 {
     return SETTING->getWindowSizeFashion();
 }
 
+/**
+ * @brief Dock::setWindowSizeFashion 设置任务栏时尚模式大小
+ * @param size
+ */
 void Dock::setWindowSizeFashion(uint size)
 {
     SETTING->setWindowSizeFashion(size);

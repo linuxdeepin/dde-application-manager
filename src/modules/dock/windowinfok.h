@@ -64,6 +64,7 @@ public:
     void updateInternalId();
     void updateCloseable();
     void updateProcessInfo();
+    Rect getGeometry();
 
 private:
     bool updateCalled;

@@ -1,7 +1,4 @@
-#ifndef A7B4B7B1_0422_4EC9_8441_778273A85F9C
-#define A7B4B7B1_0422_4EC9_8441_778273A85F9C
-
-#include "../tools/desktop_deconstruction.hpp"
+#include "../modules/tools/desktop_deconstruction.hpp"
 
 #include <QString>
 
@@ -45,6 +42,7 @@ public:
         return value<QString>("Icon");
     }
 
+    // appId
     QString id() const
     {
         return m_file.split("/").last().split(".").first();
@@ -76,4 +74,3 @@ public:
 }  // namespace ApplicationHelper
 }  // namespace modules
 
-#endif /* A7B4B7B1_0422_4EC9_8441_778273A85F9C */
