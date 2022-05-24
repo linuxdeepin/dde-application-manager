@@ -100,4 +100,5 @@ const int MotifFunctionMaximize = 16;
 const int MotifFunctionClose = 32;
 
 const QString ddeLauncherWMClass = "dde-launcher";
+
 #endif // COMMON_H

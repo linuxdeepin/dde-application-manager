@@ -103,23 +103,21 @@ WindowIdentify::WindowIdentify(Dock *_dock, QObject *parent)
 
 AppInfo *WindowIdentify::identifyWindow(WindowInfoBase *winInfo, QString &innerId)
 {
-    AppInfo *ret = nullptr;
-    //qInfo() << "identifyWindow: window id " << winInfo->getXid() << " innerId " << winInfo->getInnerId();
-    if (winInfo->getWindowType() == "X11")
-        ret = identifyWindowX11(static_cast<WindowInfoX *>(winInfo), innerId);
-    else if (winInfo->getWindowType() == "Wayland")
-        ret = identifyWindowWayland(static_cast<WindowInfoK *>(winInfo), innerId);
+    if (!winInfo)
+        return nullptr;
 
-    return ret;
+    qInfo() << "identifyWindow: window id " << winInfo->getXid() << " innerId " << winInfo->getInnerId();
+    if (winInfo->getWindowType() == "X11")
+        return identifyWindowX11(static_cast<WindowInfoX *>(winInfo), innerId);
+    if (winInfo->getWindowType() == "Wayland")
+        return  identifyWindowWayland(static_cast<WindowInfoK *>(winInfo), innerId);
+
+    return nullptr;
 }
 
 AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerId)
 {
     AppInfo *appInfo = nullptr;
-    if (winInfo->getInnerId() == "") {
-        qInfo() << "identify WindowX11: innerId is empty";
-        return appInfo;
-    }
 
     for (auto iter = identifyWindowFuns.begin(); iter != identifyWindowFuns.end(); iter++) {
         QString name = iter.key();

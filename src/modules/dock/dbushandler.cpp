@@ -82,17 +82,17 @@ QString DBusHandler::getCurrentWM()
     return wmSwitcher->CurrentWM().value();
 }
 
-// TODO 扩展ApplicationManager Run接口，允许带参数启动应用，暂时调用StartManager接口
-void DBusHandler::launchApp(uint32_t timestamp, QStringList files)
+// TODO 扩展ApplicationManager Launch接口，允许带参数启动应用，暂时调用StartManager接口
+void DBusHandler::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.StartManager", "/com/deepin/StartManager", "com.deepin.StartManager");
-    interface.call("LaunchApp", files, timestamp);
+    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    interface.call("LaunchApp", desktopFile, timestamp, files);
 }
 
-void DBusHandler::launchAppAction(uint32_t timestamp, QString file, QString section)
+void DBusHandler::launchAppAction(QString desktopFile, QString action, uint32_t timestamp)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.StartManager", "/com/deepin/StartManager", "com.deepin.StartManager");
-    interface.call("LaunchAppAction", file, section, timestamp);
+    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    interface.call("LaunchAppAction", desktopFile, action, timestamp);
 }
 
 void DBusHandler::markAppLaunched(const QString &filePath)

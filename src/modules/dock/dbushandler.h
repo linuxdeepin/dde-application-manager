@@ -56,8 +56,8 @@ public:
     QString getCurrentWM();
 
     /************************* StartManager ***************************/
-    void launchApp(uint32_t timestamp, QStringList files);
-    void launchAppAction(uint32_t timestamp, QString file,  QString section);
+    void launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
+    void launchAppAction(QString desktopFile, QString action, uint32_t timestamp);
 
     /************************* AlRecorder1 ***************************/
     void markAppLaunched(const QString &filePath);

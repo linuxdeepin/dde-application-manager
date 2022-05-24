@@ -23,7 +23,7 @@
 #include "macro.h"
 #include "dstring.h"
 
-#include<sys/stat.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <cstring>
 

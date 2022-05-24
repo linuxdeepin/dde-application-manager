@@ -283,12 +283,13 @@ void X11Manager::handleMapNotifyEvent(XWindow xid)
     if (!winInfo)
         return;
 
-    QTimer::singleShot(2 * 1000, this, [&] {
+    // TODO QTimer不能在非主线程执行，使用单独线程开发定时器处理非主线程类似定时任务
+    //QTimer::singleShot(2 * 1000, this, [=] {
         qInfo() << "handleMapNotifyEvent: pass 2s, now call idnetifyWindow, windowId=" << winInfo->getXid();
         QString innerId;
         AppInfo *appInfo = dock->identifyWindow(winInfo, innerId);
         dock->markAppLaunched(appInfo);
-    });
+    //});
 }
 
 // config changed event 检测窗口大小调整和重绘应用

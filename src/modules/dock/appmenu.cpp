@@ -33,7 +33,10 @@ AppMenu::AppMenu()
 
 }
 
-// 增加菜单选项
+/**
+ * @brief AppMenu::appendItem 增加菜单选项
+ * @param item
+ */
 void AppMenu::appendItem(AppMenuItem item)
 {
     if (!item.text.isEmpty()) {
@@ -42,6 +45,11 @@ void AppMenu::appendItem(AppMenuItem item)
     }
 }
 
+/**
+ * @brief AppMenu::handleAction 响应应用菜单项
+ * @param timestamp
+ * @param itemId
+ */
 void AppMenu::handleAction(uint32_t timestamp, QString itemId)
 {
     for (auto &item : items) {

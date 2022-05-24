@@ -138,6 +138,12 @@ public:
     // 设置活动窗口 _NET_ACTIVE_WINDOW
     void setActiveWindow(XWindow xid);
 
+    // 改变活动窗口
+    void changeActiveWindow(XWindow newActiveXid);
+
+    // 重新排列窗口
+    void restackWindow(XWindow xid);
+
     // 获取窗口列表 _NET_CLIENT_LIST
     std::list<XWindow> getClientList();
 

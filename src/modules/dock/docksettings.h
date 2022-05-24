@@ -31,7 +31,6 @@ enum class HideMode {
     KeepShowing,
     KeepHidden,
     SmartHide,
-    Unknown,
 };
 
 class HideModeHandler {
@@ -40,7 +39,7 @@ class HideModeHandler {
 
 public:
     HideModeHandler(HideMode mode) : modeEnum(mode), modeStr("") {}
-    HideModeHandler(QString mode) : modeEnum(HideMode::Unknown), modeStr(mode) {}
+    HideModeHandler(QString mode) : modeEnum(HideMode::KeepShowing), modeStr(mode) {}
 
     bool equal(HideModeHandler hideMode) {
         return toString() == hideMode.toString() || toEnum() == hideMode.toEnum();
@@ -54,21 +53,16 @@ public:
             return "keep-hidden";
         case HideMode::SmartHide:
             return "smart-hide";
-        case HideMode::Unknown:
-        default:
-            return "unknown";
         }
     }
 
     HideMode toEnum() {
-        if (modeStr == "keep-showing")
+        if (modeStr == "keep-hidden")
             return HideMode::KeepHidden;
-        else if (modeStr == "keep-hidden")
-            return HideMode::KeepHidden;
-        else if (modeStr == "smart-hide")
+        if (modeStr == "smart-hide")
             return HideMode::SmartHide;
-        else
-            return HideMode::Unknown;
+
+        return HideMode::KeepShowing;
     }
 };
 
@@ -76,7 +70,6 @@ public:
 enum class DisplayMode {
     Fashion,
     Efficient,
-    Unknown,
 };
 
 class DisplayModeHandler {
@@ -85,7 +78,7 @@ class DisplayModeHandler {
 
 public:
     DisplayModeHandler(DisplayMode mode) : modeEnum(mode), modeStr("") {}
-    DisplayModeHandler(QString mode) : modeEnum(DisplayMode::Unknown), modeStr(mode) {}
+    DisplayModeHandler(QString mode) : modeEnum(DisplayMode::Efficient), modeStr(mode) {}
 
     bool equal(DisplayModeHandler displayMode) {
         return toString() == displayMode.toString() || toEnum() == displayMode.toEnum();
@@ -97,29 +90,23 @@ public:
             return "fashion";
         case DisplayMode::Efficient:
             return "efficient";
-        case DisplayMode::Unknown:
-        default:
-            return "unknown";
         }
     }
 
     DisplayMode toEnum() {
         if (modeStr == "fashion")
             return DisplayMode::Fashion;
-        else if (modeStr == "efficient")
-            return DisplayMode::Efficient;
-        else
-            return DisplayMode::Unknown;
+
+        return DisplayMode::Efficient;
     }
 };
 
 // 显示位置
 enum class PositionMode {
-    TOP,
-    Right,
-    Bottom,
-    Left,
-    Unknown,
+    TOP,    // 上
+    Right,  // 右
+    Bottom, // 下
+    Left,   // 左
 };
 
 class PositionModeHandler {
@@ -128,7 +115,7 @@ class PositionModeHandler {
 
 public:
     PositionModeHandler(PositionMode mode) : modeEnum(mode), modeStr("") {}
-    PositionModeHandler(QString mode) : modeEnum(PositionMode::Unknown), modeStr(mode) {}
+    PositionModeHandler(QString mode) : modeEnum(PositionMode::Bottom), modeStr(mode) {}
 
     bool equal(PositionModeHandler displayMode) {
         return toString() == displayMode.toString() || toEnum() == displayMode.toEnum();
@@ -140,27 +127,22 @@ public:
             return "top";
         case PositionMode::Right:
             return "right";
-        case PositionMode::Bottom:
-            return "bottom";
         case PositionMode::Left:
             return "left";
-        case PositionMode::Unknown:
-        default:
-            return "unknown";
+        case PositionMode::Bottom:
+            return "bottom";
         }
     }
 
     PositionMode toEnum() {
         if (modeStr == "top")
             return PositionMode::TOP;
-        else if (modeStr == "right")
+        if (modeStr == "right")
             return PositionMode::Right;
-        else if (modeStr == "bottom")
+        if (modeStr == "bottom")
             return PositionMode::Bottom;
-        else if (modeStr == "left")
+        if (modeStr == "left")
             return PositionMode::Left;
-        else
-            return PositionMode::Unknown;
     }
 };
 
@@ -169,7 +151,6 @@ enum class ForceQuitAppMode {
     Enabled,        // 开启
     Disabled,       // 关闭
     Deactivated,    // 置灰
-    Unknown
 };
 
 class ForceQuitAppModeHandler {
@@ -178,7 +159,7 @@ class ForceQuitAppModeHandler {
 
 public:
     ForceQuitAppModeHandler(ForceQuitAppMode mode) : modeEnum(mode), modeStr("") {}
-    ForceQuitAppModeHandler(QString mode) : modeEnum(ForceQuitAppMode::Unknown), modeStr(mode) {}
+    ForceQuitAppModeHandler(QString mode) : modeEnum(ForceQuitAppMode::Enabled), modeStr(mode) {}
 
     bool equal(ForceQuitAppModeHandler displayMode) {
         return toString() == displayMode.toString() || toEnum() == displayMode.toEnum();
@@ -192,21 +173,16 @@ public:
             return "disabled";
         case ForceQuitAppMode::Deactivated:
             return "deactivated";
-        case ForceQuitAppMode::Unknown:
-        default:
-            return "unknown";
         }
     }
 
     ForceQuitAppMode toEnum() {
-        if (modeStr == "enabled")
-            return ForceQuitAppMode::Enabled;
-        else if (modeStr == "disabled")
+        if (modeStr == "disabled")
             return ForceQuitAppMode::Disabled;
         else if (modeStr == "deactivated")
             return ForceQuitAppMode::Deactivated;
-        else
-            return ForceQuitAppMode::Unknown;
+
+        return ForceQuitAppMode::Enabled;
     }
 };
 

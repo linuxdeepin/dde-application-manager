@@ -168,6 +168,16 @@ void XCBUtils::setActiveWindow(XWindow xid)
     xcb_ewmh_set_active_window(&m_ewmh, m_screenNum, xid);
 }
 
+void XCBUtils::changeActiveWindow(XWindow newActiveXid)
+{
+    xcb_ewmh_request_change_active_window(&m_ewmh, m_screenNum, newActiveXid, XCB_EWMH_CLIENT_SOURCE_TYPE_OTHER, 0, 0);
+}
+
+void XCBUtils::restackWindow(XWindow xid)
+{
+    xcb_ewmh_request_restack_window(&m_ewmh, m_screenNum, xid, 0, XCB_STACK_MODE_ABOVE);
+}
+
 std::list<XWindow> XCBUtils::getClientList()
 {
     std::list<XWindow> ret;
@@ -217,8 +227,13 @@ std::vector<XCBAtom> XCBUtils::getWMWindoType(XWindow xid)
     std::vector<XCBAtom> ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_window_type(&m_ewmh, xid);
     xcb_ewmh_get_atoms_reply_t reply; // a list of Atom
-    if (!xcb_ewmh_get_wm_window_type_reply(&m_ewmh, cookie, &reply, nullptr))
+    if (xcb_ewmh_get_wm_window_type_reply(&m_ewmh, cookie, &reply, nullptr)) {
+        for (uint32_t i = 0; i < reply.atoms_len; i++) {
+            ret.push_back(reply.atoms[i]);
+        }
+    } else {
         std::cout << xid << " getWMWindoType error" << std::endl;
+    }
 
     return ret;
 }
@@ -424,6 +439,8 @@ WMClass XCBUtils::getWMClass(XWindow xid)
     WMClass ret;
     xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_class(m_connect, xid);
     xcb_icccm_get_wm_class_reply_t reply;
+    reply.instance_name = nullptr;
+    reply.class_name = nullptr;
     if (!xcb_icccm_get_wm_class_reply(m_connect, cookie, &reply, nullptr)) {
         if (reply.class_name)
             ret.className.assign(reply.class_name);

@@ -59,13 +59,13 @@ void DockSettings::init()
 
 HideMode DockSettings::getHideMode()
 {
-    HideMode ret = HideMode::Unknown;
+    HideMode ret = HideMode::KeepShowing;
     if (dockSettings) {
         QString mode = dockSettings->value(keyHideMode).toString();
         HideModeHandler handler(mode);
-        ret = handler.toEnum();
+        return handler.toEnum();
     }
-    return ret;
+    return HideMode::KeepShowing;
 }
 
 void DockSettings::setHideMode(HideMode mode)
@@ -77,25 +77,25 @@ void DockSettings::setHideMode(HideMode mode)
 
 DisplayMode DockSettings::getDisplayMode()
 {
-    DisplayMode ret = DisplayMode::Unknown;
+    DisplayMode ret = DisplayMode::Efficient;
     if (dockSettings) {
         QString mode = dockSettings->value(keyDisplayMode).toString();
         DisplayModeHandler handler(mode);
-        ret = handler.toEnum();
+        return handler.toEnum();
     }
-    return ret;
+    return DisplayMode::Efficient;
 }
 
 void DockSettings::setDisplayMode(DisplayMode mode)
 {
     if (dockSettings) {
-        dockSettings->setValue(keyHideMode, DisplayModeHandler(mode).toString());
+        dockSettings->setValue(keyDisplayMode, DisplayModeHandler(mode).toString());
     }
 }
 
 PositionMode DockSettings::getPositionMode()
 {
-    PositionMode ret = PositionMode::Unknown;
+    PositionMode ret = PositionMode::Bottom;
     if (dockSettings) {
         QString mode = dockSettings->value(keyPosition).toString();
         PositionModeHandler handler(mode);
@@ -113,7 +113,7 @@ void DockSettings::setPositionMode(PositionMode mode)
 
 ForceQuitAppMode DockSettings::getForceQuitAppMode()
 {
-    ForceQuitAppMode ret = ForceQuitAppMode::Unknown;
+    ForceQuitAppMode ret = ForceQuitAppMode::Enabled;
     if (dockSettings) {
         QString mode = dockSettings->value(keyForceQuitApp).toString();
         ForceQuitAppModeHandler handler(mode);

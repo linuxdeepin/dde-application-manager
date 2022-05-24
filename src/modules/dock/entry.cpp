@@ -23,11 +23,14 @@
 #include "dock.h"
 #include "processinfo.h"
 #include "dbusadaptorentry.h"
+#include "xcbutils.h"
 
 #include <QDebug>
 #include <QDBusInterface>
 
-#include<signal.h>
+#include <signal.h>
+
+#define XCB XCBUtils::instance()
 
 Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
  : QObject(parent)
@@ -115,12 +118,14 @@ QString Entry::getIcon()
         if (app) {
             icon = app->getIcon();
             if (icon.size() > 0)
-                return ret;
+                return icon;
         }
-        ret = current->getIcon();
-    } else if (app) {
+        return current->getIcon();
+    }
+
+    if (app) {
         // no window
-        ret = app->getIcon();
+        return app->getIcon();
     }
 
     return ret;
@@ -366,21 +371,41 @@ WindowInfoBase *Entry::getCurrentWindowInfo()
     return current;
 }
 
+/**
+ * @brief Entry::findNextLeader
+ * @return
+ */
+WindowInfoBase *Entry::findNextLeader()
+{
+    auto xids = windowInfos.keys();
+    qSort(xids);
+    XWindow curWinId = current->getXid();
+    int index = xids.indexOf(curWinId);
+    if (index < 0)
+        return nullptr;
+
+    // 如果当前窗口是最大， 返回xids[0], 否则返回xids[index + 1]
+    int nextIndex = 0;
+    if (index < xids.size() - 1)
+        nextIndex = index + 1;
+
+    return windowInfos[xids[nextIndex]];
+}
+
 QString Entry::getExec(bool oneLine)
 {
-    QString ret;
     if (!current)
-        return ret;
+        return "";
 
     ProcessInfo *process = current->getProcess();
     if (process) {
         if (oneLine)
-            ret = process->getOneCommandLine().c_str();
+            return process->getOneCommandLine().c_str();
         else
-            ret = process->getShellScriptLines().c_str();
+            return process->getShellScriptLines().c_str();
     }
 
-    return ret;
+    return "";
 }
 
 bool Entry::hasWindow()
@@ -466,7 +491,7 @@ bool Entry::attachWindow(WindowInfoBase *info)
 
 void Entry::launchApp(uint32_t timestamp)
 {
-    dock->launchApp(timestamp, QStringList() << app->getFileName());
+    dock->launchApp(app->getFileName(), timestamp, QStringList());
 }
 
 bool Entry::containsWindow(XWindow xid)
@@ -499,7 +524,7 @@ void Entry::handleMenuItem(uint32_t timestamp, QString itemId)
 // 处理拖拽事件
 void Entry::handleDragDrop(uint32_t timestamp, QStringList files)
 {
-    dock->launchApp(timestamp, files);
+    dock->launchApp(app->getFileName(), timestamp, files);
 }
 
 // 驻留
@@ -519,7 +544,7 @@ void Entry::requestUndock()
 void Entry::newInstance(uint32_t timestamp)
 {
     QStringList files;
-    dock->launchApp(timestamp, files);
+    dock->launchApp(app->getFileName(), timestamp, files);
 }
 
 // 检查应用窗口分离、合并状态
@@ -561,9 +586,79 @@ void Entry::presentWindows()
     dock->presentWindows(windows);
 }
 
+/**
+ * @brief Entry::active 激活窗口
+ * @param timestamp
+ */
 void Entry::active(uint32_t timestamp)
 {
+    if (dock->getHideMode() == HideMode::SmartHide) {
+        dock->setPropHideState(HideState::Show);
+        dock->updateHideState(true);
+    }
 
+    // 无窗口则直接启动
+    if (!hasWindow()) {
+        launchApp(timestamp);
+        return;
+    }
+
+    if (!current) {
+        qWarning() << "active: current window is nullptr";
+        return;
+    }
+
+    WindowInfoBase *winInfo = current;
+    if (dock->isWaylandEnv()) {
+        // wayland环境
+        if (!dock->isActiveWindow(winInfo)) {
+            winInfo->activate();
+        } else {
+            bool showing = dock->isShowingDesktop();
+            if (showing || winInfo->isMinimized()) {
+                winInfo->activate();
+            } else {
+                if (windowInfos.size() == 1) {
+                    winInfo->minimize();
+                } else {
+                    WindowInfoBase *nextWin = findNextLeader();
+                    if (nextWin) {
+                        nextWin->activate();
+                    }
+                }
+            }
+        }
+    } else {
+        // X11环境
+        XWindow xid = winInfo->getXid();
+        WindowInfoBase *activeWin = dock->getActiveWindow();
+        if (xid != activeWin->getXid()) {
+            dock->doActiveWindow(xid);
+        } else {
+            bool found = false;
+            bool hiddenAtom = XCB->getAtom("_NET_WM_STATE_HIDDEN");
+            for (auto state : XCB->getWMState(xid)) {
+                if (hiddenAtom == state) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                // 激活隐藏窗口
+                dock->doActiveWindow(xid);
+            } else {
+                if (windowInfos.size() == 1) {
+                    XCB->minimizeWindow(xid);
+                } else if (dock->getActiveWindow()->getXid() == xid) {
+                    WindowInfoBase *nextWin = findNextLeader();
+                    if (nextWin) {
+                        nextWin->activate();
+                    }
+                }
+            }
+        }
+    }
 }
 
 XWindow Entry::getCurrentWindow()
@@ -622,9 +717,9 @@ QVector<AppMenuItem> Entry::getMenuItemDesktopActions()
         return ret;
 
     for (auto action : app->getActions()) {
-        AppMenuAction fn = [&](uint32_t timestamp) {
+        AppMenuAction fn = [=](uint32_t timestamp) {
             qInfo() << "do MenuItem: " << action.name.c_str();
-            dock->launchAppAction(timestamp, app->getFileName(), action.section.c_str());
+            dock->launchAppAction(app->getFileName(), action.section.c_str(), timestamp);
         };
 
         AppMenuItem item;

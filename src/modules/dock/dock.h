@@ -38,18 +38,17 @@ class X11Manager;
 class WindowInfoK;
 class WindowInfoX;
 
+enum class HideState
+{
+    Unknown,
+    Show,
+    Hide,
+};
+
 // 任务栏
 class Dock : public SynModule
 {
     Q_OBJECT
-
-    enum class HideState
-    {
-        Unknown,
-        Show,
-        Hide,
-    };
-
 public:
     explicit Dock(QObject *parent = nullptr);
     ~Dock();
@@ -61,12 +60,12 @@ public:
     void setDdeLauncherVisible(bool visible);
     QString getWMName();
     void setWMName(QString name);
-    void setPropHideMode(HideState state);
+    void setPropHideState(HideState state);
     void attachOrDetachWindow(WindowInfoBase *info);
     void attachWindow(WindowInfoBase *info);
     void detachWindow(WindowInfoBase *info);
-    void launchApp(uint32_t timestamp, QStringList files);
-    void launchAppAction(uint32_t timestamp, QString file,  QString section);
+    void launchApp(const QString desktopFile, uint32_t timestamp, QStringList files);
+    void launchAppAction(const QString desktopFile, QString action, uint32_t timestamp);
     bool is3DWM();
     bool isWaylandEnv();
     WindowInfoK *handleActiveWindowChangedK(uint activeWin);
@@ -79,6 +78,7 @@ public:
 
     void registerWindowWayland(const QString &objPath);
     void unRegisterWindowWayland(const QString &objPath);
+    bool isShowingDesktop();
 
     AppInfo *identifyWindow(WindowInfoBase *winInfo, QString &innerId);
     void markAppLaunched(AppInfo *appInfo);
@@ -123,7 +123,9 @@ public:
     void presentWindows(QList<uint> windows);
 
     HideMode getDockHideMode();
+    bool isActiveWindow(const WindowInfoBase *win);
     WindowInfoBase *getActiveWindow();
+    void doActiveWindow(XWindow xid);
     QList<XWindow> getClientList();
 
     void closeWindow(XWindow windowId);
@@ -162,6 +164,7 @@ private:
     WindowInfoX *findWindowByXidX(XWindow xid);
     WindowInfoK *findWindowByXidK(XWindow xid);
     bool isWindowDockOverlapX(XWindow xid);
+    bool hasInterSectionX(const Geometry &windowRect, QRect dockRect);
     bool isWindowDockOverlapK(WindowInfoBase *info);
     bool hasInterSectionK(const Rect &windowRect, QRect dockRect);
     Entry *getDockedEntryByDesktopFile(const QString &desktopFile);
@@ -186,6 +189,5 @@ private:
     DBusHandler *dbusHandler;   // 处理dbus交互
     QMutex windowOperateMutex;  // 窗口合并或拆分锁
 };
-
 
 #endif // DOCK_H

@@ -28,6 +28,7 @@
 
 #include <QDebug>
 #include <QCryptographicHash>
+#include <QTimer>
 
 #define XCB XCBUtils::instance()
 
@@ -67,9 +68,9 @@ bool WindowInfoX::shouldSkip()
 
         if (atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_UTILITY")
         || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_COMBO")
-        || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DESKTOP")
+        || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DESKTOP") // 桌面属性窗口
         || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DND")
-        || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DOCK")
+        || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DOCK")    // 任务栏属性窗口
         || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DROPDOWN_MENU")
         || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_MENU")
         || atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_NOTIFICATION")
@@ -93,7 +94,10 @@ QString WindowInfoX::getIcon()
 
 void WindowInfoX::activate()
 {
-    XCB->setActiveWindow(xid);
+    XCB->changeActiveWindow(xid);
+    QTimer::singleShot(0, [&] {
+        XCB->restackWindow(xid);
+    });
 }
 
 void WindowInfoX::minimize()
@@ -340,6 +344,9 @@ void WindowInfoX::updateHasWmTransientFor()
         hasWMTransientFor = true;
 }
 
+/**
+ * @brief WindowInfoX::update 更新窗口信息（仅仅执行一次）
+ */
 void WindowInfoX::update()
 {
     updateWmClass();

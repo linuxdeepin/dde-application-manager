@@ -21,7 +21,6 @@
 
 #include "dock.h"
 #include "windowidentify.h"
-#include "common.h"
 #include "windowinfok.h"
 #include "xcbutils.h"
 #include "dbushandler.h"
@@ -248,7 +247,7 @@ void Dock::undockEntry(Entry *entry)
  */
 QString Dock::allocEntryId()
 {
-    return QString("e%1T%2").arg(++entriesSum).arg(QString::number(QDateTime::currentMSecsSinceEpoch(), 16));
+    return QString("e%1T%2").arg(++entriesSum).arg(QString::number(QDateTime::currentSecsSinceEpoch(), 16));
 }
 
 /**
@@ -366,6 +365,19 @@ HideMode Dock::getDockHideMode()
 }
 
 /**
+ * @brief Dock::isActiveWindow 判断是否为活动窗口
+ * @param win
+ * @return
+ */
+bool Dock::isActiveWindow(const WindowInfoBase *win)
+{
+    if (!win)
+        return false;
+
+    return win == getActiveWindow();
+}
+
+/**
  * @brief Dock::getActiveWindow 获取当前活跃窗口
  * @return
  */
@@ -378,6 +390,14 @@ WindowInfoBase *Dock::getActiveWindow()
         ret = activeWindow;
 
     return ret;
+}
+
+void Dock::doActiveWindow(XWindow xid)
+{
+    XCB->changeActiveWindow(xid);
+    QTimer::singleShot(0, [&] {
+        XCB->restackWindow(xid);
+    });
 }
 
 /**
@@ -586,7 +606,7 @@ void Dock::smartHideModeTimerExpired()
 {
     HideState state = shouldHideOnSmartHideMode() ? HideState::Hide : HideState::Show;
     qInfo() << "smartHideModeTimerExpired, is Hide? " << int(state);
-    setPropHideMode(state);
+    setPropHideState(state);
 }
 
 /**
@@ -700,13 +720,63 @@ WindowInfoK *Dock::findWindowByXidK(XWindow xid)
 }
 
 /**
- * @brief Dock::isWindowDockOverlapX 判断X环境下窗口和任务栏是否重叠 TODO
+ * @brief Dock::isWindowDockOverlapX 判断X环境下窗口和任务栏是否重叠
  * @param xid
  * @return
+ * 计算重叠条件：
+ * 1 窗口类型非桌面desktop
+ * 2 窗口透明度非0
+ * 3 窗口显示在当前工作区域
+ * 4 窗口和任务栏rect存在重叠区域
  */
 bool Dock::isWindowDockOverlapX(XWindow xid)
 {
-    return false;
+    // 检查窗口类型
+    auto desktopType = XCB->getAtom("_NET_WM_WINDOW_TYPE_DESKTOP");
+    for (auto ty : XCB->getWMWindoType(xid)) {
+        if (ty == desktopType) {
+            // 不处理桌面窗口属性
+            return false;
+        }
+    }
+
+    // TODO 检查窗口透明度
+    // 检查窗口是否显示
+    auto wmHiddenType = XCB->getAtom("_NET_WM_STATE_HIDDEN");
+    for (auto ty : XCB->getWMState(xid)) {
+        if (ty == wmHiddenType) {
+            // 不处理隐藏的窗口属性
+            return false;
+        }
+    }
+
+    // 检查窗口是否在当前工作区
+    uint32_t wmDesktop = XCB->getWMDesktop(xid);
+    uint32_t currentDesktop = XCB->getCurrentWMDesktop();
+    if (wmDesktop != currentDesktop) {
+        qInfo() << "isWindowDockOverlapX: wmDesktop:" << wmDesktop << " is not equal to currentDesktop:" << currentDesktop;
+        return false;
+    }
+
+    // 检查窗口和任务栏窗口是否存在重叠
+    auto winRect = XCB->getWindowGeometry(xid);
+    return hasInterSectionX(winRect, frontendWindowRect);
+}
+
+/**
+ * @brief Dock::hasInterSectionX 检查窗口重叠区域
+ * @param windowRect 活动窗口
+ * @param dockRect  任务栏窗口
+ * @return
+ */
+bool Dock::hasInterSectionX(const Geometry &windowRect, QRect dockRect)
+{
+    int ltX = MAX(windowRect.x, dockRect.x());
+    int ltY = MAX(windowRect.y, dockRect.y());
+    int rbX = MIN(windowRect.x + windowRect.width, dockRect.x() + dockRect.width());
+    int rbY = MIN(windowRect.y + windowRect.height, dockRect.y() + dockRect.height());
+
+    return (ltX < rbX) && (ltY < rbY);
 }
 
 /**
@@ -741,8 +811,8 @@ bool Dock::isWindowDockOverlapK(WindowInfoBase *info)
 
 /**
  * @brief Dock::hasInterSectionK Wayland环境下判断活动窗口和任务栏区域是否重叠
- * @param windowRect 活动窗口rect
- * @param dockRect 任务栏窗口rect
+ * @param windowRect 活动窗口
+ * @param dockRect 任务栏窗口
  * @return
  */
 bool Dock::hasInterSectionK(const Rect &windowRect, QRect dockRect)
@@ -878,23 +948,20 @@ void Dock::updateHideState(bool delay)
 {
     if (ddeLauncherVisible) {
         qInfo() << "updateHideState: dde launcher is visible, show dock";
-        setPropHideMode(HideState::Show);
+        setPropHideState(HideState::Show);
     }
 
     HideMode mode = SETTING->getHideMode();
     switch (mode) {
     case HideMode::KeepShowing:
-        setPropHideMode(HideState::Show);
+        setPropHideState(HideState::Show);
         break;
     case HideMode::KeepHidden:
-        setPropHideMode(HideState::Hide);
+        setPropHideState(HideState::Hide);
         break;
     case HideMode::SmartHide:
         qInfo() << "reset smart hide mode timer " << delay;
         smartHideTimer->start(delay ? smartHideTimerDelay : 0);
-        break;
-    case HideMode::Unknown:
-        setPropHideMode(HideState::Unknown);
         break;
     }
 }
@@ -903,7 +970,7 @@ void Dock::updateHideState(bool delay)
  * @brief Dock::setPropHideMode 设置隐藏属性
  * @param state
  */
-void Dock::setPropHideMode(HideState state)
+void Dock::setPropHideState(HideState state)
 {
     if (state == HideState::Unknown) {
         qInfo() << "setPropHideState: unknown mode";
@@ -964,7 +1031,8 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
  */
 void Dock::attachWindow(WindowInfoBase *info)
 {
-    Entry *entry = entries->getByInnerId(info->getEntryInnerId()); // entries中存在innerid为空的entry， 导致后续新应用通过innerid获取应用一直能获取到
+    // TODO: entries中存在innerid为空的entry， 导致后续新应用通过innerid获取应用一直能获取到
+    Entry *entry = entries->getByInnerId(info->getEntryInnerId());
     if (entry) {
         // entry existed
         entry->attachWindow(info);
@@ -997,9 +1065,9 @@ void Dock::detachWindow(WindowInfoBase *info)
  * @param timestamp 时间
  * @param files 应用打开文件
  */
-void Dock::launchApp(uint32_t timestamp, QStringList files)
+void Dock::launchApp(const QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    dbusHandler->launchApp(timestamp, files);
+    dbusHandler->launchApp(desktopFile, timestamp, files);
 }
 
 /**
@@ -1008,9 +1076,9 @@ void Dock::launchApp(uint32_t timestamp, QStringList files)
  * @param file
  * @param section
  */
-void Dock::launchAppAction(uint32_t timestamp, QString file, QString section)
+void Dock::launchAppAction(const QString desktopFile, QString action, uint32_t timestamp)
 {
-    dbusHandler->launchAppAction(timestamp, file, section);
+    dbusHandler->launchAppAction(desktopFile, action, timestamp);
 }
 
 /**
@@ -1145,6 +1213,15 @@ void Dock::registerWindowWayland(const QString &objPath)
 void Dock::unRegisterWindowWayland(const QString &objPath)
 {
     return waylandManager->unRegisterWindow(objPath);
+}
+
+/**
+ * @brief Dock::isShowingDesktop
+ * @return
+ */
+bool Dock::isShowingDesktop()
+{
+    return dbusHandler->wlShowingDesktop();
 }
 
 /**
@@ -1312,7 +1389,7 @@ void Dock::setHideMode(HideMode mode)
  * @brief Dock::getHideState 获取隐藏状态
  * @return
  */
-Dock::HideState Dock::getHideState()
+HideState Dock::getHideState()
 {
     return hideState;
 }
@@ -1321,7 +1398,7 @@ Dock::HideState Dock::getHideState()
  * @brief Dock::setHideState 设置任务栏隐藏状态
  * @param state
  */
-void Dock::setHideState(Dock::HideState state)
+void Dock::setHideState(HideState state)
 {
     hideState = state;
 }

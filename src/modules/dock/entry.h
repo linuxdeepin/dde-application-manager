@@ -73,6 +73,7 @@ public:
     void setPropCurrentWindow(XWindow value);
     void setCurrentWindowInfo(WindowInfoBase *windowInfo);
     WindowInfoBase *getCurrentWindowInfo();
+    WindowInfoBase *findNextLeader();
     QString getExec(bool oneLine);
     bool hasWindow();
     void updateWindowInfos();
