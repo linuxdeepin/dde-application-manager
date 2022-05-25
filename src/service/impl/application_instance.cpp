@@ -68,8 +68,9 @@ public:
             emit q_ptr->taskFinished(p->exitCode());
         }
 #else
+        qInfo() << "app manager load service:" << QString("org.desktopspec.application.instance@%1.service").arg(m_id);
         QDBusInterface   systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
-        QDBusReply<void> reply = systemd.call("StartUnit", QString("org.deskspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
+        QDBusReply<void> reply = systemd.call("StartUnit", QString("org.desktopspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
         if (!reply.isValid()) {
             qInfo() << reply.error();
             q_ptr->deleteLater();
@@ -82,7 +83,7 @@ public:
 #ifdef LOADER_PATH
 #else
         QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
-        qInfo() << systemd.call("StopUnit", QString("org.deskspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
+        qInfo() << systemd.call("StopUnit", QString("org.desktopspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
 #endif
     }
 
@@ -146,6 +147,7 @@ Methods::Task ApplicationInstance::taskInfo() const
     Methods::Task task;
     task.id    = d->m_id;
     task.runId = d->application->id();
+    task.filePath = d->application->filePath();
     task.date  = QString::number(startuptime());
     task.arguments = m_files;
 

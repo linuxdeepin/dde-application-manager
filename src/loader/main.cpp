@@ -18,6 +18,10 @@
 #include <thread>
 #include <vector>
 
+#include <QString>
+#include <QProcess>
+#include <QDir>
+
 #include "../modules/methods/basic.h"
 #include "../modules/methods/instance.hpp"
 #include "../modules/methods/quit.hpp"
@@ -40,25 +44,16 @@ struct App {
     std::string id;
 };
 
-static App parseApp(const std::string& app)
+static App parseApp(const QString& app)
 {
-    std::vector<std::string> strings;
-    std::istringstream       stream(app);
-    std::string              s;
-    while (getline(stream, s, '/')) {
-        if (s.empty()) {
-            continue;
-        }
-        strings.push_back(s);
-    }
-
+    QStringList values = app.split('/', QString::SkipEmptyParts);
+    qInfo() << "app:" << app << ", values size:" << values.size();
     App result;
-    if (strings.size() == 3) {
-        result.prefix = strings[0];
-        result.type   = strings[1];
-        result.id     = strings[2];
+    if (values.size() == 3) {
+        result.prefix = values.at(0).toStdString();
+        result.type   = values.at(1).toStdString();
+        result.id     = values.at(2).toStdString();
     }
-
     return result;
 }
 
@@ -77,12 +72,51 @@ void sig_handler(int num)
     }
 }
 
-int runLinglong(void* _arg)
+// TODO: startManager合并流程？
+int childFreedesktop(Methods::Task* task, std::string path)
 {
-    return 0;
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+    prctl(PR_SET_PDEATHSIG, SIGHUP);
+
+    DesktopDeconstruction dd(path);
+    dd.beginGroup("Desktop Entry");
+    std::cout << dd.value<std::string>("Exec") << std::endl;
+
+    QStringList envs;
+    for (auto it = task->environments.begin(); it != task->environments.end(); ++it) {
+        envs.append(it.key() + "=" + it.value());
+    }
+
+    QStringList exeArgs;
+    exeArgs << QString::fromStdString(dd.value<std::string>("Exec")).split(" ");
+
+    QString exec = exeArgs[0];
+    exeArgs.removeAt(0);
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork()");
+        return -1;
+    }
+
+    if (pid == 0) {
+        // 子进程
+        QProcess process;
+        qInfo() << "exec:" << exec;
+        qInfo() << "exeArgs:" << exeArgs;
+        process.setWorkingDirectory(QDir::homePath());
+        process.setEnvironment(envs);
+        process.start(exec, exeArgs);
+        process.waitForFinished(-1);
+        process.close();
+        qInfo() << "process finish";
+        exit(0);
+    }
+    return pid;
 }
 
-int child(Methods::Task* task, std::string path)
+int childLinglong(Methods::Task* task, std::string path)
 {
     prctl(PR_SET_PDEATHSIG, SIGKILL);
     prctl(PR_SET_PDEATHSIG, SIGTERM);
@@ -179,6 +213,12 @@ int child(Methods::Task* task, std::string path)
     return pid;
 }
 
+int childAndroid(Methods::Task* task, std::string path)
+{
+    // TODO
+    return 0;
+}
+
 #define DAM_TASK_HASH "DAM_TASK_HASH"
 #define DAM_TASK_TYPE "DAM_TASK_TYPE"
 
@@ -203,14 +243,14 @@ int main(int argc, char* argv[])
     // 初始化应用注册信息
     QByteArray registerArray;
     Methods::Registe registe;
-    registe.id   = dam_task_type;
+    registe.id = dam_task_type;
     registe.hash = dam_task_hash;
     Methods::toJson(registerArray, registe);
 
     // 向AM注册应用信息进行校验
     Methods::Registe registe_result;
     registe_result.state = false;
-    QByteArray result          = client.get(registerArray);
+    QByteArray result = client.get(registerArray);
     if (!result.isEmpty()) {
         Methods::fromJson(result, registe_result);
     }
@@ -228,50 +268,66 @@ int main(int argc, char* argv[])
     result = client.get(instanceArray);
     Methods::Task task;
     Methods::fromJson(result, task);       // fromJson TODO 数据解析异常
-    qWarning() << "[result] " << result;
+    qInfo() << "[Task] " << result;
 
     // 校验task内容
-    App         app = parseApp(task.runId.toStdString());
+    App app = parseApp(task.runId);
+    qInfo() << "[App] " 
+        << "prefix:" << QString::fromStdString(app.prefix) 
+        << "type:" << QString::fromStdString(app.type) 
+        << "id:" << QString::fromStdString(app.id);
     if (task.id.isEmpty() || app.id.empty() || app.type.empty() || app.prefix.empty()) {
         std::cout << "get task error" << std::endl;
         return -4;
     }
-
-    std::string path{ "/usr/share/applications/" + app.id + ".desktop" };
-    if (app.type == "user") {
-        struct passwd* user = getpwuid(getuid());
-        path                = std::string(user->pw_dir) + "/.local/share/applications/" + app.id + ".desktop";
+    if (app.prefix != "freedesktop"
+        && app.prefix != "linglong"
+        && app.prefix != "android") {
+        qWarning() << "error app prefix :" << QString::fromStdString(app.type);
+        return -1;
     }
 
     pthread_attr_t attr;
-    size_t         stack_size;
+    size_t stack_size;
     pthread_attr_init(&attr);
     pthread_attr_getstacksize(&attr, &stack_size);
     pthread_attr_destroy(&attr);
 
     /* 先将SIGCHLD信号阻塞 保证在子进程结束前设置父进程的捕捉函数 */
     sigset_t nmask, omask;
-    sigemptyset(&nmask);
-    sigaddset(&nmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &nmask, &omask);
+    // sigemptyset(&nmask);
+    // sigaddset(&nmask, SIGCHLD);
+    // sigprocmask(SIG_BLOCK, &nmask, &omask);
 
     //char* stack = (char*) malloc(stack_size);
     //pid_t pid   = clone(child, stack + stack_size, CLONE_NEWPID | SIGCHLD, static_cast<void*>(&task));
-    pid_t pid = child(&task, path);
+    pid_t pid = -1;
+    if (app.prefix == "freedesktop") {
+        pid = childFreedesktop(&task, task.filePath.toStdString());
+    } else if (app.prefix == "linglong") {
+        pid = childLinglong(&task, task.filePath.toStdString());
+    } else if (app.prefix == "android") {
+        pid = childAndroid(&task, task.filePath.toStdString());
+    } else {
+        qWarning() << "error app prefix:" << QString::fromStdString(app.prefix);
+    }
+    
     // TODO: 启动线程，创建新的连接去接受服务器的消息
 
+    // TODO:信号处理有问题
     /* 设置捕捉函数 */
-    struct sigaction sig;
-    sig.sa_handler = sig_handler;
-    sigemptyset(&sig.sa_mask);
-    sig.sa_flags = 0;
-    sigaction(SIGCHLD, &sig, NULL);
+    // struct sigaction sig;
+    // sig.sa_handler = sig_handler;
+    // sigemptyset(&sig.sa_mask);
+    // sig.sa_flags = 0;
+    // sigaction(SIGCHLD, &sig, NULL);
     /* 然后再unblock */
-    sigdelset(&omask, SIGCHLD);
-    sigprocmask(SIG_SETMASK, &omask, NULL);
+    // sigdelset(&omask, SIGCHLD);
+    // sigprocmask(SIG_SETMASK, &omask, NULL);
 
     int exitCode;
     waitpid(pid, &exitCode, 0);
+    qInfo() << "app exitCode:" << exitCode;
 
     Methods::Quit quit;
     quit.code = exitCode;

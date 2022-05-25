@@ -90,6 +90,11 @@ int main(int argc, char *argv[])
         QDBusConnection::sessionBus().registerObject(app->path().path(), "org.desktopspec.Application", app.get());
     }
 
+    for (const QSharedPointer<Application> &app : apps) {
+        qInfo() << "appId - " << app->id();
+        qInfo() << "appFilePath - " << app->filePath();
+    }
+
     ApplicationManager::instance()->addApplication(apps);
 
     ApplicationManager::instance()->launchAutostartApps();

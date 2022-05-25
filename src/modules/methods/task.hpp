@@ -18,6 +18,7 @@ namespace Methods
         QString runId;
         QString type{"task"};
         QString date;
+        QString filePath;
         QList<QString> arguments;
         QMap<QString, QString> environments;
     };
@@ -36,7 +37,8 @@ namespace Methods
         QJsonObject obj = {
             {"type", task.type},
             {"id", task.id},
-            {"run_id", task.runId},
+            {"runId", task.runId},
+            {"filePath", task.filePath},
             {"date", task.date},
             {"arguments",  argArray},
             {"environments", QJsonObject::fromVariantMap(envsMap)}
@@ -51,24 +53,30 @@ namespace Methods
 			qWarning() << "fromJson task failed";
 			return;
 		}
-
         QJsonObject obj = doc.object();
-        if (!obj.contains("id") || !obj.contains("runId") || !obj.contains("date") \
-            || !obj.contains("arguments") || !obj.contains("environments")) {
-            qWarning() << "id runId date arguments environments not exist in task array";
-            return;
+        if (obj.contains("id")) {
+            task.id = obj.value("id").toString();
+        }
+        if (obj.contains("runId")) {
+            task.runId = obj.value("runId").toString();
+        }
+        if (obj.contains("filePath")) {
+            task.filePath = obj.value("filePath").toString();
+        }
+        if (obj.contains("date")) {
+            task.date = obj.value("date").toString();
         }
 
-        task.id = obj.value("id").toString();
-        task.runId = obj.value("runId").toString();
-        task.date = obj.value("date").toString();
-        for (auto arg : obj.value("arguments").toArray()) {
-            task.arguments.append(arg.toString());
+        if (obj.contains("arguments")) {
+            for (auto arg : obj.value("arguments").toArray()) {
+                task.arguments.append(arg.toString());
+            }
         }
-        
-        QVariantMap envsMap = obj.value("environments").toObject().toVariantMap();
-        for (auto it = envsMap.constBegin(); it != envsMap.constEnd(); ++it) {
-            task.environments.insert(it.key(), it.value().toString());
+        if (obj.contains("environments")) {
+            QVariantMap envsMap = obj.value("environments").toObject().toVariantMap();
+            for (auto it = envsMap.constBegin(); it != envsMap.constEnd(); ++it) {
+                task.environments.insert(it.key(), it.value().toString());
+            }
         }
     }
 } // namespace Methods

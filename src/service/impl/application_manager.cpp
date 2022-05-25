@@ -90,8 +90,11 @@ void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<cha
             result.state = false;
             // std::lock_guard<std::mutex> lock(task_mutex);
             for (auto it = tasks.begin(); it != tasks.end(); ++it) {
-                result.state = true;
-                result.hash = QString::fromStdString(it->first);
+                if (registe.hash == QString::fromStdString(it->first)) {
+                    result.state = true;
+                    result.hash = registe.hash;
+                    break;
+                }
             }
             Methods::toJson(tmpArray, result);
             write(socket, tmpArray.toStdString());
@@ -199,6 +202,7 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
  */
 QDBusObjectPath ApplicationManager::Launch(const QString &id, QStringList files)
 {
+    qInfo() << "Launch " << id;
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
         return {};
