@@ -47,7 +47,7 @@ class WindowPatterns
     struct WindowPattern {
         QVector<QVector<QString>> rules;    // rules
         QString result;                     // ret
-        QVector< RuleValueParse> parseRules;
+        QVector<RuleValueParse> parseRules;
     };
 
 public:

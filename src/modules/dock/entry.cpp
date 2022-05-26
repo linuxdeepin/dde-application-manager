@@ -33,16 +33,16 @@
 #define XCB XCBUtils::instance()
 
 Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
- : QObject(parent)
- , dock(_dock)
- , app(nullptr)
- , menu(nullptr)
- , isActive(false)
- , isDocked(false)
- , innerId(_innerId)
- , current(nullptr)
- , currentWindow(0)
- , winIconPreferred(false)
+    : QObject(parent)
+    , dock(_dock)
+    , app(nullptr)
+    , menu(nullptr)
+    , isActive(false)
+    , isDocked(false)
+    , innerId(_innerId)
+    , current(nullptr)
+    , currentWindow(0)
+    , winIconPreferred(false)
 {
     setApp(_app);
     id = dock->allocEntryId();
@@ -413,26 +413,40 @@ bool Entry::hasWindow()
     return windowInfos.size() > 0;
 }
 
-void Entry::updateWindowInfos()
+/**
+ * @brief Entry::updateExportWindowInfos 同步更新导出窗口信息
+ */
+void Entry::updateExportWindowInfos()
 {
-    QList<ExportWindowInfo> infos;
-    bool changed = false;
+    ExportWindowInfoList infos;
     for (auto info : windowInfos) {
         XWindow xid = info->getXid();
         QString title = info->getTitle();
         bool flash = info->isDemandingAttention();
         infos.push_back({xid, title, flash});
-        if (!changed) {
-            for (auto info : exportWindowInfos) {
-                if (info.title != title || info.flash != flash)
-                    changed = true;
+    }
+
+    bool changed = false;
+    if (infos.size() == exportWindowInfos.size()) {
+        sortExprotWindowInfoList(infos);
+        sortExprotWindowInfoList(exportWindowInfos);
+        for (int i = 0; i < infos.size(); i++) {
+            if (infos[i].getXid() != exportWindowInfos[i].getXid()
+                    || infos[i].getFlash() != exportWindowInfos[i].getFlash()
+                    || infos[i].getTitle() != exportWindowInfos[i].getTitle()) {
+                changed = true;
+                break;
             }
         }
+    } else {
+        changed = true;
     }
 
     if (changed) {
-        exportWindowInfos = infos;
+        Q_EMIT windowInfosChanged(infos);
     }
+
+    exportWindowInfos = infos;
 }
 
 // 分离窗口， 返回是否需要从任务栏remove
@@ -456,7 +470,7 @@ bool Entry::detachWindow(WindowInfoBase *info)
         }
     }
 
-    updateWindowInfos();
+    updateExportWindowInfos();
     updateIcon();
     updateIsActive();
     updateMenu();
@@ -476,7 +490,7 @@ bool Entry::attachWindow(WindowInfoBase *info)
     }
 
     windowInfos[winId] = info;
-    updateWindowInfos();
+    updateExportWindowInfos();
     updateIsActive();
 
     if (!current) {
@@ -504,7 +518,7 @@ void Entry::deleteWindow(XWindow xid)
     WindowInfoBase *info = windowInfos[xid];
     windowInfos.remove(xid);
     for (int i = 0; i < exportWindowInfos.size(); i++) {
-        if (exportWindowInfos[i].xid == xid) {
+        if (exportWindowInfos[i].getXid() == xid) {
             exportWindowInfos.removeAt(i);
             break;
         }
@@ -693,7 +707,7 @@ QVector<XWindow> Entry::getAllowedClosedWindowIds()
     return ret;
 }
 
-QList<ExportWindowInfo> Entry::getExportWindowInfos()
+ExportWindowInfoList Entry::getExportWindowInfos()
 {
     return exportWindowInfos;
 }

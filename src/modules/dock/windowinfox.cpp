@@ -245,6 +245,11 @@ void WindowInfoX::updateHasXEmbedInfo()
     hasXEmbedInfo = XCB->hasXEmbedInfo(xid);
 }
 
+/**
+ * @brief WindowInfoX::genInnerId 生成innerId
+ * @param winInfo
+ * @return
+ */
 QString WindowInfoX::genInnerId(WindowInfoX *winInfo)
 {
     XWindow winId = winInfo->getXid();

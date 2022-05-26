@@ -23,6 +23,7 @@
 #define DBUSADAPTORENTRY_H
 
 #include "entry.h"
+#include "exportwindowinfolist.h"
 
 #include <QtCore/QObject>
 #include <QtCore/QMetaObject>
@@ -37,12 +38,6 @@
 
 #include <DBusExtendedAbstractInterface>
 
-Q_DECLARE_METATYPE(ExportWindowInfo)
-
-QDBusArgument &operator <<(QDBusArgument &argument, const ExportWindowInfo &info);
-const QDBusArgument &operator >>(const QDBusArgument &argument, ExportWindowInfo &info);
-QDebug operator<<(QDebug deg, const ExportWindowInfo &info);
-
 /*
  * Adaptor class for interface org.deepin.dde.daemon.Dock1.Entry
  */
@@ -51,40 +46,41 @@ class DBusAdaptorEntry: public QDBusAbstractAdaptor
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.deepin.dde.daemon.Dock1.Entry")
     Q_CLASSINFO("D-Bus Introspection", ""
-"  <interface name=\"org.deepin.dde.daemon.Dock1.Entry\">\n"
-"    <method name=\"Activate\">\n"
-"      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
-"    </method>\n"
-"    <method name=\"Check\"/>\n"
-"    <method name=\"ForceQuit\"/>\n"
-"    <method name=\"GetAllowedCloseWindows\">\n"
-"      <arg direction=\"out\" type=\"au\" name=\"windows\"/>\n"
-"    </method>\n"
-"    <method name=\"HandleDragDrop\">\n"
-"      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
-"      <arg direction=\"in\" type=\"as\" name=\"files\"/>\n"
-"    </method>\n"
-"    <method name=\"HandleMenuItem\">\n"
-"      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
-"      <arg direction=\"in\" type=\"s\" name=\"id\"/>\n"
-"    </method>\n"
-"    <method name=\"NewInstance\">\n"
-"      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
-"    </method>\n"
-"    <method name=\"PresentWindows\"/>\n"
-"    <method name=\"RequestDock\"/>\n"
-"    <method name=\"RequestUndock\"/>\n"
-"    <property access=\"read\" type=\"s\" name=\"Name\"/>\n"
-"    <property access=\"read\" type=\"s\" name=\"Icon\"/>\n"
-"    <property access=\"read\" type=\"s\" name=\"Id\"/>\n"
-"    <property access=\"read\" type=\"b\" name=\"IsActive\"/>\n"
-"    <property access=\"read\" type=\"u\" name=\"CurrentWindow\"/>\n"
-"    <property access=\"read\" type=\"b\" name=\"IsDocked\"/>\n"
-"    <property access=\"read\" type=\"s\" name=\"Menu\"/>\n"
-"    <property access=\"read\" type=\"s\" name=\"DesktopFile\"/>\n"
-"    <property access=\"read\" type=\"a(usb)\" name=\"WindowInfos\"/>\n"
-"  </interface>\n"
-        "")
+                                       "  <interface name=\"org.deepin.dde.daemon.Dock1.Entry\">\n"
+                                       "    <method name=\"Activate\">\n"
+                                       "      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
+                                       "    </method>\n"
+                                       "    <method name=\"Check\"/>\n"
+                                       "    <method name=\"ForceQuit\"/>\n"
+                                       "    <method name=\"GetAllowedCloseWindows\">\n"
+                                       "      <arg direction=\"out\" type=\"au\" name=\"windows\"/>\n"
+                                       "    </method>\n"
+                                       "    <method name=\"HandleDragDrop\">\n"
+                                       "      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
+                                       "      <arg direction=\"in\" type=\"as\" name=\"files\"/>\n"
+                                       "    </method>\n"
+                                       "    <method name=\"HandleMenuItem\">\n"
+                                       "      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
+                                       "      <arg direction=\"in\" type=\"s\" name=\"id\"/>\n"
+                                       "    </method>\n"
+                                       "    <method name=\"NewInstance\">\n"
+                                       "      <arg direction=\"in\" type=\"u\" name=\"timestamp\"/>\n"
+                                       "    </method>\n"
+                                       "    <method name=\"PresentWindows\"/>\n"
+                                       "    <method name=\"RequestDock\"/>\n"
+                                       "    <method name=\"RequestUndock\"/>\n"
+                                       "    <property access=\"read\" type=\"s\" name=\"Name\"/>\n"
+                                       "    <property access=\"read\" type=\"s\" name=\"Icon\"/>\n"
+                                       "    <property access=\"read\" type=\"s\" name=\"Id\"/>\n"
+                                       "    <property access=\"read\" type=\"b\" name=\"IsActive\"/>\n"
+                                       "    <property access=\"read\" type=\"u\" name=\"CurrentWindow\"/>\n"
+                                       "    <property access=\"read\" type=\"b\" name=\"IsDocked\"/>\n"
+                                       "    <property access=\"read\" type=\"s\" name=\"Menu\"/>\n"
+                                       "    <property access=\"read\" type=\"s\" name=\"DesktopFile\"/>\n"
+                                       "    <property access=\"read\" type=\"a(usb)\" name=\"WindowInfos\"/>\n"
+                                       "    <annotation value=\"ExportWindowInfoList\" name=\"org.qtproject.QtDBus.QtTypeName\"/>\n"
+                                       "  </interface>\n"
+                                       "")
 
 public:
     DBusAdaptorEntry(QObject *parent);
@@ -115,8 +111,8 @@ public: // PROPERTIES
     Q_PROPERTY(QString Name READ name NOTIFY NameChanged)
     QString name() const;
 
-    //Q_PROPERTY(QString WindowInfos READ windowInfos)
-    //QList<ExportWindowInfo> windowInfos();
+    Q_PROPERTY(ExportWindowInfoList WindowInfos READ windowInfos NOTIFY WindowInfosChanged)
+    ExportWindowInfoList windowInfos();
 
     Entry *parent() const;
 
@@ -140,6 +136,7 @@ Q_SIGNALS: // SIGNALS
     void NameChanged(QString value);
     void DesktopFileChanged(QString value);
     void CurrentWindowChanged(uint32_t value);
+    void WindowInfosChanged(ExportWindowInfoList value);
 };
 
 #endif

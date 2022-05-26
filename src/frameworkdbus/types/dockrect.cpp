@@ -12,7 +12,7 @@ DockRect::DockRect()
 
 QDebug operator<<(QDebug debug, const DockRect &rect)
 {
-    debug << QString("Rect(%1, %2, %3, %4)").arg(rect.X)
+    debug << QString("DockRect(%1, %2, %3, %4)").arg(rect.X)
                                                 .arg(rect.Y)
                                                 .arg(rect.Width)
                                                 .arg(rect.Height);

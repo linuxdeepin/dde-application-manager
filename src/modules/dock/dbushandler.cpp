@@ -149,7 +149,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
         if (entry->getCurrentWindowInfo() == windowInfo)
             entry->updateName();
 
-        entry->updateWindowInfos();
+        entry->updateExportWindowInfos();
     });
 
     // Icon changed
@@ -169,7 +169,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
         if (!entry)
             return;
 
-        entry->updateWindowInfos();
+        entry->updateExportWindowInfos();
     });
 
     // Geometry changed

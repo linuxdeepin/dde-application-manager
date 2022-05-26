@@ -1008,11 +1008,12 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
     } else {
         // attach
         if (info->getEntryInnerId().isEmpty()) {
-            // 识别窗口并创建entryInnerId
+            // 窗口entryInnerId为空表示未识别，需要识别窗口并创建entryInnerId
             qInfo() << "attach operate: window " << winId << " entryInnerId is empty, now call IdentifyWindow";
             QString innerId;
             AppInfo *appInfo = windowIdentify->identifyWindow(info, innerId);
-            info->setEntryInnerId(innerId);   // windowBaseInfo entryInnerId is AppInfo innerId, for binding window and appInfo
+            // 窗口entryInnerId即AppInfo的innerId， 用来将窗口和应用绑定关系
+            info->setEntryInnerId(innerId);
             info->setAppInfo(appInfo);
             markAppLaunched(appInfo);
         } else {

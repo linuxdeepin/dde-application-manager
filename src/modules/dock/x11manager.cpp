@@ -369,7 +369,7 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
         return;
 
     if (atom == XCB->getAtom("_NET_WM_STATE")) {
-        entry->updateWindowInfos();
+        entry->updateExportWindowInfos();
     } else if (atom == XCB->getAtom("_NET_WM_ICON")) {
         if (entry->getCurrentWindowInfo() == winInfo) {
             entry->updateIcon();
@@ -378,7 +378,7 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
         if (entry->getCurrentWindowInfo() == winInfo) {
             entry->updateName();
         }
-        entry->updateWindowInfos();
+        entry->updateExportWindowInfos();
     } else if (atom == XCB->getAtom("_NET_WM_ALLOWED_ACTIONS")) {
         entry->updateMenu();
     }

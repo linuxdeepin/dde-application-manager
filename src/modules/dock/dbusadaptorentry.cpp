@@ -27,7 +27,11 @@ DBusAdaptorEntry::DBusAdaptorEntry(QObject *parent)
 
     // constructor
     setAutoRelaySignals(true);
-    //qDBusRegisterMetaType<ExportWindowInfo>();
+    if (QMetaType::type("ExportWindowInfo") == QMetaType::UnknownType)
+        registerExportWindowInfoMetaType();
+
+    if (QMetaType::type("ExportWindowInfoList") == QMetaType::UnknownType)
+        registerExportWindowInfoListMetaType();
 
     Entry *entry = static_cast<Entry *>(QObject::parent());
     if (entry) {
@@ -38,12 +42,12 @@ DBusAdaptorEntry::DBusAdaptorEntry(QObject *parent)
         connect(entry, &Entry::nameChanged, this, &DBusAdaptorEntry::NameChanged);
         connect(entry, &Entry::desktopFileChanged, this, &DBusAdaptorEntry::DesktopFileChanged);
         connect(entry, &Entry::currentWindowChanged, this, &DBusAdaptorEntry::CurrentWindowChanged);
+        connect(entry, &Entry::windowInfosChanged, this, &DBusAdaptorEntry::WindowInfosChanged);
     }
 }
 
 DBusAdaptorEntry::~DBusAdaptorEntry()
 {
-    // destructor
 }
 
 uint DBusAdaptorEntry::currentWindow() const
@@ -86,12 +90,11 @@ QString DBusAdaptorEntry::name() const
     return parent()->getName();
 }
 
-/*
-QList<ExportWindowInfo> DBusAdaptorEntry::windowInfos()
+ExportWindowInfoList DBusAdaptorEntry::windowInfos()
 {
     return parent()->getExportWindowInfos();
 }
-*/
+
 Entry *DBusAdaptorEntry::parent() const
 {
     return static_cast<Entry *>(QObject::parent());
@@ -152,26 +155,3 @@ void DBusAdaptorEntry::RequestUndock()
     parent()->requestUndock();
 }
 
-
-QDBusArgument &operator <<(QDBusArgument &argument, const ExportWindowInfo &info)
-{
-    argument.beginStructure();
-    argument << info.xid << info.title << info.flash;
-    argument.endStructure();
-    return argument;
-}
-
-const QDBusArgument &operator >>(const QDBusArgument &argument, ExportWindowInfo &info)
-{
-    argument.beginStructure();
-    argument >> info.xid >> info.title >> info.flash;
-    argument.endStructure();
-    return argument;
-}
-
-QDebug operator<<(QDebug deg, const ExportWindowInfo &info)
-{
-    qDebug() << "xid: " << info.xid << " title:" << info.title << " flash:" << info.flash;
-
-    return deg;
-}

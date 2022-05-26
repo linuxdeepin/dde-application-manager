@@ -118,6 +118,10 @@ AppInfo *WindowIdentify::identifyWindow(WindowInfoBase *winInfo, QString &innerI
 AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerId)
 {
     AppInfo *appInfo = nullptr;
+    if (winInfo->getInnerId().isEmpty()) {
+        qInfo() << "identifyWindowX11: window innerId is empty";
+        return appInfo;
+    }
 
     for (auto iter = identifyWindowFuns.begin(); iter != identifyWindowFuns.end(); iter++) {
         QString name = iter.key();

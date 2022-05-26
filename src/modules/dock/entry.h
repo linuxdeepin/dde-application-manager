@@ -25,16 +25,11 @@
 #include "appinfo.h"
 #include "appmenu.h"
 #include "windowinfobase.h"
+#include "exportwindowinfolist.h"
 
 #include <QMap>
 #include <QVector>
 #include <QObject>
-
-struct ExportWindowInfo {
-    XWindow xid;
-    QString title;
-    bool flash;
-};
 
 // 单个应用类
 class Dock;
@@ -76,7 +71,7 @@ public:
     WindowInfoBase *findNextLeader();
     QString getExec(bool oneLine);
     bool hasWindow();
-    void updateWindowInfos();
+    void updateExportWindowInfos();
     bool detachWindow(WindowInfoBase *info);
     bool attachWindow(WindowInfoBase *info);
     void launchApp(uint32_t timestamp);
@@ -98,7 +93,7 @@ public:
     bool getIsActive();
     QString getMenu();
     QVector<XWindow> getAllowedClosedWindowIds();
-    QList<ExportWindowInfo> getExportWindowInfos();
+    ExportWindowInfoList getExportWindowInfos();
 
 public Q_SLOTS:
     QVector<WindowInfoBase *> getAllowedCloseWindows();
@@ -111,6 +106,7 @@ Q_SIGNALS:
     void nameChanged(QString value);
     void desktopFileChanged(QString value);
     void currentWindowChanged(uint32_t value);
+    void windowInfosChanged(const ExportWindowInfoList &value);
 
 private:
     // 右键菜单项
@@ -140,7 +136,7 @@ private:
 
     // Dbus属性直接放到interface上
     QMap<XWindow, WindowInfoBase *> windowInfos; // 该应用所有窗口
-    QList<ExportWindowInfo> exportWindowInfos;
+    ExportWindowInfoList exportWindowInfos;
     WindowInfoBase *current; // 当前窗口
     XWindow currentWindow; //当前窗口Id
     bool winIconPreferred;

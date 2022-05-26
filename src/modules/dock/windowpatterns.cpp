@@ -93,9 +93,16 @@ WindowPatterns::WindowPatterns()
 
 }
 
+/**
+ * @brief WindowPatterns::match 匹配窗口
+ * @param winInfo
+ * @return
+ */
 QString WindowPatterns::match(WindowInfoX *winInfo)
 {
+    for (auto pattern : patterns) {
 
+    }
     return "";
 }
 
