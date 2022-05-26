@@ -103,7 +103,7 @@ public:
 
 // 显示位置
 enum class PositionMode {
-    TOP,    // 上
+    Top,    // 上
     Right,  // 右
     Bottom, // 下
     Left,   // 左
@@ -123,7 +123,7 @@ public:
 
     QString toString() {
         switch (modeEnum) {
-        case PositionMode::TOP:
+        case PositionMode::Top:
             return "top";
         case PositionMode::Right:
             return "right";
@@ -136,7 +136,7 @@ public:
 
     PositionMode toEnum() {
         if (modeStr == "top")
-            return PositionMode::TOP;
+            return PositionMode::Top;
         if (modeStr == "right")
             return PositionMode::Right;
         if (modeStr == "bottom")

@@ -31,7 +31,7 @@ PlasmaWindow::PlasmaWindow(const QString &service, const QString &path, const QD
     : DBusExtendedAbstractInterface(service, path, staticInterfaceName(), connection, parent)
     , d_ptr(new __WindowPrivate)
 {
-    if (QMetaType::type("Rect") == QMetaType::UnknownType)
+    if (QMetaType::type("DockRect") == QMetaType::UnknownType)
         registerRectMetaType();
 }
 

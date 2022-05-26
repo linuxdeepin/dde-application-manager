@@ -1,7 +1,7 @@
-#include "rect.h"
+#include "dockrect.h"
 #include <QDebug>
 
-Rect::Rect()
+DockRect::DockRect()
     : X(0)
     , Y(0)
     , Width(0)
@@ -10,7 +10,7 @@ Rect::Rect()
 
 }
 
-QDebug operator<<(QDebug debug, const Rect &rect)
+QDebug operator<<(QDebug debug, const DockRect &rect)
 {
     debug << QString("Rect(%1, %2, %3, %4)").arg(rect.X)
                                                 .arg(rect.Y)
@@ -20,12 +20,12 @@ QDebug operator<<(QDebug debug, const Rect &rect)
     return debug;
 }
 
-Rect::operator QRect() const
+DockRect::operator QRect() const
 {
     return QRect(X, Y, Width, Height);
 }
 
-QDBusArgument &operator<<(QDBusArgument &arg, const Rect &rect)
+QDBusArgument &operator<<(QDBusArgument &arg, const DockRect &rect)
 {
     arg.beginStructure();
     arg << rect.X << rect.Y << rect.Width << rect.Height;
@@ -34,7 +34,7 @@ QDBusArgument &operator<<(QDBusArgument &arg, const Rect &rect)
     return arg;
 }
 
-const QDBusArgument &operator>>(const QDBusArgument &arg, Rect &rect)
+const QDBusArgument &operator>>(const QDBusArgument &arg, DockRect &rect)
 {
     arg.beginStructure();
     arg >> rect.X >> rect.Y >> rect.Width >> rect.Height;
@@ -45,6 +45,6 @@ const QDBusArgument &operator>>(const QDBusArgument &arg, Rect &rect)
 
 void registerRectMetaType()
 {
-    qRegisterMetaType<Rect>("Rect");
-    qDBusRegisterMetaType<Rect>();
+    qRegisterMetaType<DockRect>("DockRect");
+    qDBusRegisterMetaType<DockRect>();
 }

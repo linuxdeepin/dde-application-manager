@@ -64,7 +64,7 @@ public:
     void updateInternalId();
     void updateCloseable();
     void updateProcessInfo();
-    Rect getGeometry();
+    DockRect getGeometry();
 
 private:
     bool updateCalled;
@@ -74,7 +74,7 @@ private:
     bool closeable;
     bool minimized;
     PlasmaWindow *plasmaWindow;
-    Rect geometry;
+    DockRect geometry;
 };
 
 #endif // WINDOWINFOK_H

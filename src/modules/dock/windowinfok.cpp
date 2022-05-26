@@ -132,7 +132,7 @@ PlasmaWindow *WindowInfoK::getPlasmaWindow()
 
 bool WindowInfoK::updateGeometry()
 {
-    Rect rect = plasmaWindow->Geometry();
+    DockRect rect = plasmaWindow->Geometry();
     if (geometry == rect)
         return false;
 
@@ -180,7 +180,7 @@ void WindowInfoK::updateProcessInfo()
  * @brief WindowInfoK::getGeometry 获取窗口大小
  * @return
  */
-Rect WindowInfoK::getGeometry()
+DockRect WindowInfoK::getGeometry()
 {
     return geometry;
 }

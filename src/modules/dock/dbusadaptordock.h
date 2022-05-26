@@ -34,6 +34,7 @@
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QVariant>
+#include <QDBusObjectPath>
 #include <QRect>
 
 /*
@@ -196,19 +197,19 @@ Q_SIGNALS: // SIGNALS
     void EntryAdded(const QDBusObjectPath &path, int index);
     void EntryRemoved(const QString &entryId);
 
-    void DisplayModeChanged();
-    void DockedAppsChanged();
-    void OpacityChanged();
-    void EntriesChanged();
-    void HideModeChanged();
-    void WindowSizeEfficientChanged();
-    void WindowSizeFashionChanged();
-    void HideStateChanged();
-    void FrontendWindowRectChanged();
-    void HideTimeoutChanged();
-    void IconSizeChanged();
-    void PositionChanged();
-    void ShowTimeoutChanged();
+    void DisplayModeChanged(int value) const;
+    void DockedAppsChanged(const QStringList &value) const;
+    void EntriesChanged(const QList<QDBusObjectPath> &value) const;
+    void FrontendWindowRectChanged() const;
+    void HideModeChanged(int value) const;
+    void HideStateChanged(int value) const;
+    void HideTimeoutChanged(uint value) const;
+    void IconSizeChanged(uint value) const;
+    void OpacityChanged(double value) const;
+    void PositionChanged(int value) const;
+    void ShowTimeoutChanged(uint value) const;
+    void WindowSizeEfficientChanged(uint value) const;
+    void WindowSizeFashionChanged(uint value) const;
 };
 
 #endif

@@ -26,6 +26,7 @@
 #include "docksettings.h"
 #include "entries.h"
 #include "dbusplasmawindow.h"
+#include "dockrect.h"
 
 #include <QStringList>
 #include <QTimer>
@@ -149,7 +150,7 @@ Q_SIGNALS:
     void serviceRestarted();
     void entryAdded(QString entryObjPath, int32_t index);
     void entryRemoved(QString id);
-    void hideStateChanged();
+    void hideStateChanged(int);
     void frontendWindowRectChanged();
 
 private Q_SLOTS:
@@ -166,7 +167,7 @@ private:
     bool isWindowDockOverlapX(XWindow xid);
     bool hasInterSectionX(const Geometry &windowRect, QRect dockRect);
     bool isWindowDockOverlapK(WindowInfoBase *info);
-    bool hasInterSectionK(const Rect &windowRect, QRect dockRect);
+    bool hasInterSectionK(const DockRect &windowRect, QRect dockRect);
     Entry *getDockedEntryByDesktopFile(const QString &desktopFile);
     bool shouldHideOnSmartHideMode();
     QVector<XWindow> getActiveWinGroup(XWindow xid);

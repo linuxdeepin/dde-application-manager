@@ -792,7 +792,7 @@ bool Dock::isWindowDockOverlapK(WindowInfoBase *info)
         return false;
     }
 
-    Rect rect = infoK->getGeometry();
+    DockRect rect = infoK->getGeometry();
     bool isActiveWin = infoK->getPlasmaWindow()->IsActive();
     QString appId = infoK->getAppId();
     if (!isActiveWin) {
@@ -815,7 +815,7 @@ bool Dock::isWindowDockOverlapK(WindowInfoBase *info)
  * @param dockRect 任务栏窗口
  * @return
  */
-bool Dock::hasInterSectionK(const Rect &windowRect, QRect dockRect)
+bool Dock::hasInterSectionK(const DockRect &windowRect, QRect dockRect)
 {
     int position = getPosition();
     int ltX = MAX(windowRect.X, dockRect.x());
@@ -825,7 +825,7 @@ bool Dock::hasInterSectionK(const Rect &windowRect, QRect dockRect)
 
     if (position == int(PositionMode::Left) || position == int(PositionMode::Right)) {
         return ltX <= rbX && ltY < rbY;
-    } else if (position == int(PositionMode::TOP) || position == int(PositionMode::Bottom)) {
+    } else if (position == int(PositionMode::Top) || position == int(PositionMode::Bottom)) {
         return ltX < rbX && ltY <= rbY;
     } else {
         return ltX < rbX && ltY < rbY;
@@ -979,7 +979,7 @@ void Dock::setPropHideState(HideState state)
 
     if (state != hideState) {
         hideState = state;
-        Q_EMIT hideStateChanged();
+        Q_EMIT hideStateChanged(static_cast<int>(hideState));
     }
 }
 

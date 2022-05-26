@@ -22,7 +22,7 @@
 #include <DBusExtendedAbstractInterface>
 #include <QtDBus/QtDBus>
 
-#include "types/rect.h"
+#include "types/dockrect.h"
 
 /*
  * Proxy class for interface com.deepin.daemon.KWayland.PlasmaWindow
@@ -50,7 +50,7 @@ public Q_SLOTS: // METHODS
 
 
 
-    inline QDBusPendingReply<Rect> Geometry()
+    inline QDBusPendingReply<DockRect> Geometry()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("Geometry"), argumentList);

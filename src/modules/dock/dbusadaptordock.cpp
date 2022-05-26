@@ -53,7 +53,7 @@ void DBusAdaptorDock::setDisplayMode(int value)
 {
     if (displayMode() != value) {
         parent()->setDisplayMode(value);
-        Q_EMIT DisplayModeChanged();
+        Q_EMIT DisplayModeChanged(value);
     }
 }
 
@@ -78,8 +78,8 @@ int DBusAdaptorDock::hideMode() const
 void DBusAdaptorDock::setHideMode(int value)
 {
     if (hideMode() != value) {
-        parent()->setHideMode(HideMode(value));
-        Q_EMIT HideModeChanged();
+        parent()->setHideMode(static_cast<HideMode>(value));
+        Q_EMIT HideModeChanged(value);
     }
 }
 
@@ -97,7 +97,7 @@ void DBusAdaptorDock::setHideTimeout(uint value)
 {
     if (hideTimeout() != value) {
         parent()->setHideTimeout(value);
-        Q_EMIT HideTimeoutChanged();
+        Q_EMIT HideTimeoutChanged(value);
     }
 }
 
@@ -110,7 +110,7 @@ void DBusAdaptorDock::setWindowSizeEfficient(uint value)
 {
     if (windowSizeEfficient() != value) {
         parent()->setWindowSizeEfficient(value);
-        Q_EMIT WindowSizeEfficientChanged();
+        Q_EMIT WindowSizeEfficientChanged(value);
     }
 }
 
@@ -123,7 +123,7 @@ void DBusAdaptorDock::setWindowSizeFashion(uint value)
 {
     if (windowSizeFashion() != value) {
         parent()->setWindowSizeFashion(value);
-        Q_EMIT WindowSizeFashionChanged();
+        Q_EMIT WindowSizeFashionChanged(value);
     }
 }
 
@@ -146,7 +146,7 @@ void DBusAdaptorDock::setIconSize(uint value)
 {
     if (iconSize() != value) {
         parent()->setIconSize(value);
-        Q_EMIT IconSizeChanged();
+        Q_EMIT IconSizeChanged(value);
     }
 }
 
@@ -159,7 +159,7 @@ void DBusAdaptorDock::setPosition(int value)
 {
     if (position() != value) {
         parent()->setPosition(value);
-        Q_EMIT PositionChanged();
+        Q_EMIT PositionChanged(value);
     }
 }
 
@@ -172,7 +172,7 @@ void DBusAdaptorDock::setShowTimeout(uint value)
 {
     if (showTimeout() != value) {
         parent()->setShowTimeout(value);
-        Q_EMIT ShowTimeoutChanged();
+        Q_EMIT ShowTimeoutChanged(value);
     }
 }
 
