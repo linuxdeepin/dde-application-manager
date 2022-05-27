@@ -67,19 +67,6 @@ class DBusAdaptorLauncher: public QDBusAbstractAdaptor
                                        "      <arg direction=\"in\" type=\"s\" name=\"id\"/>\n"
                                        "      <arg direction=\"in\" type=\"b\" name=\"value\"/>\n"
                                        "    </method>\n"
-                                       "    <method name=\"LaunchWithTimestamp\">\n"
-                                       "      <arg direction=\"in\" type=\"s\" name=\"desktopFile\"/>\n"
-                                       "      <arg direction=\"in\" type=\"i\" name=\"time\"/>\n"
-                                       "      <arg direction=\"out\" type=\"b\" name=\"value\"/>\n"
-                                       "    </method>\n"
-                                       "    <method name=\"RemoveAutostart\">\n"
-                                       "      <arg direction=\"in\" type=\"s\" name=\"desktopFile\"/>\n"
-                                       "      <arg direction=\"out\" type=\"b\" name=\"value\"/>\n"
-                                       "    </method>\n"
-                                       "    <method name=\"AddAutostart\">\n"
-                                       "      <arg direction=\"in\" type=\"s\" name=\"desktopFile\"/>\n"
-                                       "      <arg direction=\"out\" type=\"b\" name=\"value\"/>\n"
-                                       "    </method>\n"
                                        "    <signal name=\"ItemChanged\">\n"
                                        "      <arg type=\"s\" name=\"status\"/>\n"
                                        "      <arg type=\"(ssssxxas)\" name=\"itemInfo\"/>\n"
@@ -116,15 +103,12 @@ public: // PROPERTIES
     void setFullscreen(bool value);
 
 public Q_SLOTS: // METHODS
-    bool AddAutostart(const QString &desktopFile);
     LauncherItemInfoList GetAllItemInfos();
     QStringList GetAllNewInstalledApps();
     bool GetDisableScaling(const QString &id);
     LauncherItemInfo GetItemInfo(const QString &id);
     bool GetUseProxy(const QString &id);
     bool IsItemOnDesktop(const QString &id);
-    bool LaunchWithTimestamp(const QString &desktopFile, int time);
-    bool RemoveAutostart(const QString &desktopFile);
     bool RequestRemoveFromDesktop(const QString &id);
     bool RequestSendToDesktop(const QString &id);
     void RequestUninstall(const QString &id);

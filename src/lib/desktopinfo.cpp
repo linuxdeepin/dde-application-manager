@@ -34,8 +34,8 @@
 std::vector<std::string> DesktopInfo::currentDesktops;
 
 DesktopInfo::DesktopInfo(const std::string &_fileName)
- : m_isValid(true)
- , m_keyFile(KeyFile())
+    : m_isValid(true)
+    , m_keyFile(KeyFile())
 {
     std::string fileNameWithSuffix(_fileName);
     if (!DString::endWith(_fileName, ".desktop"))
@@ -118,11 +118,9 @@ bool DesktopInfo::getIsHidden()
 bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
 {
     if (desktopEnvs.size() == 0) {
-        if (currentDesktops.size() == 0) {
-            const char *env = getenv(envDesktopEnv.c_str());
-            const auto &desktop = DString::splitChars(env, ':');
-            currentDesktops.assign(desktop.begin(), desktop.end());
-        }
+        const char *env = getenv(envDesktopEnv.c_str());
+        const auto &desktop = DString::splitChars(env, ':');
+        currentDesktops.assign(desktop.begin(), desktop.end());
         desktopEnvs.assign(currentDesktops.begin(), currentDesktops.end());
     }
 
@@ -327,7 +325,7 @@ KeyFile *DesktopInfo::getKeyFile()
 
 // class AppsDir
 AppsDir::AppsDir(const std::string &dirPath)
- : m_path(dirPath)
+    : m_path(dirPath)
 {
 
 }

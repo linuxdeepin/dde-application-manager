@@ -1187,12 +1187,15 @@ Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
     Item item;
     item.info.path = appFileName;
     item.info.name = appName;
-    //item.info.keywords << enName << appName;
+    item.info.keywords << enName << appName;
     item.info.id = getAppIdByFilePath(item.info.path, appDirs);
     item.info.timeInstalled = ctime;
     item.exec = info.getCommandLine().c_str();
     item.genericName = info.getGenericName().c_str();
     item.comment = enComment;
+    if (!info.getIcon().empty())
+        item.info.icon = info.getIcon().c_str();
+
     xDeepinCategory = xDeepinCategory.toLower();
 
     for (auto &keyWord : info.getKeywords()) {
