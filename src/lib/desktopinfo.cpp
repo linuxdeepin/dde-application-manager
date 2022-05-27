@@ -271,7 +271,7 @@ std::string DesktopInfo::getId()
     idStr = m_fileName.substr(0, m_fileName.size() - 8); // trim suffix
     size_t dirPos = idStr.find("/applications/");
     if (dirPos == std::string::npos)
-        return "";
+        return idStr;
 
     std::string baseDir(idStr.substr(0, dirPos + 14)); // length of "/applications/" is 14
     std::vector<std::string> appDirs = BaseDir::appDirs();

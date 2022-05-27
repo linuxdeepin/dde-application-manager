@@ -116,6 +116,11 @@ int ProcessInfo::getPpid()
     return process.getPpid();
 }
 
+bool ProcessInfo::initWithPid()
+{
+    return hasPid;
+}
+
 std::string ProcessInfo::getExe()
 {
     return exe;

@@ -39,6 +39,7 @@ public:
     std::vector<std::string> getArgs();
     int getPid();
     int getPpid();
+    bool initWithPid();
     std::string getExe();
     std::string getOneCommandLine();
     std::string getShellScriptLines();

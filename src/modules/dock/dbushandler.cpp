@@ -25,15 +25,14 @@
 #include "dbusbamfapplication.h"
 
 DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
- : QObject(parent)
- , dock(_dock)
- , session(QDBusConnection::sessionBus())
- , launcherEnd(new LauncherBackEnd("org.deepin.dde.daemon.Launcher1", "/org/deepin/dde/daemon/Launcher1", session, this))
- , launcherFront(new LauncherFront("org.deepin.dde.Launcher1", "/org/deepin/dde/Launcher1", session, this))
- , wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", session, this))
- , wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", session, this))
- , kwaylandManager(nullptr)
- , bamfMatcher(new org::ayatana::bamf::BamfMatcher("org.ayatana.bamf.matcher", "/org/ayatana/bamf/matcher", session, this))
+    : QObject(parent)
+    , dock(_dock)
+    , session(QDBusConnection::sessionBus())
+    , launcherEnd(new LauncherBackEnd("org.deepin.dde.daemon.Launcher1", "/org/deepin/dde/daemon/Launcher1", session, this))
+    , launcherFront(new LauncherFront("org.deepin.dde.Launcher1", "/org/deepin/dde/Launcher1", session, this))
+    , wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", session, this))
+    , wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", session, this))
+    , kwaylandManager(nullptr)
 {
     // 关联org.deepin.dde.daemon.Launcher1事件 ItemChanged
     connect(launcherEnd, &LauncherBackEnd::ItemChanged, this, &DBusHandler::handleLauncherItemChanged);
@@ -200,17 +199,22 @@ void DBusHandler::presentWindows(QList<uint> windows)
     wm->PresentWindows(windows);
 }
 
+// TODO: 待优化点， 查看Bamf根据windowId获取对应应用desktopFile路径实现方式, 移除bamf依赖
 QString DBusHandler::getDesktopFromWindowByBamf(XWindow windowId)
 {
-    QDBusPendingReply<QString> reply = bamfMatcher->ApplicationForXid(windowId);
-    if (!reply.isValid())
+    QDBusInterface interface0 = QDBusInterface("org.ayatana.bamf", "/org/ayatana/bamf/matcher", "org.ayatana.bamf.matcher");
+    QDBusReply<QString> replyApplication = interface0.call("ApplicationForXid", windowId);
+    QString appObjPath = replyApplication.value();
+    if (!replyApplication.isValid() || appObjPath.isEmpty())
         return "";
 
-    QString appObjPath = reply.value();
 
-    org::ayatana::bamf::BamfApplication  bamfApp("org.ayatana.bamf.application", appObjPath, session, this);
-    if (bamfApp.isValid())
-        return bamfApp.DesktopFile();
+    QDBusInterface interface = QDBusInterface("org.ayatana.bamf", appObjPath, "org.ayatana.bamf.application");
+    QDBusReply<QString> replyDesktopFile = interface.call("DesktopFile");
+
+    if (replyDesktopFile.isValid())
+        return replyDesktopFile.value();
+
 
     return "";
 }

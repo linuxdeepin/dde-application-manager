@@ -21,6 +21,9 @@
 
 #include "windowpatterns.h"
 #include "common.h"
+#include "processinfo.h"
+#include "dfile.h"
+#include "dstring.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -56,53 +59,123 @@ bool equalIgnoreCase(QString key, QString value) {
 
 bool regexMatch(QString key, QString value) {
     QRegExp ruleRegex(value);
-    return ruleRegex.exactMatch(key);
+    bool ret = ruleRegex.exactMatch(key);
+
+    // 配置中\.exe$ 在V20中go代码可以匹配以.exe结尾的字符串, Qt中使用\.*exe$匹配以.exe结尾字符串失败，暂时做兼容处理
+    if (!ret && value == "\\.exe$") {
+        ret = key.endsWith(".exe");
+    }
+    return ret;
 }
 
 bool regexMatchIgnoreCase(QString key, QString value) {
     QRegExp ruleRegex(value, Qt::CaseInsensitive);
-    return ruleRegex.exactMatch(key);
+    bool ret = ruleRegex.exactMatch(key);
+
+    // 配置中\.exe$ 在V20中go代码可以匹配以.exe结尾的字符串, Qt中使用\.*exe$匹配以.exe结尾字符串失败，暂时做兼容处理
+    if (!ret && value == "\\.exe$") {
+        QString _key = key.toLower();
+        ret = _key.endsWith(".exe");
+    }
+    return ret;
 }
 
-
 RuleValueParse::RuleValueParse()
- : negative(0)
+ : negative(false)
  , type(0)
  , flags(0)
 {
 }
 
-bool RuleValueParse::parse(QString parsedKey)
+bool RuleValueParse::match(const WindowInfoX *winInfo)
 {
+    QString parsedKey = parseRuleKey(const_cast<WindowInfoX *>(winInfo), key);
     if (!fn)
         return false;
 
-    return negative ? fn(parsedKey, value) : !fn(parsedKey, value);
+    bool ret = fn(parsedKey, value);
+    return negative ? !ret : ret;
 }
 
-bool RuleValueParse::match(const WindowInfoX *winInfo)
+QString RuleValueParse::parseRuleKey(WindowInfoX *winInfo, const QString &ruleKey)
 {
-    QString parsedKey;
+    ProcessInfo * process = winInfo->getProcess();
+    if (ruleKey == "hasPid") {
+        if (process && process->initWithPid()) {
+            return "t";
+        }
+        return "f";
+    } else if (ruleKey == "exec") {
+        if (process) {
+            // 返回执行文件baseName
+            auto baseName = DFile::base(process->getExe());
+            return baseName.empty() ? "" : baseName.c_str();
+        }
+    } else if (ruleKey == "arg") {
+        if (process) {
+            // 返回命令行参数
+            auto ret = DString::join(process->getArgs(), "");
+            return ret.empty() ? "" : ret.c_str();
+        }
+    } else if (ruleKey == "wmi") {
+        // 窗口实例
+        auto wmClass = winInfo->getWMClass();
+        if (!wmClass.instanceName.empty())
+            return wmClass.instanceName.c_str();
+    } else if (ruleKey == "wmc") {
+        // 窗口类型
+        auto wmClass = winInfo->getWMClass();
+        if (!wmClass.className.empty())
+            return wmClass.className.c_str();
+    } else if (ruleKey == "wmn") {
+        // 窗口名称
+        return winInfo->getWMName();
+    } else if (ruleKey == "wmrole") {
+        // 窗口角色
+        return winInfo->getWmRole();
+    } else {
+        const QString envPrefix = "env.";
+        if (ruleKey.startsWith(envPrefix)) {
+            QString envName = ruleKey.mid(envPrefix.size());
+            if (winInfo->getProcess()) {
+                auto ret = process->getEnv(envName.toStdString());
+                return ret.empty() ? "" : ret.c_str();
+            }
+        }
+    }
 
-    return parse(parsedKey);
+    return "";
 }
 
 
 WindowPatterns::WindowPatterns()
 {
-
+    loadWindowPatterns();
 }
 
 /**
- * @brief WindowPatterns::match 匹配窗口
+ * @brief WindowPatterns::match 匹配窗口类型
  * @param winInfo
  * @return
  */
 QString WindowPatterns::match(WindowInfoX *winInfo)
 {
     for (auto pattern : patterns) {
+        bool patternOk = true;
+        for (auto rule : pattern.parseRules) {
+            if (!rule.match(winInfo)) {
+                patternOk = false;
+                break;
+            }
+        }
 
+        if (patternOk) {
+            // 匹配成功
+            return pattern.result;
+        }
     }
+
+    // 匹配失败
     return "";
 }
 
@@ -193,6 +266,7 @@ RuleValueParse WindowPatterns::parseRule(QVector<QString> rule)
     strncpy(orig, ret.original.toStdString().c_str(), size_t(len));
     switch (orig[1]) {
     case ':':
+        break;
     case '!':
         ret.flags |= parsedFlagNegative;
         ret.negative = true;
@@ -227,9 +301,10 @@ RuleValueParse WindowPatterns::parseRule(QVector<QString> rule)
         ret.fn = regexMatchIgnoreCase;
         break;
     default:
-        return ret;
+        break;
     }
 
+    free(orig);
     return ret;
 }
 

@@ -350,7 +350,7 @@ void WindowInfoX::updateHasWmTransientFor()
 }
 
 /**
- * @brief WindowInfoX::update 更新窗口信息（仅仅执行一次）
+ * @brief WindowInfoX::update 更新窗口信息（在识别窗口时执行一次）
  */
 void WindowInfoX::update()
 {

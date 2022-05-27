@@ -34,8 +34,6 @@
 
 #define XCB XCBUtils::instance()
 
-WindowPatterns WindowIdentify::patterns;
-
 static QMap<QString, QString> crxAppIdMap = {
     {"crx_onfalgmmmaighfmjgegnamdjmhpjpgpi", "apps.com.aiqiyi"},
     {"crx_gfhkopakpiiaeocgofdpcpjpdiglpkjl", "apps.cn.kugou.hd"},
@@ -385,6 +383,7 @@ AppInfo *WindowIdentify::identifyWindowByCrxId(Dock *_dock, WindowInfoX *winInfo
 
 AppInfo *WindowIdentify::identifyWindowByRule(Dock *_dock, WindowInfoX *winInfo, QString &innerId)
 {
+    static WindowPatterns patterns;
     qInfo() << "identifyWindowByRule: windowId=" << winInfo->getXid();
     AppInfo *ret = nullptr;
     QString matchStr = patterns.match(winInfo);
@@ -417,13 +416,11 @@ AppInfo *WindowIdentify::identifyWindowByBamf(Dock *_dock, WindowInfoX *winInfo,
     XWindow xid = winInfo->getXid();
     qInfo() << "identifyWindowByBamf:  windowId=" << xid;
     QString desktopFile;
-    // 重试 bamf 识别，yozo office 的窗口经常要第二次时才能识别到。
-    for (int i=0; i<3; i++) {
+    // 重试 bamf 识别，部分的窗口经常要多次调用才能识别到。
+    for (int i = 0; i < 3; i++) {
         desktopFile = _dock->getDesktopFromWindowByBamf(xid);
         if (!desktopFile.isEmpty())
             break;
-
-       QThread::msleep(100);
     }
 
     if (!desktopFile.isEmpty()) {

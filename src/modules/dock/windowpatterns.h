@@ -30,8 +30,8 @@
 
 struct RuleValueParse {
     RuleValueParse();
-    bool parse(QString parsedKey);
     bool match(const WindowInfoX *winInfo);
+    static QString parseRuleKey(WindowInfoX *winInfo, const QString &ruleKey);
     QString key;
     bool negative;
     bool (*fn)(QString, QString);

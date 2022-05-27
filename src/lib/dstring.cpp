@@ -145,3 +145,16 @@ void DString::delQuote(std::string &str)
         str.assign(str.substr(1, str.size() - 2));
 }
 
+std::string DString::join(std::vector<std::string> strs, std::string joinStr)
+{
+    std::string ret;
+    for (uint i = 0; i < strs.size(); i++) {
+        if (i < strs.size() - 1) {
+            ret += strs[i] + joinStr;
+        } else {
+            ret += strs[i];
+        }
+    }
+    return ret;
+}
+

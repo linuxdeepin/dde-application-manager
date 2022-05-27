@@ -153,7 +153,11 @@ void X11Manager::listenXEventUseXCB()
     */
 }
 
-// 注册X11窗口
+/**
+ * @brief X11Manager::registerWindow 注册X11窗口
+ * @param xid
+ * @return
+ */
 WindowInfoX *X11Manager::registerWindow(XWindow xid)
 {
     qInfo() << "registWindow: windowId=" << xid;
@@ -249,6 +253,10 @@ void X11Manager::listenRootWindowXEvent()
     handleClientListChanged();
 }
 
+/**
+ * @brief X11Manager::listenWindowXEvent 监听窗口事件
+ * @param winInfo
+ */
 void X11Manager::listenWindowXEvent(WindowInfoX *winInfo)
 {
     uint32_t eventMask = EventMask::XCB_EVENT_MASK_PROPERTY_CHANGE | EventMask::XCB_EVENT_MASK_STRUCTURE_NOTIFY | EventMask::XCB_EVENT_MASK_VISIBILITY_CHANGE;

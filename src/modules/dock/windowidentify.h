@@ -67,7 +67,6 @@ private:
     static int32_t getAndroidUengineId(XWindow winId);
     static QString getAndroidUengineName(XWindow winId);
 
-    static WindowPatterns patterns;    // 根据rule识别
     Dock *dock;
     QMap<QString, IdentifyFunc> identifyWindowFuns;
 };

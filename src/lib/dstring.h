@@ -51,6 +51,8 @@ public:
     // 去除首尾引用
     static char *delQuote(const char *chars);
     static void delQuote(std::string &str);
+    // 连接字符串
+    static std::string join(std::vector<std::string> strs, std::string joinStr);
 };
 
 #endif // DSTRING_H

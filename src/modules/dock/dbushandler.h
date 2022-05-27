@@ -29,7 +29,6 @@
 #include "dbuskwaylandwindowmanager.h"
 #include "windowinfok.h"
 #include "dbusplasmawindow.h"
-#include "dbusbamfmatcher.h"
 
 #include <QObject>
 #include <QDBusConnection>
@@ -86,7 +85,6 @@ private:
     com::deepin::WM *wm;
     com::deepin::WMSwitcher *wmSwitcher;
     com::deepin::daemon::kwayland::WindowManager *kwaylandManager;
-    org::ayatana::bamf::BamfMatcher *bamfMatcher;
 };
 
 #endif // DBUSHANDLER_H

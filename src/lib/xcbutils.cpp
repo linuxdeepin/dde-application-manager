@@ -155,12 +155,12 @@ Geometry XCBUtils::getWindowGeometry(XWindow xid)
 
 XWindow XCBUtils::getActiveWindow()
 {
-   XWindow ret;
-   xcb_get_property_cookie_t cookie = xcb_ewmh_get_active_window(&m_ewmh, m_screenNum);
-   if (!xcb_ewmh_get_active_window_reply(&m_ewmh, cookie, &ret, nullptr))
-       std::cout << "getActiveWindow error" << std::endl;
+    XWindow ret;
+    xcb_get_property_cookie_t cookie = xcb_ewmh_get_active_window(&m_ewmh, m_screenNum);
+    if (!xcb_ewmh_get_active_window_reply(&m_ewmh, cookie, &ret, nullptr))
+        std::cout << "getActiveWindow error" << std::endl;
 
-   return ret;
+    return ret;
 }
 
 void XCBUtils::setActiveWindow(XWindow xid)
@@ -441,17 +441,12 @@ WMClass XCBUtils::getWMClass(XWindow xid)
     xcb_icccm_get_wm_class_reply_t reply;
     reply.instance_name = nullptr;
     reply.class_name = nullptr;
-    if (!xcb_icccm_get_wm_class_reply(m_connect, cookie, &reply, nullptr)) {
-        if (reply.class_name)
-            ret.className.assign(reply.class_name);
+    xcb_icccm_get_wm_class_reply(m_connect, cookie, &reply, nullptr);   // 返回值为0不一定表示失败， 故不做返回值判断
+    if (reply.class_name)
+        ret.className.assign(reply.class_name);
 
-        if (reply.instance_name)
-            ret.instanceName.assign(reply.instance_name);
-
-        //xcb_icccm_get_wm_class_reply_wipe(&reply);
-    } else {
-        std::cout << xid << " getWMClass error" << std::endl;
-    }
+    if (reply.instance_name)
+        ret.instanceName.assign(reply.instance_name);
 
     return ret;
 }
