@@ -129,14 +129,14 @@ public Q_SLOTS: // METHODS
     void RequestUndock();
 
 Q_SIGNALS: // SIGNALS
-    void IsActiveChanged(bool value);
-    void IsDockedChanged(bool value);
-    void MenuChanged(QString value);
-    void IconChanged(QString value);
-    void NameChanged(QString value);
-    void DesktopFileChanged(QString value);
-    void CurrentWindowChanged(uint32_t value);
-    void WindowInfosChanged(WindowInfoMap value);
+    void IsActiveChanged(bool value) const;
+    void IsDockedChanged(bool value) const;
+    void MenuChanged(const QString &value) const;
+    void IconChanged(const QString &value) const;
+    void NameChanged(const QString &value) const;
+    void DesktopFileChanged(const QString &value) const;
+    void CurrentWindowChanged(uint32_t value) const;
+    void WindowInfosChanged(WindowInfoMap value) const;
 };
 
 #endif

@@ -71,11 +71,7 @@ Entry::~Entry()
 
 bool Entry::isValid()
 {
-    bool valid = false;
-    if (app)
-        valid = app->isValidApp();
-
-    return valid;
+    return app ? app->isValidApp() : false;
 }
 
 QString Entry::getId()
@@ -86,11 +82,13 @@ QString Entry::getId()
 QString Entry::getName()
 {
     QString ret;
-    if (app)
+    if (app) {
         ret = app->getName();
+    }
 
-    if (ret.isEmpty() && !!current)
+    if (ret.isEmpty() && !!current) {
         ret = current->getDisplayName();
+    }
 
     return ret;
 }
@@ -104,22 +102,26 @@ QString Entry::getIcon()
 {
     QString ret;
     if (hasWindow()) {
-        if (!current)
+        if (!current) {
             return ret;
+        }
 
         // has window && current not nullptr
         if (winIconPreferred) {
             // try current window icon first
             ret = current->getIcon();
-            if (ret.size() > 0)
+            if (ret.size() > 0) {
                 return ret;
+            }
         }
 
         if (app) {
             icon = app->getIcon();
-            if (icon.size() > 0)
+            if (icon.size() > 0) {
                 return icon;
+            }
         }
+
         return current->getIcon();
     }
 
@@ -143,11 +145,7 @@ void Entry::setInnerId(QString _innerId)
 
 QString Entry::getFileName()
 {
-    QString fileName;
-    if (app)
-        fileName = app->getFileName();
-
-    return fileName;
+    return app ? app->getFileName() : QString();
 }
 
 AppInfo *Entry::getApp()
@@ -157,11 +155,13 @@ AppInfo *Entry::getApp()
 
 void Entry::setApp(AppInfo *appinfo)
 {
-    if (app == appinfo)
+    if (app == appinfo) {
         return;
+    }
 
-    if (app)
+    if (app) {
         delete app;
+    }
 
     app = appinfo;
     if (!appinfo) {
@@ -212,10 +212,8 @@ void Entry::startExport()
     }
 
     objctPath = entryDBusObjPathPrefix + getId();
-    if (!con.registerObject(objctPath, this))
-    {
+    if (!con.registerObject(objctPath, this)) {
         qWarning() << "register object Dock1 error:" << con.lastError().message();
-        return;
     }
 }
 
@@ -251,8 +249,7 @@ void Entry::updateMenu()
     for (auto &item :getMenuItemDesktopActions())
         appMenu->appendItem(item);
 
-    bool hasWin = hasWindow();
-    if (hasWin)
+    if (hasWindow())
         appMenu->appendItem(getMenuItemAllWindows());
 
     // menu item dock or undock
@@ -273,6 +270,7 @@ void Entry::updateMenu()
         if (getAllowedCloseWindows().size() > 0)
             appMenu->appendItem(getMenuItemCloseAll());
     }
+
     setMenu(appMenu);
 }
 
@@ -301,25 +299,20 @@ void Entry::updateIsActive()
 
 WindowInfoBase *Entry::getWindowInfoByPid(int pid)
 {
-    WindowInfoBase *ret = nullptr;
     for (const auto &windowInfo : windowInfoMap) {
-        if (windowInfo->getPid() == pid) {
-            ret = windowInfo;
-            break;
-        }
+        if (windowInfo->getPid() == pid)
+            return windowInfo;
     }
 
-    return ret;
+    return nullptr;
 }
 
 WindowInfoBase *Entry::getWindowInfoByWinId(XWindow windowId)
 {
-    WindowInfoBase *ret = nullptr;
-    if (windowInfoMap.find(windowId) != windowInfoMap.end()) {
-        ret = windowInfoMap[windowId];
-    }
+    if (windowInfoMap.find(windowId) != windowInfoMap.end())
+        return windowInfoMap[windowId];
 
-    return ret;
+    return nullptr;
 }
 
 void Entry::setPropIsDocked(bool docked)
@@ -403,8 +396,8 @@ QString Entry::getExec(bool oneLine)
     if (process) {
         if (oneLine)
             return process->getOneCommandLine().c_str();
-        else
-            return process->getShellScriptLines().c_str();
+
+        return process->getShellScriptLines().c_str();
     }
 
     return "";
@@ -429,8 +422,9 @@ void Entry::updateExportWindowInfos()
         infos[xid] = winInfo;
     }
 
-    bool changed = false;
+    bool changed = true;
     if (infos.size() == exportWindowInfos.size()) {
+        changed = false;
         for (auto iter = infos.begin(); iter != infos.end(); iter++) {
             XWindow xid = iter.key();
             if (infos[xid].title != exportWindowInfos[xid].title ||
@@ -439,8 +433,6 @@ void Entry::updateExportWindowInfos()
                 break;
             }
         }
-    } else {
-        changed = true;
     }
 
     if (changed) {
@@ -457,9 +449,11 @@ bool Entry::detachWindow(WindowInfoBase *info)
     XWindow winId = info->getXid();
     deleteWindow(winId);
 
-    if (windowInfoMap.size() == 0) {
-        if (!isDocked)  // 既无窗口也非驻留应用，无需在任务栏显示
+    if (windowInfoMap.isEmpty()) {
+        if (!isDocked) {
+            // 既无窗口也非驻留应用，无需在任务栏显示
             return true;
+        }
 
         setCurrentWindowInfo(nullptr);
     } else {
@@ -515,12 +509,11 @@ bool Entry::containsWindow(XWindow xid)
 }
 
 void Entry::deleteWindow(XWindow xid)
-{
-    WindowInfoBase *info = windowInfoMap[xid];
-    windowInfoMap.remove(xid);
-    exportWindowInfos.remove(xid);
-
-    if (info) {
+{    
+    if (windowInfoMap.contains(xid)) {
+        WindowInfoBase *info = windowInfoMap[xid];
+        windowInfoMap.remove(xid);
+        exportWindowInfos.remove(xid);
         delete info;
     }
 }
@@ -591,8 +584,9 @@ void Entry::forceQuit()
 void Entry::presentWindows()
 {
     QList<uint> windows;
-    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++)
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         windows.push_back(iter.key());
+    }
 
     dock->presentWindows(windows);
 }
@@ -628,14 +622,12 @@ void Entry::active(uint32_t timestamp)
             bool showing = dock->isShowingDesktop();
             if (showing || winInfo->isMinimized()) {
                 winInfo->activate();
+            } else if (windowInfoMap.size() == 1) {
+                winInfo->minimize();
             } else {
-                if (windowInfoMap.size() == 1) {
-                    winInfo->minimize();
-                } else {
-                    WindowInfoBase *nextWin = findNextLeader();
-                    if (nextWin) {
-                        nextWin->activate();
-                    }
+                WindowInfoBase *nextWin = findNextLeader();
+                if (nextWin) {
+                    nextWin->activate();
                 }
             }
         }
@@ -658,14 +650,12 @@ void Entry::active(uint32_t timestamp)
             if (found) {
                 // 激活隐藏窗口
                 dock->doActiveWindow(xid);
-            } else {
-                if (windowInfoMap.size() == 1) {
-                    XCB->minimizeWindow(xid);
-                } else if (dock->getActiveWindow()->getXid() == xid) {
-                    WindowInfoBase *nextWin = findNextLeader();
-                    if (nextWin) {
-                        nextWin->activate();
-                    }
+            } else if (windowInfoMap.size() == 1) {
+                XCB->minimizeWindow(xid);
+            } else if (dock->getActiveWindow()->getXid() == xid) {
+                WindowInfoBase *nextWin = findNextLeader();
+                if (nextWin) {
+                    nextWin->activate();
                 }
             }
         }
@@ -714,8 +704,9 @@ QVector<WindowInfoBase *> Entry::getAllowedCloseWindows()
     QVector<WindowInfoBase *> ret;
     for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         WindowInfoBase *info = iter.value();
-        if (info && info->allowClose())
+        if (info && info->allowClose()) {
             ret.push_back(info);
+        }
     }
 
     return ret;
@@ -724,8 +715,9 @@ QVector<WindowInfoBase *> Entry::getAllowedCloseWindows()
 QVector<AppMenuItem> Entry::getMenuItemDesktopActions()
 {
     QVector<AppMenuItem> ret;
-    if (!app)
+    if (!app) {
         return ret;
+    }
 
     for (auto action : app->getActions()) {
         AppMenuAction fn = [=](uint32_t timestamp) {
@@ -746,12 +738,13 @@ QVector<AppMenuItem> Entry::getMenuItemDesktopActions()
 AppMenuItem Entry::getMenuItemLaunch()
 {
     QString itemName;
-    if (hasWindow())
+    if (hasWindow()) {
         itemName = getName();
-    else
+    } else {
         itemName = "Open";
+    }
 
-    AppMenuAction  fn = [&](uint32_t timestamp) {
+    AppMenuAction fn = [this](uint32_t timestamp) {
         qInfo() << "do MenuItem: Open";
         this->launchApp(timestamp);
     };
@@ -765,7 +758,7 @@ AppMenuItem Entry::getMenuItemLaunch()
 
 AppMenuItem Entry::getMenuItemCloseAll()
 {
-    AppMenuAction fn = [&](uint32_t timestamp) {
+    AppMenuAction fn = [this](uint32_t timestamp) {
         qInfo() << "do MenuItem: Close All";
         auto winInfos = getAllowedCloseWindows();
 
@@ -796,7 +789,7 @@ AppMenuItem Entry::getMenuItemCloseAll()
 AppMenuItem Entry::getMenuItemForceQuit()
 {
     bool active = dock->getForceQuitAppStatus() != ForceQuitAppMode::Deactivated;
-    AppMenuAction fn = [&](uint32_t) {
+    AppMenuAction fn = [this](uint32_t) {
         qInfo() << "do MenuItem: Force Quit";
         forceQuit();
     };
@@ -834,10 +827,11 @@ AppMenuItem Entry::getMenuItemDock()
 {
     AppMenuItem item;
     item.text = "Dock";
-    item.action = [&](uint32_t) {
+    item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: Dock";
         requestDock();
     };
+
     item.isActive = true;
     return item;
 }
@@ -846,10 +840,11 @@ AppMenuItem Entry::getMenuItemUndock()
 {
     AppMenuItem item;
     item.text = "Undock";
-    item.action = [&](uint32_t) {
+    item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: Undock";
         requestUndock();
     };
+
     item.isActive = true;
     return item;
 }
@@ -858,10 +853,11 @@ AppMenuItem Entry::getMenuItemAllWindows()
 {
     AppMenuItem item;
     item.text = "All Windows";
-    item.action = [&](uint32_t) {
+    item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: All Windows";
         presentWindows();
     };
+
     item.isActive = true;
     item.hint = menuItemHintShowAllWindows;
     return item;
@@ -880,13 +876,13 @@ bool Entry::killProcess(int pid)
 
 bool Entry::setPropDesktopFile(QString value)
 {
-    bool ret = false;
     if (value != desktopFile) {
         desktopFile = value;
-        ret = true;
         Q_EMIT desktopFileChanged(value);
+        return true;
     }
-    return ret;
+
+    return false;
 }
 
 

@@ -38,12 +38,7 @@ DockManager::DockManager(QObject *parent)
     }
 
     if (!con.registerObject(dbusPath, dock, QDBusConnection::ExportAdaptors))
-    {
         qWarning() << "register object Dock1 error:" << con.lastError().message();
-        return;
-    }
-
-
 }
 
 DockManager::~DockManager()
