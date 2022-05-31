@@ -29,10 +29,8 @@ DBusAdaptorDock::DBusAdaptorDock(QObject *parent)
 
     Dock *dock = static_cast<Dock *>(QObject::parent());
     if (dock) {
-        connect(dock, &Dock::serviceRestarted, this, [&] {
-            Q_EMIT ServiceRestarted();});
-        connect(dock, &Dock::entryAdded, this, [&](QString entryObjPath, int32_t index){
-            Q_EMIT EntryAdded(QDBusObjectPath(entryObjPath), index);});
+        connect(dock, &Dock::serviceRestarted, this, &DBusAdaptorDock::ServiceRestarted);
+        connect(dock, &Dock::entryAdded, this, &DBusAdaptorDock::EntryAdded);
         connect(dock, &Dock::entryRemoved, this, &DBusAdaptorDock::EntryRemoved);
         connect(dock, &Dock::hideStateChanged, this, &DBusAdaptorDock::HideStateChanged);
         connect(dock, &Dock::frontendWindowRectChanged, this, &DBusAdaptorDock::FrontendWindowRectChanged);

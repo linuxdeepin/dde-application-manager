@@ -65,16 +65,16 @@ public:
     bool containAtom(QVector<XCBAtom> supports, XCBAtom ty) {return supports.indexOf(ty) != -1;}
 
 protected:
-    XWindow xid;
-    QString title;
-    QString icon;
-    int pid;
-    QString entryInnerId;
-    QString innerId;
-    Entry *entry;
-    AppInfo *app;
-    ProcessInfo *processInfo;
-    int64_t createdTime;
+    XWindow xid;            // 窗口id
+    QString title;          // 窗口标题
+    QString icon;           // 窗口图标
+    int pid;                // 窗口所属应用进程
+    QString entryInnerId;   // 窗口所属应用对应的innerId
+    QString innerId;        // 窗口对应的innerId
+    Entry *entry;           // 窗口所属应用
+    AppInfo *app;           // 窗口所属应用对应的desktopFile信息
+    ProcessInfo *processInfo;   // 窗口所属应用的进程信息
+    int64_t createdTime;    // 创建时间
 };
 
 #endif // WINDOWINFOBASE_H

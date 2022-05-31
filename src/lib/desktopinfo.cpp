@@ -204,6 +204,7 @@ std::vector<DesktopAction> DesktopInfo::getActions()
             DesktopAction action;
             action.name = m_keyFile.getLocaleStr(mainKey, KeyName, "");
             action.exec = m_keyFile.getStr(mainKey, KeyExec);
+            action.section = mainKey;
             actions.push_back(action);
         }
     }

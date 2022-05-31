@@ -27,11 +27,12 @@ DBusAdaptorEntry::DBusAdaptorEntry(QObject *parent)
 
     // constructor
     setAutoRelaySignals(true);
-    if (QMetaType::type("ExportWindowInfo") == QMetaType::UnknownType)
-        registerExportWindowInfoMetaType();
 
-    if (QMetaType::type("ExportWindowInfoList") == QMetaType::UnknownType)
-        registerExportWindowInfoListMetaType();
+    if (QMetaType::type("WindowInfo") == QMetaType::UnknownType)
+        registerWindowInfoMetaType();
+
+    if (QMetaType::type("WindowInfoMap") == QMetaType::UnknownType)
+        registerWindowInfoMapMetaType();
 
     Entry *entry = static_cast<Entry *>(QObject::parent());
     if (entry) {
@@ -90,7 +91,7 @@ QString DBusAdaptorEntry::name() const
     return parent()->getName();
 }
 
-ExportWindowInfoList DBusAdaptorEntry::windowInfos()
+WindowInfoMap DBusAdaptorEntry::windowInfos()
 {
     return parent()->getExportWindowInfos();
 }

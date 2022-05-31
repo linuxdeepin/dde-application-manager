@@ -52,11 +52,11 @@ Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
 
 Entry::~Entry()
 {
-    for (auto winInfo : windowInfos) {
+    for (auto winInfo : windowInfoMap) {
         if (winInfo)
             delete winInfo;
     }
-    windowInfos.clear();
+    windowInfoMap.clear();
 
     if (app) {
         delete app;
@@ -196,7 +196,7 @@ void Entry::setIsDocked(bool value)
     }
 }
 
-// 导出Dbus服务
+// 导出DBus服务
 void Entry::startExport()
 {
     if (getId().isEmpty()) {
@@ -219,7 +219,7 @@ void Entry::startExport()
     }
 }
 
-// 停止导出Dbus服务
+// 停止导出DBus服务
 void Entry::stopExport()
 {
     if (getId().isEmpty()) {
@@ -291,8 +291,10 @@ void Entry::updateIsActive()
 {
     bool isActive = false;
     auto activeWin = dock->getActiveWindow();
-    if (activeWin)
-        isActive = windowInfos.find(activeWin->getXid()) != windowInfos.end();
+    if (activeWin) {
+        // 判断活跃窗口是否属于当前应用
+        isActive = windowInfoMap.find(activeWin->getXid()) != windowInfoMap.end();
+    }
 
     setPropIsActive(isActive);
 }
@@ -300,7 +302,7 @@ void Entry::updateIsActive()
 WindowInfoBase *Entry::getWindowInfoByPid(int pid)
 {
     WindowInfoBase *ret = nullptr;
-    for (const auto &windowInfo : windowInfos) {
+    for (const auto &windowInfo : windowInfoMap) {
         if (windowInfo->getPid() == pid) {
             ret = windowInfo;
             break;
@@ -313,8 +315,8 @@ WindowInfoBase *Entry::getWindowInfoByPid(int pid)
 WindowInfoBase *Entry::getWindowInfoByWinId(XWindow windowId)
 {
     WindowInfoBase *ret = nullptr;
-    if (windowInfos.find(windowId) != windowInfos.end()) {
-        ret = windowInfos[windowId];
+    if (windowInfoMap.find(windowId) != windowInfoMap.end()) {
+        ret = windowInfoMap[windowId];
     }
 
     return ret;
@@ -377,7 +379,7 @@ WindowInfoBase *Entry::getCurrentWindowInfo()
  */
 WindowInfoBase *Entry::findNextLeader()
 {
-    auto xids = windowInfos.keys();
+    auto xids = windowInfoMap.keys();
     qSort(xids);
     XWindow curWinId = current->getXid();
     int index = xids.indexOf(curWinId);
@@ -389,7 +391,7 @@ WindowInfoBase *Entry::findNextLeader()
     if (index < xids.size() - 1)
         nextIndex = index + 1;
 
-    return windowInfos[xids[nextIndex]];
+    return windowInfoMap[xids[nextIndex]];
 }
 
 QString Entry::getExec(bool oneLine)
@@ -410,7 +412,7 @@ QString Entry::getExec(bool oneLine)
 
 bool Entry::hasWindow()
 {
-    return windowInfos.size() > 0;
+    return windowInfoMap.size() > 0;
 }
 
 /**
@@ -418,22 +420,21 @@ bool Entry::hasWindow()
  */
 void Entry::updateExportWindowInfos()
 {
-    ExportWindowInfoList infos;
-    for (auto info : windowInfos) {
+    WindowInfoMap infos;
+    for (auto info : windowInfoMap) {
+        WindowInfo winInfo;
         XWindow xid = info->getXid();
-        QString title = info->getTitle();
-        bool flash = info->isDemandingAttention();
-        infos.push_back({xid, title, flash});
+        winInfo.title = info->getTitle();
+        winInfo.attention = info->isDemandingAttention();
+        infos[xid] = winInfo;
     }
 
     bool changed = false;
     if (infos.size() == exportWindowInfos.size()) {
-        sortExprotWindowInfoList(infos);
-        sortExprotWindowInfoList(exportWindowInfos);
-        for (int i = 0; i < infos.size(); i++) {
-            if (infos[i].getXid() != exportWindowInfos[i].getXid()
-                    || infos[i].getFlash() != exportWindowInfos[i].getFlash()
-                    || infos[i].getTitle() != exportWindowInfos[i].getTitle()) {
+        for (auto iter = infos.begin(); iter != infos.end(); iter++) {
+            XWindow xid = iter.key();
+            if (infos[xid].title != exportWindowInfos[xid].title ||
+                    infos[xid].attention != exportWindowInfos[xid].attention) {
                 changed = true;
                 break;
             }
@@ -456,13 +457,13 @@ bool Entry::detachWindow(WindowInfoBase *info)
     XWindow winId = info->getXid();
     deleteWindow(winId);
 
-    if (windowInfos.size() == 0) {
+    if (windowInfoMap.size() == 0) {
         if (!isDocked)  // 既无窗口也非驻留应用，无需在任务栏显示
             return true;
 
         setCurrentWindowInfo(nullptr);
     } else {
-        for (auto window : windowInfos) {
+        for (auto window : windowInfoMap) {
             if (window) {   // 选择第一个窗口作为当前窗口
                 setCurrentWindowInfo(window);
                 break;
@@ -484,12 +485,12 @@ bool Entry::attachWindow(WindowInfoBase *info)
     qInfo() << "attatchWindow: window id:" << winId;
     info->setEntry(this);
 
-    if (windowInfos.find(winId) != windowInfos.end()) {
+    if (windowInfoMap.find(winId) != windowInfoMap.end()) {
         qInfo() << "attachWindow: window " << winId << " is already attached";
         return false;
     }
 
-    windowInfos[winId] = info;
+    windowInfoMap[winId] = info;
     updateExportWindowInfos();
     updateIsActive();
 
@@ -510,19 +511,14 @@ void Entry::launchApp(uint32_t timestamp)
 
 bool Entry::containsWindow(XWindow xid)
 {
-    return windowInfos.find(xid) != windowInfos.end();
+    return windowInfoMap.find(xid) != windowInfoMap.end();
 }
 
 void Entry::deleteWindow(XWindow xid)
 {
-    WindowInfoBase *info = windowInfos[xid];
-    windowInfos.remove(xid);
-    for (int i = 0; i < exportWindowInfos.size(); i++) {
-        if (exportWindowInfos[i].getXid() == xid) {
-            exportWindowInfos.removeAt(i);
-            break;
-        }
-    }
+    WindowInfoBase *info = windowInfoMap[xid];
+    windowInfoMap.remove(xid);
+    exportWindowInfos.remove(xid);
 
     if (info) {
         delete info;
@@ -564,7 +560,7 @@ void Entry::newInstance(uint32_t timestamp)
 // 检查应用窗口分离、合并状态
 void Entry::check()
 {
-    for (auto iter = windowInfos.begin(); iter != windowInfos.end(); iter++) {
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         dock->attachOrDetachWindow(iter.value());
     }
 }
@@ -573,28 +569,29 @@ void Entry::check()
 void Entry::forceQuit()
 {
     QMap<int, QVector<WindowInfoBase*>> pidWinInfoMap;
-    for (auto iter = windowInfos.begin(); iter != windowInfos.end(); iter++) {
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         int pid = iter.value()->getPid();
         if (pid != 0) {
             pidWinInfoMap[pid].push_back(iter.value());
         } else {
             iter.value()->killClient();
         }
+    }
 
-        for (auto iter = pidWinInfoMap.begin(); iter != pidWinInfoMap.end(); iter++) {
-            if (!killProcess(iter.key())) {         // kill pid
-                for (auto &info : iter.value()) {   // kill window
-                    info->killClient();
-                }
+    for (auto iter = pidWinInfoMap.begin(); iter != pidWinInfoMap.end(); iter++) {
+        if (!killProcess(iter.key())) {         // kill pid
+            for (auto &info : iter.value()) {   // kill window
+                info->killClient();
             }
         }
     }
+
 }
 
 void Entry::presentWindows()
 {
     QList<uint> windows;
-    for (auto iter = windowInfos.begin(); iter != windowInfos.end(); iter++)
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++)
         windows.push_back(iter.key());
 
     dock->presentWindows(windows);
@@ -632,7 +629,7 @@ void Entry::active(uint32_t timestamp)
             if (showing || winInfo->isMinimized()) {
                 winInfo->activate();
             } else {
-                if (windowInfos.size() == 1) {
+                if (windowInfoMap.size() == 1) {
                     winInfo->minimize();
                 } else {
                     WindowInfoBase *nextWin = findNextLeader();
@@ -662,7 +659,7 @@ void Entry::active(uint32_t timestamp)
                 // 激活隐藏窗口
                 dock->doActiveWindow(xid);
             } else {
-                if (windowInfos.size() == 1) {
+                if (windowInfoMap.size() == 1) {
                     XCB->minimizeWindow(xid);
                 } else if (dock->getActiveWindow()->getXid() == xid) {
                     WindowInfoBase *nextWin = findNextLeader();
@@ -698,7 +695,7 @@ QString Entry::getMenu()
 QVector<XWindow> Entry::getAllowedClosedWindowIds()
 {
     QVector<XWindow> ret;
-    for (auto iter = windowInfos.begin(); iter != windowInfos.end(); iter++) {
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         WindowInfoBase *info = iter.value();
         if (info && info->allowClose())
             ret.push_back(iter.key());
@@ -707,7 +704,7 @@ QVector<XWindow> Entry::getAllowedClosedWindowIds()
     return ret;
 }
 
-ExportWindowInfoList Entry::getExportWindowInfos()
+WindowInfoMap Entry::getExportWindowInfos()
 {
     return exportWindowInfos;
 }
@@ -715,7 +712,7 @@ ExportWindowInfoList Entry::getExportWindowInfos()
 QVector<WindowInfoBase *> Entry::getAllowedCloseWindows()
 {
     QVector<WindowInfoBase *> ret;
-    for (auto iter = windowInfos.begin(); iter != windowInfos.end(); iter++) {
+    for (auto iter = windowInfoMap.begin(); iter != windowInfoMap.end(); iter++) {
         WindowInfoBase *info = iter.value();
         if (info && info->allowClose())
             ret.push_back(info);
@@ -772,7 +769,7 @@ AppMenuItem Entry::getMenuItemCloseAll()
         qInfo() << "do MenuItem: Close All";
         auto winInfos = getAllowedCloseWindows();
 
-        // 从大到小排序， 方便后面关闭窗口
+        // 根据创建时间从大到小排序， 方便后续关闭窗口
         for (int i = 0; i < winInfos.size() - 1; i++) {
             for (int j = i + 1; j < winInfos.size(); j++) {
                 if (winInfos[i]->getCreatedTime() < winInfos[j]->getCreatedTime()) {

@@ -209,7 +209,9 @@ void X11Manager::handleClientListChanged()
 
     addClientList = newClientList - oldClientList;
     rmClientList = oldClientList - newClientList;
+    dock->setClientList(newClientList.toList());
 
+    // 处理新增窗口
     for (auto xid : addClientList) {
         WindowInfoX *info = registerWindow(xid);
         if (!XCB->isGoodWindow(xid))
@@ -220,9 +222,10 @@ void X11Manager::handleClientListChanged()
         QString wmName(XCB->getWMName(xid).c_str());
         if (pid != 0 || (wmClass.className.size() > 0 && wmClass.instanceName.size() > 0)
                 || wmName.size() > 0 || XCB->getWMCommand(xid).size() > 0)
-            dock->attachWindow(info);
+            dock->attachOrDetachWindow(info);
     }
 
+    // 处理需要移除的窗口
     for (auto xid : rmClientList) {
         WindowInfoX *info = windowInfoMap[xid];
         if (info) {
@@ -370,7 +373,7 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
     }
 
     if (needAttachOrDetach)
-        dock->attachWindow(winInfo);
+        dock->attachOrDetachWindow(winInfo);
 
     Entry *entry = dock->getEntryByWindowId(xid);
     if (!entry)

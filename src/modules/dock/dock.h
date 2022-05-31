@@ -128,6 +128,7 @@ public:
     WindowInfoBase *getActiveWindow();
     void doActiveWindow(XWindow xid);
     QList<XWindow> getClientList();
+    void setClientList(QList<XWindow> value);
 
     void closeWindow(XWindow windowId);
     QStringList getEntryIDs();
@@ -148,7 +149,7 @@ public:
 
 Q_SIGNALS:
     void serviceRestarted();
-    void entryAdded(QString entryObjPath, int32_t index);
+    void entryAdded(QDBusObjectPath entryObjPath, int index);
     void entryRemoved(QString id);
     void hideStateChanged(int);
     void frontendWindowRectChanged();

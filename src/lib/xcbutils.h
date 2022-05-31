@@ -206,7 +206,7 @@ public:
     // 获取窗口图标 _NET_WM_ICON_NAME
     std::string getWMIconName(XWindow xid);
 
-    // _NET_WM_ICON
+    // 获取窗口图标信息 _NET_WM_ICON
     std::vector<WMIcon> getWMIcon(XWindow xid);
 
     // WM_CLIENT_LEADER

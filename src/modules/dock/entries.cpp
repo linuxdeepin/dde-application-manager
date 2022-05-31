@@ -59,6 +59,7 @@ void Entries::insert(Entry *entry, int index)
 {
     if (index < 0 || index >= items.size()) {
         // append
+        index = items.size();
         items.push_back(entry);
     } else {
         // insert
@@ -70,11 +71,13 @@ void Entries::insert(Entry *entry, int index)
 
 void Entries::remove(Entry *entry)
 {
-    for (auto iter = items.begin(); iter != items.end(); iter++) {
+    for (auto iter = items.begin(); iter != items.end();) {
         if ((*iter)->getId() == entry->getId()) {
-            items.erase(iter);
+            iter = items.erase(iter);
             removeCb(entry);
             delete entry;
+        } else {
+            iter++;
         }
     }
 }
@@ -205,7 +208,7 @@ void Entries::updateEntriesMenu()
 void Entries::insertCb(Entry *entry, int index)
 {
     QString objPath = entryDBusObjPathPrefix + entry->getId();
-    Q_EMIT dock->entryAdded(objPath, index);
+    Q_EMIT dock->entryAdded(QDBusObjectPath(objPath), index);
 }
 
 void Entries::removeCb(Entry *entry)
@@ -213,3 +216,4 @@ void Entries::removeCb(Entry *entry)
     Q_EMIT dock->entryRemoved(entry->getId());
     entry->stopExport();
 }
+

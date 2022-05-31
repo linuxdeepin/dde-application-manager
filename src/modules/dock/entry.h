@@ -25,7 +25,7 @@
 #include "appinfo.h"
 #include "appmenu.h"
 #include "windowinfobase.h"
-#include "exportwindowinfolist.h"
+#include "windowinfomap.h"
 
 #include <QMap>
 #include <QVector>
@@ -93,7 +93,7 @@ public:
     bool getIsActive();
     QString getMenu();
     QVector<XWindow> getAllowedClosedWindowIds();
-    ExportWindowInfoList getExportWindowInfos();
+    WindowInfoMap getExportWindowInfos();
 
 public Q_SLOTS:
     QVector<WindowInfoBase *> getAllowedCloseWindows();
@@ -106,7 +106,7 @@ Q_SIGNALS:
     void nameChanged(QString value);
     void desktopFileChanged(QString value);
     void currentWindowChanged(uint32_t value);
-    void windowInfosChanged(const ExportWindowInfoList &value);
+    void windowInfosChanged(const WindowInfoMap &value);
 
 private:
     // 右键菜单项
@@ -135,8 +135,8 @@ private:
     QString desktopFile;
 
     // Dbus属性直接放到interface上
-    QMap<XWindow, WindowInfoBase *> windowInfos; // 该应用所有窗口
-    ExportWindowInfoList exportWindowInfos;
+    QMap<XWindow, WindowInfoBase *> windowInfoMap; // 该应用所有窗口
+    WindowInfoMap exportWindowInfos;    // 该应用导出的窗口属性
     WindowInfoBase *current; // 当前窗口
     XWindow currentWindow; //当前窗口Id
     bool winIconPreferred;

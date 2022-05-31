@@ -410,6 +410,14 @@ QList<XWindow> Dock::getClientList()
 }
 
 /**
+ * @brief Dock::setClientList 设置窗口client列表
+ */
+void Dock::setClientList(QList<XWindow> value)
+{
+    clientList = value;
+}
+
+/**
  * @brief Dock::closeWindow 关闭窗口
  * @param windowId 窗口id
  */

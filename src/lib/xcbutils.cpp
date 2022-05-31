@@ -301,23 +301,29 @@ std::string XCBUtils::getWMIconName(XWindow xid)
 std::vector<WMIcon> XCBUtils::getWMIcon(XWindow xid)
 {
     std::vector<WMIcon> ret;
-    /*
-    xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_icon(&ewmh, xid);
+    xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_icon(&m_ewmh, xid);
     xcb_ewmh_get_wm_icon_reply_t reply;
-    if (xcb_ewmh_get_wm_icon_reply(&ewmh, cookie, &reply, nullptr)) {
+    if (xcb_ewmh_get_wm_icon_reply(&m_ewmh, cookie, &reply, nullptr)) {
         xcb_ewmh_wm_icon_iterator_t iter = xcb_ewmh_get_wm_icon_iterator(&reply);
         auto fcn = [](xcb_ewmh_wm_icon_iterator_t it) {
-            std::vector<BYTE> data;
-            uint32_t *dat = it.data;
-            int area = it.width * it.height;
-            for (int i = 0; i < (2 + area) * 4; i++, dat++) { // TODO check data accuracy
-                data.push_back(*dat);
+            std::vector<BYTE> ret;
+            // data数据是按行从左至右，从上至下排列
+            uint32_t *data = it.data;
+            if (!data) {
+                return ret;
             }
-            return data;
+
+            // 根据宽高获取每个位置的数据，每行前有两个位置offset
+            int area = it.width * it.height;
+            for (int i = 0; i < (2 + area) * 4; i++, data++) {
+                ret.push_back(*data);
+            }
+            return ret;
         };
 
         ret.push_back({iter.width, iter.height, fcn(iter)});
 
+        // 获取不同size图标数据
         while (iter.rem >= 1) {
             xcb_ewmh_get_wm_icon_next(&iter);
             ret.push_back({iter.width, iter.height, fcn(iter)});
@@ -325,7 +331,7 @@ std::vector<WMIcon> XCBUtils::getWMIcon(XWindow xid)
 
         xcb_ewmh_get_wm_icon_reply_wipe(&reply); // clear
     }
-*/
+
     return ret;
 }
 

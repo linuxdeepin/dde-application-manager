@@ -168,7 +168,7 @@ LauncherItemInfoList Launcher::getAllItemInfos()
   * @brief Launcher::getAllNewInstalledApps 获取所有新安装且未打开的应用
   * @return
   */
- QStringList Launcher::getAllNewInstalledApps()
+QStringList Launcher::getAllNewInstalledApps()
 {
     QStringList ret;
     QMap<QString, QStringList> newApps;
@@ -185,7 +185,7 @@ LauncherItemInfoList Launcher::getAllItemInfos()
     return ret;
 }
 
- /**
+/**
  * @brief Launcher::getDisableScaling 获取应用是否禁用缩放
  * @param appId
  * @return
@@ -1193,8 +1193,9 @@ Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
     item.exec = info.getCommandLine().c_str();
     item.genericName = info.getGenericName().c_str();
     item.comment = enComment;
-    if (!info.getIcon().empty())
+    if (!info.getIcon().empty()) {
         item.info.icon = info.getIcon().c_str();
+    }
 
     xDeepinCategory = xDeepinCategory.toLower();
 

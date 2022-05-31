@@ -29,6 +29,8 @@
 #include <QDebug>
 #include <QCryptographicHash>
 #include <QTimer>
+#include <QImage>
+#include <QIcon>
 
 #define XCB XCBUtils::instance()
 
@@ -367,9 +369,7 @@ void WindowInfoX::update()
 // TODO 从窗口中获取图标， 并设置best size   be used in Entry
 QString WindowInfoX::getIconFromWindow()
 {
-    QString ret;
-
-    return ret;
+    return QString();
 }
 
 bool WindowInfoX::isActionMinimizeAllowed()

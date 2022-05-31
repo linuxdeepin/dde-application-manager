@@ -23,7 +23,7 @@
 #define DBUSADAPTORENTRY_H
 
 #include "entry.h"
-#include "exportwindowinfolist.h"
+#include "windowinfomap.h"
 
 #include <QtCore/QObject>
 #include <QtCore/QMetaObject>
@@ -77,8 +77,8 @@ class DBusAdaptorEntry: public QDBusAbstractAdaptor
                                        "    <property access=\"read\" type=\"b\" name=\"IsDocked\"/>\n"
                                        "    <property access=\"read\" type=\"s\" name=\"Menu\"/>\n"
                                        "    <property access=\"read\" type=\"s\" name=\"DesktopFile\"/>\n"
-                                       "    <property access=\"read\" type=\"a(usb)\" name=\"WindowInfos\"/>\n"
-                                       "    <annotation value=\"ExportWindowInfoList\" name=\"org.qtproject.QtDBus.QtTypeName\"/>\n"
+                                       "    <property access=\"read\" type=\"a{u(sb)}\" name=\"WindowInfos\"/>\n"
+                                       "    <annotation value=\"WindowInfoMap\" name=\"org.qtproject.QtDBus.QtTypeName\"/>\n"
                                        "  </interface>\n"
                                        "")
 
@@ -111,8 +111,8 @@ public: // PROPERTIES
     Q_PROPERTY(QString Name READ name NOTIFY NameChanged)
     QString name() const;
 
-    Q_PROPERTY(ExportWindowInfoList WindowInfos READ windowInfos NOTIFY WindowInfosChanged)
-    ExportWindowInfoList windowInfos();
+    Q_PROPERTY(WindowInfoMap WindowInfos READ windowInfos NOTIFY WindowInfosChanged)
+    WindowInfoMap windowInfos();
 
     Entry *parent() const;
 
@@ -136,7 +136,7 @@ Q_SIGNALS: // SIGNALS
     void NameChanged(QString value);
     void DesktopFileChanged(QString value);
     void CurrentWindowChanged(uint32_t value);
-    void WindowInfosChanged(ExportWindowInfoList value);
+    void WindowInfosChanged(WindowInfoMap value);
 };
 
 #endif
