@@ -97,7 +97,7 @@ QString WindowInfoX::getIcon()
 void WindowInfoX::activate()
 {
     XCB->changeActiveWindow(xid);
-    QTimer::singleShot(0, [&] {
+    QTimer::singleShot(50, [&] {
         XCB->restackWindow(xid);
     });
 }

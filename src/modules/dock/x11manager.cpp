@@ -40,10 +40,10 @@
 #define XCB XCBUtils::instance()
 
 X11Manager::X11Manager(Dock *_dock, QObject *parent)
- : QObject(parent)
- , dock(_dock)
- , mutex(QMutex(QMutex::NonRecursive))
- , listenXEvent(true)
+    : QObject(parent)
+    , dock(_dock)
+    , mutex(QMutex(QMutex::NonRecursive))
+    , listenXEvent(true)
 {
     rootWindow = XCB->getRootWindow();
 }
@@ -61,35 +61,35 @@ void X11Manager::listenXEventUseXlib()
     dpy = XOpenDisplay (displayname);
     if (!dpy) {
         exit (1);
-     }
+    }
 
-     screen = DefaultScreen (dpy);
-     w = RootWindow(dpy, screen);
+    screen = DefaultScreen (dpy);
+    w = RootWindow(dpy, screen);
 
-     const struct {
-         const char *name;
-         long mask;
-      } events[] = {
-         { "keyboard", KeyPressMask | KeyReleaseMask | KeymapStateMask },
-         { "mouse", ButtonPressMask | ButtonReleaseMask | EnterWindowMask |
-                  LeaveWindowMask | PointerMotionMask | Button1MotionMask |
-                  Button2MotionMask | Button3MotionMask | Button4MotionMask |
-                  Button5MotionMask | ButtonMotionMask },
-         { "button", ButtonPressMask | ButtonReleaseMask },
-         { "expose", ExposureMask },
-         { "visibility", VisibilityChangeMask },
-         { "structure", StructureNotifyMask },
-         { "substructure", SubstructureNotifyMask | SubstructureRedirectMask },
-         { "focus", FocusChangeMask },
-         { "property", PropertyChangeMask },
-         { "colormap", ColormapChangeMask },
-         { "owner_grab_button", OwnerGrabButtonMask },
-         { nullptr, 0 }
-    };
+    const struct {
+        const char *name;
+        long mask;
+    } events[] = {
+    { "keyboard", KeyPressMask | KeyReleaseMask | KeymapStateMask },
+    { "mouse", ButtonPressMask | ButtonReleaseMask | EnterWindowMask |
+                LeaveWindowMask | PointerMotionMask | Button1MotionMask |
+                Button2MotionMask | Button3MotionMask | Button4MotionMask |
+                Button5MotionMask | ButtonMotionMask },
+    { "button", ButtonPressMask | ButtonReleaseMask },
+    { "expose", ExposureMask },
+    { "visibility", VisibilityChangeMask },
+    { "structure", StructureNotifyMask },
+    { "substructure", SubstructureNotifyMask | SubstructureRedirectMask },
+    { "focus", FocusChangeMask },
+    { "property", PropertyChangeMask },
+    { "colormap", ColormapChangeMask },
+    { "owner_grab_button", OwnerGrabButtonMask },
+    { nullptr, 0 }
+};
 
     long mask = 0;
     for (int i = 0; events[i].name; i++)
-    mask |= events[i].mask;
+        mask |= events[i].mask;
 
     attr.event_mask = mask;
 
@@ -221,8 +221,12 @@ void X11Manager::handleClientListChanged()
         WMClass wmClass = XCB->getWMClass(xid);
         QString wmName(XCB->getWMName(xid).c_str());
         if (pid != 0 || (wmClass.className.size() > 0 && wmClass.instanceName.size() > 0)
-                || wmName.size() > 0 || XCB->getWMCommand(xid).size() > 0)
-            dock->attachOrDetachWindow(info);
+                || wmName.size() > 0 || XCB->getWMCommand(xid).size() > 0) {
+            WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
+            if (base) {
+                Q_EMIT requestAttachOrDetachWindow(base);
+            }
+        }
     }
 
     // 处理需要移除的窗口
@@ -296,10 +300,10 @@ void X11Manager::handleMapNotifyEvent(XWindow xid)
 
     // TODO QTimer不能在非主线程执行，使用单独线程开发定时器处理非主线程类似定时任务
     //QTimer::singleShot(2 * 1000, this, [=] {
-        qInfo() << "handleMapNotifyEvent: pass 2s, now call idnetifyWindow, windowId=" << winInfo->getXid();
-        QString innerId;
-        AppInfo *appInfo = dock->identifyWindow(winInfo, innerId);
-        dock->markAppLaunched(appInfo);
+    qInfo() << "handleMapNotifyEvent: pass 2s, now call idnetifyWindow, windowId=" << winInfo->getXid();
+    QString innerId;
+    AppInfo *appInfo = dock->identifyWindow(winInfo, innerId);
+    dock->markAppLaunched(appInfo);
     //});
 }
 
@@ -429,7 +433,7 @@ QPair<ConfigureEvent *, QTimer *> X11Manager::getWindowLastConfigureEvent(XWindo
     QPair<ConfigureEvent *, QTimer *> ret;
     QMutexLocker locker(&mutex);
     if (windowLastConfigureEventMap.find(xid) != windowLastConfigureEventMap.end())
-         ret = windowLastConfigureEventMap[xid];
+        ret = windowLastConfigureEventMap[xid];
 
     return ret;
 }

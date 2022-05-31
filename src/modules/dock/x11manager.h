@@ -60,6 +60,7 @@ public:
 
 Q_SIGNALS:
     void requestUpdateHideState(bool delay);
+    void requestAttachOrDetachWindow(WindowInfoBase *info);
 
 private:
     void addWindowLastConfigureEvent(XWindow xid, ConfigureEvent* event);

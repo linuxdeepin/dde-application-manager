@@ -83,7 +83,8 @@ Dock::Dock(QObject *parent)
         });
         thread.detach();
         x11Manager->listenRootWindowXEvent();
-        connect(x11Manager, SIGNAL(X11Manager::requestUpdateHideState), this, SLOT(updateHideState));
+        connect(x11Manager, &X11Manager::requestUpdateHideState, this, &Dock::updateHideState);
+        connect(x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
     }
     Q_EMIT serviceRestarted();
 }
@@ -395,7 +396,7 @@ WindowInfoBase *Dock::getActiveWindow()
 void Dock::doActiveWindow(XWindow xid)
 {
     XCB->changeActiveWindow(xid);
-    QTimer::singleShot(0, [&] {
+    QTimer::singleShot(50, [&] {
         XCB->restackWindow(xid);
     });
 }

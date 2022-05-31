@@ -62,7 +62,6 @@ public:
     QString getWMName();
     void setWMName(QString name);
     void setPropHideState(HideState state);
-    void attachOrDetachWindow(WindowInfoBase *info);
     void attachWindow(WindowInfoBase *info);
     void detachWindow(WindowInfoBase *info);
     void launchApp(const QString desktopFile, uint32_t timestamp, QStringList files);
@@ -154,8 +153,9 @@ Q_SIGNALS:
     void hideStateChanged(int);
     void frontendWindowRectChanged();
 
-private Q_SLOTS:
+public Q_SLOTS:
     void smartHideModeTimerExpired();
+    void attachOrDetachWindow(WindowInfoBase *info);
 
 private:
     void initSettings();
