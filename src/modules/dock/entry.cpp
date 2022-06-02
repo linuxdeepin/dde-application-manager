@@ -635,7 +635,7 @@ void Entry::active(uint32_t timestamp)
         // X11环境
         XWindow xid = winInfo->getXid();
         WindowInfoBase *activeWin = dock->getActiveWindow();
-        if (xid != activeWin->getXid()) {
+        if (activeWin && xid != activeWin->getXid()) {
             dock->doActiveWindow(xid);
         } else {
             bool found = false;
