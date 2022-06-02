@@ -170,7 +170,9 @@ void XCBUtils::setActiveWindow(XWindow xid)
 
 void XCBUtils::changeActiveWindow(XWindow newActiveXid)
 {
-    xcb_ewmh_request_change_active_window(&m_ewmh, m_screenNum, newActiveXid, XCB_EWMH_CLIENT_SOURCE_TYPE_OTHER, 0, 0);
+    xcb_ewmh_request_change_active_window(&m_ewmh, m_screenNum, newActiveXid, XCB_EWMH_CLIENT_SOURCE_TYPE_OTHER, XCB_CURRENT_TIME, XCB_WINDOW_NONE);
+    // 此处getActiveWindow作用是触发缓冲机制，执行设置活动窗口动作
+    getActiveWindow();
 }
 
 void XCBUtils::restackWindow(XWindow xid)
@@ -368,6 +370,11 @@ void XCBUtils::setWMDesktop(XWindow xid, uint32_t desktop)
 void XCBUtils::setCurrentWMDesktop(uint32_t desktop)
 {
     xcb_ewmh_set_current_desktop(&m_ewmh, m_screenNum, desktop);
+}
+
+void XCBUtils::changeCurrentDesktop(uint32_t newDesktop, uint32_t timestamp)
+{
+    xcb_ewmh_request_change_current_desktop(&m_ewmh, m_screenNum, newDesktop, timestamp);
 }
 
 uint32_t XCBUtils::getCurrentWMDesktop()

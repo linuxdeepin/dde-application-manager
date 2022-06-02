@@ -86,6 +86,7 @@ Dock::Dock(QObject *parent)
         connect(x11Manager, &X11Manager::requestUpdateHideState, this, &Dock::updateHideState);
         connect(x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
     }
+
     Q_EMIT serviceRestarted();
 }
 
@@ -395,6 +396,18 @@ WindowInfoBase *Dock::getActiveWindow()
 
 void Dock::doActiveWindow(XWindow xid)
 {
+    // 修改当前工作区为指定窗口的工作区
+    XWindow winWorkspace = XCB->getWMDesktop(xid);
+    XWindow currentWorkspace = XCB->getCurrentWMDesktop();
+    if (winWorkspace != currentWorkspace) {
+        qInfo() << "doActiveWindow: change currentWorkspace " << currentWorkspace << " to winWorkspace " << winWorkspace;
+
+        // 获取窗口时间
+        uint32_t timestamp = XCB->getWMUserTime(xid);
+        // 修改当前桌面工作区
+        XCB->changeCurrentDesktop(winWorkspace, timestamp);
+    }
+
     XCB->changeActiveWindow(xid);
     QTimer::singleShot(50, [&] {
         XCB->restackWindow(xid);

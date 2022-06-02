@@ -135,7 +135,7 @@ public:
     // 获取活动窗口 _NET_ACTIVE_WINDOW
     XWindow getActiveWindow();
 
-    // 设置活动窗口 _NET_ACTIVE_WINDOW
+    // 设置活动窗口 _NET_ACTIVE_WINDOW 属性
     void setActiveWindow(XWindow xid);
 
     // 改变活动窗口
@@ -221,8 +221,11 @@ public:
     // 设置窗口当前桌面
     void setWMDesktop(XWindow xid, uint32_t desktop);
 
-    // 设置桌面
+    // 设置当前桌面属性
     void setCurrentWMDesktop(uint32_t desktop);
+
+    // 请求改变当前桌面
+    void changeCurrentDesktop(uint32_t newDesktop, uint32_t timestamp);
 
     // 获取当前桌面 _NET_CURRENT_DESKTOP
     uint32_t getCurrentWMDesktop();

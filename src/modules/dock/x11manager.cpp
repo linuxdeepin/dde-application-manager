@@ -272,12 +272,16 @@ void X11Manager::listenWindowXEvent(WindowInfoX *winInfo)
 
 void X11Manager::handleRootWindowPropertyNotifyEvent(XCBAtom atom)
 {
-    if (atom == XCB->getAtom("_NET_CLIENT_LIST"))
+    if (atom == XCB->getAtom("_NET_CLIENT_LIST")) {
+        // 窗口列表改变
         handleClientListChanged();
-    else if (atom == XCB->getAtom("_NET_ACTIVE_WINDOW"))
+    } else if (atom == XCB->getAtom("_NET_ACTIVE_WINDOW")) {
+        // 活动窗口改变
         handleActiveWindowChangedX();
-    else if (atom == XCB->getAtom("_NET_SHOWING_DESKTOP"))
+    } else if (atom == XCB->getAtom("_NET_SHOWING_DESKTOP")) {
+        // 更新任务栏隐藏状态
         Q_EMIT requestUpdateHideState(false);
+    }
 }
 
 // destory event
