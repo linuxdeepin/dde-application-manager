@@ -77,24 +77,21 @@ void AlRecorder::markLaunched(const QString &filePath)
     QFileInfo info;
     QMutexLocker locker(&mutex);
     for (auto sri = subRecoders.begin(); sri != subRecoders.end(); sri++) {
-        if (!filePath.contains(sri.key()))
+        if (!filePath.startsWith(sri.key()))
             continue;
 
         info.setFile(filePath);
         QString name = info.baseName();
         for (auto li = sri.value().launchedMap.begin(); li != sri.value().launchedMap.end(); li++) {
+            // 查找同名且未启动过的应用
             if (li.key() == name && !li.value()) {
                 li.value() = true;
-                goto end;
+                Q_EMIT launched(filePath);
+
+                // 记录启动状态
+                saveStatusFile(info.absolutePath() + "/");
             }
         }
-    }
-
-    // 根据filePath匹配到唯一应用
-    end:
-    if (info.isDir()) {
-        saveStatusFile(info.absolutePath() + "/");
-        Q_EMIT launched(filePath);
     }
 }
 
@@ -154,7 +151,7 @@ void AlRecorder::initSubRecoder(const QString &dirPath)
     // 读取App状态记录
     QMap<QString, bool> launchedApp;
     QFile file(statusFile);
-    if (file.open(QIODevice::ReadWrite | QIODevice::Text)) {
+    if (file.exists() && file.open(QIODevice::ReadWrite | QIODevice::Text)) {
         while (!file.atEnd()){
             QString line(file.readLine());
             QStringList strs = line.split(",");
@@ -166,6 +163,7 @@ void AlRecorder::initSubRecoder(const QString &dirPath)
             else
                 launchedApp[strs[0]] = false;
         }
+
         file.close();
     } else {
         // 读取app desktop

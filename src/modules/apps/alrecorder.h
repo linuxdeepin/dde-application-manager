@@ -28,13 +28,14 @@
 
 class DFWatcher;
 
-// 记录应用状态信息
+// 记录当前用户应用状态信息
 class AlRecorder: public QObject
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.deepin.daemon.AlRecorder1")
 
 public:
+    // 各个应用目录中应用的启动记录
     struct subRecorder {
         QString statusFile;                     // 应用目录状态文件
         QMap<QString, bool> launchedMap;        // 应用启动记录

@@ -3,7 +3,6 @@
 DBusAdaptorRecorder::DBusAdaptorRecorder(QObject *parent)
     : QDBusAbstractAdaptor(parent)
 {
-    // constructor
     setAutoRelaySignals(true);
     if (QMetaType::type("UnlaunchedAppMap") == QMetaType::UnknownType)
         registerUnLaunchedAppMapMetaType();
@@ -18,7 +17,6 @@ DBusAdaptorRecorder::DBusAdaptorRecorder(QObject *parent)
 
 DBusAdaptorRecorder::~DBusAdaptorRecorder()
 {
-    // destructor
 }
 
 AlRecorder *DBusAdaptorRecorder::parent() const

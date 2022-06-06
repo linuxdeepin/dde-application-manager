@@ -178,8 +178,12 @@ QStringList Launcher::getAllNewInstalledApps()
         newApps = reply;
 
     for (auto iter = newApps.begin(); iter != newApps.end(); iter++) {
-        if (iter.value().size() > 0) {
-            ret << iter.value();
+        for (QString name : iter.value()) {
+            QString path = iter.key() + name  + ".desktop";
+            Item item = getItemByPath(path);
+            if (item.isValid()) {
+                ret << item.info.id;
+            }
         }
     }
     return ret;
