@@ -104,28 +104,27 @@ void X11Manager::listenXEventUseXlib()
 
         if (event.type == DestroyNotify) {
             XDestroyWindowEvent *eD = (XDestroyWindowEvent *) (&event);
-            //qInfo() <<  "DestroyNotify windowId=" << eD->window;
+            qDebug() <<  "DestroyNotify windowId=" << eD->window;
 
             handleDestroyNotifyEvent(XWindow(eD->window));
         } else if (event.type == MapNotify) {
             XMapEvent *eM = (XMapEvent *)(&event);
-            //qInfo() << "MapNotify windowId=" << eM->window;
+            qDebug() << "MapNotify windowId=" << eM->window;
 
             handleMapNotifyEvent(XWindow(eM->window));
         } else if (event.type == ConfigureNotify ) {
             XConfigureEvent *eC = (XConfigureEvent *) (&event);
-            //qInfo() << "ConfigureNotify windowId=" << eC->window;
+            qDebug() << "ConfigureNotify windowId=" << eC->window;
 
             handleConfigureNotifyEvent(XWindow(eC->window), eC->x, eC->y, eC->width, eC->height);
         } else if (event.type == PropertyNotify) {
             XPropertyEvent *eP = (XPropertyEvent *) (&event);
-            //qInfo() << "PropertyNotify windowId=" << eP->window;
+            qDebug() << "PropertyNotify windowId=" << eP->window;
 
             handlePropertyNotifyEvent(XWindow(eP->window), XCBAtom(eP->atom));
         } else {
-            //qInfo() << "Unknown event type " << event.type;
+            qDebug() << "Unknown event type " << event.type;
         }
-
     }
 
     XCloseDisplay (dpy);

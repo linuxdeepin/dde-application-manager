@@ -157,8 +157,9 @@ XWindow XCBUtils::getActiveWindow()
 {
     XWindow ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_active_window(&m_ewmh, m_screenNum);
-    if (!xcb_ewmh_get_active_window_reply(&m_ewmh, cookie, &ret, nullptr))
+    if (!xcb_ewmh_get_active_window_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << "getActiveWindow error" << std::endl;
+    }
 
     return ret;
 }
@@ -185,11 +186,15 @@ std::list<XWindow> XCBUtils::getClientList()
     std::list<XWindow> ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_client_list(&m_ewmh, m_screenNum);
     xcb_ewmh_get_windows_reply_t reply;
-    if (!xcb_ewmh_get_client_list_reply(&m_ewmh, cookie, &reply, nullptr))
-        std::cout << "getClientList error" << std::endl;
+    if (xcb_ewmh_get_client_list_reply(&m_ewmh, cookie, &reply, nullptr)) {
+        for (uint32_t i = 0; i < reply.windows_len; i++) {
+            ret.push_back(reply.windows[i]);
+        }
 
-    for (uint32_t i = 0; i < reply.windows_len; i++)
-        ret.push_back(reply.windows[i]);
+        xcb_ewmh_get_windows_reply_wipe(&reply);
+    } else {
+        std::cout << "getClientList error" << std::endl;
+    }
 
     return ret;
 }
@@ -199,11 +204,15 @@ std::list<XWindow> XCBUtils::getClientListStacking()
     std::list<XWindow> ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_client_list_stacking(&m_ewmh, m_screenNum);
     xcb_ewmh_get_windows_reply_t reply;
-    if (!xcb_ewmh_get_client_list_stacking_reply(&m_ewmh, cookie, &reply, nullptr))
-        std::cout << "getClientListStacking error" << std::endl;
+    if (xcb_ewmh_get_client_list_stacking_reply(&m_ewmh, cookie, &reply, nullptr)) {
+        for (uint32_t i = 0; i < reply.windows_len; i++) {
+            ret.push_back(reply.windows[i]);
+        }
 
-    for (uint32_t i = 0; i < reply.windows_len; i++)
-        ret.push_back(reply.windows[i]);
+        xcb_ewmh_get_windows_reply_wipe(&reply);
+    } else {
+        std::cout << "getClientListStacking error" << std::endl;
+    }
 
     return ret;
 }
@@ -217,6 +226,8 @@ std::vector<XCBAtom> XCBUtils::getWMState(XWindow xid)
         for (uint32_t i = 0; i < reply.atoms_len; i++) {
             ret.push_back(reply.atoms[i]);
         }
+
+        xcb_ewmh_get_atoms_reply_wipe(&reply);
     } else {
         std::cout << xid << " getWMState error" << std::endl;
     }
@@ -233,6 +244,8 @@ std::vector<XCBAtom> XCBUtils::getWMWindoType(XWindow xid)
         for (uint32_t i = 0; i < reply.atoms_len; i++) {
             ret.push_back(reply.atoms[i]);
         }
+
+        xcb_ewmh_get_atoms_reply_wipe(&reply);
     } else {
         std::cout << xid << " getWMWindoType error" << std::endl;
     }
@@ -245,11 +258,14 @@ std::vector<XCBAtom> XCBUtils::getWMAllowedActions(XWindow xid)
     std::vector<XCBAtom> ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_allowed_actions(&m_ewmh, xid);
     xcb_ewmh_get_atoms_reply_t reply;   // a list of Atoms
-    if (!xcb_ewmh_get_wm_allowed_actions_reply(&m_ewmh, cookie, &reply, nullptr))
-        std::cout << xid << " getWMAllowedActions error" << std::endl;
+    if (xcb_ewmh_get_wm_allowed_actions_reply(&m_ewmh, cookie, &reply, nullptr)) {
+        for (uint32_t i = 0; i < reply.atoms_len; i++) {
+            ret.push_back(reply.atoms[i]);
+        }
 
-    for (uint32_t i = 0; i < reply.atoms_len; i++) {
-        ret.push_back(reply.atoms[i]);
+        xcb_ewmh_get_atoms_reply_wipe(&reply);
+    } else {
+        std::cout << xid << " getWMAllowedActions error" << std::endl;
     }
 
     return ret;
@@ -258,8 +274,9 @@ std::vector<XCBAtom> XCBUtils::getWMAllowedActions(XWindow xid)
 void XCBUtils::setWMAllowedActions(XWindow xid, std::vector<XCBAtom> actions)
 {
     XCBAtom list[MAXALLOWEDACTIONLEN] {0};
-    for (size_t i = 0; i < actions.size(); i++)
+    for (size_t i = 0; i < actions.size(); i++) {
         list[i] = actions[i];
+    }
 
     xcb_ewmh_set_wm_allowed_actions(&m_ewmh, xid, actions.size(), list);
 }
@@ -268,11 +285,14 @@ std::string XCBUtils::getWMName(XWindow xid)
 {
     std::string ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_name(&m_ewmh, xid);
-    xcb_ewmh_get_utf8_strings_reply_t reply1;
-    if (!xcb_ewmh_get_wm_name_reply(&m_ewmh, cookie, &reply1, nullptr))
+    xcb_ewmh_get_utf8_strings_reply_t reply;
+    if (xcb_ewmh_get_wm_name_reply(&m_ewmh, cookie, &reply, nullptr)) {
+        ret.assign(reply.strings);
+        // 释放utf8_strings_reply分配的内存
+        xcb_ewmh_get_utf8_strings_reply_wipe(&reply);
+    } else {
         std::cout << xid << " getWMName error" << std::endl;
-
-    ret.assign(reply1.strings);
+    }
 
     return ret;
 }
@@ -281,8 +301,9 @@ uint32_t XCBUtils::getWMPid(XWindow xid)
 {
     uint32_t ret = 0;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_pid(&m_ewmh, xid);
-    if (!xcb_ewmh_get_wm_pid_reply(&m_ewmh, cookie, &ret, nullptr))
+    if (!xcb_ewmh_get_wm_pid_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << xid << " getWMPid error" << std::endl;
+    }
 
     return ret;
 }
@@ -292,8 +313,9 @@ std::string XCBUtils::getWMIconName(XWindow xid)
     std::string ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_icon_name(&m_ewmh, xid);
     xcb_ewmh_get_utf8_strings_reply_t reply;
-    if (!xcb_ewmh_get_wm_icon_name_reply(&m_ewmh, cookie, &reply, nullptr))
+    if (!xcb_ewmh_get_wm_icon_name_reply(&m_ewmh, cookie, &reply, nullptr)) {
         std::cout << xid << " getWMIconName error" << std::endl;
+    }
 
     ret.assign(reply.strings);
 
@@ -356,8 +378,9 @@ uint32_t XCBUtils::getWMDesktop(XWindow xid)
 {
     uint32_t ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_desktop(&m_ewmh, xid);
-    if (!xcb_ewmh_get_wm_desktop_reply(&m_ewmh, cookie, &ret, nullptr))
+    if (!xcb_ewmh_get_wm_desktop_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << xid << " getWMDesktop error" << std::endl;
+    }
 
     return ret;
 }
@@ -381,8 +404,9 @@ uint32_t XCBUtils::getCurrentWMDesktop()
 {
     uint32_t ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_current_desktop(&m_ewmh, m_screenNum);
-    if (!xcb_ewmh_get_current_desktop_reply(&m_ewmh, cookie, &ret, nullptr))
+    if (!xcb_ewmh_get_current_desktop_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << "getCurrentWMDesktop error" << std::endl;
+    }
 
     return ret;
 }
@@ -394,8 +418,12 @@ bool XCBUtils::isGoodWindow(XWindow xid)
     xcb_generic_error_t **errStore = nullptr;
     xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(m_connect, cookie, errStore);
     if (reply) {
-        if (!errStore)      // 正常获取窗口geometry则判定为good
+        // 正常获取窗口geometry则判定为good
+        if (!errStore) {
             ret = true;
+        } else {
+            free(errStore);
+        }
 
         free(reply);
     }
@@ -421,8 +449,9 @@ XWindow XCBUtils::getWMTransientFor(XWindow xid)
 {
     XWindow ret;
     xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_transient_for(m_connect, xid);
-    if (!xcb_icccm_get_wm_transient_for_reply(m_connect, cookie, &ret, nullptr))
+    if (!xcb_icccm_get_wm_transient_for_reply(m_connect, cookie, &ret, nullptr)) {
         std::cout << xid << " getWMTransientFor error" << std::endl;
+    }
 
     return ret;
 }
@@ -431,8 +460,9 @@ uint32_t XCBUtils::getWMUserTime(XWindow xid)
 {
     uint32_t ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_user_time(&m_ewmh, xid);
-    if (!xcb_ewmh_get_wm_user_time_reply(&m_ewmh, cookie, &ret, nullptr))
+    if (!xcb_ewmh_get_wm_user_time_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << xid << " getWMUserTime error" << std::endl;
+    }
 
     return ret;
 }
@@ -441,8 +471,9 @@ int XCBUtils::getWMUserTimeWindow(XWindow xid)
 {
     XCBAtom ret;
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_user_time_window(&m_ewmh, xid);
-    if (!xcb_ewmh_get_wm_user_time_window_reply(&m_ewmh, cookie, &ret, NULL))
+    if (!xcb_ewmh_get_wm_user_time_window_reply(&m_ewmh, cookie, &ret, nullptr)) {
         std::cout << xid << " getWMUserTimeWindow error" << std::endl;
+    }
 
     return ret;
 }
@@ -460,6 +491,8 @@ WMClass XCBUtils::getWMClass(XWindow xid)
 
     if (reply.instance_name)
         ret.instanceName.assign(reply.instance_name);
+
+    xcb_icccm_get_wm_class_reply_wipe(&reply);
 
     return ret;
 }
@@ -502,8 +535,9 @@ std::vector<std::string> XCBUtils::getWMCommand(XWindow xid)
 std::string XCBUtils::getUTF8StrFromReply(xcb_get_property_reply_t *reply)
 {
     std::string ret;
-    if (!reply || reply->format != 8)
+    if (!reply || reply->format != 8) {
         return ret;
+    }
 
     char data[12] = {0};
     for (uint32_t i=0; i < reply->value_len; i++) {
@@ -516,11 +550,13 @@ std::string XCBUtils::getUTF8StrFromReply(xcb_get_property_reply_t *reply)
 std::vector<std::string> XCBUtils::getUTF8StrsFromReply(xcb_get_property_reply_t *reply)
 {
     std::vector<std::string> ret;
-    if (!reply)
+    if (!reply) {
         return ret;
+    }
 
-    if (reply->format != 8)
+    if (reply->format != 8) {
         return ret;
+    }
 
 
     // 字符串拆分
@@ -545,8 +581,9 @@ XWindow XCBUtils::getRootWindow()
     XWindow rootWindow = 0;
     /* Get the first screen */
     xcb_screen_t *screen = xcb_setup_roots_iterator(xcb_get_setup(m_connect)).data;
-    if (screen)
+    if (screen) {
         rootWindow = screen->root;
+    }
 
     std::cout << "getRootWinodw: " << rootWindow << std::endl;
     return rootWindow;
@@ -576,8 +613,9 @@ XCBAtom AtomCache::getVal(std::string name)
 {
     XCBAtom atom = ATOMNONE;
     auto search = m_atoms.find(name);
-    if (search != m_atoms.end())
+    if (search != m_atoms.end()) {
         atom = search->second;
+    }
 
     return atom;
 }
@@ -586,8 +624,9 @@ std::string AtomCache::getName(XCBAtom atom)
 {
     std::string ret;
     auto search = m_atomNames.find(atom);
-    if (search != m_atomNames.end())
+    if (search != m_atomNames.end()) {
         ret = search->second;
+    }
 
     return ret;
 }
