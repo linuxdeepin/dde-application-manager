@@ -69,24 +69,6 @@ Launcher::Launcher(QObject *parent)
                                           "Event", "",      // TODO 修正事件参数
                                           this, SLOT(handleFSWatcherEvents(QDBusMessage)));
 
-    // 监控应用目录
-    watchDataDirs();
-    // 关联org.deepin.daemon.LRecorder1接口事件ServiceRestarted
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
-                                          "/org/deepin/daemon/AlRecorder1",
-                                          "org.deepin.daemon.AlRecorder1",
-                                          "ServiceRestarted",
-                                          this, SLOT(handleLRecoderRestart(QDBusMessage)));
-
-
-    QDBusConnectionInterface *ifc = QDBusConnection::sessionBus().interface();
-    connect(ifc, &QDBusConnectionInterface::serviceOwnerChanged, this, [ & ](const QString &name, const QString &oldOwner, const QString &newOwner) {
-        Q_UNUSED(name)
-        Q_UNUSED(oldOwner)
-        Q_UNUSED(newOwner)
-        watchDataDirs();
-    });
-
     // 关联org.deepin.daemon.LRecorder1接口事件Launched
     QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
                                           "/org/deepin/daemon/AlRecorder1",
@@ -459,12 +441,6 @@ void Launcher::handleFSWatcherEvents(QDBusMessage msg)
     } else if (filePath.endsWith(".desktop")){  // desktop文件变化
         checkDesktopFile(filePath);
     }
-}
-
-void Launcher::  handleLRecoderRestart(QDBusMessage msg)
-{
-    Q_UNUSED(msg)
-    watchDataDirs();
 }
 
 /**
@@ -880,18 +856,6 @@ Item Launcher::getItemByPath(QString itemPath)
         return itemsMap[appId];
 
     return Item();
-}
-
-/**
- * @brief Launcher::watchDataDirs 监控应用数据目录
- */
-void Launcher::watchDataDirs()
-{
-    QStringList dataDirs;
-    dataDirs << QDir::homePath() + ".local/share";
-    dataDirs << "/usr/local/share" << "/usr/share";
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
-    interface.call("WatchDirs", dataDirs);
 }
 
 void Launcher::emitItemChanged(const Item *item, QString status)

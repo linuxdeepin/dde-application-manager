@@ -54,6 +54,7 @@ Dock::Dock(QObject *parent)
     registeModule("dock");
 
     QString sessionType {getenv("XDG_SESSION_TYPE")};
+    qInfo() << "sessionType=" << sessionType;
     if (sessionType.contains("wayland")) {
         // wayland env
         isWayland = true;
@@ -636,7 +637,7 @@ void Dock::smartHideModeTimerExpired()
  */
 void Dock::initSettings()
 {
-    SETTING->init();
+    qInfo() << "init dock settings";
     forceQuitAppStatus = SETTING->getForceQuitAppMode();
     connect(SETTING, &DockSettings::hideModeChanged, this, [&](HideMode mode) {
         this->updateHideState(false);
@@ -668,7 +669,7 @@ void Dock::updateMenu()
 void Dock::initEntries()
 {
     initDockedApps();
-    if (!isWaylandEnv())
+    if (!isWayland)
         initClientList();
 }
 

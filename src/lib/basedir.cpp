@@ -121,7 +121,7 @@ std::string BaseDir::userCacheDir()
 std::string BaseDir::userAppDir()
 {
     std::string dataDir = userDataDir();
-    return (dataDir.size() > 0) ?  dataDir + "appliations/" : "";
+    return (dataDir.size() > 0) ?  dataDir + "applications/" : "";
 }
 
 std::vector<std::string> BaseDir::sysAppDirs()

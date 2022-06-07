@@ -27,6 +27,7 @@ LauncherManager::LauncherManager(QObject *parent)
  : QObject(parent)
  , launcher(new Launcher(this))
 {
+    qInfo() << "LauncherManager";
     new DBusAdaptorLauncher(launcher);
     QDBusConnection con = QDBusConnection::sessionBus();
     if (!con.registerService(dbusService))

@@ -36,7 +36,7 @@ const QString configSuffix = ".json";
      QDBusConnection con = QDBusConnection::sessionBus();
      if (!con.registerService("org.deepin.daemon.DFWatcher1"))
      {
-         qInfo() << "register service app1 error:" << con.lastError().message();
+         qInfo() << "register service DFWatcher error:" << con.lastError().message();
          return;
      }
 

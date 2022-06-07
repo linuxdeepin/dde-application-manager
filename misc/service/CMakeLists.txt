@@ -12,4 +12,4 @@ endmacro(install_symlink)
 install(FILES ${SERVICE_FILES} DESTINATION lib/systemd/user/)
 
 # 添加软链接，系统启动时被dde-session-initialized拉起
-install_symlink(dde-application-manager.service dde-session-initialized.target.wants)
+# install_symlink(dde-application-manager.service dde-session-initialized.target.wants)

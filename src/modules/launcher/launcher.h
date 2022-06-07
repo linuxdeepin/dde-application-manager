@@ -117,7 +117,6 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void handleFSWatcherEvents(QDBusMessage msg);
-    void handleLRecoderRestart(QDBusMessage msg);
 
 private:
     void initSettings();
@@ -136,7 +135,6 @@ private:
     QString queryPkgName(const QString &itemID, const QString &itemPath);
     QString queryPkgNameWithDpkg(const QString &itemPath);
     Item getItemByPath(QString itemPath);
-    void watchDataDirs();
     void emitItemChanged(const Item *item, QString status);
     AppType getAppType(DesktopInfo &info, const Item &item);
     bool doUninstall(DesktopInfo &info, const Item &item);

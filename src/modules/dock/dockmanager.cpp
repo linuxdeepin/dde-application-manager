@@ -30,6 +30,7 @@ DockManager::DockManager(QObject *parent)
  : QObject(parent)
  , dock(new Dock(this))
 {
+    qInfo() << "DockManager";
     adaptor = new DBusAdaptorDock(dock);
     QDBusConnection con = QDBusConnection::sessionBus();
     if (!con.registerService(dbusService)) {
