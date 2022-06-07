@@ -8,7 +8,8 @@ CollectMode=inactive-or-failed
 StartLimitIntervalSec=10s
 StartLimitBurst=30
 
-#PartOf=dde-session-daemon.target
+BindsTo=dde-session-daemon.service
+Before=dde-session-daemon.service
 
 [Service]
 Type=simple
@@ -18,6 +19,3 @@ Slice=components.slice
 Restart=on-failure
 RestartSec=300ms
 
-
-#[Install]
-#WantedBy=dde-session-daemon.target
