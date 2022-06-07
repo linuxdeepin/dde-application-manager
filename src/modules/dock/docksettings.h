@@ -254,8 +254,8 @@ private:
     DockSettings(const DockSettings &);
     DockSettings& operator= (const DockSettings &);
 
-    DConfig *dockSettings;
-    DConfig *appearanceSettings;
+    DConfig *m_dockSettings;
+    DConfig *m_appearanceSettings;
 };
 
 #endif // DOCKSETTINGS_H

@@ -65,9 +65,9 @@ private:
     StartManagerSettings(const StartManagerSettings &);
     StartManagerSettings& operator= (const StartManagerSettings &);
 
-    DConfig *launchConfig;
-    DConfig *startConfig;
-    DConfig *xsettingsConfig;
+    DConfig *m_launchConfig;
+    DConfig *m_startConfig;
+    DConfig *m_xsettingsConfig;
 };
 
 #endif // STARTMANAGERSETTINGS_H

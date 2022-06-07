@@ -42,7 +42,7 @@ class LauncherSettings : public QObject
     LauncherSettings(QObject *paret = nullptr);
     LauncherSettings(const LauncherSettings &);
     LauncherSettings& operator= (const LauncherSettings &);
-    DConfig *dconfig;
+    DConfig *m_dconfig;
 
 public:
     static inline LauncherSettings *instance() {

@@ -23,18 +23,19 @@
 #include "settings.h"
 #include "gsetting.h"
 
+#include <DConfig>
+
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <DConfig>
 
 DCORE_USE_NAMESPACE
 
 StartManagerSettings::StartManagerSettings(QObject *parent)
  : QObject (parent)
- , launchConfig(Settings::ConfigPtr(configLauncher))
- , startConfig(Settings::ConfigPtr(configStartdde))
- , xsettingsConfig(Settings::ConfigPtr(configXsettings))
+ , m_launchConfig(Settings::ConfigPtr(configLauncher))
+ , m_startConfig(Settings::ConfigPtr(configStartdde))
+ , m_xsettingsConfig(Settings::ConfigPtr(configXsettings))
 {
 
 }
@@ -42,10 +43,10 @@ StartManagerSettings::StartManagerSettings(QObject *parent)
 QVector<QString> StartManagerSettings::getUseProxyApps()
 {
     QVector<QString> ret;
-    if (!launchConfig)
+    if (!m_launchConfig)
         return ret;
 
-    QList<QVariant> apps = launchConfig->value(keyAppsUseProxy).toList();
+    QList<QVariant> apps = m_launchConfig->value(keyAppsUseProxy).toList();
     for (auto app : apps) {
         ret.push_back(app.toString());
     }
@@ -56,10 +57,10 @@ QVector<QString> StartManagerSettings::getUseProxyApps()
 QVector<QString> StartManagerSettings::getDisableScalingApps()
 {
     QVector<QString> ret;
-    if (!launchConfig)
+    if (!m_launchConfig)
         return ret;
 
-    QList<QVariant> apps = launchConfig->value(keyAppsDisableScaling).toList();
+    QList<QVariant> apps = m_launchConfig->value(keyAppsDisableScaling).toList();
     for (auto app : apps) {
         ret.push_back(app.toString());
     }
@@ -70,8 +71,8 @@ QVector<QString> StartManagerSettings::getDisableScalingApps()
 bool StartManagerSettings::getMemCheckerEnabled()
 {
     bool ret = false;
-    if (startConfig) {
-        ret = startConfig->value(keyMemCheckerEnabled).toBool();
+    if (m_startConfig) {
+        ret = m_startConfig->value(keyMemCheckerEnabled).toBool();
     }
     return ret;
 }
@@ -79,8 +80,8 @@ bool StartManagerSettings::getMemCheckerEnabled()
 double StartManagerSettings::getScaleFactor()
 {
     double ret = 0;
-    if (xsettingsConfig) {
-        xsettingsConfig->value(keyScaleFactor).toDouble();
+    if (m_xsettingsConfig) {
+        m_xsettingsConfig->value(keyScaleFactor).toDouble();
     }
     return ret;
 }

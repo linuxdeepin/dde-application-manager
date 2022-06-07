@@ -22,23 +22,24 @@
 #include "launchersettings.h"
 #include "settings.h"
 
+#include <DConfig>
+
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <DConfig>
 
 DCORE_USE_NAMESPACE
 
 LauncherSettings::LauncherSettings(QObject *parent)
  : QObject(parent)
- , dconfig(Settings::ConfigPtr(configLauncher))
+ , m_dconfig(Settings::ConfigPtr(configLauncher))
 {
     // 绑定属性
-    connect(dconfig, &DConfig::valueChanged, this, [&] (const QString &key) {
+    connect(m_dconfig, &DConfig::valueChanged, this, [&] (const QString &key) {
         if (key == keyDisplayMode) {
-            Q_EMIT displayModeChanged(dconfig->value(key).toString());
+            Q_EMIT displayModeChanged(m_dconfig->value(key).toString());
         } else if (key == keyFullscreen) {
-            Q_EMIT fullscreenChanged(dconfig->value(key).toBool());
+            Q_EMIT fullscreenChanged(m_dconfig->value(key).toBool());
         } else if (key == keyAppsHidden) {
             Q_EMIT hiddenAppsChanged();
         }
@@ -51,7 +52,7 @@ LauncherSettings::LauncherSettings(QObject *parent)
  */
 QString LauncherSettings::getDisplayMode()
 {
-    return dconfig ? dconfig->value(keyDisplayMode).toString() : "";
+    return m_dconfig ? m_dconfig->value(keyDisplayMode).toString() : "";
 }
 
 /**
@@ -60,8 +61,8 @@ QString LauncherSettings::getDisplayMode()
  */
 void LauncherSettings::setDisplayMode(QString value)
 {
-    if (dconfig) {
-        dconfig->setValue(keyDisplayMode, value);
+    if (m_dconfig) {
+        m_dconfig->setValue(keyDisplayMode, value);
     }
 }
 
@@ -71,7 +72,7 @@ void LauncherSettings::setDisplayMode(QString value)
  */
 int LauncherSettings::getFullscreenMode()
 {
-    return dconfig ? dconfig->value(keyFullscreen).toBool() : false;
+    return m_dconfig ? m_dconfig->value(keyFullscreen).toBool() : false;
 }
 
 /**
@@ -80,8 +81,8 @@ int LauncherSettings::getFullscreenMode()
  */
 void LauncherSettings::setFullscreenMode(int value)
 {
-    if (dconfig) {
-        dconfig->setValue(keyFullscreen, value);
+    if (m_dconfig) {
+        m_dconfig->setValue(keyFullscreen, value);
     }
 }
 
@@ -92,8 +93,8 @@ void LauncherSettings::setFullscreenMode(int value)
 QVector<QString> LauncherSettings::getDisableScalingApps()
 {
     QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> apps = dconfig->value(keyAppsDisableScaling).toList();
+    if (m_dconfig) {
+        QList<QVariant> apps = m_dconfig->value(keyAppsDisableScaling).toList();
         for (auto app : apps) {
             ret.push_back(app.toString());
         }
@@ -107,12 +108,12 @@ QVector<QString> LauncherSettings::getDisableScalingApps()
  */
 void LauncherSettings::setDisableScalingApps(const QVector<QString> &value)
 {
-    if (dconfig) {
+    if (m_dconfig) {
         QList<QVariant> apps;
         for (const auto &app : value)
             apps.push_back(app);
 
-        dconfig->setValue(keyAppsDisableScaling, apps);
+        m_dconfig->setValue(keyAppsDisableScaling, apps);
     }
 }
 
@@ -123,8 +124,8 @@ void LauncherSettings::setDisableScalingApps(const QVector<QString> &value)
 QVector<QString> LauncherSettings::getUseProxyApps()
 {
     QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> apps = dconfig->value(keyAppsUseProxy).toList();
+    if (m_dconfig) {
+        QList<QVariant> apps = m_dconfig->value(keyAppsUseProxy).toList();
         for (auto app : apps) {
             ret.push_back(app.toString());
         }
@@ -138,12 +139,12 @@ QVector<QString> LauncherSettings::getUseProxyApps()
  */
 void LauncherSettings::setUseProxy(const QVector<QString> &value)
 {
-    if (dconfig) {
+    if (m_dconfig) {
         QList<QVariant> apps;
         for (const auto &app : value)
             apps.push_back(app);
 
-        dconfig->setValue(keyAppsUseProxy, apps);
+        m_dconfig->setValue(keyAppsUseProxy, apps);
     }
 }
 
@@ -154,8 +155,8 @@ void LauncherSettings::setUseProxy(const QVector<QString> &value)
 QVector<QString> LauncherSettings::getHiddenApps()
 {
     QVector<QString> ret;
-    if (dconfig) {
-        QList<QVariant> hiddenApps = dconfig->value(keyAppsHidden).toList();
+    if (m_dconfig) {
+        QList<QVariant> hiddenApps = m_dconfig->value(keyAppsHidden).toList();
         for (auto app : hiddenApps) {
             ret.push_back(app.toString());
         }
