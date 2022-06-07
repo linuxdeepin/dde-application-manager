@@ -22,18 +22,17 @@
 #include "docksettings.h"
 #include "settings.h"
 
-#include <DConfig>
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <DConfig>
 
 DCORE_USE_NAMESPACE
 
-static DConfig *dockSettings = Settings::ConfigPtr(configDock);
-static DConfig *appearanceSettings = Settings::ConfigPtr(configAppearance);
-
 DockSettings::DockSettings(QObject *parent)
  : QObject (parent)
+ , dockSettings(Settings::ConfigPtr(configDock))
+ , appearanceSettings(Settings::ConfigPtr(configAppearance))
 {
     init();
 }

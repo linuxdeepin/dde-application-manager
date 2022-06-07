@@ -28,9 +28,16 @@
 #include "common.h"
 #include "gsetting.h"
 
-
 #include <QObject>
 #include <QVector>
+
+namespace Dtk {
+namespace Core {
+class DConfig;
+}
+}
+
+using namespace Dtk::Core;
 
 class StartManagerSettings : public QObject
 {
@@ -54,9 +61,13 @@ public:
 Q_SIGNALS:
 
 private:
-    StartManagerSettings(QObject *paret = nullptr);
+    StartManagerSettings(QObject *parent = nullptr);
     StartManagerSettings(const StartManagerSettings &);
     StartManagerSettings& operator= (const StartManagerSettings &);
+
+    DConfig *launchConfig;
+    DConfig *startConfig;
+    DConfig *xsettingsConfig;
 };
 
 #endif // STARTMANAGERSETTINGS_H

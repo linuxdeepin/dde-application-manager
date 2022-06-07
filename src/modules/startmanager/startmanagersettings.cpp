@@ -23,16 +23,21 @@
 #include "settings.h"
 #include "gsetting.h"
 
-#include <DConfig>
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <DConfig>
 
 DCORE_USE_NAMESPACE
 
-static DConfig *launchConfig = Settings::ConfigPtr(configLauncher);
-static DConfig *startConfig = Settings::ConfigPtr(configStartdde);
-static DConfig *xsettingsConfig = Settings::ConfigPtr(configXsettings);
+StartManagerSettings::StartManagerSettings(QObject *parent)
+ : QObject (parent)
+ , launchConfig(Settings::ConfigPtr(configLauncher))
+ , startConfig(Settings::ConfigPtr(configStartdde))
+ , xsettingsConfig(Settings::ConfigPtr(configXsettings))
+{
+
+}
 
 QVector<QString> StartManagerSettings::getUseProxyApps()
 {
@@ -100,9 +105,4 @@ QString StartManagerSettings::getDefaultTerminalExecArg()
         ret = execArg.c_str();
     }
     return ret;
-}
-
-StartManagerSettings::StartManagerSettings(QObject *paret)
-{
-
 }

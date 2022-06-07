@@ -22,17 +22,16 @@
 #include "launchersettings.h"
 #include "settings.h"
 
-#include <DConfig>
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <DConfig>
 
 DCORE_USE_NAMESPACE
 
-static DConfig *dconfig = Settings::ConfigPtr(configLauncher);
-
 LauncherSettings::LauncherSettings(QObject *parent)
  : QObject(parent)
+ , dconfig(Settings::ConfigPtr(configLauncher))
 {
     // 绑定属性
     connect(dconfig, &DConfig::valueChanged, this, [&] (const QString &key) {

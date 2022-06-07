@@ -27,6 +27,14 @@
 #include <QObject>
 #include <QVector>
 
+namespace Dtk {
+namespace Core {
+class DConfig;
+}
+}
+
+using namespace Dtk::Core;
+
 // 启动器相关配置
 class LauncherSettings : public QObject
 {
@@ -34,6 +42,7 @@ class LauncherSettings : public QObject
     LauncherSettings(QObject *paret = nullptr);
     LauncherSettings(const LauncherSettings &);
     LauncherSettings& operator= (const LauncherSettings &);
+    DConfig *dconfig;
 
 public:
     static inline LauncherSettings *instance() {

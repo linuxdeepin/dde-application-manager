@@ -187,6 +187,13 @@ public:
 };
 
 class Settings;
+namespace Dtk {
+namespace Core {
+class DConfig;
+}
+}
+
+using namespace Dtk::Core;
 
 // 任务栏组策略配置类
 class DockSettings: public QObject
@@ -246,6 +253,9 @@ private:
     DockSettings(QObject *paret = nullptr);
     DockSettings(const DockSettings &);
     DockSettings& operator= (const DockSettings &);
+
+    DConfig *dockSettings;
+    DConfig *appearanceSettings;
 };
 
 #endif // DOCKSETTINGS_H

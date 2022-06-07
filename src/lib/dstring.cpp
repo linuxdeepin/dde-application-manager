@@ -21,8 +21,6 @@
 
 #include "dstring.h"
 
-#include <assert.h>
-
 DString::DString()
 {
 
@@ -35,9 +33,11 @@ DString::~DString()
 
 std::vector<std::string> DString::splitChars(const char *cs, char c)
 {
-    assert(cs);
-
     std::vector<std::string> ret;
+    if (!cs) {
+        return ret;
+    }
+
     unsigned long idx = 0;
     unsigned long size = strlen(cs);
     bool found = false;
@@ -90,8 +90,9 @@ std::vector<std::string> DString::splitVectorChars(const std::vector<char> &cont
 
 bool DString::startWith(const char *chars, const char *prefix)
 {
-    assert(chars);
-    assert(prefix);
+    if (!chars || !prefix) {
+        return false;
+    }
 
     size_t len;
     len = strlen(prefix);
@@ -105,8 +106,9 @@ bool DString::startWith(const std::string &str, const std::string &prefix)
 
 bool DString::endWith(const char *chars, const char *suffix)
 {
-    assert(chars);
-    assert(suffix);
+    if (!chars || !suffix) {
+        return false;
+    }
 
     size_t charsLen = strlen(chars);
     size_t suffixLen = strlen(suffix);
