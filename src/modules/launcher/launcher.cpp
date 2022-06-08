@@ -1188,7 +1188,10 @@ QString Launcher::getAppIdByFilePath(QString filePath, QStringList dirs)
         }
     }
 
-    return appId.isEmpty() ? "" : appId.split(".")[0];
+    if (appId.isEmpty())
+        return QString();
+
+    return appId.remove(".desktop");
 }
 
 
