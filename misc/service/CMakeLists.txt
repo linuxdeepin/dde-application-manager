@@ -9,7 +9,7 @@ macro(install_symlink filepath wantsdir)
 endmacro(install_symlink)
 
 # 安装service文件到用户service目录
-install(FILES ${SERVICE_FILES} DESTINATION lib/systemd/user/)
+#install(FILES ${SERVICE_FILES} DESTINATION lib/systemd/user/)
 
-install_symlink(dde-application-manager.service dde-session-daemon.target.wants)
+#install_symlink(dde-application-manager.service dde-session-daemon.target.wants)
 
