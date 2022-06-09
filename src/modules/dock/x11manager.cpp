@@ -249,7 +249,10 @@ void X11Manager::handleActiveWindowChangedX()
 {
     XWindow active = XCB->getActiveWindow();
     WindowInfoX *info = findWindowByXid(active);
-    dock->handleActiveWindowChanged(info);
+    WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
+    if (base) {
+        Q_EMIT requestHandleActiveWindowChange(base);
+    }
 }
 
 void X11Manager::listenRootWindowXEvent()
@@ -311,7 +314,7 @@ void X11Manager::handleMapNotifyEvent(XWindow xid)
     //});
 }
 
-// config changed event 检测窗口大小调整和重绘应用
+// config changed event 检测窗口大小调整和重绘应用，触发智能隐藏更新
 void X11Manager::handleConfigureNotifyEvent(XWindow xid, int x, int y, int width, int height)
 {
     WindowInfoX *winInfo = findWindowByXid(xid);

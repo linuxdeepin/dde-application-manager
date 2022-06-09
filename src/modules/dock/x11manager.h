@@ -60,6 +60,7 @@ public:
 
 Q_SIGNALS:
     void requestUpdateHideState(bool delay);
+    void requestHandleActiveWindowChange(WindowInfoBase *info);
     void requestAttachOrDetachWindow(WindowInfoBase *info);
 
 private:

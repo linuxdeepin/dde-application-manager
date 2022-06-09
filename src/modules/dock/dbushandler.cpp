@@ -53,7 +53,7 @@ void DBusHandler::listenWaylandWMSignals()
     kwaylandManager = new com::deepin::daemon::kwayland::WindowManager("com.deepin.daemon.KWayland", "/com/deepin/daemon/KWayland/WindowManager", session, this);
 
     // ActiveWindowchanged
-    connect(kwaylandManager, &__KwaylandManager::ActiveWindowChanged, this, &DBusHandler::handleWlActiveWindowchange);
+    connect(kwaylandManager, &__KwaylandManager::ActiveWindowChanged, this, &DBusHandler::handleWlActiveWindowChange);
     // WindowCreated
     connect(kwaylandManager, &__KwaylandManager::WindowCreated, this, [&] (const QString &ObjPath) {
         dock->registerWindowWayland(ObjPath);
@@ -118,7 +118,7 @@ uint DBusHandler::wlActiveWindow()
     return ret;
 }
 
-void DBusHandler::handleWlActiveWindowchange()
+void DBusHandler::handleWlActiveWindowChange()
 {
     uint activeWinInternalId = wlActiveWindow();
     if (activeWinInternalId == 0)
@@ -126,7 +126,10 @@ void DBusHandler::handleWlActiveWindowchange()
 
     WindowInfoK *info = dock->handleActiveWindowChangedK(activeWinInternalId);
     if (info->getXid() != 0) {
-        dock->handleActiveWindowChanged(info);
+        WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
+        if (base) {
+            dock->handleActiveWindowChanged(base);
+        }
     } else {
         dock->updateHideState(false);
     }

@@ -74,7 +74,7 @@ public:
     QString getDesktopFromWindowByBamf(XWindow windowId);
 
 private Q_SLOTS:
-    void handleWlActiveWindowchange();
+    void handleWlActiveWindowChange();
 
 private:
     Dock *dock;

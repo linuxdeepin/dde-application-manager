@@ -44,7 +44,7 @@ Dock::Dock(QObject *parent)
  , entriesSum(0)
  , windowIdentify(new WindowIdentify(this))
  , entries(new Entries(this))
- , ddeLauncherVisible(true)
+ , ddeLauncherVisible(false)
  , hideState(HideState::Unknown)
  , activeWindow(nullptr)
  , activeWindowOld(nullptr)
@@ -71,9 +71,8 @@ Dock::Dock(QObject *parent)
 
     // 初始化智能隐藏定时器
     smartHideTimer = new QTimer(this);
-    smartHideTimer->setInterval(10 * 1000);
-    connect(smartHideTimer, SIGNAL(timeout()), this, SLOT(smartHideModeTimerExpired)); // 增加开始判断
-    smartHideTimer->stop();
+    smartHideTimer->setSingleShot(true);
+    connect(smartHideTimer, &QTimer::timeout, this, &Dock::smartHideModeTimerExpired);
 
     if (!isWayland) {
         std::thread thread([&] {
@@ -85,6 +84,7 @@ Dock::Dock(QObject *parent)
         thread.detach();
         x11Manager->listenRootWindowXEvent();
         connect(x11Manager, &X11Manager::requestUpdateHideState, this, &Dock::updateHideState);
+        connect(x11Manager, &X11Manager::requestHandleActiveWindowChange, this, &Dock::handleActiveWindowChanged);
         connect(x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
     }
 
@@ -628,7 +628,7 @@ void Dock::removePluginSettings(QString pluginName, QStringList settingkeys)
 void Dock::smartHideModeTimerExpired()
 {
     HideState state = shouldHideOnSmartHideMode() ? HideState::Hide : HideState::Show;
-    qInfo() << "smartHideModeTimerExpired, is Hide? " << int(state);
+    qInfo() << "smartHideModeTimerExpired, should hide ? " << int(state);
     setPropHideState(state);
 }
 
@@ -886,8 +886,10 @@ bool Dock::shouldHideOnSmartHideMode()
 
         QVector<XWindow> list = getActiveWinGroup(activeWinId);
         for (XWindow xid : list) {
-            if (isWindowDockOverlapX(xid))
+            if (isWindowDockOverlapX(xid)) {
+                qInfo() << "shouldHideOnSmartHideMode: window has overlap";
                 return true;
+            }
         }
         return false;
     } else {

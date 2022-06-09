@@ -69,7 +69,6 @@ public:
     bool is3DWM();
     bool isWaylandEnv();
     WindowInfoK *handleActiveWindowChangedK(uint activeWin);
-    void handleActiveWindowChanged(WindowInfoBase *info);
     void saveDockedApps();
     void removeAppEntry(Entry *entry);
     void handleWindowGeometryChanged();
@@ -144,8 +143,6 @@ public:
     void mergePluginSettings(QString jsonStr);
     void removePluginSettings(QString pluginName, QStringList settingkeys);
 
-    void updateHideState(bool delay);
-
 Q_SIGNALS:
     void serviceRestarted();
     void entryAdded(QDBusObjectPath entryObjPath, int index);
@@ -154,6 +151,8 @@ Q_SIGNALS:
     void frontendWindowRectChanged();
 
 public Q_SLOTS:
+    void updateHideState(bool delay);
+    void handleActiveWindowChanged(WindowInfoBase *info);
     void smartHideModeTimerExpired();
     void attachOrDetachWindow(WindowInfoBase *info);
 

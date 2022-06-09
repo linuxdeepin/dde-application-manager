@@ -599,7 +599,7 @@ void Entry::active(uint32_t timestamp)
 {
     if (dock->getHideMode() == HideMode::SmartHide) {
         dock->setPropHideState(HideState::Show);
-        dock->updateHideState(true);
+        dock->updateHideState(false);
     }
 
     // 无窗口则直接启动
