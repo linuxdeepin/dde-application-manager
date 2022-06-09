@@ -72,6 +72,10 @@ int main(int argc, char *argv[])
     DLogManager::registerConsoleAppender();
     DLogManager::registerFileAppender();
 
+    QTranslator *translator = new QTranslator();
+    translator->load(QString("/usr/share/dde-application-manager/translations/dde-application-manager_%1.qm").arg(QLocale::system().name()));
+    QCoreApplication::installTranslator(translator);
+
     new AppManager(ApplicationManager::instance());
     new LauncherManager(ApplicationManager::instance());
     new DockManager(ApplicationManager::instance());

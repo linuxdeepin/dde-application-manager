@@ -741,7 +741,7 @@ AppMenuItem Entry::getMenuItemLaunch()
     if (hasWindow()) {
         itemName = getName();
     } else {
-        itemName = "Open";
+        itemName = tr("Open");
     }
 
     AppMenuAction fn = [this](uint32_t timestamp) {
@@ -780,7 +780,7 @@ AppMenuItem Entry::getMenuItemCloseAll()
     };
 
     AppMenuItem item;
-    item.text = "Close All";
+    item.text = tr("Close All");
     item.action = fn;
     item.isActive = true;
     return item;
@@ -795,7 +795,7 @@ AppMenuItem Entry::getMenuItemForceQuit()
     };
 
     AppMenuItem item;
-    item.text = "Force Quit";
+    item.text = tr("Force Quit");
     item.action = fn;
     item.isActive = active;
     return item;
@@ -817,7 +817,7 @@ AppMenuItem Entry::getMenuItemForceQuitAndroid()
     }
 
     AppMenuItem item;
-    item.text = "Force Quit";
+    item.text = tr("Force Quit");
     item.action = fn;
     item.isActive = active;
     return item;
@@ -826,7 +826,7 @@ AppMenuItem Entry::getMenuItemForceQuitAndroid()
 AppMenuItem Entry::getMenuItemDock()
 {
     AppMenuItem item;
-    item.text = "Dock";
+    item.text = tr("Dock");
     item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: Dock";
         requestDock();
@@ -839,7 +839,7 @@ AppMenuItem Entry::getMenuItemDock()
 AppMenuItem Entry::getMenuItemUndock()
 {
     AppMenuItem item;
-    item.text = "Undock";
+    item.text = tr("Undock");
     item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: Undock";
         requestUndock();
@@ -852,7 +852,7 @@ AppMenuItem Entry::getMenuItemUndock()
 AppMenuItem Entry::getMenuItemAllWindows()
 {
     AppMenuItem item;
-    item.text = "All Windows";
+    item.text = tr("All Windows");
     item.action = [this](uint32_t) {
         qInfo() << "do MenuItem: All Windows";
         presentWindows();

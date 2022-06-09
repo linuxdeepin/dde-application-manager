@@ -59,4 +59,6 @@ target_include_directories(deepin-application-manager PUBLIC
     ${Qt5Gui_PRIVATE_INCLUDE_DIRS}
 )
 
+# binary file
 install(TARGETS deepin-application-manager DESTINATION bin)
+
