@@ -1,0 +1,30 @@
+ <interface name='org.deepin.daemon.Mime'>
+    <method name='AddUserApp'>
+        <arg type='as' name='mimeTypes' direction='in'/>
+        <arg type='s' name='desktopId' direction='in'/>
+    </method>
+    <method name='DeleteApp'>
+        <arg type='as' name='mimeTypes' direction='in'/>
+        <arg type='s' name='desktopId' direction='in'/>
+    </method>
+    <method name='DeleteUserApp'>
+        <arg type='s' name='desktopId' direction='in'/>
+    </method>
+    <method name='GetDefaultApp'>
+        <arg type='s' name='mimeType' direction='in'/>
+        <arg type='s' name='defaultApp' direction='out'/>
+    </method>
+	<method name='ListApps'>
+        <arg type='s' name='mimeType' direction='in'/>
+        <arg type='s' name='apps' direction='out'/>
+    </method>
+    <method name='ListUserApps'>
+        <arg type='s' name='mimeType' direction='in'/>
+        <arg type='s' name='userApps' direction='out'/>
+    </method>
+    <method name='SetDefaultApp'>
+        <arg type='as' name='mimeTypes' direction='in'/>
+        <arg type='s' name='desktopId' direction='in'/>
+    </method>
+    <signal name="Change"></signal>
+</interface>

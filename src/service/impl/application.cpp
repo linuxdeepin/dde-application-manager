@@ -166,3 +166,9 @@ QString Application::prefix() const
 
     return d->m_prefix;
 }
+
+QList<QSharedPointer<ApplicationInstance>>& Application::getAllInstances(){
+    Q_D(Application);
+
+    return d->instances;
+}

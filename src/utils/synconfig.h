@@ -37,7 +37,7 @@ public:
     // 记录模块对应类信息
     static bool registe(QString moduleName, SynModuleBase *module);
 
-public slots:
+public Q_SLOTS:
     // 获取配置信息
     QByteArray GetSyncConfig(QString moduleName);
     // 设置配置信息

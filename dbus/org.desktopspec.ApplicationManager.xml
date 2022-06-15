@@ -37,6 +37,10 @@
     <method name='TryAgain'>
         <arg type='b' name='launch' direction='in' />
     </method>
+    <method name='IsPidVirtualMachine'>
+           <arg type='i' name='pid' direction='in' />
+           <arg type='b' name='isVM' direction='out' />
+    </method>
     <signal name='AutostartChanged'>
      	<arg type='s' name='status' />
      	<arg type='s' name='filePath' />

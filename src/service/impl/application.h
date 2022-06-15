@@ -51,6 +51,8 @@ public: // PROPERTIES
     QString filePath() const;
 
     QSharedPointer<ApplicationInstance> createInstance(QStringList files);
+    QList<QSharedPointer<ApplicationInstance>>& getAllInstances();
+    bool destoryInstance(QString hashId);
 
 public Q_SLOTS: // METHODS
     QString Comment(const QString &locale);

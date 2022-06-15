@@ -44,8 +44,8 @@ public:
     static std::string userAutoStartDir();
 
 private:
-    static void filterNotAbs(std::vector<std::string> &dirs);
-    static void addSuffixSlash(std::vector<std::string> &dirs);
+    static void filterNotAbs(std::vector<std::string>& dirs);
+    static void addSuffixSlash(std::vector<std::string>& dirs);
 };
 
 #endif // BASEDIR_H

@@ -54,6 +54,10 @@ public:
     bool saveToFile(const std::string &filePath);
     bool loadFile(const std::string &filePath);
     std::vector<std::string> getMainKeys();
+    std::string getFilePath()
+    {
+        return m_filePath;
+    }
 
     // for test
     void print();

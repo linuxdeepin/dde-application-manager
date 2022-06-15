@@ -62,7 +62,7 @@ void ServerPrivate::work()
                 }
 
                 if (buffer[readBytes - 1] == '\0') {
-                    emit q_ptr->onReadyRead(socket, data);
+                    Q_EMIT q_ptr->onReadyRead(socket, data);
                     data.clear();
                 }
             }
@@ -139,7 +139,7 @@ bool Server::listen(const std::string &host)
     d_ptr->workThread = new QThread;
     d_ptr->moveToThread(d_ptr->workThread);
     d_ptr->workThread->start();
-    emit d_ptr->requestStart();
+    Q_EMIT d_ptr->requestStart();
     return result;
 }
 

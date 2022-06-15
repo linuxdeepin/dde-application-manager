@@ -24,7 +24,7 @@
 
 #include "../modules/methods/basic.h"
 #include "../modules/methods/instance.hpp"
-#include "../modules/methods/quit.hpp"
+#include "../modules/methods/process_status.hpp"
 #include "../modules/methods/registe.hpp"
 #include "../modules/methods/task.hpp"
 #include "../modules/socket/client.h"
@@ -311,7 +311,19 @@ int main(int argc, char* argv[])
     } else {
         qWarning() << "error app prefix:" << QString::fromStdString(app.prefix);
     }
-    
+
+    if(pid != -1)
+    {
+        Methods::ProcessStatus processSuccess;
+        processSuccess.code = 0;
+        processSuccess.id   = task.id;
+        processSuccess.type = "success";
+        processSuccess.data = QString::number(pid);
+        QByteArray processArray;
+        Methods::toJson(processArray, processSuccess);
+        client.send(processArray);
+    }
+
     // TODO: 启动线程，创建新的连接去接受服务器的消息
 
     // TODO:信号处理有问题
@@ -329,9 +341,10 @@ int main(int argc, char* argv[])
     waitpid(pid, &exitCode, 0);
     qInfo() << "app exitCode:" << exitCode;
 
-    Methods::Quit quit;
+    Methods::ProcessStatus quit;
     quit.code = exitCode;
     quit.id   = task.id;
+    quit.type = "quit";
     QByteArray quitArray;
     Methods::toJson(quitArray, quit);
     client.send(quitArray);

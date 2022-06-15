@@ -5,10 +5,12 @@
 #include "applicationmanageradaptor.h"
 #include "applicationadaptor.h"
 #include "applicationhelper.h"
+#include "mimeadaptor.h"
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
 #include "../modules/dock/dockmanager.h"
 #include "../modules/startmanager/startmanager.h"
+#include "../modules/mimeapp/mime_app.h"
 
 #include <QDir>
 #include <DLog>
@@ -102,6 +104,12 @@ int main(int argc, char *argv[])
     ApplicationManager::instance()->addApplication(apps);
 
     ApplicationManager::instance()->launchAutostartApps();
+
+    MimeApp* mimeApp = new MimeApp;
+
+    new MimeAdaptor(mimeApp);
+    QDBusConnection::sessionBus().registerService("org.deepin.daemon.Mime1");
+    QDBusConnection::sessionBus().registerObject("/org/deepin/daemon/Mime1", "org.deepin.daemon.Mime1", mimeApp);
 
     return app.exec();
 }

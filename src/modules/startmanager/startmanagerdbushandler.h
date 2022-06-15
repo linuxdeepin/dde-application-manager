@@ -37,7 +37,7 @@ public:
 
 Q_SIGNALS:
 
-public slots:
+public Q_SLOTS:
 };
 
 #endif // STARTMANAGERDBUSHANDLER_H

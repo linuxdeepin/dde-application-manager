@@ -8,8 +8,9 @@ set(SRCS
     ../modules/methods/task.hpp
     ../modules/methods/basic.h
     ../modules/methods/instance.hpp
-    ../modules/methods/quit.hpp
+    ../modules/methods/process_status.hpp
     ../modules/methods/registe.hpp
+    ../modules/methods/use_mime_app_info.h
     ../modules/util/common.cpp
     ../modules/util/common.h
     ../modules/util/filesystem.cpp

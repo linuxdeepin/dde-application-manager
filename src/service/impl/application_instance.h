@@ -41,6 +41,8 @@ Q_SIGNALS:
 public Q_SLOTS:  // METHODS
     void Exit();
     void Kill();
+    void Success(const QString& data);
+    uint32_t getPid();
 };
 
 #endif /* D6D05668_8A58_43AA_91C5_C6278643A1AF */

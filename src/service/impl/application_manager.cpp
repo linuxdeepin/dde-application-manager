@@ -11,6 +11,7 @@
 #include <map>
 #include <mutex>
 #include <thread>
+#include <QProcess>
 
 #include "../../modules/methods/basic.h"
 #include "../../modules/methods/instance.hpp"
@@ -21,20 +22,23 @@
 #include "application.h"
 #include "application_instance.h"
 #include "applicationinstanceadaptor.h"
+#include "../lib/keyfile.h"
 
-ApplicationManagerPrivate::ApplicationManagerPrivate(ApplicationManager *parent)
+ApplicationManagerPrivate::ApplicationManagerPrivate(ApplicationManager* parent)
     : QObject(parent)
     , q_ptr(parent)
     , startManager(new StartManager(this))
+    , virtualMachePath("/usr/share/dde-daemon/supportVirsConf.ini")
+    , section("AppName")
+    , key("support")
 {
-        const QString socketPath{QString("/run/user/%1/deepin-application-manager.socket").arg(getuid())};
-        connect(&server, &Socket::Server::onReadyRead, this, &ApplicationManagerPrivate::recvClientData, Qt::QueuedConnection);
-        server.listen(socketPath.toStdString());
+    const QString socketPath{QString("/run/user/%1/deepin-application-manager.socket").arg(getuid())};
+    connect(&server, &Socket::Server::onReadyRead, this, &ApplicationManagerPrivate::recvClientData, Qt::QueuedConnection);
+    server.listen(socketPath.toStdString());
 }
 
 ApplicationManagerPrivate::~ApplicationManagerPrivate()
 {
-
 }
 
 bool ApplicationManagerPrivate::checkDMsgUid()
@@ -48,7 +52,7 @@ bool ApplicationManagerPrivate::checkDMsgUid()
  * @param socket 客户端套接字
  * @param data 接受到客户端数据
  */
-void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<char> &data)
+void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<char>& data)
 {
     QByteArray jsonArray = data.data();
     Methods::Basic basic;
@@ -75,8 +79,9 @@ void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<cha
 
         // 退出
         if (basic.type == "quit") {
-            Methods::Quit quit;
+            Methods::ProcessStatus quit;
             Methods::fromJson(jsonArray, quit);
+            processInstanceStatus(quit);
             server.close(socket);
             std::cout << "client quit" << std::endl;
             break;
@@ -100,18 +105,26 @@ void ApplicationManagerPrivate::recvClientData(int socket, const std::vector<cha
             write(socket, tmpArray.toStdString());
             break;
         }
+
+        if (basic.type == "success") {
+            Methods::ProcessStatus processSuccess;
+            Methods::fromJson(jsonArray, processSuccess);
+            processInstanceStatus(processSuccess);
+            std::cout << "client success" << std::endl;
+            break;
+        }
         write(socket, jsonArray.toStdString());
     } while (false);
 }
 
-void ApplicationManagerPrivate::write(int socket, const std::vector<char> &data)
+void ApplicationManagerPrivate::write(int socket, const std::vector<char>& data)
 {
     std::vector<char> tmp = data;
     tmp.push_back('\0');
     server.write(socket, tmp);
 }
 
-void ApplicationManagerPrivate::write(int socket, const std::string &data)
+void ApplicationManagerPrivate::write(int socket, const std::string& data)
 {
     std::vector<char> result;
     std::copy(data.cbegin(), data.cend(), std::back_inserter(result));
@@ -123,15 +136,54 @@ void ApplicationManagerPrivate::write(int socket, const char c)
     return write(socket, std::vector<char>(c));
 }
 
+void ApplicationManagerPrivate::init()
+{
+    KeyFile keyFile;
+    keyFile.loadFile(virtualMachePath);
+    virtualMachines = keyFile.getStrList(section, key);
+    if (virtualMachines.empty()) {
+        virtualMachines = {"hvm", "bochs", "virt", "vmware", "kvm", "cloud", "invented"};
+    }
+}
 
-ApplicationManager* ApplicationManager::instance() {
+void ApplicationManagerPrivate::processInstanceStatus(Methods::ProcessStatus instanceStatus)
+{
+    bool bFound = false;
+
+    auto application = applications.begin();
+    while (application != applications.end()) {
+
+        auto instance = (*application)->getAllInstances().begin();
+        while (instance != (*application)->getAllInstances().end()) {
+            if ((*instance)->hash() == instanceStatus.id) {
+                bFound = true;
+            }
+            if (bFound) {
+                if (instanceStatus.type == "success") {
+                    (*instance)->Success(instanceStatus.data);
+                } else if (instanceStatus.type == "quit") {
+                    (*instance)->Exit();
+                    (*application)->getAllInstances().erase(instance);
+                } else {
+                    qWarning() << "instance tyep : " << instanceStatus.type << "not found";
+                }
+                return;
+            }
+            instance++;
+        }
+        application++;
+    }
+}
+
+ApplicationManager* ApplicationManager::instance()
+{
     static ApplicationManager manager;
     return &manager;
 }
 
-ApplicationManager::ApplicationManager(QObject *parent)
- : QObject(parent)
- , dd_ptr(new ApplicationManagerPrivate(this))
+ApplicationManager::ApplicationManager(QObject* parent)
+    : QObject(parent)
+    , dd_ptr(new ApplicationManagerPrivate(this))
 {
     Q_D(ApplicationManager);
 
@@ -140,7 +192,7 @@ ApplicationManager::ApplicationManager(QObject *parent)
 
 ApplicationManager::~ApplicationManager() {}
 
-void ApplicationManager::addApplication(const QList<QSharedPointer<Application>> &list)
+void ApplicationManager::addApplication(const QList<QSharedPointer<Application>>& list)
 {
     Q_D(ApplicationManager);
 
@@ -164,14 +216,14 @@ void ApplicationManager::launchAutostartApps()
     */
 }
 
-QDBusObjectPath ApplicationManager::GetInformation(const QString &id)
+QDBusObjectPath ApplicationManager::GetInformation(const QString& id)
 {
     Q_D(ApplicationManager);
 
     if (!d->checkDMsgUid())
         return {};
 
-    for (const QSharedPointer<Application> &app : d->applications) {
+    for (const QSharedPointer<Application>& app : d->applications) {
         if (app->id() == id) {
             return app->path();
         }
@@ -179,13 +231,13 @@ QDBusObjectPath ApplicationManager::GetInformation(const QString &id)
     return {};
 }
 
-QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
+QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString& id)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
         return {};
 
-    for (const auto &app : d->applications) {
+    for (const auto& app : d->applications) {
         if (app->id() == id) {
             return app->instances();
         }
@@ -200,7 +252,7 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString &id)
  * @param files 应用打开的文件
  * @return
  */
-QDBusObjectPath ApplicationManager::Launch(const QString &id, QStringList files)
+QDBusObjectPath ApplicationManager::Launch(const QString& id, QStringList files)
 {
     qInfo() << "Launch " << id;
     Q_D(ApplicationManager);
@@ -208,14 +260,14 @@ QDBusObjectPath ApplicationManager::Launch(const QString &id, QStringList files)
         return {};
 
     // 创建一个实例
-    for (const QSharedPointer<Application> &app : d->applications) {
+    for (const QSharedPointer<Application>& app : d->applications) {
         QString appId = app->id();
         if (app->id() == id) {
             // 创建任务所需的数据，并记录到任务队列，等待 loader 消耗
             QSharedPointer<ApplicationInstance> instance{app->createInstance(files)};
             const std::string hash{instance->hash().toStdString()};
-            connect(instance.get(), &ApplicationInstance::taskFinished, this, [=] {
-                for (auto it = d->tasks.begin(); it != d->tasks.end(); ++it) {
+            connect(instance.get(), &ApplicationInstance::taskFinished, this, [ = ] {
+                for (auto it = d->tasks.begin(); it != d->tasks.end(); ++it){
                     if (it->first == hash) {
                         d->tasks.erase(it);
                         break;
@@ -343,7 +395,7 @@ QList<QDBusObjectPath> ApplicationManager::instances() const
 
     QList<QDBusObjectPath> result;
 
-    for (const auto &app : d->applications) {
+    for (const auto& app : d->applications) {
         result += app->instances();
     }
 
@@ -355,11 +407,48 @@ QList<QDBusObjectPath> ApplicationManager::list() const
     Q_D(const ApplicationManager);
 
     QList<QDBusObjectPath> result;
-    for (const QSharedPointer<Application> &app : d->applications) {
+    for (const QSharedPointer<Application>& app : d->applications) {
         result << app->path();
     }
 
     return result;
+}
+
+// 如果app manager拥有全部进程信息，可以在app manger里面获取
+bool ApplicationManager::IsPidVirtualMachine(uint32_t pid)
+{
+    Q_D(const ApplicationManager);
+    char buff[256];
+    ssize_t nbytes = readlink(QString("/proc/%1/exe").arg(pid).toStdString().c_str(), buff, 256);
+    if (nbytes == -1) {
+        return false;
+    }
+    std::string execPath(buff);
+
+    for (auto iter : d->virtualMachines) {
+        std::string::size_type idx = iter.find(execPath);
+
+        if (idx != std::string::npos) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ApplicationManager::IsProcessExist(uint32_t pid)
+{
+    Q_D(const ApplicationManager);
+
+    for (auto app : d->applications) {
+        for (auto instance : app->getAllInstances()) {
+            if (instance->getPid() == pid) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 #include "application_manager.moc"
