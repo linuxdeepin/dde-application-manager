@@ -87,8 +87,6 @@ Dock::Dock(QObject *parent)
         connect(x11Manager, &X11Manager::requestHandleActiveWindowChange, this, &Dock::handleActiveWindowChanged);
         connect(x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
     }
-
-    Q_EMIT serviceRestarted();
 }
 
 Dock::~Dock()

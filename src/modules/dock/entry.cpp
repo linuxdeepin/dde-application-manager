@@ -652,7 +652,7 @@ void Entry::active(uint32_t timestamp)
                 dock->doActiveWindow(xid);
             } else if (windowInfoMap.size() == 1) {
                 XCB->minimizeWindow(xid);
-            } else if (dock->getActiveWindow()->getXid() == xid) {
+            } else if (dock->getActiveWindow() && dock->getActiveWindow()->getXid() == xid) {
                 WindowInfoBase *nextWin = findNextLeader();
                 if (nextWin) {
                     nextWin->activate();
