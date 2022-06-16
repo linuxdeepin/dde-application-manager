@@ -455,6 +455,7 @@ bool Entry::detachWindow(WindowInfoBase *info)
             return true;
         }
 
+        Q_EMIT windowInfosChanged(WindowInfoMap());
         setCurrentWindowInfo(nullptr);
     } else {
         for (auto window : windowInfoMap) {
