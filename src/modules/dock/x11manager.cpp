@@ -221,9 +221,9 @@ void X11Manager::handleClientListChanged()
         QString wmName(XCB->getWMName(xid).c_str());
         if (pid != 0 || (wmClass.className.size() > 0 && wmClass.instanceName.size() > 0)
                 || wmName.size() > 0 || XCB->getWMCommand(xid).size() > 0) {
-            WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
-            if (base) {
-                Q_EMIT requestAttachOrDetachWindow(base);
+
+            if (info) {
+                Q_EMIT requestAttachOrDetachWindow(info);
             }
         }
     }
@@ -248,9 +248,8 @@ void X11Manager::handleActiveWindowChangedX()
 {
     XWindow active = XCB->getActiveWindow();
     WindowInfoX *info = findWindowByXid(active);
-    WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
-    if (base) {
-        Q_EMIT requestHandleActiveWindowChange(base);
+    if (info) {
+        Q_EMIT requestHandleActiveWindowChange(info);
     }
 }
 
@@ -382,8 +381,9 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
         needAttachOrDetach = true;
     }
 
-    if (needAttachOrDetach)
-        dock->attachOrDetachWindow(winInfo);
+    if (needAttachOrDetach && winInfo) {
+        Q_EMIT requestAttachOrDetachWindow(winInfo);
+    }
 
     Entry *entry = dock->getEntryByWindowId(xid);
     if (!entry)

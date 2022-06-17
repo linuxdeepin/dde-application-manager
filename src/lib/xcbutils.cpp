@@ -496,7 +496,9 @@ WMClass XCBUtils::getWMClass(XWindow xid)
     if (reply.instance_name)
         ret.instanceName.assign(reply.instance_name);
 
-    xcb_icccm_get_wm_class_reply_wipe(&reply);
+    if (reply.class_name || reply.instance_name) {
+        xcb_icccm_get_wm_class_reply_wipe(&reply);
+    }
 
     return ret;
 }

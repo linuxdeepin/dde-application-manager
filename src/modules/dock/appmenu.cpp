@@ -81,7 +81,7 @@ QString AppMenu::getMenuJsonStr()
         objItem["itemIconInactive"] = item.iconInactive;
         objItem["showCheckMark"] = item.showCheckMark;
         objItem["itemSubMenu"] = item.subMenu ? item.subMenu->getMenuJsonStr() : "";
-        array.push_back(QJsonValue(objItem));
+        array.push_back(objItem);
     }
     obj["items"] = QJsonValue(array);
     obj["checkableMenu"] = checkableMenu;

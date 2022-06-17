@@ -203,13 +203,14 @@ void Dock::undockEntry(Entry *entry)
     QString desktopFile = entry->getFileName();
     QString filebase(desktopFile.data(), desktopFile.size() - 9);
     if (desktopFile.contains(scratchDir)) {
-        for (auto &ext : QStringList() << ".desktop" << ".sh" << ".png") {
+        QStringList suffixs {".desktop", ".sh", ".png"};
+        for (auto &ext : suffixs) {
             QString fileName = filebase + ext;
             QFile file(fileName);
-            if (file.exists())
+            if (file.exists()) {
                 file.remove();
+            }
         }
-
     }
 
     if (entry->hasWindow()) {

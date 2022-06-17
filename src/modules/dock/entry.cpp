@@ -579,7 +579,6 @@ void Entry::forceQuit()
             }
         }
     }
-
 }
 
 void Entry::presentWindows()
