@@ -100,6 +100,9 @@ public:
     // 分配XID
     XWindow allocId();
 
+    // 刷新
+    void flush();
+
     /************************* xpropto method ***************************/
     // 杀掉进程
     void killClientChecked(XWindow xid);

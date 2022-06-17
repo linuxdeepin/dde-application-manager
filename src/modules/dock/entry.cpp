@@ -778,6 +778,9 @@ AppMenuItem Entry::getMenuItemCloseAll()
             qInfo() << "close WindowId " << info->getXid();
             info->close(timestamp);
         }
+
+        // 关闭窗口后，主动刷新事件
+        XCB->flush();
     };
 
     AppMenuItem item;

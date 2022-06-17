@@ -51,6 +51,11 @@ XWindow XCBUtils::allocId()
     return xcb_generate_id(m_connect);
 }
 
+void XCBUtils::flush()
+{
+    xcb_flush(m_connect);
+}
+
 void XCBUtils::killClientChecked(XWindow xid)
 {
     xcb_kill_client_checked(m_connect, xid);
@@ -172,8 +177,7 @@ void XCBUtils::setActiveWindow(XWindow xid)
 void XCBUtils::changeActiveWindow(XWindow newActiveXid)
 {
     xcb_ewmh_request_change_active_window(&m_ewmh, m_screenNum, newActiveXid, XCB_EWMH_CLIENT_SOURCE_TYPE_OTHER, XCB_CURRENT_TIME, XCB_WINDOW_NONE);
-    // 此处getActiveWindow作用是触发缓冲机制，执行设置活动窗口动作
-    getActiveWindow();
+    flush();
 }
 
 void XCBUtils::restackWindow(XWindow xid)
@@ -596,7 +600,7 @@ void XCBUtils::registerEvents(XWindow xid, uint32_t eventMask)
                                                                     xid,
                                                                     XCB_CW_EVENT_MASK,
                                                                     &value);
-    xcb_flush(m_connect);
+    flush();
 
     xcb_generic_error_t *error = xcb_request_check(m_connect, cookie);
     if (error != nullptr) {
