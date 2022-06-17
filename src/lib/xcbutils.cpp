@@ -501,15 +501,13 @@ WMClass XCBUtils::getWMClass(XWindow xid)
     return ret;
 }
 
-// TODO
 void XCBUtils::minimizeWindow(XWindow xid)
 {
-    xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_hints(m_connect, xid);
-    xcb_icccm_wm_hints_t *hints = new xcb_icccm_wm_hints_t; // 分配堆空间
-    xcb_icccm_get_wm_hints_reply(m_connect, cookie, hints, nullptr);
-    xcb_icccm_wm_hints_set_iconic(hints);
-    xcb_icccm_set_wm_hints(m_connect, xid, hints);
-    free(hints);
+    uint32_t data[2];
+    data[0] = XCB_ICCCM_WM_STATE_ICONIC;
+    data[1] = XCB_NONE;
+    xcb_ewmh_send_client_message(m_connect, xid, getRootWindow(),getAtom("WM_CHANGE_STATE"), 2, data);
+    flush();
 }
 
 void XCBUtils::maxmizeWindow(XWindow xid)

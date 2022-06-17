@@ -652,6 +652,7 @@ void Entry::active(uint32_t timestamp)
                 // 激活隐藏窗口
                 dock->doActiveWindow(xid);
             } else if (windowInfoMap.size() == 1) {
+                // 窗口图标化
                 XCB->minimizeWindow(xid);
             } else if (dock->getActiveWindow() && dock->getActiveWindow()->getXid() == xid) {
                 WindowInfoBase *nextWin = findNextLeader();
