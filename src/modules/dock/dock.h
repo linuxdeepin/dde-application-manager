@@ -81,7 +81,6 @@ public:
 
     AppInfo *identifyWindow(WindowInfoBase *winInfo, QString &innerId);
     void markAppLaunched(AppInfo *appInfo);
-    void deleteWindow(XWindow xid);
 
     ForceQuitAppMode getForceQuitAppStatus();
     QVector<QString> getWinIconPreferredApps();

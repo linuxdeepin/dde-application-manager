@@ -1275,15 +1275,6 @@ void Dock::markAppLaunched(AppInfo *appInfo)
 }
 
 /**
- * @brief Dock::deleteWindow 删除窗口  TODO 检查必要性
- * @param xid
- */
-void Dock::deleteWindow(XWindow xid)
-{
-    entries->deleteWindow(xid);
-}
-
-/**
  * @brief Dock::getForceQuitAppStatus 获取强制关闭应用状态
  * @return
  */

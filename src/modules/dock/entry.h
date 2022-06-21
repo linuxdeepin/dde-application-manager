@@ -76,7 +76,6 @@ public:
     bool attachWindow(WindowInfoBase *info);
     void launchApp(uint32_t timestamp);
     bool containsWindow(XWindow xid);
-    void deleteWindow(XWindow xid);
 
     void handleMenuItem(uint32_t timestamp, QString itemId);
     void handleDragDrop(uint32_t timestamp, QStringList files);

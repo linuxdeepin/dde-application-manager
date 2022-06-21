@@ -188,16 +188,6 @@ void Entries::handleActiveWindowChanged(XWindow activeWindId)
     }
 }
 
-void Entries::deleteWindow(XWindow xid)
-{
-    for (auto entry : items) {
-        if (entry->containsWindow(xid)) {
-            entry->deleteWindow(xid);
-            break;
-        }
-    }
-}
-
 void Entries::updateEntriesMenu()
 {
     for (auto entry : items) {

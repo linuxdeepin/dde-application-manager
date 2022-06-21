@@ -47,7 +47,6 @@ public:
     Entry *getDockedEntryByDesktopFile(const QString &desktopFile);
     QString queryWindowIdentifyMethod(XWindow windowId);
     void handleActiveWindowChanged(XWindow activeWindId);
-    void deleteWindow(XWindow xid);
     void updateEntriesMenu();
     void insertCb(Entry *entry, int index);
     void removeCb(Entry *entry);

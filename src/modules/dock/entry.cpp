@@ -439,6 +439,7 @@ void Entry::updateExportWindowInfos()
         Q_EMIT windowInfosChanged(infos);
     }
 
+    // 更新导出的窗口信息
     exportWindowInfos = infos;
 }
 
@@ -447,7 +448,11 @@ bool Entry::detachWindow(WindowInfoBase *info)
 {
     info->setEntry(nullptr);
     XWindow winId = info->getXid();
-    deleteWindow(winId);
+    if (windowInfoMap.contains(winId)) {
+        WindowInfoBase *info = windowInfoMap[winId];
+        windowInfoMap.remove(winId);
+        delete info;
+    }
 
     if (windowInfoMap.isEmpty()) {
         if (!isDocked) {
@@ -507,16 +512,6 @@ void Entry::launchApp(uint32_t timestamp)
 bool Entry::containsWindow(XWindow xid)
 {
     return windowInfoMap.find(xid) != windowInfoMap.end();
-}
-
-void Entry::deleteWindow(XWindow xid)
-{    
-    if (windowInfoMap.contains(xid)) {
-        WindowInfoBase *info = windowInfoMap[xid];
-        windowInfoMap.remove(xid);
-        exportWindowInfos.remove(xid);
-        delete info;
-    }
 }
 
 // 处理菜单项
@@ -639,7 +634,7 @@ void Entry::active(uint32_t timestamp)
             dock->doActiveWindow(xid);
         } else {
             bool found = false;
-            bool hiddenAtom = XCB->getAtom("_NET_WM_STATE_HIDDEN");
+            XWindow hiddenAtom = XCB->getAtom("_NET_WM_STATE_HIDDEN");
             for (auto state : XCB->getWMState(xid)) {
                 if (hiddenAtom == state) {
                     found = true;
