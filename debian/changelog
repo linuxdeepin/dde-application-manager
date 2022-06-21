@@ -1,4 +1,10 @@
-dde-application-manager (1.0.0-1) UNRELEASED; urgency=medium
+dde-application-manager (1.0.1) unstable; urgency=medium
+
+  * dde-flow-sprint1
+
+ -- Tan Feng <tanfeng@uniontech.com>  Tue, 21 Jun 2022 16:38:16 +0800
+
+dde-application-manager (1.0.0-1) unstable; urgency=medium
 
   * Initial release
 
