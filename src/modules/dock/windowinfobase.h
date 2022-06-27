@@ -34,7 +34,11 @@ class WindowInfoBase
 {
 public:
     WindowInfoBase() : entry(nullptr), app(nullptr), processInfo(nullptr) {}
-    virtual ~WindowInfoBase() {}
+    virtual ~WindowInfoBase() {
+        if (processInfo) {
+            delete processInfo;
+        }
+    }
 
 
     virtual bool shouldSkip() = 0;

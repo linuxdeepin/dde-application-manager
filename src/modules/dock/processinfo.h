@@ -40,6 +40,7 @@ public:
     int getPid();
     int getPpid();
     bool initWithPid();
+    bool isValid();
     std::string getExe();
     std::string getOneCommandLine();
     std::string getShellScriptLines();
@@ -47,13 +48,14 @@ public:
 private:
     std::string getJoinedExeArgs();
 
-    std::vector<std::string> cmdLine;
-    std::vector<std::string> args;
-    std::string exe;
-    std::string cwd;
+    std::vector<std::string> m_cmdLine;
+    std::vector<std::string> m_args;
+    std::string m_exe;
+    std::string m_cwd;
 
-    bool hasPid;
-    Process process;
+    bool m_hasPid;
+    bool m_isValid;
+    Process m_process;
 };
 
 #endif // PROCESSINFO_H

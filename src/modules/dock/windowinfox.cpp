@@ -416,12 +416,15 @@ void WindowInfoX::updateProcessInfo()
     if (processInfo)
         delete processInfo;
 
+    qInfo() << "updateProcessInfo: pid=" << pid;
     processInfo = new ProcessInfo(pid);
-    if (!processInfo) {
+    if (!processInfo->isValid()) {
         // try WM_COMMAND
         auto wmComand = XCB->getWMCommand(winId);
-        if (wmComand.size() > 0)
+        if (wmComand.size() > 0) {
+            delete processInfo;
             processInfo = new ProcessInfo(wmComand);
+        }
     }
 
     qInfo() << "updateProcessInfo: pid is " << pid;
