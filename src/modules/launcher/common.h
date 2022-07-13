@@ -37,6 +37,7 @@ const QString keyAppsUseProxy       = "Apps_Use_Proxy";
 const QString keyAppsDisableScaling = "Apps_Disable_Scaling";
 const QString keyAppsHidden         = "Apps_Hidden";
 const QString keyPackageNameSearch  = "Search_Package_Name";
+const QString keySuffixHidden       = "MagicaVoxelApp_Hide_SuffixName";
 
 // 应用配置
 const QString lastoreDataDir = "/var/lib/lastore";

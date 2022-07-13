@@ -64,10 +64,14 @@ public:
 
     QVector<QString> getHiddenApps();
 
+    bool getMagicaVoxelSuffixHidden() const;
+    void setMagicaVoxelSuffixHidden(bool hidden);
+
 Q_SIGNALS:
     void displayModeChanged(QString mode);
     void fullscreenChanged(bool isFull);
     void hiddenAppsChanged();
+    void appSuffixNameChanged(bool);
 };
 
 #endif // LAUNCHERSETTINGS_H

@@ -114,9 +114,11 @@ Q_SIGNALS:
 
     void displayModeChanged(int mode);
     void fullScreenChanged(bool isFull);
+    void appSuffixChanged();
 
 private Q_SLOTS:
     void handleFSWatcherEvents(QDBusMessage msg);
+    void onAppSuffixNameChanged(bool hidden);
 
 private:
     void initSettings();
@@ -144,13 +146,14 @@ private:
     bool removeDesktop(const Item &item);
     void notifyUninstallDone(const Item &item, bool result);
 
-
-    QMap<QString, Item> itemsMap;
+private:
+    QMap<QString, Item> itemsMap;                                   // appKey, Item
     QMap<QString, QString> desktopPkgMap;
     QMap<QString, Categorytype> pkgCategoryMap;
     QMap<QString, QString> nameMap;
     QMap<QString, int> noPkgItemIds;
     QVector<QString> appsHidden;
+
     QStringList appDirs;
 };
 

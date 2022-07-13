@@ -53,7 +53,7 @@ QList<QSharedPointer<Application>> scanFiles()
         user = getpwent();
     }
     endpwent();
-    auto linglong = scan("/deepin/linglong/entries/share/applications/");
+    auto linglong = scan("/persistent/linglong/entries/share/applications/");
     for (const QFileInfo &info : linglong) {
         applications << QSharedPointer<Application>(new Application(
             "linglong",

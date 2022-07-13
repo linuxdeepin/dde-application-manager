@@ -51,6 +51,7 @@ Launcher::Launcher(QObject *parent)
     : SynModule(parent)
 {
     registeModule("launcher");
+    appsHidden = SETTING->getHiddenApps();
     initSettings();
 
     for (auto dir : BaseDir::appDirs()) {
@@ -443,6 +444,13 @@ void Launcher::handleFSWatcherEvents(QDBusMessage msg)
     }
 }
 
+void Launcher::onAppSuffixNameChanged(bool)
+{
+    initItems();
+
+    Q_EMIT appSuffixChanged();
+}
+
 /**
  * @brief Launcher::initSettings 初始化启动器配置
  */
@@ -453,8 +461,7 @@ void Launcher::initSettings()
     });
     connect(SETTING, &LauncherSettings::fullscreenChanged, this, &Launcher::fullScreenChanged);
     connect(SETTING, &LauncherSettings::hiddenAppsChanged, this, &Launcher::handleAppHiddenChanged);
-
-    appsHidden = SETTING->getHiddenApps();
+    connect(SETTING, &LauncherSettings::appSuffixNameChanged, this, &Launcher::onAppSuffixNameChanged);
 }
 
 /**
@@ -694,7 +701,6 @@ Categorytype Launcher::queryCategoryId(const Item *item)
     Categorytype category = Category::parseCategoryString(item->xDeepinCategory);
     if (category != Categorytype::CategoryErr)
         return category;
-
 
     return getXCategory(item);
 }
@@ -1131,7 +1137,7 @@ bool Launcher::isDeepinCustomDesktopFile(QString fileName)
             && fileInfo.baseName().startsWith("deepin-custom-");
 }
 
-Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
+Item Launcher::NewItemWithDesktopInfo(DesktopInfo &info)
 {
     QString enName(info.getKeyFile()->getStr(MainSection, KeyName).c_str());
     QString enComment(info.getKeyFile()->getStr(MainSection, KeyComment).c_str());
@@ -1164,6 +1170,10 @@ Item Launcher:: NewItemWithDesktopInfo(DesktopInfo &info)
     if (!info.getIcon().empty()) {
         item.info.icon = info.getIcon().c_str();
     }
+
+    // 玲珑应用添加后缀, 默认隐藏
+    if (SETTING->getMagicaVoxelSuffixHidden() && appFileName.startsWith("/persistent/linglong/entries/share/applications/"))
+        item.info.name = QString("%1(%2)").arg(appName).arg(tr("magicaVoxel"));
 
     xDeepinCategory = xDeepinCategory.toLower();
 

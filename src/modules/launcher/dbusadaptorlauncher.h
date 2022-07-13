@@ -116,10 +116,11 @@ public:
 
 public: // PROPERTIES
     Q_PROPERTY(int DisplayMode READ displayMode WRITE setDisplayMode NOTIFY DisplayModeChanged)
+    Q_PROPERTY(bool Fullscreen READ fullscreen WRITE setFullscreen NOTIFY FullScreenChanged)
+
     int displayMode() const;
     void setDisplayMode(int value);
 
-    Q_PROPERTY(bool Fullscreen READ fullscreen WRITE setFullscreen NOTIFY FullScreenChanged)
     bool fullscreen() const;
     void setFullscreen(bool value);
 
@@ -135,6 +136,7 @@ public Q_SLOTS: // METHODS
     void RequestUninstall(const QString &id);
     void SetDisableScaling(const QString &id, bool value);
     void SetUseProxy(const QString &id, bool value);
+
 Q_SIGNALS: // SIGNALS
     void ItemChanged(const QString &status, const LauncherItemInfo &itemInfo, qlonglong categoryID);
     void NewAppLaunched(const QString &appID);
@@ -143,6 +145,7 @@ Q_SIGNALS: // SIGNALS
 
     void DisplayModeChanged(int mode);
     void FullScreenChanged(bool isFull);
+    void AppSuffixChanged();
 };
 
 #endif
