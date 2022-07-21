@@ -83,7 +83,7 @@ class DBusAdaptorEntry: public QDBusAbstractAdaptor
                                        "")
 
 public:
-    DBusAdaptorEntry(QObject *parent);
+    explicit DBusAdaptorEntry(QObject *parent);
     virtual ~DBusAdaptorEntry();
 
 public: // PROPERTIES

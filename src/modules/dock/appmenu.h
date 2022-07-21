@@ -35,10 +35,16 @@ typedef std::function<void(uint32_t)> AppMenuAction;
 class AppMenu;
 
 // 应用菜单选项
-struct AppMenuItem {
+struct AppMenuItem
+{
+    AppMenuItem()
+        : isActive(true)
+        , hint(0)
+    {
+    }
+
     QString id;
     QString text;
-    bool isActive;
     QString isCheckable;
     QString checked;
     QString icon;
@@ -47,6 +53,7 @@ struct AppMenuItem {
     QString showCheckMark;
     std::shared_ptr<AppMenu> subMenu;
 
+    bool isActive;
     int hint;
     AppMenuAction action;
 };

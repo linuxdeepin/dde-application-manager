@@ -34,23 +34,23 @@ class ProcessInfo;
 class WindowInfoK: public WindowInfoBase
 {
 public:
-    WindowInfoK(PlasmaWindow *window, XWindow _xid = 0);
-    virtual ~WindowInfoK();
+    explicit WindowInfoK(PlasmaWindow *window, XWindow _xid = 0);
+    virtual ~WindowInfoK() override;
 
-    virtual bool shouldSkip();
-    virtual QString getIcon();
-    virtual QString getTitle();
-    virtual bool isDemandingAttention();
-    virtual bool allowClose();
-    virtual void close(uint32_t timestamp);
-    virtual void activate();
-    virtual void minimize();
-    virtual bool isMinimized();
-    virtual int64_t getCreatedTime();
-    virtual QString getDisplayName();
-    virtual QString getWindowType();
-    virtual void update();
-    virtual void killClient();
+    virtual bool shouldSkip() override;
+    virtual QString getIcon() override;
+    virtual QString getTitle() override;
+    virtual bool isDemandingAttention() override;
+    virtual bool allowClose() override;
+    virtual void close(uint32_t timestamp) override;
+    virtual void activate() override;
+    virtual void minimize() override;
+    virtual bool isMinimized() override;
+    virtual int64_t getCreatedTime() override;
+    virtual QString getDisplayName() override;
+    virtual QString getWindowType() override;
+    virtual void update() override;
+    virtual void killClient() override;
 
     QString getAppId();
     void setAppId(QString _appId);

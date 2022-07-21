@@ -31,7 +31,7 @@ typedef std::map<std::string, std::string> Status;
 class Process
 {
 public:
-    Process();
+    explicit Process();
     explicit Process(int _pid);
 
     bool isExist();

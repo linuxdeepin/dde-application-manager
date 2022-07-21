@@ -31,8 +31,9 @@
 class ProcessInfo
 {
 public:
-    ProcessInfo(int pid);
-    ProcessInfo(std::vector<std::string> &cmd);
+    explicit ProcessInfo(int pid);
+    explicit ProcessInfo(std::vector<std::string> &cmd);
+    virtual ~ProcessInfo();
 
     std::string getEnv(std::string key);
     std::vector<std::string> getCmdLine();

@@ -30,7 +30,7 @@
 enum class HideMode {
     KeepShowing,
     KeepHidden,
-    SmartHide,
+    SmartHide
 };
 
 class HideModeHandler {
@@ -69,7 +69,7 @@ public:
 // 显示样式
 enum class DisplayMode {
     Fashion,
-    Efficient,
+    Efficient
 };
 
 class DisplayModeHandler {
@@ -106,7 +106,7 @@ enum class PositionMode {
     Top,    // 上
     Right,  // 右
     Bottom, // 下
-    Left,   // 左
+    Left    // 左
 };
 
 class PositionModeHandler {
@@ -143,6 +143,8 @@ public:
             return PositionMode::Bottom;
         if (modeStr == "left")
             return PositionMode::Left;
+
+        return PositionMode::Bottom;
     }
 };
 
@@ -179,7 +181,7 @@ public:
     ForceQuitAppMode toEnum() {
         if (modeStr == "disabled")
             return ForceQuitAppMode::Disabled;
-        else if (modeStr == "deactivated")
+        if (modeStr == "deactivated")
             return ForceQuitAppMode::Deactivated;
 
         return ForceQuitAppMode::Enabled;
@@ -236,7 +238,6 @@ public:
     void mergePluginSettings(QString jsonStr);
     void removePluginSettings(QString pluginName, QStringList settingkeys);
     QJsonObject plguinSettingsStrToObj(QString jsonStr);
-
 
 Q_SIGNALS:
     // 隐藏模式改变
