@@ -147,14 +147,16 @@ private:
     void notifyUninstallDone(const Item &item, bool result);
 
 private:
-    QMap<QString, Item> itemsMap;                                   // appKey, Item
+    QMap<QString, Item> itemsMap;                                   // appId, Item
     QMap<QString, QString> desktopPkgMap;
     QMap<QString, Categorytype> pkgCategoryMap;
-    QMap<QString, QString> nameMap;
+    QMap<QString, QString> nameMap;                                 // appId, Name
     QMap<QString, int> noPkgItemIds;
     QVector<QString> appsHidden;
 
     QStringList appDirs;
+
+    QMap<QString, Item> m_desktopAndItemMap;                        // desktoppath,Item
 };
 
 #endif // LAUNCHER_H

@@ -371,7 +371,6 @@ std::map<std::string, bool> AppsDir::getAppNames()
 // 获取所有应用信息
 std::vector<DesktopInfo> AppsDir::getAllDesktopInfos()
 {
-    std::map<std::string, bool> recoder;
     std::vector<DesktopInfo> desktopInfos;
 
     for (auto dir : BaseDir::appDirs()) {
@@ -381,19 +380,13 @@ std::vector<DesktopInfo> AppsDir::getAllDesktopInfos()
             continue;
 
         for (const auto &iter : appNames) {
-            if (recoder.find(iter.first) != recoder.end())
-                continue;
-
             std::string filePath =  dir + iter.first;
+
             DesktopInfo desktopInfo(filePath);
-            if (!desktopInfo.isValidDesktop())
+            if (!DFile::isExisted(filePath) || !desktopInfo.isValidDesktop() || !desktopInfo.shouldShow())
                 continue;
 
-            if (!desktopInfo.shouldShow())
-                continue;
-
-            desktopInfos.push_back(std::move(desktopInfo));
-            recoder[iter.first] = true;
+            desktopInfos.push_back(desktopInfo);
         }
     }
 

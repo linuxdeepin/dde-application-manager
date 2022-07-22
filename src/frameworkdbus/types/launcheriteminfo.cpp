@@ -22,7 +22,7 @@
 
 bool LauncherItemInfo::operator!=(const LauncherItemInfo &itemInfo)
 {
-    return itemInfo.id != id;
+    return itemInfo.path != path;
 }
 
 QDBusArgument &operator<<(QDBusArgument &argument, const LauncherItemInfo &itemInfo)

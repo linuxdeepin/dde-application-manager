@@ -140,11 +140,11 @@ void Launcher::setFullscreen(bool isFull)
  */
 LauncherItemInfoList Launcher::getAllItemInfos()
 {
-    LauncherItemInfoList ret;
-    for (auto item : itemsMap) {
-        ret.push_back(item.info);
-    }
-    return ret;
+    LauncherItemInfoList allItemList;
+    for (auto item : m_desktopAndItemMap)
+        allItemList.push_back(item.info);
+
+    return allItemList;
 }
 
 /**
@@ -686,6 +686,7 @@ void Launcher::addItem(Item item)
 
     item.info.categoryId = qint64(queryCategoryId(&item));
     itemsMap[item.info.id] = item;
+    m_desktopAndItemMap[item.info.path] = item;
 }
 
 Categorytype Launcher::queryCategoryId(const Item *item)
@@ -966,8 +967,6 @@ bool Launcher::doUninstall(DesktopInfo &info, const Item &item)
         break;
     case (AppType::Default):
         ret = removeDesktop(item);
-        break;
-    default:
         break;
     }
 
