@@ -422,6 +422,7 @@ void Entry::updateExportWindowInfos()
         XWindow xid = info->getXid();
         winInfo.title = info->getTitle();
         winInfo.attention = info->isDemandingAttention();
+        winInfo.uuid = info->uuid();
         infos[xid] = winInfo;
     }
 
@@ -431,7 +432,8 @@ void Entry::updateExportWindowInfos()
         for (auto iter = infos.begin(); iter != infos.end(); iter++) {
             XWindow xid = iter.key();
             if (infos[xid].title != m_exportWindowInfos[xid].title ||
-                    infos[xid].attention != m_exportWindowInfos[xid].attention) {
+                    infos[xid].attention != m_exportWindowInfos[xid].attention ||
+                    infos[xid].uuid != m_exportWindowInfos[xid].uuid) {
                 changed = true;
                 break;
             }

@@ -55,6 +55,7 @@ public:
     virtual bool allowClose() = 0;
     virtual void update() = 0;
     virtual void killClient() = 0;
+    virtual QString uuid() = 0;
 
     XWindow getXid() {return xid;}
     void setEntry(Entry *value) {entry = value;}

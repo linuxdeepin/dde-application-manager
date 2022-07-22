@@ -189,6 +189,11 @@ void WindowInfoX::killClient()
     XCB->killClientChecked(xid);
 }
 
+QString WindowInfoX::uuid()
+{
+    return QString();
+}
+
 QString WindowInfoX::getGtkAppId()
 {
     return gtkAppId;

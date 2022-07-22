@@ -50,6 +50,7 @@ public:
     virtual bool allowClose() override;
     virtual void update() override;
     virtual void killClient() override;
+    virtual QString uuid() override;
 
     QString genInnerId(WindowInfoX *winInfo);
     QString getGtkAppId();

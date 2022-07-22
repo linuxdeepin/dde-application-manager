@@ -51,6 +51,7 @@ public:
     virtual QString getWindowType() override;
     virtual void update() override;
     virtual void killClient() override;
+    virtual QString uuid() override;
 
     QString getAppId();
     void setAppId(QString _appId);
@@ -67,14 +68,14 @@ public:
     DockRect getGeometry();
 
 private:
-    bool updateCalled;
-    QString appId;
-    uint32_t internalId;
-    bool demaningAttention;
-    bool closeable;
-    bool minimized;
-    PlasmaWindow *plasmaWindow;
-    DockRect geometry;
+    bool m_updateCalled;
+    QString m_appId;
+    uint32_t m_internalId;
+    bool m_demaningAttention;
+    bool m_closeable;
+    bool m_minimized;
+    PlasmaWindow *m_plasmaWindow;
+    DockRect m_geometry;
 };
 
 #endif // WINDOWINFOK_H

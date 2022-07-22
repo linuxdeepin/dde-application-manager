@@ -48,15 +48,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("AppId"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<DockRect> Geometry()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("Geometry"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<QString> Icon()
     {
@@ -64,15 +60,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("Icon"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<uint> InternalId()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("InternalId"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsActive()
     {
@@ -80,15 +72,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsActive"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsCloseable()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsCloseable"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsDemandingAttention()
     {
@@ -96,15 +84,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsDemandingAttention"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsFullscreen()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsFullscreen"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsFullscreenable()
     {
@@ -112,15 +96,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsFullscreenable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsKeepAbove()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsKeepAbove"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsMaximizeable()
     {
@@ -128,15 +108,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsMaximizeable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsMaximized()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsMaximized"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsMinimizeable()
     {
@@ -144,15 +120,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsMinimizeable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsMinimized()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsMinimized"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsMovable()
     {
@@ -160,15 +132,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsMovable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsOnAllDesktops()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsOnAllDesktops"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsResizable()
     {
@@ -176,15 +144,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsResizable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsShadeable()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsShadeable"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsShaded()
     {
@@ -192,15 +156,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsShaded"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<bool> IsValid()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("IsValid"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> IsVirtualDesktopChangeable()
     {
@@ -208,15 +168,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("IsVirtualDesktopChangeable"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<uint> Pid()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("Pid"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<> RequestActivate()
     {
@@ -231,7 +187,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestActivate"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestClose()
     {
         QList<QVariant> argumentList;
@@ -245,7 +200,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestClose"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestEnterNewVirtualDesktop()
     {
         QList<QVariant> argumentList;
@@ -258,7 +212,6 @@ public Q_SLOTS: // METHODS
 
         CallQueued(QStringLiteral("RequestEnterNewVirtualDesktop"), argumentList);
     }
-
 
     inline QDBusPendingReply<> RequestEnterVirtualDesktop(const QString &argin0)
     {
@@ -275,7 +228,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestEnterVirtualDesktop"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestLeaveVirtualDesktop(const QString &argin0)
     {
         QList<QVariant> argumentList;
@@ -291,7 +243,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestLeaveVirtualDesktop"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestMove()
     {
         QList<QVariant> argumentList;
@@ -304,7 +255,6 @@ public Q_SLOTS: // METHODS
 
         CallQueued(QStringLiteral("RequestMove"), argumentList);
     }
-
 
     inline QDBusPendingReply<> RequestResize()
     {
@@ -319,7 +269,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestResize"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestToggleKeepAbove()
     {
         QList<QVariant> argumentList;
@@ -332,7 +281,6 @@ public Q_SLOTS: // METHODS
 
         CallQueued(QStringLiteral("RequestToggleKeepAbove"), argumentList);
     }
-
 
     inline QDBusPendingReply<> RequestToggleKeepBelow()
     {
@@ -347,7 +295,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestToggleKeepBelow"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestToggleMaximized()
     {
         QList<QVariant> argumentList;
@@ -360,7 +307,6 @@ public Q_SLOTS: // METHODS
 
         CallQueued(QStringLiteral("RequestToggleMaximized"), argumentList);
     }
-
 
     inline QDBusPendingReply<> RequestToggleMinimized()
     {
@@ -375,7 +321,6 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestToggleMinimized"), argumentList);
     }
 
-
     inline QDBusPendingReply<> RequestToggleShaded()
     {
         QList<QVariant> argumentList;
@@ -388,7 +333,6 @@ public Q_SLOTS: // METHODS
 
         CallQueued(QStringLiteral("RequestToggleShaded"), argumentList);
     }
-
 
     inline QDBusPendingReply<> RequestVirtualDesktop(uint argin0)
     {
@@ -405,14 +349,11 @@ public Q_SLOTS: // METHODS
         CallQueued(QStringLiteral("RequestVirtualDesktop"), argumentList);
     }
 
-
     inline QDBusPendingReply<bool> SkipSwitcher()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("SkipSwitcher"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<bool> SkipTaskbar()
     {
@@ -420,15 +361,11 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("SkipTaskbar"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<QString> Title()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("Title"), argumentList);
     }
-
-
 
     inline QDBusPendingReply<uint> VirtualDesktop()
     {
@@ -436,16 +373,17 @@ public Q_SLOTS: // METHODS
         return asyncCallWithArgumentList(QStringLiteral("VirtualDesktop"), argumentList);
     }
 
-
-
     inline QDBusPendingReply<uint> WindowId()
     {
         QList<QVariant> argumentList;
         return asyncCallWithArgumentList(QStringLiteral("WindowId"), argumentList);
     }
 
-
-
+    inline QDBusPendingReply<QByteArray> Uuid()
+    {
+        QList<QVariant> argumentList;
+        return asyncCallWithArgumentList(QStringLiteral("uuid"), argumentList);;
+    }
 
 Q_SIGNALS: // SIGNALS
     void ActiveChanged();

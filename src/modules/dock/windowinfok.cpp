@@ -28,12 +28,12 @@
 
 WindowInfoK::WindowInfoK(PlasmaWindow *window, XWindow _xid)
  : WindowInfoBase ()
- , updateCalled(false)
- , internalId(0)
- , demaningAttention(false)
- , closeable(true)
- , minimized(true)
- , plasmaWindow(window)
+ , m_updateCalled(false)
+ , m_internalId(0)
+ , m_demaningAttention(false)
+ , m_closeable(true)
+ , m_minimized(true)
+ , m_plasmaWindow(window)
 {
     xid = _xid;
     createdTime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count(); // 获取当前时间，精确到纳秒
@@ -46,23 +46,23 @@ WindowInfoK::~WindowInfoK()
 
 bool WindowInfoK::shouldSkip()
 {
-    if (!updateCalled) {
+    if (!m_updateCalled) {
         update();
-        updateCalled = true;
+        m_updateCalled = true;
     }
 
-    bool skip = plasmaWindow->SkipTaskbar();
+    bool skip = m_plasmaWindow->SkipTaskbar();
 
     // 添加窗口能否最小化判断, 如果窗口不能最小化则隐藏任务栏图标
     bool canMinimize = false;
-    canMinimize = plasmaWindow->IsMinimizeable();
+    canMinimize = m_plasmaWindow->IsMinimizeable();
     if (!canMinimize)
         skip = true;
 
     if (skip) {
         // 白名单, 过滤类似“欢迎应用”， 没有最小化窗口但是需要在任务栏显示图标
         QStringList list { "dde-introduction"};
-        if (list.indexOf(appId) != -1)
+        if (list.indexOf(m_appId) != -1)
             skip = false;
     }
 
@@ -81,42 +81,42 @@ QString WindowInfoK::getTitle()
 
 bool WindowInfoK::isDemandingAttention()
 {
-    return demaningAttention;
+    return m_demaningAttention;
 }
 
 bool WindowInfoK::allowClose()
 {
-    return closeable;
+    return m_closeable;
 }
 
 void WindowInfoK::close(uint32_t timestamp)
 {
-    plasmaWindow->RequestClose();
+    m_plasmaWindow->RequestClose();
 }
 
 QString WindowInfoK::getAppId()
 {
-    return appId;
+    return m_appId;
 }
 
 void WindowInfoK::setAppId(QString _appId)
 {
-    appId = _appId;
+    m_appId = _appId;
 }
 
 void WindowInfoK::activate()
 {
-    plasmaWindow->RequestActivate();
+    m_plasmaWindow->RequestActivate();
 }
 
 void WindowInfoK::minimize()
 {
-    plasmaWindow->RequestToggleMinimized();
+    m_plasmaWindow->RequestToggleMinimized();
 }
 
 bool WindowInfoK::isMinimized()
 {
-    return minimized;
+    return m_minimized;
 }
 
 bool WindowInfoK::changeXid(XWindow _xid)
@@ -127,52 +127,52 @@ bool WindowInfoK::changeXid(XWindow _xid)
 
 PlasmaWindow *WindowInfoK::getPlasmaWindow()
 {
-    return plasmaWindow;
+    return m_plasmaWindow;
 }
 
 bool WindowInfoK::updateGeometry()
 {
-    DockRect rect = plasmaWindow->Geometry();
-    if (geometry == rect)
+    DockRect rect = m_plasmaWindow->Geometry();
+    if (m_geometry == rect)
         return false;
 
-    geometry = rect;
+    m_geometry = rect;
     return true;
 }
 
 void WindowInfoK::updateTitle()
 {
-    title = plasmaWindow->Title();
+    title = m_plasmaWindow->Title();
 }
 
 void WindowInfoK::updateDemandingAttention()
 {
-    demaningAttention = plasmaWindow->IsDemandingAttention();
+    m_demaningAttention = m_plasmaWindow->IsDemandingAttention();
 }
 
 void WindowInfoK::updateIcon()
 {
-    icon = plasmaWindow->Icon();
+    icon = m_plasmaWindow->Icon();
 }
 
 void WindowInfoK::updateAppId()
 {
-    appId = plasmaWindow->AppId();
+    m_appId = m_plasmaWindow->AppId();
 }
 
 void WindowInfoK::updateInternalId()
 {
-    internalId = plasmaWindow->InternalId();
+    m_internalId = m_plasmaWindow->InternalId();
 }
 
 void WindowInfoK::updateCloseable()
 {
-    closeable = plasmaWindow->IsCloseable();
+    m_closeable = m_plasmaWindow->IsCloseable();
 }
 
 void WindowInfoK::updateProcessInfo()
 {
-    pid = plasmaWindow->Pid();
+    pid = m_plasmaWindow->Pid();
     processInfo = new ProcessInfo(pid);
 }
 
@@ -182,7 +182,7 @@ void WindowInfoK::updateProcessInfo()
  */
 DockRect WindowInfoK::getGeometry()
 {
-    return geometry;
+    return m_geometry;
 }
 
 int64_t WindowInfoK::getCreatedTime()
@@ -215,5 +215,10 @@ void WindowInfoK::update()
 
 void WindowInfoK::killClient()
 {
+}
+
+QString WindowInfoK::uuid()
+{
+    return QString(m_plasmaWindow->Uuid());
 }
 
