@@ -1,3 +1,14 @@
+dde-application-manager (1.0.2) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * feat: AM 默认程序迁移(Task: 140029)(Influence: 默认程序)
+  * fix: 修复AM启动崩溃的问题(Task: 155485)(Influence: AM正常启动)
+  * chore: 修改静态检查报错(Task: 157871)(Influence: 修复gerrit static-vefified -1 报错)
+  * feat: 玲珑包后缀提供配置功能实现(Task: 152805)(Influence: 默认隐藏后缀,开启,玲珑应用则显示,否则,隐藏.)
+  * fix: 玲珑应用功能适配(Task: 152805)(Influence: 启动器-应用列表中可以获取到所有应用)
+
+ -- caixiangrong <caixiangrong@uniontech.com>  Mon, 25 Jul 2022 13:13:29 +0800
+
 dde-application-manager (1.0.1) unstable; urgency=medium
 
   * dde-flow-sprint1
