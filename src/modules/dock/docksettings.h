@@ -238,6 +238,9 @@ public:
     void setShowRecent(bool visible);
     bool showRecent() const;
 
+    void setShowMultiWindow(bool showMultiWindow);
+    bool showMultiWindow() const;
+
     // plugin settings
     QString getPluginSettings();
     void setPluginSettings(QString jsonStr);
@@ -256,6 +259,8 @@ Q_SIGNALS:
     void forceQuitAppChanged(ForceQuitAppMode mode);
     // 是否显示最近打开应用改变
     void showRecentChanged(bool);
+    // 是否显示多开应用改变
+    void showMultiWindowChanged(bool);
 
 private:
     DockSettings(QObject *paret = nullptr);

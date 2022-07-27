@@ -43,6 +43,7 @@ const QString keyPluginSettings       = "Plugin_Settings";
 const QString keyForceQuitApp         = "Force_Quit_App";
 const QString keyRecentApp            = "Recent_App";
 const QString keyShowRecent           = "Show_Recent";
+const QString keyShowMultiWindow      = "Show_MultiWindow";
 
 const QString scratchDir = QDir::homePath() + "/.local/dock/scratch/";
 

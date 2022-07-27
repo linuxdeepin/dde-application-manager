@@ -35,6 +35,7 @@ DBusAdaptorDock::DBusAdaptorDock(QObject *parent)
         connect(dock, &Dock::hideStateChanged, this, &DBusAdaptorDock::HideStateChanged);
         connect(dock, &Dock::frontendWindowRectChanged, this, &DBusAdaptorDock::FrontendWindowRectChanged);
         connect(dock, &Dock::showRecentChanged, this, &DBusAdaptorDock::showRecentChanged);
+        connect(dock, &Dock::showMultiWindowChanged, this, &DBusAdaptorDock::ShowMultiWindowChanged);
     }
 }
 
@@ -180,6 +181,11 @@ bool DBusAdaptorDock::showRecent() const
     return parent()->showRecent();
 }
 
+bool DBusAdaptorDock::showMultiWindow() const
+{
+    return parent()->showMultiWindow();
+}
+
 Dock *DBusAdaptorDock::parent() const
 {
     return static_cast<Dock *>(QObject::parent());
@@ -254,6 +260,11 @@ bool DBusAdaptorDock::RequestUndock(const QString &desktopFile)
 void DBusAdaptorDock::SetShowRecent(bool visible)
 {
     parent()->setShowRecent(visible);
+}
+
+void DBusAdaptorDock::SetShowMultiWindow(bool showMultiWindow)
+{
+    parent()->setShowMultiWindow(showMultiWindow);
 }
 
 void DBusAdaptorDock::SetFrontendWindowRect(int x, int y, uint width, uint height)

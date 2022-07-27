@@ -96,6 +96,9 @@ class DBusAdaptorDock: public QDBusAbstractAdaptor
                                        "    <method name=\"SetShowRecent\">\n"
                                        "      <arg direction=\"in\" type=\"b\" name=\"visible\"/>\n"
                                        "    </method>\n"
+                                       "    <method name=\"SetShowMultiWindow\">\n"
+                                       "      <arg direction=\"in\" type=\"b\" name=\"visible\"/>\n"
+                                       "    </method>\n"
                                        "    <method name=\"SetFrontendWindowRect\">\n"
                                        "      <arg direction=\"in\" type=\"i\" name=\"x\"/>\n"
                                        "      <arg direction=\"in\" type=\"i\" name=\"y\"/>\n"
@@ -124,6 +127,7 @@ class DBusAdaptorDock: public QDBusAbstractAdaptor
                                        "    <property access=\"readwrite\" type=\"u\" name=\"IconSize\"/>\n"
                                        "    <property access=\"read\" type=\"as\" name=\"DockedApps\"/>\n"
                                        "    <property access=\"read\" type=\"b\" name=\"ShowRecent\"/>\n"
+                                       "    <property access=\"read\" type=\"b\" name=\"ShowMultiWindow\"/>\n"
                                        "  </interface>\n"
                                        "")
 public:
@@ -181,6 +185,9 @@ public: // PROPERTIES
     Q_PROPERTY(bool ShowRecent READ showRecent NOTIFY showRecentChanged)
     bool showRecent() const;
 
+    Q_PROPERTY(bool ShowMultiWindow READ showMultiWindow NOTIFY ShowMultiWindowChanged)
+    bool showMultiWindow() const;
+
     Dock *parent() const;
 
 public Q_SLOTS: // METHODS
@@ -198,6 +205,7 @@ public Q_SLOTS: // METHODS
     bool RequestDock(const QString &desktopFile, int index);
     bool RequestUndock(const QString &desktopFile);
     void SetShowRecent(bool visible);
+    void SetShowMultiWindow(bool showMultiWindow);
     void SetFrontendWindowRect(int x, int y, uint width, uint height);
 
 Q_SIGNALS: // SIGNALS
@@ -219,6 +227,7 @@ Q_SIGNALS: // SIGNALS
     void WindowSizeEfficientChanged(uint value) const;
     void WindowSizeFashionChanged(uint value) const;
     void showRecentChanged(bool) const;
+    void ShowMultiWindowChanged(bool) const;
 };
 
 #endif

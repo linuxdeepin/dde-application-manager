@@ -135,6 +135,8 @@ public:
     bool requestUndock(QString desktopFile);
     void setShowRecent(bool visible);
     bool showRecent() const;
+    void setShowMultiWindow(bool visible);
+    bool showMultiWindow() const;
     void moveEntry(int oldIndex, int newIndex);
     bool isOnDock(QString desktopFile);
     QString queryWindowIdentifyMethod(XWindow windowId);
@@ -151,6 +153,7 @@ Q_SIGNALS:
     void hideStateChanged(int);
     void frontendWindowRectChanged();
     void showRecentChanged(bool);
+    void showMultiWindowChanged(bool);
 
 public Q_SLOTS:
     void updateHideState(bool delay);
@@ -176,6 +179,7 @@ private:
 
 private:
     void onShowRecentChanged(bool visible);
+    void onShowMultiWindowChanged(bool visible);
 
 private:
     WindowIdentify *m_windowIdentify; // 窗口识别
@@ -196,6 +200,7 @@ private:
     DBusHandler *m_dbusHandler;   // 处理dbus交互
     QMutex m_windowOperateMutex;  // 窗口合并或拆分锁
     bool m_showRecent;
+    bool m_showMultiWindow;
 };
 
 #endif // DOCK_H

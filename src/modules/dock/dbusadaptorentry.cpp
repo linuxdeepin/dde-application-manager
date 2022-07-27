@@ -122,6 +122,11 @@ void DBusAdaptorEntry::ForceQuit()
     parent()->forceQuit();
 }
 
+void DBusAdaptorEntry::ActiveWindow(quint32 winId)
+{
+    parent()->activeWindow(winId);
+}
+
 QList<QVariant> DBusAdaptorEntry::GetAllowedCloseWindows()
 {
     auto ids = parent()->getAllowedClosedWindowIds();

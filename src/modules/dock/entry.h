@@ -92,6 +92,7 @@ public:
     void forceQuit();
     void presentWindows();
     void active(uint32_t timestamp);
+    void activeWindow(quint32 winId);
     int mode();
 
     XWindow getCurrentWindow();

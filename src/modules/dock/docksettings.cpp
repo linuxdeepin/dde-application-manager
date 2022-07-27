@@ -54,6 +54,8 @@ void DockSettings::init()
                     Q_EMIT forceQuitAppChanged(ForceQuitAppModeHandler(mode).toEnum());
                 } else if (key == keyShowRecent) {
                     Q_EMIT showRecentChanged(m_dockSettings->value(key).toBool());
+                } else if (key == keyShowMultiWindow) {
+                    Q_EMIT showMultiWindowChanged(m_dockSettings->value(key).toBool());
                 }
             });
     }
@@ -289,6 +291,22 @@ bool DockSettings::showRecent() const
         return false;
 
     return m_dockSettings->value(keyShowRecent).toBool();
+}
+
+void DockSettings::setShowMultiWindow(bool showMultiWindow)
+{
+    if (!m_dockSettings)
+        return;
+
+    m_dockSettings->setValue(keyShowMultiWindow, showMultiWindow);
+}
+
+bool DockSettings::showMultiWindow() const
+{
+    if (!m_dockSettings)
+        return false;
+
+    return m_dockSettings->value(keyShowMultiWindow).toBool();
 }
 
 QString DockSettings::getPluginSettings()

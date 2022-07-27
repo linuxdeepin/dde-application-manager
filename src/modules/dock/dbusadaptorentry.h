@@ -52,6 +52,9 @@ class DBusAdaptorEntry: public QDBusAbstractAdaptor
                                        "    </method>\n"
                                        "    <method name=\"Check\"/>\n"
                                        "    <method name=\"ForceQuit\"/>\n"
+                                       "    <method name=\"ActiveWindow\">\n"
+                                       "      <arg direction=\"in\" type=\"u\" name=\"winId\"/>\n"
+                                       "    </method>\n"
                                        "    <method name=\"GetAllowedCloseWindows\">\n"
                                        "      <arg direction=\"out\" type=\"au\" name=\"windows\"/>\n"
                                        "    </method>\n"
@@ -124,6 +127,7 @@ public Q_SLOTS: // METHODS
     void Activate(uint timestamp);
     void Check();
     void ForceQuit();
+    void ActiveWindow(quint32 winId);
     QList<QVariant> GetAllowedCloseWindows();
     void HandleDragDrop(uint timestamp, const QStringList &files);
     void HandleMenuItem(uint timestamp, const QString &id);

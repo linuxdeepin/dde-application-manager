@@ -161,6 +161,16 @@
 			"description": "show or hide recent app in dock",
 			"permissions": "readwrite",
 			"visibility": "private"
+		},
+		"Show_MultiWindow": {
+			"value": false,
+			"serial": 0,
+			"flags": [],
+			"name": "Show_MultiWindow",
+			"name[zh_CN]": "*****",
+			"description": "show or hide Multi Window in dock when the Entry has subWindow",
+			"permissions": "readwrite",
+			"visibility": "private"
 		}
 	}
 }

@@ -50,6 +50,8 @@ Dock::Dock(QObject *parent)
  , m_activeWindowOld(nullptr)
  , m_dbusHandler(new DBusHandler(this))
  , m_windowOperateMutex(QMutex(QMutex::NonRecursive))
+ , m_showRecent(false)
+ , m_showMultiWindow(false)
 {
     registeModule("dock");
 
@@ -199,8 +201,8 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
 {
     if (!entry->getIsDocked()) {
         qInfo() << "undockEntry: " << entry->getId() << " is not docked";
-        // 在当前未驻留的情况下执行取消驻留操作，则让其直接从当前列表中移除
-        // 这种情况一般是在从最近打开应用中拖动应用到回收站的时候执行的操作
+        // 当应用图标在最近打开区域的时候，此时该应用是未驻留的应用，如果该最近打开应用没有打开窗口，将这个图标
+        // 拖动到回收站了，此时调用的是undock方法，根据需求，需要将该图标删除
         if (!entry->hasWindow()) {
             // 没有子窗口的情况下，从列表中移除
             removeAppEntry(entry);
@@ -574,6 +576,20 @@ bool Dock::showRecent() const
     return m_showRecent;
 }
 
+void Dock::setShowMultiWindow(bool visible)
+{
+    if (m_showMultiWindow == visible)
+        return;
+
+    SETTING->setShowMultiWindow(visible);
+    onShowMultiWindowChanged(visible);
+}
+
+bool Dock::showMultiWindow() const
+{
+    return m_showMultiWindow;
+}
+
 /**
  * @brief Dock::moveEntry 移动驻留程序顺序
  * @param oldIndex
@@ -688,6 +704,7 @@ void Dock::initSettings()
        m_entries->updateEntriesMenu();
     });
     connect(SETTING, &DockSettings::showRecentChanged, this, &Dock::onShowRecentChanged);
+    connect(SETTING, &DockSettings::showMultiWindowChanged, this, &Dock::onShowMultiWindowChanged);
 }
 
 /**
@@ -706,6 +723,8 @@ void Dock::loadAppInfos()
 {
     // 读取是否显示最近打开应用
     m_showRecent = SETTING->showRecent();
+    // 读取是否显示多开窗口拆分
+    m_showMultiWindow = SETTING->showMultiWindow();
     // 初始化驻留应用信息和最近使用的应用的信息
     auto loadApps = [ this ](const QStringList &apps, bool isDocked) {
         for (const QString &app : apps) {
@@ -717,6 +736,7 @@ void Dock::loadAppInfos()
             AppInfo *appInfo = new AppInfo(info);
             Entry *entryObj = new Entry(this, appInfo, appInfo->getInnerId());
             entryObj->setIsDocked(isDocked);
+            entryObj->updateMode();
             entryObj->updateMenu();
             entryObj->startExport();
             m_entries->append(entryObj);
@@ -927,9 +947,9 @@ bool Dock::shouldHideOnSmartHideMode()
             }
         }
         return false;
-    } else {
-        return isWindowDockOverlapK(m_activeWindow);
     }
+
+    return isWindowDockOverlapK(m_activeWindow);
 }
 
 /**
@@ -1258,6 +1278,15 @@ void Dock::onShowRecentChanged(bool visible)
     m_showRecent = visible;
     m_entries->updateShowRecent();
     Q_EMIT showRecentChanged(visible);
+}
+
+void Dock::onShowMultiWindowChanged(bool visible)
+{
+    if (m_showMultiWindow == visible)
+        return;
+
+    m_showMultiWindow = visible;
+    Q_EMIT showMultiWindowChanged(visible);
 }
 
 /** 移除应用实例

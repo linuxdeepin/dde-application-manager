@@ -715,6 +715,33 @@ void Entry::active(uint32_t timestamp)
     }
 }
 
+void Entry::activeWindow(quint32 winId)
+{
+    if (dock->isWaylandEnv()) {
+        if (!m_windowInfoMap.contains(winId))
+            return;
+
+        WindowInfoBase *winInfo = m_windowInfoMap[winId];
+        if (dock->isActiveWindow(winInfo)) {
+            bool showing = dock->isShowingDesktop();
+            if (showing || winInfo->isMinimized()) {
+                winInfo->activate();
+            } else if (m_windowInfoMap.size() == 1) {
+                winInfo->minimize();
+            } else {
+                WindowInfoBase *nextWin = findNextLeader();
+                if (nextWin) {
+                    nextWin->activate();
+                }
+            }
+        } else {
+            winInfo->activate();
+        }
+    } else {
+        dock->doActiveWindow(winId);
+    }
+}
+
 int Entry::mode()
 {
     return m_mode;
