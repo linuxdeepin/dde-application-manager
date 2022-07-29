@@ -1172,7 +1172,7 @@ Item Launcher::NewItemWithDesktopInfo(DesktopInfo &info)
 
     // 玲珑应用添加后缀, 默认隐藏
     if (SETTING->getMagicaVoxelSuffixHidden() && appFileName.startsWith("/persistent/linglong/entries/share/applications/"))
-        item.info.name = QString("%1(%2)").arg(appName).arg(tr("magicaVoxel"));
+        item.info.name = QString("%1(%2)").arg(appName).arg(tr("Linglong"));
 
     xDeepinCategory = xDeepinCategory.toLower();
 
