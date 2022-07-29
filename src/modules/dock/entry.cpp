@@ -627,6 +627,10 @@ void Entry::forceQuit()
             }
         }
     }
+    // 所有的窗口已经退出后，清空m_windowInfoMap内容
+    m_windowInfoMap.clear();
+    // 退出所有的进程后，及时更新当前剩余的窗口数量
+    updateExportWindowInfos();
 }
 
 void Entry::presentWindows()

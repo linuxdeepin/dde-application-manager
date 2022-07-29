@@ -137,6 +137,9 @@ bool Dock::dockEntry(Entry *entry, bool moveToEnd)
         QString newDesktopFile;
         if (app) {
             QString newFile = scratchDir + app->getInnerId() + ".desktop";
+            // 在目标文件存在的情况下，先删除，防止出现驻留不成功的情况
+            if (QFile::exists(newFile))
+                QFile::remove(newFile);
             if (file.copy(app->getFileName(), newFile))
                 newDesktopFile = newFile;
         } else {
@@ -196,6 +199,13 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
 {
     if (!entry->getIsDocked()) {
         qInfo() << "undockEntry: " << entry->getId() << " is not docked";
+        // 在当前未驻留的情况下执行取消驻留操作，则让其直接从当前列表中移除
+        // 这种情况一般是在从最近打开应用中拖动应用到回收站的时候执行的操作
+        if (!entry->hasWindow()) {
+            // 没有子窗口的情况下，从列表中移除
+            removeAppEntry(entry);
+            saveDockedApps();
+        }
         return;
     }
 
