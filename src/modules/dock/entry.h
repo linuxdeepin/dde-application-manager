@@ -31,6 +31,10 @@
 #include <QVector>
 #include <QObject>
 
+#define ENTRY_NONE      0
+#define ENTRY_NORMAL    1
+#define ENTRY_RECENT    2
+
 // 单个应用类
 class Dock;
 class Entry: public QObject
@@ -51,13 +55,14 @@ public:
     QString getFileName();
     AppInfo *getApp();
     void setApp(AppInfo *appinfo);
-    bool getIsDocked();
+    bool getIsDocked() const;
     void setIsDocked(bool value);
     void startExport();
     void stopExport();
     void setMenu(AppMenu *_menu);
     void updateMenu();
     void updateIcon();
+    void updateMode();
     void forceUpdateIcon();
     void updateIsActive();
     WindowInfoBase *getWindowInfoByPid(int pid);
@@ -87,6 +92,7 @@ public:
     void forceQuit();
     void presentWindows();
     void active(uint32_t timestamp);
+    int mode();
 
     XWindow getCurrentWindow();
     QString getDesktopFile();
@@ -107,6 +113,7 @@ Q_SIGNALS:
     void desktopFileChanged(QString value);
     void currentWindowChanged(uint32_t value);
     void windowInfosChanged(const WindowInfoMap &value);
+    void modeChanged(int);
 
 private:
     // 右键菜单项
@@ -121,6 +128,7 @@ private:
     bool killProcess(int pid);
     bool setPropDesktopFile(QString value);
     bool isShowOnDock() const;
+    int getCurrentMode();
 
 private:
     Dock *dock;
@@ -142,6 +150,7 @@ private:
     WindowInfoBase *m_current; // 当前窗口
     XWindow m_currentWindow; //当前窗口Id
     bool m_winIconPreferred;
+    int m_mode;
 };
 
 #endif // ENTRY_H

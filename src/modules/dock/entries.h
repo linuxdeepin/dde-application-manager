@@ -41,7 +41,6 @@ public:
     QVector<Entry *> filterDockedEntries();
     Entry *getByInnerId(QString innerId);
     void append(Entry *entry);
-    void insert(Entry *entry, int index);
     void remove(Entry *entry);
     void move(int oldIndex, int newIndex);
     Entry *getByWindowPid(int pid);
@@ -57,14 +56,16 @@ public:
     bool shouldInRecent();
     void removeLastRecent();
     void setDisplayMode(DisplayMode displayMode);
+    void updateShowRecent();
 
 private:
     void insertCb(Entry *entry, int index);
     void removeCb(Entry *entry);
+    void insert(Entry *entry, int index);
 
 private:
     QList<Entry *> m_items;
-    Dock *dock;
+    Dock *m_dock;
 };
 
 #endif // ENTRIES_H

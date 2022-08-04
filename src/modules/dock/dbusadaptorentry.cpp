@@ -44,6 +44,7 @@ DBusAdaptorEntry::DBusAdaptorEntry(QObject *parent)
         connect(entry, &Entry::desktopFileChanged, this, &DBusAdaptorEntry::DesktopFileChanged);
         connect(entry, &Entry::currentWindowChanged, this, &DBusAdaptorEntry::CurrentWindowChanged);
         connect(entry, &Entry::windowInfosChanged, this, &DBusAdaptorEntry::WindowInfosChanged);
+        connect(entry, &Entry::modeChanged, this, &DBusAdaptorEntry::ModeChanged);
     }
 }
 
@@ -79,6 +80,11 @@ bool DBusAdaptorEntry::isActive() const
 bool DBusAdaptorEntry::isDocked() const
 {
     return parent()->getIsDocked();
+}
+
+int DBusAdaptorEntry::mode() const
+{
+    return parent()->mode();
 }
 
 QString DBusAdaptorEntry::menu() const

@@ -43,6 +43,7 @@ Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
     , m_current(nullptr)
     , m_currentWindow(0)
     , m_winIconPreferred(false)
+    , m_mode(getCurrentMode())
 {
     setApp(_app);
     id = dock->allocEntryId();
@@ -188,7 +189,7 @@ void Entry::setApp(AppInfo *appinfo)
     }
 }
 
-bool Entry::getIsDocked()
+bool Entry::getIsDocked() const
 {
     return isDocked;
 }
@@ -280,6 +281,35 @@ void Entry::updateMenu()
 void Entry::updateIcon()
 {
     setPropIcon(getIcon());
+}
+
+int Entry::getCurrentMode()
+{
+    // 只要当前应用是已经驻留的应用，则让其显示为Normal
+    if (getIsDocked())
+        return ENTRY_NORMAL;
+
+    // 对于未驻留的应用则做如下处理
+    if (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Efficient) {
+        // 高效模式下，只有存在子窗口的，则让其为nornal，没有子窗口的，一般不让其显示
+        return hasWindow() ? ENTRY_NORMAL : ENTRY_NONE;
+    }
+    // 时尚模式下对未驻留应用做如下处理
+    // 如果开启了最近打开应用的功能，则显示到最近打开区域（ENTRY_RECENT）
+    if (dock->showRecent())
+        return ENTRY_RECENT;
+
+    // 未开启最近使用应用的功能，如果有子窗口，则显示成通用的(ENTRY_NORMAL)，如果没有子窗口，则不显示(ENTRY_NONE)
+    return hasWindow() ? ENTRY_NORMAL : ENTRY_NONE;
+}
+
+void Entry::updateMode()
+{
+    int currentMode = getCurrentMode();
+    if (m_mode != currentMode) {
+        m_mode = currentMode;
+        Q_EMIT modeChanged(m_mode);
+    }
 }
 
 void Entry::forceUpdateIcon()
@@ -487,10 +517,13 @@ bool Entry::detachWindow(WindowInfoBase *info)
 bool Entry::isShowOnDock() const
 {
     // 当前应用显示图标的条件是
-    // 1.时尚模式下，该应用如果有打开窗口，则正常显示，如果没有打开窗口，则显示为最近打开应用
+    // 1.时尚模式下，如果开启了显示最近使用，则不管是否有子窗口，都在任务栏上显示
+    // 如果没有开启显示最近使用，则只显示有子窗口的
+    if (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Fashion)
+        return (dock->showRecent() || m_exportWindowInfos.size() > 0);
+
     // 2.高效模式下，只有该应用有打开窗口才显示
-    return (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Fashion
-            || m_exportWindowInfos.size() > 0);
+    return (getIsDocked() || m_exportWindowInfos.size() > 0);
 }
 
 bool Entry::attachWindow(WindowInfoBase *info)
@@ -557,7 +590,7 @@ void Entry::requestDock(bool dockToEnd)
 // 取消驻留
 void Entry::requestUndock(bool dockToEnd)
 {
-    dock->undockEntry(this);
+    dock->undockEntry(this, dockToEnd);
 }
 
 void Entry::newInstance(uint32_t timestamp)
@@ -676,6 +709,11 @@ void Entry::active(uint32_t timestamp)
             }
         }
     }
+}
+
+int Entry::mode()
+{
+    return m_mode;
 }
 
 XWindow Entry::getCurrentWindow()

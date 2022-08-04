@@ -34,6 +34,7 @@ DBusAdaptorDock::DBusAdaptorDock(QObject *parent)
         connect(dock, &Dock::entryRemoved, this, &DBusAdaptorDock::EntryRemoved);
         connect(dock, &Dock::hideStateChanged, this, &DBusAdaptorDock::HideStateChanged);
         connect(dock, &Dock::frontendWindowRectChanged, this, &DBusAdaptorDock::FrontendWindowRectChanged);
+        connect(dock, &Dock::showRecentChanged, this, &DBusAdaptorDock::showRecentChanged);
     }
 }
 
@@ -174,6 +175,11 @@ void DBusAdaptorDock::setShowTimeout(uint value)
     }
 }
 
+bool DBusAdaptorDock::showRecent() const
+{
+    return parent()->showRecent();
+}
+
 Dock *DBusAdaptorDock::parent() const
 {
     return static_cast<Dock *>(QObject::parent());
@@ -243,6 +249,11 @@ bool DBusAdaptorDock::RequestDock(const QString &desktopFile, int index)
 bool DBusAdaptorDock::RequestUndock(const QString &desktopFile)
 {
     return parent()->requestUndock(desktopFile);
+}
+
+void DBusAdaptorDock::SetShowRecent(bool visible)
+{
+    parent()->setShowRecent(visible);
 }
 
 void DBusAdaptorDock::SetFrontendWindowRect(int x, int y, uint width, uint height)

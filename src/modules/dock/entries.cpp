@@ -23,7 +23,7 @@
 #include "dock.h"
 
 Entries::Entries(Dock *_dock)
- : dock(_dock)
+ : m_dock(_dock)
 {
 
 }
@@ -132,8 +132,19 @@ Entry *Entries::getByDesktopFilePath(QString filePath)
 QStringList Entries::getEntryIDs()
 {
     QStringList list;
-    for (auto item : m_items)
-        list.push_back(item->getId());
+    if (static_cast<DisplayMode>(m_dock->getDisplayMode()) == DisplayMode::Fashion
+            && m_dock->showRecent()) {
+        for (Entry *item : m_items)
+            list.push_back(item->getId());
+    } else {
+        // 如果是高效模式或者没有开启显示最近应用的功能，那么未驻留并且没有子窗口的就不显示
+        // 换句话说，只显示已经驻留或者有子窗口的应用
+        for (Entry *item : m_items) {
+            if (!item->getIsDocked() && !item->hasWindow())
+                continue;
+            list << item->getId();
+        }
+    }
 
     return list;
 }
@@ -218,12 +229,14 @@ void Entries::moveEntryToLast(Entry *entry)
 
 void Entries::insertCb(Entry *entry, int index)
 {
-    Q_EMIT dock->entryAdded(QDBusObjectPath(entry->path()), index);
+    if (entry->getIsDocked() || entry->hasWindow() ||
+            (static_cast<DisplayMode>(m_dock->getDisplayMode()) == DisplayMode::Fashion) && m_dock->showRecent())
+        Q_EMIT m_dock->entryAdded(QDBusObjectPath(entry->path()), index);
 }
 
 void Entries::removeCb(Entry *entry)
 {
-    Q_EMIT dock->entryRemoved(entry->getId());
+    Q_EMIT m_dock->entryRemoved(entry->getId());
     entry->stopExport();
 }
 
@@ -274,20 +287,57 @@ void Entries::removeLastRecent()
 
 void Entries::setDisplayMode(DisplayMode displayMode)
 {
+    if (!m_dock->showRecent())
+        return;
+
     // 如果从时尚模式变成高效模式，对列表中所有的没有打开窗口的应用发送移除信号
     if (displayMode == DisplayMode::Efficient) {
         for (Entry *entry : m_items) {
+            entry->updateMode();
             if (!entry->getIsDocked() && !entry->hasWindow())
-                Q_EMIT dock->entryRemoved(entry->getId());
+                Q_EMIT m_dock->entryRemoved(entry->getId());
         }
     } else {
         // 如果从高效模式变成时尚模式，列表中所有的未驻留且不存在打开窗口的应用认为是最近打开应用，发送新增信号
         for (Entry *entry : m_items) {
+            entry->updateMode();
             if (!entry->getIsDocked() && !entry->hasWindow()) {
                 QString objPath = entry->path();
                 int index = m_items.indexOf(entry);
-                Q_EMIT dock->entryAdded(QDBusObjectPath(objPath), index);
+                Q_EMIT m_dock->entryAdded(QDBusObjectPath(objPath), index);
             }
+        }
+    }
+}
+
+void Entries::updateShowRecent()
+{
+    // 高效模式无需做任何操作
+    if (static_cast<DisplayMode>(m_dock->getDisplayMode()) != DisplayMode::Fashion)
+        return;
+
+    bool showRecent = m_dock->showRecent();
+    if (showRecent) {
+        // 如果显示最近打开应用，则发送新增信号
+        for (Entry *entry : m_items) {
+            // 已经驻留的或者有子窗口的本来就在任务栏上面，无需发送信号
+            entry->updateMode();
+            if (entry->getIsDocked() || entry->hasWindow())
+                continue;
+
+            QString objPath = entry->path();
+            int index = m_items.indexOf(entry);
+            Q_EMIT m_dock->entryAdded(QDBusObjectPath(objPath), index);
+        }
+    } else {
+        // 如果是隐藏最近打开的应用，则发送移除的信号
+        for (Entry *entry : m_items) {
+            // 已经驻留的或者有子窗口的本来就在任务栏上面，无需发送信号
+            entry->updateMode();
+            if (entry->getIsDocked() || entry->hasWindow())
+                continue;
+
+            Q_EMIT m_dock->entryRemoved(entry->getId());
         }
     }
 }

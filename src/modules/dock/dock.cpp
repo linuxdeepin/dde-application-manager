@@ -41,15 +41,15 @@
 
 Dock::Dock(QObject *parent)
  : SynModule(parent)
- , entriesSum(0)
- , windowIdentify(new WindowIdentify(this))
- , entries(new Entries(this))
- , ddeLauncherVisible(false)
- , hideState(HideState::Unknown)
- , activeWindow(nullptr)
- , activeWindowOld(nullptr)
- , dbusHandler(new DBusHandler(this))
- , windowOperateMutex(QMutex(QMutex::NonRecursive))
+ , m_entriesSum(0)
+ , m_windowIdentify(new WindowIdentify(this))
+ , m_entries(new Entries(this))
+ , m_ddeLauncherVisible(false)
+ , m_hideState(HideState::Unknown)
+ , m_activeWindow(nullptr)
+ , m_activeWindowOld(nullptr)
+ , m_dbusHandler(new DBusHandler(this))
+ , m_windowOperateMutex(QMutex(QMutex::NonRecursive))
 {
     registeModule("dock");
 
@@ -57,35 +57,35 @@ Dock::Dock(QObject *parent)
     qInfo() << "sessionType=" << sessionType;
     if (sessionType.contains("wayland")) {
         // wayland env
-        isWayland = true;
-        waylandManager = new WaylandManager(this);
-        dbusHandler->listenWaylandWMSignals();
+        m_isWayland = true;
+        m_waylandManager = new WaylandManager(this);
+        m_dbusHandler->listenWaylandWMSignals();
     } else if (sessionType.contains("x11")) {
         // x11 env
-        isWayland = false;
-        x11Manager = new X11Manager(this);
+        m_isWayland = false;
+        m_x11Manager = new X11Manager(this);
     }
 
     initSettings();
     initEntries();
 
     // 初始化智能隐藏定时器
-    smartHideTimer = new QTimer(this);
-    smartHideTimer->setSingleShot(true);
-    connect(smartHideTimer, &QTimer::timeout, this, &Dock::smartHideModeTimerExpired);
+    m_smartHideTimer = new QTimer(this);
+    m_smartHideTimer->setSingleShot(true);
+    connect(m_smartHideTimer, &QTimer::timeout, this, &Dock::smartHideModeTimerExpired);
 
-    if (!isWayland) {
+    if (!m_isWayland) {
         std::thread thread([&] {
             // Xlib方式
-            x11Manager->listenXEventUseXlib();
+            m_x11Manager->listenXEventUseXlib();
             // XCB方式
             //listenXEventUseXCB();
         });
         thread.detach();
-        x11Manager->listenRootWindowXEvent();
-        connect(x11Manager, &X11Manager::requestUpdateHideState, this, &Dock::updateHideState);
-        connect(x11Manager, &X11Manager::requestHandleActiveWindowChange, this, &Dock::handleActiveWindowChanged);
-        connect(x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
+        m_x11Manager->listenRootWindowXEvent();
+        connect(m_x11Manager, &X11Manager::requestUpdateHideState, this, &Dock::updateHideState);
+        connect(m_x11Manager, &X11Manager::requestHandleActiveWindowChange, this, &Dock::handleActiveWindowChanged);
+        connect(m_x11Manager, &X11Manager::requestAttachOrDetachWindow, this, &Dock::attachOrDetachWindow);
     }
 }
 
@@ -180,10 +180,11 @@ bool Dock::dockEntry(Entry *entry, bool moveToEnd)
 
     // 如果是最近打开应用，通过右键菜单的方式驻留，且当前是时尚模式，那么就让entry驻留到末尾
     if (moveToEnd && SETTING->getDisplayMode() == DisplayMode::Fashion)
-        entries->moveEntryToLast(entry);
+        m_entries->moveEntryToLast(entry);
 
     entry->setPropIsDocked(true);
     entry->updateMenu();
+    entry->updateMode();
     return true;
 }
 
@@ -218,6 +219,8 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
     }
 
     if (entry->hasWindow()) {
+        // 移除驻留后，如果当前应用存在子窗口，那么会将移除最近使用应用中最后一个没有子窗口的窗口
+        m_entries->removeLastRecent();
         if (desktopFile.contains(scratchDir) && entry->getCurrentWindowInfo()) {
             QFileInfo info(desktopFile);
             QString baseName = info.baseName();
@@ -229,7 +232,7 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
             } else {
                 // desktop base starts with d:
                 QString innerId;
-                AppInfo *app = windowIdentify->identifyWindow(entry->getCurrentWindowInfo(), innerId);
+                AppInfo *app = m_windowIdentify->identifyWindow(entry->getCurrentWindowInfo(), innerId);
                 // TODO update entry's innerId
                 entry->setApp(app);
                 entry->setInnerId(innerId);
@@ -237,7 +240,7 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
         }
         // 如果存在窗口，在时尚模式下，就会移动到最近打开区域，此时让它移动到最后
         if (moveToEnd && SETTING->getDisplayMode() == DisplayMode::Fashion)
-            entries->moveEntryToLast(entry);
+            m_entries->moveEntryToLast(entry);
 
         entry->updateIcon();
         entry->setPropIsDocked(false);
@@ -248,6 +251,8 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
         removeAppEntry(entry);
     }
 
+    // 更新模式， 是在应用区域还是在最近打开区域
+    entry->updateMode();
     saveDockedApps();
 }
 
@@ -257,7 +262,7 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
  */
 QString Dock::allocEntryId()
 {
-    return QString("e%1T%2").arg(++entriesSum).arg(QString::number(QDateTime::currentSecsSinceEpoch(), 16));
+    return QString("e%1T%2").arg(++m_entriesSum).arg(QString::number(QDateTime::currentSecsSinceEpoch(), 16));
 }
 
 /**
@@ -269,8 +274,8 @@ bool Dock::shouldShowOnDock(WindowInfoBase *info)
 {
     if (info->getWindowType() == "X11") {
         XWindow winId = info->getXid();
-        bool isReg = !!x11Manager->findWindowByXid(winId);
-        bool isContainedInClientList = clientList.indexOf(winId) != -1;
+        bool isReg = m_x11Manager->findWindowByXid(winId);
+        bool isContainedInClientList = m_clientList.indexOf(winId) != -1;
         bool shouldSkip = info->shouldSkip();
         bool isGood = XCB->isGoodWindow(winId);
         qInfo() << "shouldShowOnDock X11: isReg:" << isReg << " isContainedInClientList:" << isContainedInClientList << " shouldSkip:" << shouldSkip << " isGood:" << isGood;
@@ -289,7 +294,7 @@ bool Dock::shouldShowOnDock(WindowInfoBase *info)
  */
 void Dock::setDdeLauncherVisible(bool visible)
 {
-    ddeLauncherVisible = visible;
+    m_ddeLauncherVisible = visible;
 }
 
 /**
@@ -298,7 +303,7 @@ void Dock::setDdeLauncherVisible(bool visible)
  */
 QString Dock::getWMName()
 {
-    return wmName;
+    return m_wmName;
 }
 
 /**
@@ -307,7 +312,7 @@ QString Dock::getWMName()
  */
 void Dock::setWMName(QString name)
 {
-    wmName = name;
+    m_wmName = name;
 }
 
 /**
@@ -335,7 +340,7 @@ QByteArray Dock::getSyncConfig()
  */
 PlasmaWindow *Dock::createPlasmaWindow(QString objPath)
 {
-    return dbusHandler->createPlasmaWindow(objPath);
+    return m_dbusHandler->createPlasmaWindow(objPath);
 }
 
 /**
@@ -344,7 +349,7 @@ PlasmaWindow *Dock::createPlasmaWindow(QString objPath)
  */
 void Dock::listenKWindowSignals(WindowInfoK *windowInfo)
 {
-    dbusHandler->listenKWindowSignals(windowInfo);
+    m_dbusHandler->listenKWindowSignals(windowInfo);
 }
 
 /**
@@ -353,7 +358,7 @@ void Dock::listenKWindowSignals(WindowInfoK *windowInfo)
  */
 void Dock::removePlasmaWindowHandler(PlasmaWindow *window)
 {
-    dbusHandler->removePlasmaWindowHandler(window);
+    m_dbusHandler->removePlasmaWindowHandler(window);
 }
 
 /**
@@ -362,7 +367,7 @@ void Dock::removePlasmaWindowHandler(PlasmaWindow *window)
  */
 void Dock::presentWindows(QList<uint> windows)
 {
-    dbusHandler->presentWindows(windows);
+    m_dbusHandler->presentWindows(windows);
 }
 
 /**
@@ -393,13 +398,11 @@ bool Dock::isActiveWindow(const WindowInfoBase *win)
  */
 WindowInfoBase *Dock::getActiveWindow()
 {
-    WindowInfoBase *ret = nullptr;
-    if (!activeWindow)
-        ret = activeWindowOld;
-    else
-        ret = activeWindow;
+    if (!m_activeWindow)
+        return m_activeWindowOld;
 
-    return ret;
+    return m_activeWindow;
+
 }
 
 void Dock::doActiveWindow(XWindow xid)
@@ -428,7 +431,7 @@ void Dock::doActiveWindow(XWindow xid)
  */
 QList<XWindow> Dock::getClientList()
 {
-    return QList<XWindow>(clientList);
+    return QList<XWindow>(m_clientList);
 }
 
 /**
@@ -436,7 +439,7 @@ QList<XWindow> Dock::getClientList()
  */
 void Dock::setClientList(QList<XWindow> value)
 {
-    clientList = value;
+    m_clientList = value;
 }
 
 /**
@@ -446,8 +449,8 @@ void Dock::setClientList(QList<XWindow> value)
 void Dock::closeWindow(uint32_t windowId)
 {
     qInfo() << "Close Window " << windowId;
-    if (isWayland) {
-        WindowInfoK *info = waylandManager->findWindowByXid(windowId);
+    if (m_isWayland) {
+        WindowInfoK *info = m_waylandManager->findWindowByXid(windowId);
         if (info)
             info->close(0);
     } else {
@@ -461,7 +464,7 @@ void Dock::closeWindow(uint32_t windowId)
  */
 QStringList Dock::getEntryIDs()
 {
-    return entries->getEntryIDs();
+    return m_entries->getEntryIDs();
 }
 
 /**
@@ -473,15 +476,15 @@ QStringList Dock::getEntryIDs()
  */
 void Dock::setFrontendWindowRect(int32_t x, int32_t y, uint width, uint height)
 {
-    if (frontendWindowRect == QRect(x, y, width, height)) {
+    if (m_frontendWindowRect == QRect(x, y, width, height)) {
         qInfo() << "SetFrontendWindowRect: no changed";
         return;
     }
 
-    frontendWindowRect.setX(x);
-    frontendWindowRect.setY(y);
-    frontendWindowRect.setWidth(width);
-    frontendWindowRect.setHeight(height);
+    m_frontendWindowRect.setX(x);
+    m_frontendWindowRect.setY(y);
+    m_frontendWindowRect.setWidth(width);
+    m_frontendWindowRect.setHeight(height);
     updateHideState(false);
 
     Q_EMIT frontendWindowRectChanged();
@@ -514,7 +517,7 @@ bool Dock::requestDock(QString desktopFile, int index)
     }
 
     bool newCreated = false;
-    Entry *entry = entries->getByInnerId(app->getInnerId());
+    Entry *entry = m_entries->getByInnerId(app->getInnerId());
     if (!entry) {
         newCreated = true;
         entry = new Entry(this, app, app->getInnerId());
@@ -525,7 +528,7 @@ bool Dock::requestDock(QString desktopFile, int index)
 
     if (newCreated) {
         entry->startExport();
-        entries->append(entry);
+        m_entries->append(entry);
     }
 
     saveDockedApps();
@@ -547,6 +550,20 @@ bool Dock::requestUndock(QString desktopFile)
    return true;
 }
 
+void Dock::setShowRecent(bool visible)
+{
+    if (visible == m_showRecent)
+        return;
+
+    SETTING->setShowRecent(visible);
+    onShowRecentChanged(visible);
+}
+
+bool Dock::showRecent() const
+{
+    return m_showRecent;
+}
+
 /**
  * @brief Dock::moveEntry 移动驻留程序顺序
  * @param oldIndex
@@ -554,7 +571,7 @@ bool Dock::requestUndock(QString desktopFile)
  */
 void Dock::moveEntry(int oldIndex, int newIndex)
 {
-    entries->move(oldIndex, newIndex);
+    m_entries->move(oldIndex, newIndex);
     saveDockedApps();
 }
 
@@ -565,7 +582,7 @@ void Dock::moveEntry(int oldIndex, int newIndex)
  */
 bool Dock::isOnDock(QString desktopFile)
 {
-    return !!entries->getByDesktopFilePath(desktopFile);
+    return m_entries->getByDesktopFilePath(desktopFile);
 }
 
 /**
@@ -575,7 +592,7 @@ bool Dock::isOnDock(QString desktopFile)
  */
 QString Dock::queryWindowIdentifyMethod(XWindow windowId)
 {
-    return entries->queryWindowIdentifyMethod(windowId);
+    return m_entries->queryWindowIdentifyMethod(windowId);
 }
 
 /**
@@ -585,7 +602,7 @@ QString Dock::queryWindowIdentifyMethod(XWindow windowId)
 QStringList Dock::getDockedAppsDesktopFiles()
 {
     QStringList ret;
-    for (auto entry: entries->filterDockedEntries()) {
+    for (auto entry: m_entries->filterDockedEntries()) {
         ret << entry->getFileName();
     }
 
@@ -645,8 +662,8 @@ void Dock::smartHideModeTimerExpired()
 void Dock::initSettings()
 {
     qInfo() << "init dock settings";
-    forceQuitAppStatus = SETTING->getForceQuitAppMode();
-    connect(SETTING, &DockSettings::hideModeChanged, this, [&](HideMode mode) {
+    m_forceQuitAppStatus = SETTING->getForceQuitAppMode();
+    connect(SETTING, &DockSettings::hideModeChanged, this, [ this ](HideMode mode) {
         this->updateHideState(false);
     });
     connect(SETTING, &DockSettings::displayModeChanged, this, [](DisplayMode mode) {
@@ -655,19 +672,12 @@ void Dock::initSettings()
     connect(SETTING, &DockSettings::positionModeChanged, this, [](PositionMode mode) {
        qInfo() << "position mode change to " << static_cast<int>(mode);
     });
-    connect(SETTING, &DockSettings::forceQuitAppChanged, this, [&](ForceQuitAppMode mode) {
+    connect(SETTING, &DockSettings::forceQuitAppChanged, this, [ this ](ForceQuitAppMode mode) {
        qInfo() << "forceQuitApp change to " << int(mode);
-       forceQuitAppStatus = mode;
-       entries->updateEntriesMenu();
+       m_forceQuitAppStatus = mode;
+       m_entries->updateEntriesMenu();
     });
-}
-
-/**
- * @brief Dock::updateMenu 更新所有应用菜单 TODO
- */
-void Dock::updateMenu()
-{
-
+    connect(SETTING, &DockSettings::showRecentChanged, this, &Dock::onShowRecentChanged);
 }
 
 /**
@@ -684,6 +694,8 @@ void Dock::initEntries()
  */
 void Dock::loadAppInfos()
 {
+    // 读取是否显示最近打开应用
+    m_showRecent = SETTING->showRecent();
     // 初始化驻留应用信息和最近使用的应用的信息
     auto loadApps = [ this ](const QStringList &apps, bool isDocked) {
         for (const QString &app : apps) {
@@ -697,7 +709,7 @@ void Dock::loadAppInfos()
             entryObj->setIsDocked(isDocked);
             entryObj->updateMenu();
             entryObj->startExport();
-            entries->append(entryObj);
+            m_entries->append(entryObj);
         }
     };
 
@@ -718,8 +730,8 @@ void Dock::loadAppInfos()
  */
 void Dock::initClientList()
 {
-    if (isWayland) {
-        dbusHandler->loadClientList();
+    if (m_isWayland) {
+        m_dbusHandler->loadClientList();
     } else {
         QList<XWindow> clients;
         for (auto c : XCB->instance()->getClientList())
@@ -727,9 +739,9 @@ void Dock::initClientList()
 
         // 依次注册窗口
         qSort(clients.begin(), clients.end());
-        clientList = clients;
-        for (auto winId : clientList) {
-            WindowInfoX *winInfo = x11Manager->registerWindow(winId);
+        m_clientList = clients;
+        for (auto winId : m_clientList) {
+            WindowInfoX *winInfo = m_x11Manager->registerWindow(winId);
             attachOrDetachWindow(static_cast<WindowInfoBase *>(winInfo));
         }
     }
@@ -742,7 +754,7 @@ void Dock::initClientList()
  */
 WindowInfoX *Dock::findWindowByXidX(XWindow xid)
 {
-    return x11Manager->findWindowByXid(xid);
+    return m_x11Manager->findWindowByXid(xid);
 }
 
 /**
@@ -752,7 +764,7 @@ WindowInfoX *Dock::findWindowByXidX(XWindow xid)
  */
 WindowInfoK *Dock::findWindowByXidK(XWindow xid)
 {
-    return waylandManager->findWindowByXid(xid);
+    return m_waylandManager->findWindowByXid(xid);
 }
 
 /**
@@ -796,7 +808,7 @@ bool Dock::isWindowDockOverlapX(XWindow xid)
 
     // 检查窗口和任务栏窗口是否存在重叠
     auto winRect = XCB->getWindowGeometry(xid);
-    return hasInterSectionX(winRect, frontendWindowRect);
+    return hasInterSectionX(winRect, m_frontendWindowRect);
 }
 
 /**
@@ -842,7 +854,7 @@ bool Dock::isWindowDockOverlapK(WindowInfoBase *info)
         return false;
     }
 
-    return hasInterSectionK(rect, frontendWindowRect);
+    return hasInterSectionK(rect, m_frontendWindowRect);
 }
 
 /**
@@ -875,7 +887,7 @@ bool Dock::hasInterSectionK(const DockRect &windowRect, QRect dockRect)
  */
 Entry *Dock::getDockedEntryByDesktopFile(const QString &desktopFile)
 {
-    return entries->getDockedEntryByDesktopFile(desktopFile);
+    return m_entries->getDockedEntryByDesktopFile(desktopFile);
 }
 
 /**
@@ -884,11 +896,11 @@ Entry *Dock::getDockedEntryByDesktopFile(const QString &desktopFile)
  */
 bool Dock::shouldHideOnSmartHideMode()
 {
-    if (!activeWindow || ddeLauncherVisible)
+    if (!m_activeWindow || m_ddeLauncherVisible)
         return false;
 
-    if (!isWayland) {
-        XWindow activeWinId = activeWindow->getXid();
+    if (!m_isWayland) {
+        XWindow activeWinId = m_activeWindow->getXid();
 
         // dde launcher is invisible, but it is still active window
         WMClass winClass = XCB->getWMClass(activeWinId);
@@ -906,7 +918,7 @@ bool Dock::shouldHideOnSmartHideMode()
         }
         return false;
     } else {
-        return isWindowDockOverlapK(activeWindow);
+        return isWindowDockOverlapK(m_activeWindow);
     }
 }
 
@@ -984,7 +996,7 @@ QVector<XWindow> Dock::getActiveWinGroup(XWindow xid)
  */
 void Dock::updateHideState(bool delay)
 {
-    if (ddeLauncherVisible) {
+    if (m_ddeLauncherVisible) {
         qInfo() << "updateHideState: dde launcher is visible, show dock";
         setPropHideState(HideState::Show);
     }
@@ -999,7 +1011,7 @@ void Dock::updateHideState(bool delay)
         break;
     case HideMode::SmartHide:
         qInfo() << "reset smart hide mode timer " << delay;
-        smartHideTimer->start(delay ? smartHideTimerDelay : 0);
+        m_smartHideTimer->start(delay ? smartHideTimerDelay : 0);
         break;
     }
 }
@@ -1015,9 +1027,9 @@ void Dock::setPropHideState(HideState state)
         return;
     }
 
-    if (state != hideState) {
-        hideState = state;
-        Q_EMIT hideStateChanged(static_cast<int>(hideState));
+    if (state != m_hideState) {
+        m_hideState = state;
+        Q_EMIT hideStateChanged(static_cast<int>(m_hideState));
     }
 }
 
@@ -1035,7 +1047,7 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
     qInfo() << "attachOrDetachWindow: shouldDock " << shouldDock;
 
     // 顺序解析窗口合并或分离操作
-    QMutexLocker locker(&windowOperateMutex);
+    QMutexLocker locker(&m_windowOperateMutex);
     Entry *entry = info->getEntry();
     if (entry) {
         // detach
@@ -1049,7 +1061,7 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
             // 窗口entryInnerId为空表示未识别，需要识别窗口并创建entryInnerId
             qInfo() << "attach operate: window " << winId << " entryInnerId is empty, now call IdentifyWindow";
             QString innerId;
-            AppInfo *appInfo = windowIdentify->identifyWindow(info, innerId);
+            AppInfo *appInfo = m_windowIdentify->identifyWindow(info, innerId);
             // 窗口entryInnerId即AppInfo的innerId， 用来将窗口和应用绑定关系
             info->setEntryInnerId(innerId);
             info->setAppInfo(appInfo);
@@ -1074,16 +1086,16 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
 void Dock::attachWindow(WindowInfoBase *info)
 {
     // TODO: entries中存在innerid为空的entry， 导致后续新应用通过innerid获取应用一直能获取到
-    Entry *entry = entries->getByInnerId(info->getEntryInnerId());
+    Entry *entry = m_entries->getByInnerId(info->getEntryInnerId());
     if (entry) {
         // entry existed
         entry->attachWindow(info);
     } else {
-        entries->removeLastRecent();
+        m_entries->removeLastRecent();
         entry = new Entry(this, info->getAppInfo(), info->getEntryInnerId());
         if (entry->attachWindow(info)) {
             entry->startExport();
-            entries->append(entry);
+            m_entries->append(entry);
         }
     }
 }
@@ -1094,14 +1106,14 @@ void Dock::attachWindow(WindowInfoBase *info)
  */
 void Dock::detachWindow(WindowInfoBase *info)
 {
-    Entry *entry = entries->getByWindowId(info->getXid());
+    Entry *entry = m_entries->getByWindowId(info->getXid());
     if (!entry)
         return;
 
     bool needRemove = entry->detachWindow(info);
     if (needRemove) {
         // 如果是最近打开应用
-        if (entries->shouldInRecent()) {
+        if (m_entries->shouldInRecent()) {
             // 更新entry的导出窗口信息
             entry->updateExportWindowInfos();
             // 更新entry的右键菜单的信息
@@ -1110,8 +1122,9 @@ void Dock::detachWindow(WindowInfoBase *info)
             entry->setCurrentWindowInfo(nullptr);
             // 移除应用后，同时更新最近打开的应用
             updateRecentApps();
-            // 如果是高效模式，则发送消息
-            if (SETTING->getDisplayMode() == DisplayMode::Efficient) {
+            // 如果是高效模式，则发送消息或者关闭了显示最近应用的功能，则从任务栏移除
+            if (SETTING->getDisplayMode() == DisplayMode::Efficient
+                    || !m_showRecent) {
                 Q_EMIT entryRemoved(entry->getId());
             }
         } else {
@@ -1129,7 +1142,7 @@ void Dock::detachWindow(WindowInfoBase *info)
  */
 void Dock::launchApp(const QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    dbusHandler->launchApp(desktopFile, timestamp, files);
+    m_dbusHandler->launchApp(desktopFile, timestamp, files);
 }
 
 /**
@@ -1140,7 +1153,7 @@ void Dock::launchApp(const QString desktopFile, uint32_t timestamp, QStringList 
  */
 void Dock::launchAppAction(const QString desktopFile, QString action, uint32_t timestamp)
 {
-    dbusHandler->launchAppAction(desktopFile, action, timestamp);
+    m_dbusHandler->launchAppAction(desktopFile, action, timestamp);
 }
 
 /**
@@ -1150,10 +1163,10 @@ void Dock::launchAppAction(const QString desktopFile, QString action, uint32_t t
 bool Dock::is3DWM()
 {
     bool ret = false;
-    if  (wmName.isEmpty())
-        wmName = dbusHandler->getCurrentWM();
+    if  (m_wmName.isEmpty())
+        m_wmName = m_dbusHandler->getCurrentWM();
 
-    if (wmName == "deepin wm")
+    if (m_wmName == "deepin wm")
         ret = true;
 
     return ret;
@@ -1165,7 +1178,7 @@ bool Dock::is3DWM()
  */
 bool Dock::isWaylandEnv()
 {
-    return isWayland;
+    return m_isWayland;
 }
 
 /**
@@ -1175,7 +1188,7 @@ bool Dock::isWaylandEnv()
  */
 WindowInfoK *Dock::handleActiveWindowChangedK(uint activeWin)
 {
-    return waylandManager->handleActiveWindowChangedK(activeWin);
+    return m_waylandManager->handleActiveWindowChangedK(activeWin);
 }
 
 /**
@@ -1186,14 +1199,14 @@ void Dock::handleActiveWindowChanged(WindowInfoBase *info)
 {
     qInfo() << "handleActiveWindowChanged";
     if (!info) {
-        activeWindowOld = info;
-        activeWindow = nullptr;
+        m_activeWindowOld = info;
+        m_activeWindow = nullptr;
         return;
     }
 
-    activeWindow = info;
-    XWindow winId = activeWindow->getXid();
-    entries->handleActiveWindowChanged(winId);
+    m_activeWindow = info;
+    XWindow winId = m_activeWindow->getXid();
+    m_entries->handleActiveWindowChanged(winId);
     updateHideState(true);
 }
 
@@ -1203,7 +1216,7 @@ void Dock::handleActiveWindowChanged(WindowInfoBase *info)
 void Dock::saveDockedApps()
 {
     QStringList dockedApps;
-    for (auto entry : entries->filterDockedEntries()) {
+    for (auto entry : m_entries->filterDockedEntries()) {
         QString path = entry->getApp()->getFileName();
         dockedApps << path;
     }
@@ -1217,7 +1230,7 @@ void Dock::saveDockedApps()
 void Dock::updateRecentApps()
 {
     QStringList unDockedApps;
-    QList<Entry *> recentEntrys = entries->unDockedEntries();
+    QList<Entry *> recentEntrys = m_entries->unDockedEntries();
     for (Entry *entry : recentEntrys) {
         QString path = entry->getApp()->getFileName();
         unDockedApps << path;
@@ -1227,6 +1240,16 @@ void Dock::updateRecentApps()
     SETTING->setRecentApps(unDockedApps);
 }
 
+void Dock::onShowRecentChanged(bool visible)
+{
+    if (m_showRecent == visible)
+        return;
+
+    m_showRecent = visible;
+    m_entries->updateShowRecent();
+    Q_EMIT showRecentChanged(visible);
+}
+
 /** 移除应用实例
  * @brief Dock::removeAppEntry
  * @param entry
@@ -1234,7 +1257,7 @@ void Dock::updateRecentApps()
 void Dock::removeAppEntry(Entry *entry)
 {
     if (entry) {
-        entries->remove(entry);
+        m_entries->remove(entry);
     }
 }
 
@@ -1256,7 +1279,7 @@ void Dock::handleWindowGeometryChanged()
  */
 Entry *Dock::getEntryByWindowId(XWindow windowId)
 {
-    return entries->getByWindowId(windowId);
+    return m_entries->getByWindowId(windowId);
 }
 
 /**
@@ -1266,7 +1289,7 @@ Entry *Dock::getEntryByWindowId(XWindow windowId)
  */
 QString Dock::getDesktopFromWindowByBamf(XWindow windowId)
 {
-    return dbusHandler->getDesktopFromWindowByBamf(windowId);
+    return m_dbusHandler->getDesktopFromWindowByBamf(windowId);
 }
 
 /**
@@ -1275,7 +1298,7 @@ QString Dock::getDesktopFromWindowByBamf(XWindow windowId)
  */
 void Dock::registerWindowWayland(const QString &objPath)
 {
-    return waylandManager->registerWindow(objPath);
+    return m_waylandManager->registerWindow(objPath);
 }
 
 /**
@@ -1284,7 +1307,7 @@ void Dock::registerWindowWayland(const QString &objPath)
  */
 void Dock::unRegisterWindowWayland(const QString &objPath)
 {
-    return waylandManager->unRegisterWindow(objPath);
+    return m_waylandManager->unRegisterWindow(objPath);
 }
 
 /**
@@ -1293,7 +1316,7 @@ void Dock::unRegisterWindowWayland(const QString &objPath)
  */
 bool Dock::isShowingDesktop()
 {
-    return dbusHandler->wlShowingDesktop();
+    return m_dbusHandler->wlShowingDesktop();
 }
 
 /**
@@ -1304,7 +1327,7 @@ bool Dock::isShowingDesktop()
  */
 AppInfo *Dock::identifyWindow(WindowInfoBase *winInfo, QString &innerId)
 {
-    return windowIdentify->identifyWindow(winInfo, innerId);
+    return m_windowIdentify->identifyWindow(winInfo, innerId);
 }
 
 /**
@@ -1318,7 +1341,7 @@ void Dock::markAppLaunched(AppInfo *appInfo)
 
     QString desktopFile = appInfo->getFileName();
     qInfo() << "markAppLaunched: desktopFile is " << desktopFile;
-    dbusHandler->markAppLaunched(desktopFile);
+    m_dbusHandler->markAppLaunched(desktopFile);
 }
 
 /**
@@ -1327,7 +1350,7 @@ void Dock::markAppLaunched(AppInfo *appInfo)
  */
 ForceQuitAppMode Dock::getForceQuitAppStatus()
 {
-    return forceQuitAppStatus;
+    return m_forceQuitAppStatus;
 }
 
 /**
@@ -1345,7 +1368,7 @@ QVector<QString> Dock::getWinIconPreferredApps()
  */
 void Dock::handleLauncherItemDeleted(QString itemPath)
 {
-    for (auto entry : entries->filterDockedEntries()) {
+    for (auto entry : m_entries->filterDockedEntries()) {
         if (entry->getFileName() == itemPath) {
             undockEntry(entry);
             break;
@@ -1359,7 +1382,7 @@ void Dock::handleLauncherItemDeleted(QString itemPath)
  */
 void Dock::handleLauncherItemUpdated(QString itemPath)
 {
-    Entry * entry = entries->getByDesktopFilePath(itemPath);
+    Entry *entry = m_entries->getByDesktopFilePath(itemPath);
     if (!entry)
         return;
 
@@ -1386,7 +1409,7 @@ double Dock::getOpacity()
  */
 QRect Dock::getFrontendWindowRect()
 {
-    return frontendWindowRect;
+    return m_frontendWindowRect;
 }
 
 /**
@@ -1406,7 +1429,7 @@ void Dock::setDisplayMode(int mode)
 {
     DisplayMode displayMode = static_cast<DisplayMode>(mode);
     SETTING->setDisplayMode(displayMode);
-    entries->setDisplayMode(displayMode);
+    m_entries->setDisplayMode(displayMode);
 }
 
 /**
@@ -1425,7 +1448,7 @@ QStringList Dock::getDockedApps()
 QStringList Dock::getEntryPaths()
 {
     QStringList ret;
-    for (auto id : entries->getEntryIDs()) {
+    for (auto id : m_entries->getEntryIDs()) {
         ret.push_back(entryDBusObjPathPrefix + id);
     }
 
@@ -1456,7 +1479,7 @@ void Dock::setHideMode(HideMode mode)
  */
 HideState Dock::getHideState()
 {
-    return hideState;
+    return m_hideState;
 }
 
 /**
@@ -1465,7 +1488,7 @@ HideState Dock::getHideState()
  */
 void Dock::setHideState(HideState state)
 {
-    hideState = state;
+    m_hideState = state;
 }
 
 /**

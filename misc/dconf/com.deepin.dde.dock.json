@@ -151,6 +151,16 @@
 			"description": "The apps which has been opened recently when dock is started",
 			"permissions": "readwrite",
 			"visibility": "private"
+		},
+		"Show_Recent": {
+			"value": false,
+			"serial": 0,
+			"flags": [],
+			"name": "Show_Recent",
+			"name[zh_CN]": "*****",
+			"description": "show or hide recent app in dock",
+			"permissions": "readwrite",
+			"visibility": "private"
 		}
 	}
 }

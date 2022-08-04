@@ -52,6 +52,8 @@ void DockSettings::init()
                 } else if (key == keyForceQuitApp){
                     QString mode = m_dockSettings->value(key).toString();
                     Q_EMIT forceQuitAppChanged(ForceQuitAppModeHandler(mode).toEnum());
+                } else if (key == keyShowRecent) {
+                    Q_EMIT showRecentChanged(m_dockSettings->value(key).toBool());
                 }
             });
     }
@@ -271,6 +273,22 @@ QVector<QString> DockSettings::getWinIconPreferredApps()
     }
 
     return ret;
+}
+
+void DockSettings::setShowRecent(bool visible)
+{
+    if (!m_dockSettings)
+        return;
+
+    m_dockSettings->setValue(keyShowRecent, visible);
+}
+
+bool DockSettings::showRecent() const
+{
+    if (!m_dockSettings)
+        return false;
+
+    return m_dockSettings->value(keyShowRecent).toBool();
 }
 
 QString DockSettings::getPluginSettings()

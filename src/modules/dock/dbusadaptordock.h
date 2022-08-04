@@ -93,6 +93,9 @@ class DBusAdaptorDock: public QDBusAbstractAdaptor
                                        "      <arg direction=\"in\" type=\"s\" name=\"desktopFile\"/>\n"
                                        "      <arg direction=\"out\" type=\"b\" name=\"ok\"/>\n"
                                        "    </method>\n"
+                                       "    <method name=\"SetShowRecent\">\n"
+                                       "      <arg direction=\"in\" type=\"b\" name=\"visible\"/>\n"
+                                       "    </method>\n"
                                        "    <method name=\"SetFrontendWindowRect\">\n"
                                        "      <arg direction=\"in\" type=\"i\" name=\"x\"/>\n"
                                        "      <arg direction=\"in\" type=\"i\" name=\"y\"/>\n"
@@ -120,6 +123,7 @@ class DBusAdaptorDock: public QDBusAbstractAdaptor
                                        "    <property access=\"readwrite\" type=\"i\" name=\"Position\"/>\n"
                                        "    <property access=\"readwrite\" type=\"u\" name=\"IconSize\"/>\n"
                                        "    <property access=\"read\" type=\"as\" name=\"DockedApps\"/>\n"
+                                       "    <property access=\"read\" type=\"b\" name=\"ShowRecent\"/>\n"
                                        "  </interface>\n"
                                        "")
 public:
@@ -174,6 +178,9 @@ public: // PROPERTIES
     uint showTimeout() const;
     void setShowTimeout(uint value);
 
+    Q_PROPERTY(bool ShowRecent READ showRecent NOTIFY showRecentChanged)
+    bool showRecent() const;
+
     Dock *parent() const;
 
 public Q_SLOTS: // METHODS
@@ -190,6 +197,7 @@ public Q_SLOTS: // METHODS
     void RemovePluginSettings(QString key1, QStringList key2List);
     bool RequestDock(const QString &desktopFile, int index);
     bool RequestUndock(const QString &desktopFile);
+    void SetShowRecent(bool visible);
     void SetFrontendWindowRect(int x, int y, uint width, uint height);
 
 Q_SIGNALS: // SIGNALS
@@ -210,6 +218,7 @@ Q_SIGNALS: // SIGNALS
     void ShowTimeoutChanged(uint value) const;
     void WindowSizeEfficientChanged(uint value) const;
     void WindowSizeFashionChanged(uint value) const;
+    void showRecentChanged(bool) const;
 };
 
 #endif

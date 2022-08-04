@@ -78,6 +78,7 @@ class DBusAdaptorEntry: public QDBusAbstractAdaptor
                                        "    <property access=\"read\" type=\"s\" name=\"Menu\"/>\n"
                                        "    <property access=\"read\" type=\"s\" name=\"DesktopFile\"/>\n"
                                        "    <property access=\"read\" type=\"a{u(sb)}\" name=\"WindowInfos\"/>\n"
+                                       "    <property access=\"read\" type=\"i\" name=\"Mode\"/>\n"
                                        "    <annotation value=\"WindowInfoMap\" name=\"org.qtproject.QtDBus.QtTypeName\"/>\n"
                                        "  </interface>\n"
                                        "")
@@ -114,6 +115,9 @@ public: // PROPERTIES
     Q_PROPERTY(WindowInfoMap WindowInfos READ windowInfos NOTIFY WindowInfosChanged)
     WindowInfoMap windowInfos();
 
+    Q_PROPERTY(int Mode READ mode NOTIFY ModeChanged)
+    int mode() const;
+
     Entry *parent() const;
 
 public Q_SLOTS: // METHODS
@@ -137,6 +141,7 @@ Q_SIGNALS: // SIGNALS
     void DesktopFileChanged(const QString &value) const;
     void CurrentWindowChanged(uint32_t value) const;
     void WindowInfosChanged(WindowInfoMap value) const;
+    void ModeChanged(int value) const;
 };
 
 #endif

@@ -54,6 +54,8 @@ public:
         case HideMode::SmartHide:
             return "smart-hide";
         }
+        // 默认保持始终显示
+        return "keep-showing";
     }
 
     HideMode toEnum() {
@@ -233,6 +235,8 @@ public:
     void setRecentApps(const QStringList &apps);
     double getOpacity();
     QVector<QString> getWinIconPreferredApps();
+    void setShowRecent(bool visible);
+    bool showRecent() const;
 
     // plugin settings
     QString getPluginSettings();
@@ -250,6 +254,8 @@ Q_SIGNALS:
     void positionModeChanged(PositionMode mode);
     // 强制退出应用开关改变
     void forceQuitAppChanged(ForceQuitAppMode mode);
+    // 是否显示最近打开应用改变
+    void showRecentChanged(bool);
 
 private:
     DockSettings(QObject *paret = nullptr);
