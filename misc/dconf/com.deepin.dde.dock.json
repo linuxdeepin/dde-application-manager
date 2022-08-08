@@ -141,6 +141,16 @@
 			"description": "The dock gets different display mode, for instance, dock looks like win7 taskbar on classic mode.",
 			"permissions": "readwrite",
 			"visibility": "private"
+		},
+		"Recent_App": {
+			"value": [],
+			"serial": 0,
+			"flags": [],
+			"name": "Recent_App",
+			"name[zh_CN]": "*****",
+			"description": "The apps which has been opened recently when dock is started",
+			"permissions": "readwrite",
+			"visibility": "private"
 		}
 	}
 }

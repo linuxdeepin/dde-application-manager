@@ -41,7 +41,8 @@ public:
     ~Entry();
 
     bool isValid();
-    QString getId();
+    QString getId() const;
+    QString path() const;
     QString getName();
     void updateName();
     QString getIcon();
@@ -79,8 +80,8 @@ public:
 
     void handleMenuItem(uint32_t timestamp, QString itemId);
     void handleDragDrop(uint32_t timestamp, QStringList files);
-    void requestDock();
-    void requestUndock();
+    void requestDock(bool dockToEnd = false);
+    void requestUndock(bool dockToEnd = false);
     void newInstance(uint32_t timestamp);
     void check();
     void forceQuit();
@@ -119,7 +120,9 @@ private:
     AppMenuItem getMenuItemAllWindows();
     bool killProcess(int pid);
     bool setPropDesktopFile(QString value);
+    bool isShowOnDock() const;
 
+private:
     Dock *dock;
     AppInfo *app;
     AppMenu *menu;
@@ -134,12 +137,11 @@ private:
     QString desktopFile;
 
     // Dbus属性直接放到interface上
-    QMap<XWindow, WindowInfoBase *> windowInfoMap; // 该应用所有窗口
-    WindowInfoMap exportWindowInfos;    // 该应用导出的窗口属性
-    WindowInfoBase *current; // 当前窗口
-    XWindow currentWindow; //当前窗口Id
-    bool winIconPreferred;
-    QString objctPath;
+    QMap<XWindow, WindowInfoBase *> m_windowInfoMap; // 该应用所有窗口
+    WindowInfoMap m_exportWindowInfos;    // 该应用导出的窗口属性
+    WindowInfoBase *m_current; // 当前窗口
+    XWindow m_currentWindow; //当前窗口Id
+    bool m_winIconPreferred;
 };
 
 #endif // ENTRY_H

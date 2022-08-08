@@ -41,21 +41,9 @@ const QString keyWinIconPreferredApps = "Win_Icon_Preferred_Apps";
 const QString keyOpacity              = "Opacity";
 const QString keyPluginSettings       = "Plugin_Settings";
 const QString keyForceQuitApp         = "Force_Quit_App";
+const QString keyRecentApp            = "Recent_App";
 
 const QString scratchDir = QDir::homePath() + "/.local/dock/scratch/";
-const QMap<QString, QString> pathDirCodeMap {
-    {"/usr/share/applications/", "/S@"},
-    {"/usr/local/share/applications/", "/L@"},
-    {QDir::homePath() + "/.local/share/applications", "/H@"},
-    {QDir::homePath() + "/.local/dock/scratch", "/D@"},
-};
-
-const QMap<QString, QString> pathCodeDirMap {
-    {"/S@", "/usr/share/applications/"},
-    {"/L@", "/usr/local/share/applications/"},
-    {"/H@", QDir::homePath() + "/.local/share/applications"},
-    {"/D@", QDir::homePath() + "/.local/dock/scratch"},
-};
 
 // DBus服务、路径
 const QString dbusService = "org.deepin.dde.daemon.Dock1";

@@ -31,7 +31,7 @@ Entries::Entries(Dock *_dock)
 QVector<Entry *> Entries::filterDockedEntries()
 {
     QVector<Entry *> ret;
-    for (auto &entry : items) {
+    for (auto &entry : m_items) {
         if (entry->isValid() && entry->getIsDocked())
             ret.push_back(entry);
     }
@@ -42,7 +42,7 @@ QVector<Entry *> Entries::filterDockedEntries()
 Entry *Entries::getByInnerId(QString innerId)
 {
     Entry *ret = nullptr;
-    for (auto &entry : items) {
+    for (auto &entry : m_items) {
         if (entry->getInnerId() == innerId)
             ret = entry;
     }
@@ -57,13 +57,13 @@ void Entries::append(Entry *entry)
 
 void Entries::insert(Entry *entry, int index)
 {
-    if (index < 0 || index >= items.size()) {
+    if (index < 0 || index >= m_items.size()) {
         // append
-        index = items.size();
-        items.push_back(entry);
+        index = m_items.size();
+        m_items.push_back(entry);
     } else {
         // insert
-        items.insert(index, entry);
+        m_items.insert(index, entry);
     }
 
     insertCb(entry, index);
@@ -71,9 +71,9 @@ void Entries::insert(Entry *entry, int index)
 
 void Entries::remove(Entry *entry)
 {
-    for (auto iter = items.begin(); iter != items.end();) {
+    for (auto iter = m_items.begin(); iter != m_items.end();) {
         if ((*iter)->getId() == entry->getId()) {
-            iter = items.erase(iter);
+            iter = m_items.erase(iter);
             removeCb(entry);
             delete entry;
         } else {
@@ -84,16 +84,16 @@ void Entries::remove(Entry *entry)
 
 void Entries::move(int oldIndex, int newIndex)
 {
-    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 || oldIndex >= items.size() || newIndex >= items.size())
+    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 || oldIndex >= m_items.size() || newIndex >= m_items.size())
         return;
 
-    items.swap(oldIndex, newIndex);
+    m_items.swap(oldIndex, newIndex);
 }
 
 Entry *Entries::getByWindowPid(int pid)
 {
     Entry *ret = nullptr;
-    for (auto &entry : items) {
+    for (auto &entry : m_items) {
         if (entry->getWindowInfoByPid(pid)) {
             ret = entry;
             break;
@@ -106,7 +106,7 @@ Entry *Entries::getByWindowPid(int pid)
 Entry *Entries::getByWindowId(XWindow windowId)
 {
     Entry *ret = nullptr;
-    for (auto &entry : items) {
+    for (auto &entry : m_items) {
         if (entry->getWindowInfoByWinId(windowId)) {
             ret = entry;
             break;
@@ -119,7 +119,7 @@ Entry *Entries::getByWindowId(XWindow windowId)
 Entry *Entries::getByDesktopFilePath(QString filePath)
 {
     Entry *ret = nullptr;
-    for (auto &entry : items) {
+    for (auto &entry : m_items) {
         if (entry->getFileName() == filePath) {
             ret = entry;
             break;
@@ -132,7 +132,7 @@ Entry *Entries::getByDesktopFilePath(QString filePath)
 QStringList Entries::getEntryIDs()
 {
     QStringList list;
-    for (auto item : items)
+    for (auto item : m_items)
         list.push_back(item->getId());
 
     return list;
@@ -157,7 +157,7 @@ Entry *Entries::getDockedEntryByDesktopFile(const QString &desktopFile)
 QString Entries::queryWindowIdentifyMethod(XWindow windowId)
 {
     QString ret;
-    for (auto entry : items) {
+    for (auto entry : m_items) {
         auto window = entry->getWindowInfoByWinId(windowId);
         if (window) {
             auto app = window->getAppInfo();
@@ -175,7 +175,7 @@ QString Entries::queryWindowIdentifyMethod(XWindow windowId)
 
 void Entries::handleActiveWindowChanged(XWindow activeWindId)
 {
-    for (auto entry : items) {
+    for (auto entry : m_items) {
         auto windowInfo = entry->getWindowInfoByWinId(activeWindId);
         if (windowInfo) {
             entry->setPropIsActive(true);
@@ -190,15 +190,35 @@ void Entries::handleActiveWindowChanged(XWindow activeWindId)
 
 void Entries::updateEntriesMenu()
 {
-    for (auto entry : items) {
+    for (auto entry : m_items) {
         entry->updateMenu();
+    }
+}
+
+const QList<Entry *> Entries::unDockedEntries() const
+{
+    QList<Entry *> entrys;
+    for (Entry *entry : m_items) {
+        if (!entry->isValid() || entry->getIsDocked())
+            continue;
+
+        entrys << entry;
+    }
+
+    return entrys;
+}
+
+void Entries::moveEntryToLast(Entry *entry)
+{
+    if (m_items.contains(entry)) {
+        m_items.removeOne(entry);
+        m_items << entry;
     }
 }
 
 void Entries::insertCb(Entry *entry, int index)
 {
-    QString objPath = entryDBusObjPathPrefix + entry->getId();
-    Q_EMIT dock->entryAdded(QDBusObjectPath(objPath), index);
+    Q_EMIT dock->entryAdded(QDBusObjectPath(entry->path()), index);
 }
 
 void Entries::removeCb(Entry *entry)
@@ -207,3 +227,67 @@ void Entries::removeCb(Entry *entry)
     entry->stopExport();
 }
 
+bool Entries::shouldInRecent()
+{
+    // 如果当前移除的应用是未驻留应用，则判断未驻留应用的数量是否小于等于3，则让其始终显示
+    QList<Entry *> unDocktrys;
+    for (Entry *entry : m_items) {
+        if (entry->isValid() && !entry->getIsDocked())
+            unDocktrys << entry;
+    }
+
+    // 如果当前未驻留应用的数量小于3个，则认为后续的应用应该显示到最近打开应用
+    return (unDocktrys.size() <= MAX_UNOPEN_RECENT_COUNT);
+}
+
+void Entries::removeLastRecent()
+{
+    // 先查找最近使用的应用，删除没有使用的
+    int unDockCount = 0;
+    QList<Entry *> unDockEntrys;
+    QList<Entry *> removeEntrys;
+    for (Entry *entry : m_items) {
+        if (entry->getIsDocked())
+            continue;
+
+        // 此处只移除没有子窗口的图标
+        if (!entry->hasWindow()) {
+            if (!entry->isValid())
+                removeEntrys << entry; // 如果应用已经被卸载，那么需要删除
+            else
+                unDockEntrys << entry;
+        }
+
+        unDockCount++;
+    }
+    if (unDockCount >= MAX_UNOPEN_RECENT_COUNT && unDockEntrys.size() > 0) {
+        // 只有当最近使用区域的图标大于等于某个数值（3）的时候，并且存在没有子窗口的Entry，那么就移除该Entry
+        Entry *entry = unDockEntrys[0];
+        m_items.removeOne(entry);
+        removeEntrys << entry;
+    }
+    for (Entry *entry : removeEntrys) {
+        removeCb(entry);
+        delete entry;
+    }
+}
+
+void Entries::setDisplayMode(DisplayMode displayMode)
+{
+    // 如果从时尚模式变成高效模式，对列表中所有的没有打开窗口的应用发送移除信号
+    if (displayMode == DisplayMode::Efficient) {
+        for (Entry *entry : m_items) {
+            if (!entry->getIsDocked() && !entry->hasWindow())
+                Q_EMIT dock->entryRemoved(entry->getId());
+        }
+    } else {
+        // 如果从高效模式变成时尚模式，列表中所有的未驻留且不存在打开窗口的应用认为是最近打开应用，发送新增信号
+        for (Entry *entry : m_items) {
+            if (!entry->getIsDocked() && !entry->hasWindow()) {
+                QString objPath = entry->path();
+                int index = m_items.indexOf(entry);
+                Q_EMIT dock->entryAdded(QDBusObjectPath(objPath), index);
+            }
+        }
+    }
+}

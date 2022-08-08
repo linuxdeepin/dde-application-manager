@@ -23,8 +23,12 @@
 #define ENTRIES_H
 
 #include "entry.h"
+#include "docksettings.h"
+
 #include <QVector>
 #include <QWeakPointer>
+
+#define MAX_UNOPEN_RECENT_COUNT 3
 
 class Dock;
 
@@ -48,11 +52,18 @@ public:
     QString queryWindowIdentifyMethod(XWindow windowId);
     void handleActiveWindowChanged(XWindow activeWindId);
     void updateEntriesMenu();
+    const QList<Entry *> unDockedEntries() const;
+    void moveEntryToLast(Entry *entry);
+    bool shouldInRecent();
+    void removeLastRecent();
+    void setDisplayMode(DisplayMode displayMode);
+
+private:
     void insertCb(Entry *entry, int index);
     void removeCb(Entry *entry);
 
 private:
-    QList<Entry *> items;
+    QList<Entry *> m_items;
     Dock *dock;
 };
 

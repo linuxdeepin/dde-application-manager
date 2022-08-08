@@ -64,6 +64,18 @@ void DBusHandler::listenWaylandWMSignals()
     });
 }
 
+void DBusHandler::loadClientList()
+{
+    if (!kwaylandManager)
+        return;
+
+    // 加载已存在的窗口
+    QDBusPendingReply<QVariantList> windowList = kwaylandManager->Windows();
+    QVariantList windows = windowList.value();
+    for (QVariant windowPath : windows)
+        dock->registerWindowWayland(windowPath.toString());
+}
+
 void DBusHandler::handleLauncherItemChanged(const QString &status, LauncherItemInfo itemInfo, qlonglong categoryID)
 {
     qInfo() << "handleLauncherItemChanged status:" << status << " Name:" << itemInfo.name << " ID:" << itemInfo.id;
@@ -125,7 +137,7 @@ void DBusHandler::handleWlActiveWindowChange()
         return;
 
     WindowInfoK *info = dock->handleActiveWindowChangedK(activeWinInternalId);
-    if (info->getXid() != 0) {
+    if (info && info->getXid() != 0) {
         WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
         if (base) {
             dock->handleActiveWindowChanged(base);
@@ -142,7 +154,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
         return;
 
     // Title changed
-    connect(window, &PlasmaWindow::TitleChanged, this, [&] {
+    connect(window, &PlasmaWindow::TitleChanged, this, [=] {
         windowInfo->updateTitle();
         auto entry = dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
@@ -155,7 +167,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     });
 
     // Icon changed
-    connect(window, &PlasmaWindow::IconChanged, this, [&] {
+    connect(window, &PlasmaWindow::IconChanged, this, [=] {
         windowInfo->updateIcon();
         auto entry = dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
@@ -165,7 +177,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     });
 
     // DemandingAttention changed
-    connect(window, &PlasmaWindow::DemandsAttentionChanged, this, [&] {
+    connect(window, &PlasmaWindow::DemandsAttentionChanged, this, [=] {
         windowInfo->updateDemandingAttention();
         auto entry = dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
@@ -175,7 +187,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     });
 
     // Geometry changed
-    connect(window, &PlasmaWindow::GeometryChanged, this, [&] {
+    connect(window, &PlasmaWindow::GeometryChanged, this, [=] {
         if (!windowInfo->updateGeometry())
             return;
 
@@ -185,7 +197,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
 
 PlasmaWindow *DBusHandler::createPlasmaWindow(QString objPath)
 {
-    return new PlasmaWindow("com.deepin.daemon.KWayland.PlasmaWindow", objPath, session, this);
+    return new PlasmaWindow("com.deepin.daemon.KWayland", objPath, session, this);
 }
 
 /**

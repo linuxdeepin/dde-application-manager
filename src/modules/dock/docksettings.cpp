@@ -209,13 +209,21 @@ void DockSettings::setWindowSizeFashion(uint size)
     }
 }
 
-QStringList DockSettings::getDockedApps()
+void DockSettings::saveStringList(const QString &key, const QStringList &values)
+{
+    if (!m_dockSettings)
+        return;
+
+    m_dockSettings->setValue(key, values);
+}
+
+QStringList DockSettings::loadStringList(const QString &key) const
 {
     QStringList ret;
     if (!m_dockSettings)
         return ret;
 
-    for(const auto &var : m_dockSettings->value(keyDockedApps).toList()) {
+    for(const auto &var : m_dockSettings->value(key).toList()) {
         if (var.isValid())
             ret.push_back(var.toString());
     }
@@ -223,18 +231,24 @@ QStringList DockSettings::getDockedApps()
     return ret;
 }
 
-void DockSettings::setDockedApps(QList<QString> &apps)
+QStringList DockSettings::getDockedApps()
 {
-    if (!m_dockSettings)
-        return;
+    return loadStringList(keyDockedApps);
+}
 
-    qDebug() << "docked apps:" << apps;
-    QVariantList list;
-    for (auto app : apps) {
-        list << QVariant(app);
-    }
+void DockSettings::setDockedApps(const QStringList &apps)
+{
+    saveStringList(keyDockedApps, apps);
+}
 
-    m_dockSettings->setValue(keyDockedApps, list);
+QStringList DockSettings::getRecentApps() const
+{
+    return loadStringList(keyRecentApp);
+}
+
+void DockSettings::setRecentApps(const QStringList &apps)
+{
+    saveStringList(keyRecentApp, apps);
 }
 
 double DockSettings::getOpacity()

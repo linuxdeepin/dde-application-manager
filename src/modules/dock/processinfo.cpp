@@ -109,7 +109,6 @@ ProcessInfo::ProcessInfo(std::vector<std::string> &cmd)
 
 ProcessInfo::~ProcessInfo()
 {
-
 }
 
 std::string ProcessInfo::getEnv(std::string key)

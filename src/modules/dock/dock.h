@@ -54,8 +54,8 @@ public:
     explicit Dock(QObject *parent = nullptr);
     ~Dock();
 
-    bool dockEntry(Entry *entry);
-    void undockEntry(Entry *entry);
+    bool dockEntry(Entry *entry, bool moveToEnd = false);
+    void undockEntry(Entry *entry, bool moveToEnd = false);
     QString allocEntryId();
     bool shouldShowOnDock(WindowInfoBase *info);
     void setDdeLauncherVisible(bool visible);
@@ -159,7 +159,7 @@ private:
     void initSettings();
     void updateMenu();
     void initEntries();
-    void initDockedApps();
+    void loadAppInfos();
     void initClientList();
     WindowInfoX *findWindowByXidX(XWindow xid);
     WindowInfoK *findWindowByXidK(XWindow xid);
@@ -170,7 +170,9 @@ private:
     Entry *getDockedEntryByDesktopFile(const QString &desktopFile);
     bool shouldHideOnSmartHideMode();
     QVector<XWindow> getActiveWinGroup(XWindow xid);
+    void updateRecentApps();
 
+private:
     WindowIdentify *windowIdentify; // 窗口识别
     Entries *entries;   // 所有应用实例
     int entriesSum; // 累计打开的应用数量

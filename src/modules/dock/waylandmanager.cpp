@@ -52,20 +52,20 @@ void WaylandManager::registerWindow(const QString &objPath)
 
     QString appId = plasmaWindow->AppId();
     QStringList list {"dde-dock", "dde-launcher", "dde-clipboard", "dde-osd", "dde-polkit-agent", "dde-simple-egl", "dmcs"};
-    if (list.indexOf(appId))
+    if (list.indexOf(appId) >= 0)
         return;
 
     XWindow winId = XCB->allocId();     // XCB中未发现释放XID接口
     XWindow realId = plasmaWindow->WindowId();
-    if (!realId)
+    if (realId)
         winId = realId;
 
     WindowInfoK *winInfo = new WindowInfoK(plasmaWindow, winId);
     dock->listenKWindowSignals(winInfo);
     insertWindow(objPath, winInfo);
     dock->attachOrDetachWindow(winInfo);
-    if (realId) {
-        windowInfoMap[realId] = winInfo;
+    if (winId) {
+        windowInfoMap[winId] = winInfo;
     }
 }
 

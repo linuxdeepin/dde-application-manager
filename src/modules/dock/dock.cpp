@@ -99,7 +99,7 @@ Dock::~Dock()
  * @param entry 应用实例
  * @return
  */
-bool Dock::dockEntry(Entry *entry)
+bool Dock::dockEntry(Entry *entry, bool moveToEnd)
 {
     if (entry->getIsDocked())
         return false;
@@ -178,6 +178,10 @@ bool Dock::dockEntry(Entry *entry)
         entry->setInnerId(app->getInnerId());
     }
 
+    // 如果是最近打开应用，通过右键菜单的方式驻留，且当前是时尚模式，那么就让entry驻留到末尾
+    if (moveToEnd && SETTING->getDisplayMode() == DisplayMode::Fashion)
+        entries->moveEntryToLast(entry);
+
     entry->setPropIsDocked(true);
     entry->updateMenu();
     return true;
@@ -187,7 +191,7 @@ bool Dock::dockEntry(Entry *entry)
  * @brief Dock::undockEntry 取消驻留
  * @param entry 应用实例
  */
-void Dock::undockEntry(Entry *entry)
+void Dock::undockEntry(Entry *entry, bool moveToEnd)
 {
     if (!entry->getIsDocked()) {
         qInfo() << "undockEntry: " << entry->getId() << " is not docked";
@@ -214,7 +218,7 @@ void Dock::undockEntry(Entry *entry)
     }
 
     if (entry->hasWindow()) {
-        if (desktopFile.contains(scratchDir) && !!entry->getCurrentWindowInfo()) {
+        if (desktopFile.contains(scratchDir) && entry->getCurrentWindowInfo()) {
             QFileInfo info(desktopFile);
             QString baseName = info.baseName();
             if (baseName.startsWith(windowHashPrefix)) {
@@ -231,6 +235,10 @@ void Dock::undockEntry(Entry *entry)
                 entry->setInnerId(innerId);
             }
         }
+        // 如果存在窗口，在时尚模式下，就会移动到最近打开区域，此时让它移动到最后
+        if (moveToEnd && SETTING->getDisplayMode() == DisplayMode::Fashion)
+            entries->moveEntryToLast(entry);
+
         entry->updateIcon();
         entry->setPropIsDocked(false);
         entry->updateName();
@@ -667,39 +675,41 @@ void Dock::updateMenu()
  */
 void Dock::initEntries()
 {
-    initDockedApps();
-    if (!isWayland)
-        initClientList();
+    loadAppInfos();
+    initClientList();
 }
 
 /**
- * @brief Dock::initDockedApps 初始化驻留应用
+ * @brief Dock::loadAppInfos 加载本地驻留和最近使用的应用信息
  */
-void Dock::initDockedApps()
+void Dock::loadAppInfos()
 {
-    // 初始化驻留应用信息
-    for (const auto &app : SETTING->getDockedApps()) {
-        if (app.isEmpty() || app[0] != '/' || app.size() <= 3)
-            continue;
+    // 初始化驻留应用信息和最近使用的应用的信息
+    auto loadApps = [ this ](const QStringList &apps, bool isDocked) {
+        for (const QString &app : apps) {
+            QString path = app;
+            DesktopInfo info(path.toStdString());
+            if (!info.isValidDesktop())
+                continue;
 
-        QString prefix(app.data(), 3);
-        QString appId(app.data() + 3);
-        QString path;
-        if (pathCodeDirMap.find(prefix) != pathCodeDirMap.end())
-            path = pathCodeDirMap[prefix] + appId + ".desktop";
+            AppInfo *appInfo = new AppInfo(info);
+            Entry *entryObj = new Entry(this, appInfo, appInfo->getInnerId());
+            entryObj->setIsDocked(isDocked);
+            entryObj->updateMenu();
+            entryObj->startExport();
+            entries->append(entryObj);
+        }
+    };
 
-        DesktopInfo info(path.toStdString());
-        if (!info.isValidDesktop())
-            continue;
-
-        AppInfo *appInfo = new AppInfo(info);
-        Entry *entryObj = new Entry(this, appInfo, appInfo->getInnerId());
-        entryObj->setIsDocked(true);
-        entryObj->updateMenu();
-        entryObj->startExport();
-        entries->append(entryObj);
+    loadApps(SETTING->getDockedApps(), true);
+    QStringList recentApps = SETTING->getRecentApps();
+    if (recentApps.size() > MAX_UNOPEN_RECENT_COUNT) {
+        QStringList tempApps = recentApps;
+        recentApps.clear();
+        for (int i = 0; i < MAX_UNOPEN_RECENT_COUNT; i++)
+            recentApps << tempApps[i];
     }
-
+    loadApps(recentApps, false);
     saveDockedApps();
 }
 
@@ -708,16 +718,20 @@ void Dock::initDockedApps()
  */
 void Dock::initClientList()
 {
-    QList<XWindow> clients;
-    for (auto c : XCB->instance()->getClientList())
-        clients.push_back(c);
+    if (isWayland) {
+        dbusHandler->loadClientList();
+    } else {
+        QList<XWindow> clients;
+        for (auto c : XCB->instance()->getClientList())
+            clients.push_back(c);
 
-    // 依次注册窗口
-    qSort(clients.begin(), clients.end());
-    clientList = clients;
-    for (auto winId : clientList) {
-        WindowInfoX *winInfo = x11Manager->registerWindow(winId);
-        attachOrDetachWindow(static_cast<WindowInfoBase *>(winInfo));
+        // 依次注册窗口
+        qSort(clients.begin(), clients.end());
+        clientList = clients;
+        for (auto winId : clientList) {
+            WindowInfoX *winInfo = x11Manager->registerWindow(winId);
+            attachOrDetachWindow(static_cast<WindowInfoBase *>(winInfo));
+        }
     }
 }
 
@@ -1048,6 +1062,9 @@ void Dock::attachOrDetachWindow(WindowInfoBase *info)
         if (shouldShowOnDock(info))
             attachWindow(info);
     }
+
+    // 在新增窗口后，同步最近打开应用到com.deepin.dde.dock.json的DConfig配置文件中
+    updateRecentApps();
 }
 
 /**
@@ -1062,6 +1079,7 @@ void Dock::attachWindow(WindowInfoBase *info)
         // entry existed
         entry->attachWindow(info);
     } else {
+        entries->removeLastRecent();
         entry = new Entry(this, info->getAppInfo(), info->getEntryInnerId());
         if (entry->attachWindow(info)) {
             entry->startExport();
@@ -1076,13 +1094,32 @@ void Dock::attachWindow(WindowInfoBase *info)
  */
 void Dock::detachWindow(WindowInfoBase *info)
 {
-    auto entry = entries->getByWindowId(info->getXid());
+    Entry *entry = entries->getByWindowId(info->getXid());
     if (!entry)
         return;
 
     bool needRemove = entry->detachWindow(info);
-    if (needRemove)
-        removeAppEntry(entry);
+    if (needRemove) {
+        // 如果是最近打开应用
+        if (entries->shouldInRecent()) {
+            // 更新entry的导出窗口信息
+            entry->updateExportWindowInfos();
+            // 更新entry的右键菜单的信息
+            entry->updateMenu();
+            // 更新entry的当前窗口的信息
+            entry->setCurrentWindowInfo(nullptr);
+            // 移除应用后，同时更新最近打开的应用
+            updateRecentApps();
+            // 如果是高效模式，则发送消息
+            if (SETTING->getDisplayMode() == DisplayMode::Efficient) {
+                Q_EMIT entryRemoved(entry->getId());
+            }
+        } else {
+            removeAppEntry(entry);
+            // 移除应用后，同时更新最近打开的应用
+            updateRecentApps();
+        }
+    }
 }
 
 /**
@@ -1165,19 +1202,29 @@ void Dock::handleActiveWindowChanged(WindowInfoBase *info)
  */
 void Dock::saveDockedApps()
 {
-    QList<QString> dockedApps;
+    QStringList dockedApps;
     for (auto entry : entries->filterDockedEntries()) {
         QString path = entry->getApp()->getFileName();
-        for (auto iter=pathDirCodeMap.begin(); iter != pathDirCodeMap.end(); iter++) {
-            if (path.startsWith(iter.key())) {
-                path = QString(path.data() + iter.key().size()); // 去头dir
-                path.truncate(path.size() - 8); // 去尾.desktop
-                dockedApps.push_back(iter.value() + path);
-                break;
-            }
-        }
+        dockedApps << path;
     }
+
     SETTING->setDockedApps(dockedApps);
+
+    // 在驻留任务栏的时候，同时更新最近打开应用的信息
+    updateRecentApps();
+}
+
+void Dock::updateRecentApps()
+{
+    QStringList unDockedApps;
+    QList<Entry *> recentEntrys = entries->unDockedEntries();
+    for (Entry *entry : recentEntrys) {
+        QString path = entry->getApp()->getFileName();
+        unDockedApps << path;
+    }
+
+    // 保存未驻留的应用作为最近打开的应用
+    SETTING->setRecentApps(unDockedApps);
 }
 
 /** 移除应用实例
@@ -1357,7 +1404,9 @@ int Dock::getDisplayMode()
  */
 void Dock::setDisplayMode(int mode)
 {
-    SETTING->setDisplayMode(DisplayMode(mode));
+    DisplayMode displayMode = static_cast<DisplayMode>(mode);
+    SETTING->setDisplayMode(displayMode);
+    entries->setDisplayMode(displayMode);
 }
 
 /**

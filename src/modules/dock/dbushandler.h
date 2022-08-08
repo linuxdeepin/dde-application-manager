@@ -45,6 +45,7 @@ public:
 
     /************************* KWayland/WindowManager ***************************/
     void listenWaylandWMSignals();
+    void loadClientList();
     bool wlShowingDesktop();
     uint wlActiveWindow();
 

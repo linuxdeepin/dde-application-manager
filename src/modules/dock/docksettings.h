@@ -228,7 +228,9 @@ public:
     uint getWindowSizeFashion();
     void setWindowSizeFashion(uint size);
     QStringList getDockedApps();
-    void setDockedApps(QList<QString> &apps);
+    void setDockedApps(const QStringList &apps);
+    QStringList getRecentApps() const;
+    void setRecentApps(const QStringList &apps);
     double getOpacity();
     QVector<QString> getWinIconPreferredApps();
 
@@ -249,12 +251,14 @@ Q_SIGNALS:
     // 强制退出应用开关改变
     void forceQuitAppChanged(ForceQuitAppMode mode);
 
-
 private:
     DockSettings(QObject *paret = nullptr);
     DockSettings(const DockSettings &);
     DockSettings& operator= (const DockSettings &);
+    void saveStringList(const QString &key, const QStringList &values);
+    QStringList loadStringList(const QString &key) const;
 
+private:
     DConfig *m_dockSettings;
     DConfig *m_appearanceSettings;
 };
