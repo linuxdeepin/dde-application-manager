@@ -93,7 +93,7 @@
 			"visibility": "private"
 		},
 		"Docked_Apps": {
-			"value": ["/S@dde-file-manager", "/S@uos-browser", "/S@org.deepin.browser", "/S@deepin-appstore", "/S@deepin-app-store", "/S@com.deepin.store.intranet", "/S@deepin-album", "/S@deepin-music", "/S@deepin-contacts", "/S@dde-calendar", "/S@dde-control-center"],
+			"value": ["/usr/share/applications/dde-file-manager", "/usr/share/applications/uos-browser", "/usr/share/applications/org.deepin.browser", "/usr/share/applications/deepin-appstore", "/usr/share/applications/deepin-app-store", "/usr/share/applications/com.deepin.store.intranet", "/usr/share/applications/deepin-album", "/usr/share/applications/deepin-music", "/usr/share/applications/deepin-contacts", "/usr/share/applications/dde-calendar", "/usr/share/applications/dde-control-center"],
 			"serial": 0,
 			"flags": [],
 			"name": "Docked_Apps",
