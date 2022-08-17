@@ -116,7 +116,7 @@ public:
 
 public: // PROPERTIES
     Q_PROPERTY(int DisplayMode READ displayMode WRITE setDisplayMode NOTIFY DisplayModeChanged)
-    Q_PROPERTY(bool Fullscreen READ fullscreen WRITE setFullscreen NOTIFY FullScreenChanged)
+    Q_PROPERTY(bool Fullscreen READ fullscreen WRITE setFullscreen NOTIFY FullscreenChanged)
 
     int displayMode() const;
     void setDisplayMode(int value);
@@ -144,7 +144,8 @@ Q_SIGNALS: // SIGNALS
     void UninstallSuccess(const QString &appID);
 
     void DisplayModeChanged(int mode);
-    void FullScreenChanged(bool isFull);
+    // 该接口与1050 dbus服务接口签名保持一致
+    void FullscreenChanged();
     void AppSuffixChanged();
 };
 
