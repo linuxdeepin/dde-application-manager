@@ -63,24 +63,7 @@ Launcher::Launcher(QObject *parent)
     loadNameMap();
     initItems();
 
-    // 关联org.deepin.daemon.DFWatcher1接口事件Event
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.DFWatcher1",
-                                          "/org/deepin/daemon/DFWatcher1",
-                                          "org.deepin.daemon.DFWatcher1",
-                                          "Event", "",      // TODO 修正事件参数
-                                          this, SLOT(handleFSWatcherEvents(QDBusMessage)));
-
-    // 关联org.deepin.daemon.LRecorder1接口事件Launched
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
-                                          "/org/deepin/daemon/AlRecorder1",
-                                          "org.deepin.daemon.AlRecorder1",
-                                          "Launched", "sa",
-                                          this, SLOT([&](QDBusMessage msg) {
-                                              QString path = msg.arguments().at(0).toString();
-                                              Item item = getItemByPath(path);
-                                              if (item.isValid())
-                                              Q_EMIT newAppLaunched(item.id);
-                                          }));
+    initConnection();
 }
 
 Launcher::~Launcher()
@@ -440,7 +423,7 @@ void Launcher::handleFSWatcherEvents(QDBusMessage msg)
     } else if (filePath == applicationsFile) {  // 应用信息文件变化
         loadPkgCategoryMap();
     } else if (filePath.endsWith(".desktop")){  // desktop文件变化
-        checkDesktopFile(filePath);
+        onCheckDesktopFile(filePath);
     }
 }
 
@@ -521,8 +504,10 @@ void Launcher::loadPkgCategoryMap()
     }
 }
 
-void Launcher::checkDesktopFile(QString filePath)
+void Launcher::onCheckDesktopFile(const QString &filePath, int type)
 {
+    Q_UNUSED(type);
+
     QString appId = getAppIdByFilePath(filePath, appDirs);
     if (appId.isEmpty())
         return;
@@ -561,6 +546,31 @@ void Launcher::checkDesktopFile(QString filePath)
             file.remove();
         }
     }
+}
+
+void Launcher::onNewAppLaunched(const QString &filePath)
+{
+    Item item = getItemByPath(filePath);
+
+    if (item.isValid())
+        Q_EMIT newAppLaunched(item.info.id);
+}
+
+void Launcher::initConnection()
+{
+    QDBusConnection::sessionBus().connect("org.deepin.daemon.DFWatcher1",
+                                          "/org/deepin/daemon/DFWatcher1",
+                                          "org.deepin.daemon.DFWatcher1",
+                                          "Event",
+                                          this,
+                                          SLOT(onCheckDesktopFile(const QString &, int)));
+
+    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
+                                          "/org/deepin/daemon/AlRecorder1",
+                                          "org.deepin.daemon.AlRecorder1",
+                                          "Launched",
+                                          this,
+                                          SLOT(onNewAppLaunched(const QString &)));
 }
 
 /**
@@ -673,7 +683,7 @@ void Launcher::initItems()
     }
 }
 
-void Launcher::addItem(Item item)
+void Launcher::addItem(Item &item)
 {
     if (!item.isValid())
         return;

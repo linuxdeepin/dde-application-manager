@@ -119,19 +119,21 @@ Q_SIGNALS:
 private Q_SLOTS:
     void handleFSWatcherEvents(QDBusMessage msg);
     void onAppSuffixNameChanged(bool hidden);
+    void onCheckDesktopFile(const QString &filePath, int type = 0);
+    void onNewAppLaunched(const QString &filePath);
 
 private:
+    void initConnection();
     void initSettings();
     void loadDesktopPkgMap();
     void loadPkgCategoryMap();
-    void checkDesktopFile(QString filePath);
     void handleAppHiddenChanged();
     void loadNameMap();
     void initItems();
     QString getAppIdByFilePath(QString filePath, QStringList dirs);
     bool isDeepinCustomDesktopFile(QString fileName);
     Item NewItemWithDesktopInfo(DesktopInfo &info);
-    void addItem(Item item);
+    void addItem(Item &item);
     Categorytype queryCategoryId(const Item *item);
     Categorytype getXCategory(const Item *item);
     QString queryPkgName(const QString &itemID, const QString &itemPath);
