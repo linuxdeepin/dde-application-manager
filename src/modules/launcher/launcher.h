@@ -116,11 +116,14 @@ Q_SIGNALS:
     void fullScreenChanged(bool isFull);
     void appSuffixChanged();
 
+    void uninstallStatusChanged(const bool status);
+
 private Q_SLOTS:
     void handleFSWatcherEvents(QDBusMessage msg);
     void onAppSuffixNameChanged(bool hidden);
     void onCheckDesktopFile(const QString &filePath, int type = 0);
     void onNewAppLaunched(const QString &filePath);
+    void onHandleUninstall(const QDBusMessage &message);
 
 private:
     void initConnection();

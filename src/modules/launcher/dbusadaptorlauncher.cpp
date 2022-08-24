@@ -108,8 +108,10 @@ bool DBusAdaptorLauncher::RequestSendToDesktop(const QString &id)
     return parent()->requestSendToDesktop(id);
 }
 
-void DBusAdaptorLauncher::RequestUninstall(const QString &id)
+void DBusAdaptorLauncher::RequestUninstall(const QString &id, bool unused)
 {
+    Q_UNUSED(unused);
+
     parent()->requestUninstall(id);
 }
 

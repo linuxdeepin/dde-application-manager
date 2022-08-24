@@ -47,6 +47,10 @@ DCORE_USE_NAMESPACE
 
 #define SETTING LauncherSettings::instance()
 
+const QString LASTORE_SERVICE = "com.deepin.lastore";
+const QString LASTORE_PATH = "/com/deepin/lastore";
+const QString LASTORE_INTERFACE = "com.deepin.lastore.Manager";
+
 Launcher::Launcher(QObject *parent)
     : SynModule(parent)
 {
@@ -293,21 +297,19 @@ void Launcher::requestUninstall(QString appId)
     }
 
     // 执行卸载动作
-    std::thread thread([&](QString appId) {
-        const auto &item = itemsMap[appId];
+    auto uninstallFunc = [ this ](const QString &appId) {
+        const Item &item = itemsMap[appId];
         DesktopInfo info(item.info.path.toStdString());
-        if (!info.isValidDesktop())
+        if (!info.isValidDesktop()) {
+            qInfo() << "invalid desktop file...";
             return;
+        }
 
-        // 即将卸载appId
-        QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
-        interface.call("UninstallHints", QStringList() << item.info.path);
-
-        bool ret = doUninstall(info, item); // 阻塞等待
+        // 阻塞等待
+        bool ret = doUninstall(info, item);
         if (!ret) {
             QString msg = QString("uninstall %1 result %2").arg(info.getName().c_str()).arg(ret);
             Q_EMIT uninstallFailed(appId, msg);
-            qInfo() << msg;
             return;
         }
 
@@ -316,8 +318,10 @@ void Launcher::requestUninstall(QString appId)
         QFile file(filePath);
         file.remove();
         Q_EMIT uninstallSuccess(appId);
-    }, appId);
-    thread.detach();
+    };
+
+    std::thread uninstallThread(uninstallFunc, appId);
+    uninstallThread.detach();
 }
 
 /**
@@ -432,6 +436,27 @@ void Launcher::onAppSuffixNameChanged(bool)
     initItems();
 
     Q_EMIT appSuffixChanged();
+}
+
+void Launcher::onHandleUninstall(const QDBusMessage &message)
+{
+    QList<QVariant> arguments = message.arguments();
+
+    if (3 != arguments.count())
+        return;
+
+    QVariantMap changedProps = qdbus_cast<QVariantMap>(arguments.at(1).value<QDBusArgument>());
+    const QStringList keys = changedProps.keys();
+
+    QString status;
+    if (keys.contains("Status"))
+        status = changedProps["Status"].toString();
+
+    if (status == "succeed" || status == "end") {
+        Q_EMIT uninstallStatusChanged(true);
+    } else if (status == "failed") {
+        Q_EMIT uninstallStatusChanged(false);
+    }
 }
 
 /**
@@ -954,12 +979,16 @@ bool Launcher::doUninstall(DesktopInfo &info, const Item &item)
 
     if (!pkg.isEmpty()) {
         // 检测包是否安装
-        QDBusInterface lastoreDbus = QDBusInterface("com.deepin.lastore", "/com/deepin/lastore", "com.deepin.lastore.Manager", QDBusConnection::systemBus());
+        QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
         QDBusReply<bool> reply = lastoreDbus.call("PackageExists", pkg);
-        if (!(reply.isValid() && reply.value())) // 包未安装
+
+        // 包未安装时
+        if (!(reply.isValid() && reply.value()))
             return false;
-        else
-            return uninstallSysApp(item.info.name, pkg); // 卸载系统应用
+
+        // 卸载系统应用
+        m_desktopAndItemMap.remove(item.info.path);
+        return uninstallSysApp(item.info.name, pkg);
     }
 
     switch (getAppType(info, item)) {
@@ -1067,33 +1096,22 @@ bool Launcher::uninstallWineApp(const Item &item)
  */
 bool Launcher::uninstallSysApp(const QString &name, const QString &pkg)
 {
-    QDBusInterface lastoreDbus = QDBusInterface("com.deepin.lastore", "/com/deepin/lastore", "com.deepin.lastore.Manager", QDBusConnection::systemBus());
-    QDBusReply<QDBusObjectPath> reply = lastoreDbus.call("RemovePackage", name, pkg);
-    QDBusObjectPath jobPath;
-    if (reply.isValid())
-        reply.value();
+    QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
+    QDBusReply<QDBusObjectPath> reply = lastoreDbus.call(QDBus::Block, "RemovePackage", name, pkg);
 
-    if (jobPath.path().isEmpty())
+    if (!reply.isValid() || reply.value().path().isEmpty())
         return false;
 
     QEventLoop loop;
-    bool ret = false;
-    QDBusConnection::sessionBus().connect("com.deepin.lastore",
-                                          jobPath.path(),
-                                          "com.deepin.lastore.Job",
-                                          "Status",
-                                          "sa",
-                                          this,
-                                          SLOT([&](QDBusMessage msg) {
-                                              QString status = msg.arguments().at(0).toString();
-                                              if (status == "succeed" || status == "end")
-                                              ret = true;
-                                              else if (status == "failed")
-                                              ret = false;
+    QString servicePath = reply.value().path();
+    QDBusConnection::systemBus().connect(LASTORE_SERVICE, servicePath, "org.freedesktop.DBus.Properties", "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
 
-                                              loop.quit();
-                                          }));
-    loop.exec();    // 阻塞等待任务结束
+    bool ret = false;
+    connect(this, &Launcher::uninstallStatusChanged, &loop, [ & ](const bool status) {
+        loop.quit();
+        ret = status;
+    });
+    loop.exec();
 
     qInfo() << "uninstall app " << name << "result is " << ret;
     return ret;
