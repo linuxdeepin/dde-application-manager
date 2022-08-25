@@ -34,7 +34,6 @@ DBusAdaptorLauncher::DBusAdaptorLauncher(QObject *parent)
         connect(launcher, &Launcher::uninstallSuccess, this, &DBusAdaptorLauncher::UninstallSuccess);
         connect(launcher, &Launcher::displayModeChanged, this, &DBusAdaptorLauncher::DisplayModeChanged);
         connect(launcher, &Launcher::fullScreenChanged, this, &DBusAdaptorLauncher::FullscreenChanged);
-        connect(launcher, &Launcher::appSuffixChanged, this, &DBusAdaptorLauncher::AppSuffixChanged);
     }
 }
 

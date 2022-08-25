@@ -42,8 +42,6 @@ LauncherSettings::LauncherSettings(QObject *parent)
             Q_EMIT fullscreenChanged(m_dconfig->value(key).toBool());
         } else if (key == keyAppsHidden) {
             Q_EMIT hiddenAppsChanged();
-        } else if (key == keySuffixHidden) {
-            Q_EMIT appSuffixNameChanged(m_dconfig->value(key).toBool());
         }
     });
 }
@@ -164,19 +162,4 @@ QVector<QString> LauncherSettings::getHiddenApps()
         }
     }
     return ret;
-}
-
-bool LauncherSettings::getMagicaVoxelSuffixHidden() const
-{
-    return m_dconfig ? m_dconfig->value(keySuffixHidden, false).toBool() : false;
-}
-
-void LauncherSettings::setMagicaVoxelSuffixHidden(bool state)
-{
-    if (!m_dconfig) {
-        qInfo() << Q_FUNC_INFO << "set magicaVoxel suffix failed!";
-        return;
-    }
-
-    m_dconfig->setValue(keySuffixHidden, state);
 }

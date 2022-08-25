@@ -147,7 +147,6 @@ Q_SIGNALS: // SIGNALS
     void DisplayModeChanged(int mode);
     // 该接口与1050 dbus服务接口签名保持一致
     void FullscreenChanged();
-    void AppSuffixChanged();
 };
 
 #endif

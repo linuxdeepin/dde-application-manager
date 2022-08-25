@@ -241,16 +241,6 @@
 			"description": "Launcher display mode.",
 			"permissions": "readwrite",
 			"visibility": "private"
-		},
-		"MagicaVoxelApp_Hide_SuffixName": {
-			"value": false,
-			"serial": 0,
-			"flags": [],
-			"name": "MagicaVoxelApp_Hide_SuffixName",
-			"name[zh_CN]": "玲珑包后缀提供配置，默认隐藏; 开启, 玲珑应用显示后缀, 关闭, 后缀隐藏",
-			"description": "***",
-			"permissions": "readwrite",
-			"visibility": "private"
 		}
 	}
 }

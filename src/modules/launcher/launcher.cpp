@@ -431,13 +431,6 @@ void Launcher::handleFSWatcherEvents(QDBusMessage msg)
     }
 }
 
-void Launcher::onAppSuffixNameChanged(bool)
-{
-    initItems();
-
-    Q_EMIT appSuffixChanged();
-}
-
 void Launcher::onHandleUninstall(const QDBusMessage &message)
 {
     QList<QVariant> arguments = message.arguments();
@@ -469,7 +462,6 @@ void Launcher::initSettings()
     });
     connect(SETTING, &LauncherSettings::fullscreenChanged, this, &Launcher::fullScreenChanged);
     connect(SETTING, &LauncherSettings::hiddenAppsChanged, this, &Launcher::handleAppHiddenChanged);
-    connect(SETTING, &LauncherSettings::appSuffixNameChanged, this, &Launcher::onAppSuffixNameChanged);
 }
 
 /**
@@ -1197,10 +1189,6 @@ Item Launcher::NewItemWithDesktopInfo(DesktopInfo &info)
     if (!info.getIcon().empty()) {
         item.info.icon = info.getIcon().c_str();
     }
-
-    // 玲珑应用添加后缀, 默认隐藏
-    if (SETTING->getMagicaVoxelSuffixHidden() && appFileName.startsWith("/persistent/linglong/entries/share/applications/"))
-        item.info.name = QString("%1(%2)").arg(appName).arg(tr("Linglong"));
 
     xDeepinCategory = xDeepinCategory.toLower();
 
