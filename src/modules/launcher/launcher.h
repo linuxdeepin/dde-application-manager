@@ -26,6 +26,7 @@
 #include "synmodule.h"
 #include "category.h"
 #include "launcheriteminfolist.h"
+#include "desktopinfo.h"
 
 #include <QObject>
 #include <QMap>
@@ -75,8 +76,6 @@ struct Item {
    std::map<QString, int> searchTargets;
 };
 
-
-class DesktopInfo;
 class Launcher : public SynModule, public QDBusContext
 {
     Q_OBJECT
@@ -142,12 +141,13 @@ private:
     Item getItemByPath(QString itemPath);
     void emitItemChanged(const Item *item, QString status);
     AppType getAppType(DesktopInfo &info, const Item &item);
-    bool doUninstall(DesktopInfo &info, const Item &item);
-    bool uninstallFlatpak(DesktopInfo &info, const Item &item);
+    void doUninstall(DesktopInfo &info, const Item &item);
+    void uninstallFlatpak(DesktopInfo &info, const Item &item);
     bool uninstallWineApp(const Item &item);
-    bool uninstallSysApp(const QString &name, const QString &pkg);
+    void uninstallApp(const QString &name, const QString &pkg);
     bool removeDesktop(const Item &item);
     void notifyUninstallDone(const Item &item, bool result);
+    void removeAutoStart();
 
 private:
     QMap<QString, Item> itemsMap;                                   // appId, Item
@@ -160,6 +160,8 @@ private:
     QStringList appDirs;
 
     QMap<QString, Item> m_desktopAndItemMap;                        // desktoppath,Item
+    bool m_removeState;                                             // 卸载状态
+    DesktopInfo m_appInfo;                                          // 卸载应用
 };
 
 #endif // LAUNCHER_H

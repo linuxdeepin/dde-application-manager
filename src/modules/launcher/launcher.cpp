@@ -47,12 +47,14 @@ DCORE_USE_NAMESPACE
 
 #define SETTING LauncherSettings::instance()
 
-const QString LASTORE_SERVICE = "com.deepin.lastore";
-const QString LASTORE_PATH = "/com/deepin/lastore";
-const QString LASTORE_INTERFACE = "com.deepin.lastore.Manager";
+const QString LASTORE_SERVICE = "org.deepin.lastore1";
+const QString LASTORE_PATH = "/org/deepin/lastore1";
+const QString LASTORE_INTERFACE = "org.deepin.lastore1.Manager";
 
 Launcher::Launcher(QObject *parent)
     : SynModule(parent)
+    , m_removeState(false)
+    , m_appInfo(DesktopInfo(""))
 {
     registeModule("launcher");
     appsHidden = SETTING->getHiddenApps();
@@ -279,49 +281,34 @@ bool Launcher::requestSendToDesktop(QString appId)
  */
 void Launcher::requestUninstall(QString appId)
 {
-    if (itemsMap.find(appId) == itemsMap.end())
+    if (itemsMap.find(appId) == itemsMap.end()) {
+        qDebug() << QString(" %1 uninstall faill ...").arg(appId);
         return;
+    }
 
     // 限制调用方
-    QString cmd = QString("cat /proc/%1/cmdline").arg(QString::number(QDBusConnection::sessionBus().interface()->servicePid(message().service())));
+    QString servicePid = QString::number(QDBusConnection::sessionBus().interface()->servicePid(message().service()));
+    QString cmd = QString("cat /proc/%1/cmdline").arg(servicePid);
     QProcess process;
     QStringList args {"-c", cmd};
     process.start("sh", args);
     process.waitForReadyRead();
     QString result = QString::fromUtf8(process.readAllStandardOutput());
-    qInfo() << "RequestUninstall fucntion called by :" << result;
     process.close();
     if (result != launcherExe) {
-        qWarning() << result << " has no right to uninstall " << appId;
+        qDebug() << result << " has no right to uninstall " << appId;
         return;
     }
 
-    // 执行卸载动作
-    auto uninstallFunc = [ this ](const QString &appId) {
-        const Item &item = itemsMap[appId];
-        DesktopInfo info(item.info.path.toStdString());
-        if (!info.isValidDesktop()) {
-            qInfo() << "invalid desktop file...";
-            return;
-        }
+    const Item &item = itemsMap[appId];
+    DesktopInfo info(item.info.path.toStdString());
+    if (!info.isValidDesktop()) {
+        qDebug() << QString("%1 desktop file is invalid...").arg(item.info.name);
+        return;
+    }
 
-        // 阻塞等待
-        bool ret = doUninstall(info, item);
-        if (!ret) {
-            QString msg = QString("uninstall %1 result %2").arg(info.getName().c_str()).arg(ret);
-            Q_EMIT uninstallFailed(appId, msg);
-            return;
-        }
-
-        // 从自动启动目录中移除
-        QString filePath(QDir::homePath() + "/.config/autostart/" + appId + ".desktop");
-        QFile file(filePath);
-        file.remove();
-        Q_EMIT uninstallSuccess(appId);
-    };
-
-    std::thread uninstallThread(uninstallFunc, appId);
-    uninstallThread.detach();
+    m_appInfo = info;
+    doUninstall(info, item);
 }
 
 /**
@@ -442,13 +429,36 @@ void Launcher::onHandleUninstall(const QDBusMessage &message)
     const QStringList keys = changedProps.keys();
 
     QString status;
-    if (keys.contains("Status"))
+    if (keys.contains("Status")) {
         status = changedProps["Status"].toString();
+    }
 
+#ifdef QT_DEBUG
+        qInfo() <<  "changedProps: " << changedProps << ", status: " << status;
+#endif
+    const QString &appId = QString::fromStdString(m_appInfo.getId());
     if (status == "succeed" || status == "end") {
-        Q_EMIT uninstallStatusChanged(true);
+        // 移除desktop文件
+        Item appItem = Item();
+        for (const Item &item : m_desktopAndItemMap) {
+            if (item.info.path == m_appInfo.getFileName().c_str()) {
+                appItem = item;
+                qDebug() << QString("app-%1 removed successfully").arg(item.info.name);
+                break;
+            }
+        }
+
+        removeDesktop(appItem);
+
+        // 从自动启动目录中移除
+        removeAutoStart();
+        m_removeState = true;
+
+        Q_EMIT uninstallSuccess(appId);
     } else if (status == "failed") {
-        Q_EMIT uninstallStatusChanged(false);
+        m_removeState = false;
+        QString msg = QString("uninstall %1 result %2").arg(m_appInfo.getName().c_str()).arg(false);
+        Q_EMIT uninstallFailed(appId, msg);
     }
 }
 
@@ -702,8 +712,10 @@ void Launcher::initItems()
 
 void Launcher::addItem(Item &item)
 {
-    if (!item.isValid())
+    if (!item.isValid()) {
+        qDebug() << "item is invalid, item info:" << item.info.path;
         return;
+    }
 
     if (nameMap.size() > 0 && nameMap.find(item.info.id) != nameMap.end()) {
         QString name = nameMap[item.info.id];
@@ -780,7 +792,7 @@ Categorytype Launcher::getXCategory(const Item *item)
     if (maxCatogories.size() == 1)
         return maxCatogories[0];
 
-    qSort(maxCatogories.begin(), maxCatogories.end());
+    std::sort(maxCatogories.begin(), maxCatogories.end());
 
     // 检查是否同时存在音乐和视频播放器
     QPair<bool, bool> found;
@@ -807,11 +819,11 @@ QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
     QProcess process;
     process.start("dpkg -S " + itemPath);
     if (!process.waitForFinished())
-        return "";
+        return QString();
 
     QByteArray output = process.readAllStandardOutput();
     if (output.size() == 0)
-        return "";
+        return QString();
 
     std::vector<std::string> splits = DString::splitChars(output.data(), '\n');
     if (splits.size() > 0) {
@@ -819,7 +831,7 @@ QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
         if (parts.size() == 2)
             return parts[0].c_str();
     }
-    return "";
+    return QString();
 }
 
 /**
@@ -830,49 +842,47 @@ QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
  */
 QString Launcher::queryPkgName(const QString &itemID, const QString &itemPath)
 {
-    if (!itemPath.isEmpty()) {
-        QFileInfo itemInfo(itemPath);
-        if (!itemInfo.isFile())
-            return "";
+    QFileInfo itemInfo(itemPath);
+    if (itemPath.isEmpty() || !itemInfo.isFile())
+        return QString();
 
-        // 处理desktop文件是软连接的情况
-        if (itemInfo.isSymLink()) {
-            std::string path = itemInfo.symLinkTarget().toStdString();
-            std::smatch result;
-            const std::regex e("^/opt/apps/([^/]+)/entries/applications/.*");
-            if (std::regex_match(path, result, e) && result.size() == 2) {
-                // dpkg命令检查通过路径匹配的包是否存在
-                QString pkgName(result[1].str().c_str());
-                QProcess process;
-                process.start("dpkg -s " + pkgName);
-                if (process.waitForFinished())
-                    return pkgName;
+    // 处理desktop文件是软连接的情况
+    if (itemInfo.isSymLink()) {
+        std::string path = itemInfo.symLinkTarget().toStdString();
+        std::smatch result;
+        const std::regex e("^/opt/apps/([^/]+)/entries/applications/.*");
+        if (std::regex_match(path, result, e) && result.size() == 2) {
+            // dpkg命令检查通过路径匹配的包是否存在
+            QString pkgName(result[1].str().c_str());
+            QProcess process;
+            process.start("dpkg -s " + pkgName);
+            if (process.waitForFinished())
+                return pkgName;
 
-                // 当包不存在则使用dpkg -S来查找包
-                process.start("dpkg -S" + pkgName);
-                if (!process.waitForFinished())
-                    return "";
+            // 当包不存在则使用dpkg -S来查找包
+            process.start("dpkg -S" + pkgName);
+            if (!process.waitForFinished())
+                return QString();
 
-                QByteArray output = process.readAllStandardOutput();
-                if (output.size() == 0)
-                    return "";
+            QByteArray output = process.readAllStandardOutput();
+            if (output.size() == 0)
+                return QString();
 
-                std::vector<std::string> splits = DString::splitChars(output.data(), ':');
-                if (splits.size() < 2)
-                    return "";
+            std::vector<std::string> splits = DString::splitChars(output.data(), ':');
+            if (splits.size() < 2)
+                return QString();
 
-                return splits[0].c_str();
-            }
+            return splits[0].c_str();
         }
     }
 
     if (DString::startWith(itemID.toStdString(), "org.deepin.flatdeb."))
-        return "deepin-fpapp-" + itemID;
+        return QString("deepin-fpapp-") + itemID;
 
     if (desktopPkgMap.find(itemID) != desktopPkgMap.end())
         return desktopPkgMap[itemID];
 
-    return "";
+    return QString();
 }
 
 /**
@@ -961,56 +971,56 @@ end:
  * @param item
  * @return
  */
-bool Launcher::doUninstall(DesktopInfo &info, const Item &item)
+void Launcher::doUninstall(DesktopInfo &info, const Item &item)
 {
-    bool ret = false;
     // 查询包名
     QString pkg = queryPkgName(item.info.id, item.info.path);
     if (pkg.isEmpty())
         pkg = queryPkgNameWithDpkg(item.info.path);
 
-    if (!pkg.isEmpty()) {
-        // 检测包是否安装
-        QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
-        QDBusReply<bool> reply = lastoreDbus.call("PackageExists", pkg);
-
-        // 包未安装时
-        if (!(reply.isValid() && reply.value()))
-            return false;
-
-        // 卸载系统应用
-        m_desktopAndItemMap.remove(item.info.path);
-        return uninstallSysApp(item.info.name, pkg);
+    if (pkg.isEmpty()) {
+        qDebug() << "uninstall failed, becase package name is Empty";
+        return;
     }
 
-    switch (getAppType(info, item)) {
-    case (AppType::Flatpak):
-        ret = uninstallFlatpak(info, item); // 待测
-        break;
-    case (AppType::ChromeShortcut):
-        ret = removeDesktop(item);
-        break;
-    case (AppType::CrossOver):
-        ret = uninstallSysApp(item.info.name, "crossvoer"); // 待测
-        break;
-    case (AppType::WineApp):
-        ret = uninstallWineApp(item);   // 待测
-        break;
-    case (AppType::Default):
-        ret = removeDesktop(item);
-        break;
-    }
+    // 检测包是否安装
+    QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
+    QDBusReply<bool> reply = lastoreDbus.call("PackageExists", pkg);
 
-    return ret;
+    // 包未安装时
+    if (!(reply.isValid() && reply.value()))
+        return;
+
+    // 卸载系统应用
+    m_desktopAndItemMap.remove(item.info.path);
+    uninstallApp(item.info.name, pkg);
+
+    // TODO: 不同类型的应用分别进行处理
+    //    switch (getAppType(info, item)) {
+    //    case (AppType::Flatpak):
+    //        uninstallFlatpak(info, item); // 待测
+    //        break;
+    //    case (AppType::ChromeShortcut):
+    //        removeDesktop(item);
+    //        break;
+    //    case (AppType::CrossOver):
+    //        uninstallApp(item.info.name, "crossvoer"); // 待测
+    //        break;
+    //    case (AppType::WineApp):
+    //        uninstallWineApp(item);   // 待测
+    //        break;
+    //    case (AppType::Default):
+    //        removeDesktop(item);
+    //        break;
+    //    }
 }
 
 /**
  * @brief Launcher::uninstallFlatpak 卸载flatpak应用
  * @param info
  * @param item
- * @return
  */
-bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
+void Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
 {
     struct FlatpakApp {
         std::string name;
@@ -1034,7 +1044,7 @@ bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
 
     if (flat.branch.empty() || flat.arch.empty() || flat.name.empty()) {
         qInfo() << "uninstall Flatpak failed";
-        return false;
+        return;
     }
 
     bool userApp = item.info.path.startsWith(QDir::homePath());
@@ -1044,11 +1054,11 @@ bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
         QString pkgFile = QString("/usr/share/deepin-flatpak/app/%1/%2/%3/pkg").arg(flat.name.c_str()).arg(flat.arch.c_str()).arg(flat.branch.c_str());
         QFile file(pkgFile);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-            return false;
+            return;
 
         QString content(file.readAll());
         QString pkgName = content.trimmed();
-        return uninstallSysApp(item.info.name, pkgName);
+        uninstallApp(item.info.name, pkgName);
     } else {
         QString ref = QString("app/%1/%2/%3").arg(flat.name.c_str()).arg(flat.arch.c_str()).arg(flat.branch.c_str());
         qInfo() << "uninstall flatpak ref= " << ref;
@@ -1060,8 +1070,6 @@ bool Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
         });
         thread.detach();
     }
-
-    return true;
 }
 
 /**
@@ -1080,33 +1088,19 @@ bool Launcher::uninstallWineApp(const Item &item)
     return res;
 }
 
-/**
- * @brief Launcher::uninstallSysApp 卸载系统App
- * @param name
- * @param pkg
- * @return
- */
-bool Launcher::uninstallSysApp(const QString &name, const QString &pkg)
+void Launcher::uninstallApp(const QString &name, const QString &pkg)
 {
     QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
     QDBusReply<QDBusObjectPath> reply = lastoreDbus.call(QDBus::Block, "RemovePackage", name, pkg);
 
-    if (!reply.isValid() || reply.value().path().isEmpty())
-        return false;
+    if (!reply.isValid() || reply.value().path().isEmpty()) {
+        qDebug() << "RemovePackage failed: " << reply.error();
+        return;
+    }
 
-    QEventLoop loop;
     QString servicePath = reply.value().path();
-    QDBusConnection::systemBus().connect(LASTORE_SERVICE, servicePath, "org.freedesktop.DBus.Properties", "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
-
-    bool ret = false;
-    connect(this, &Launcher::uninstallStatusChanged, &loop, [ & ](const bool status) {
-        loop.quit();
-        ret = status;
-    });
-    loop.exec();
-
-    qInfo() << "uninstall app " << name << "result is " << ret;
-    return ret;
+    QDBusConnection::systemBus().connect(LASTORE_SERVICE, servicePath, "org.freedesktop.DBus.Properties",
+                                         "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
 }
 
 /**
@@ -1142,6 +1136,13 @@ void Launcher::notifyUninstallDone(const Item &item, bool result)
 
     QDBusInterface interface = QDBusInterface("org.freedesktop.Notifications", "/org/freedesktop/Notifications", "org.freedesktop.Notifications");
     interface.call("Notify", "deepin-app-store", 0, "deepin-appstore", msg, "", QVariant(), QVariant(), -1);
+}
+
+void Launcher::removeAutoStart()
+{
+    QString filePath(QDir::homePath() + "/.config/autostart/" + m_appInfo.getName().c_str() + ".desktop");
+    QFile file(filePath);
+    file.remove();
 }
 
 /**
