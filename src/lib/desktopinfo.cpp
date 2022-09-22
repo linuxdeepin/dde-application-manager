@@ -26,6 +26,8 @@
 #include "dfile.h"
 #include "basedir.h"
 
+#include <QDebug>
+
 #include <algorithm>
 #include <stdlib.h>
 #include <iostream>
@@ -96,10 +98,16 @@ bool DesktopInfo::isValidDesktop()
     return m_isValid;
 }
 
+/** if return true, item is shown
+ * @brief DesktopInfo::shouldShow
+ * @return
+ */
 bool DesktopInfo::shouldShow()
 {
-    if (getNoDisplay() || getIsHidden())
+    if (getNoDisplay() || getIsHidden()) {
+        qDebug() << "hidden desktop file path: " << QString::fromStdString(m_fileName);
         return false;
+    }
 
     std::vector<std::string> desktopEnvs;
     return getShowIn(desktopEnvs);
@@ -117,6 +125,10 @@ bool DesktopInfo::getIsHidden()
 
 bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
 {
+#ifdef QT_DEBUG
+    qDebug() << "desktop file path: " << QString::fromStdString(m_fileName);
+#endif
+
     if (desktopEnvs.size() == 0) {
         const char *env = getenv(envDesktopEnv.c_str());
         const auto &desktop = DString::splitChars(env, ':');
@@ -127,14 +139,34 @@ bool DesktopInfo::getShowIn(std::vector<std::string> desktopEnvs)
     std::vector<std::string> onlyShowIn = m_keyFile.getStrList(MainSection, KeyOnlyShowIn);
     std::vector<std::string> notShowIn = m_keyFile.getStrList(MainSection, KeyNotShowIn);
 
+#ifdef QT_DEBUG
+    auto strVector2qstrVector = [](const std::vector<std::string> &vector) {
+        QVector<QString> vectorString;
+        for (const std::string &str : vector)
+            vectorString.append(QString::fromStdString(str));
+
+        return vectorString;
+    };
+
+    qDebug() << "onlyShowIn:" << strVector2qstrVector(onlyShowIn) <<
+                ", notShowIn:" << strVector2qstrVector(notShowIn) <<
+                ", desktopEnvs:" << strVector2qstrVector(desktopEnvs);
+#endif
+
     for (const auto &desktop : desktopEnvs) {
         bool ret = std::any_of(onlyShowIn.begin(), onlyShowIn.end(),
                                [&desktop](const auto &d) {return d == desktop;});
+#ifdef QT_DEBUG
+        qInfo() << Q_FUNC_INFO << "onlyShowIn, result:" << ret;
+#endif
         if (ret)
             return true;
 
         ret = std::any_of(notShowIn.begin(), notShowIn.end(),
                           [&desktop](const auto &d) {return d == desktop;});
+#ifdef QT_DEBUG
+        qInfo() << Q_FUNC_INFO << "notShowIn, result:" << ret;
+#endif
         if (ret)
             return false;
     }
@@ -383,8 +415,10 @@ std::vector<DesktopInfo> AppsDir::getAllDesktopInfos()
             std::string filePath =  dir + iter.first;
 
             DesktopInfo desktopInfo(filePath);
-            if (!DFile::isExisted(filePath) || !desktopInfo.isValidDesktop() || !desktopInfo.shouldShow())
+            if (!DFile::isExisted(filePath) || !desktopInfo.isValidDesktop() || !desktopInfo.shouldShow()) {
+                qDebug() << QString("app item %1 doesn't show in the list..").arg(QString::fromStdString(filePath));
                 continue;
+            }
 
             desktopInfos.push_back(desktopInfo);
         }

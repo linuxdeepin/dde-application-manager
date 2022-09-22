@@ -8,6 +8,12 @@ CollectMode=inactive-or-failed
 StartLimitIntervalSec=10s
 StartLimitBurst=30
 
+Requisite=dde-session-manager.target
+After=dde-session-manager.target
+
+Requisite=dde-display.target
+After=dde-display.target
+
 BindsTo=dde-session-daemon.service
 Before=dde-session-daemon.service
 
