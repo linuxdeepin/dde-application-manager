@@ -1,29 +1,29 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="sq">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="en_US">
 <context>
     <name>Entry</name>
     <message>
         <source>Open</source>
-        <translation>Hape</translation>
+        <translation>Open</translation>
     </message>
     <message>
         <source>Close All</source>
-        <translation>Mbylli Krejt</translation>
+        <translation>Close All</translation>
     </message>
     <message>
         <source>Force Quit</source>
-        <translation>Detyro Dalje</translation>
+        <translation>Force Quit</translation>
     </message>
     <message>
         <source>Dock</source>
-        <translation>Vëre në panel</translation>
+        <translation>Dock</translation>
     </message>
     <message>
         <source>Undock</source>
-        <translation>Hiqe nga paneli</translation>
+        <translation>Undock</translation>
     </message>
     <message>
         <source>All Windows</source>
-        <translation>Tërë Dritaret</translation>
+        <translation>All Windows</translation>
     </message>
 </context>
 </TS>

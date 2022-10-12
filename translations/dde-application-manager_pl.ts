@@ -11,7 +11,7 @@
     </message>
     <message>
         <source>Force Quit</source>
-        <translation>Wymuś zamknięcie</translation>
+        <translation>Wymuś zakończenie</translation>
     </message>
     <message>
         <source>Dock</source>
