@@ -141,21 +141,106 @@ std::string XCBUtils::getAtomName(XCBAtom atom)
 
 Geometry XCBUtils::getWindowGeometry(XWindow xid)
 {
-    Geometry ret;
-    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(m_connect, xid);
+    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(m_connect, xcb_drawable_t(xid));
     xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(m_connect, cookie, nullptr);
-    if (reply) {
-        ret.x = reply->x;
-        ret.y = reply->y;
-        ret.width = reply->width;
-        ret.height = reply->height;
-
-        free(reply);
-    } else {
+    if (!reply) {
         std::cout << xid << " getWindowGeometry err" << std::endl;
+        return Geometry();
     }
 
+    Geometry ret;
+    ret.x = reply->x;
+    ret.y = reply->y;
+    ret.width = reply->width;
+    ret.height = reply->height;
+
+    free(reply);
+
+    const xcb_setup_t *xcbSetup = xcb_get_setup(m_connect);
+    if (!xcbSetup)
+        return Geometry();
+
+    xcb_screen_iterator_t xcbScreenIterator = xcb_setup_roots_iterator(xcbSetup);
+    xcb_translate_coordinates_reply_t *translateReply =
+            xcb_translate_coordinates_reply(m_connect,
+                                            xcb_translate_coordinates(m_connect, xid, xcbScreenIterator.data->root, 0, 0),
+                                            nullptr);
+
+    if (translateReply) {
+        ret.x = translateReply->dst_x;
+        ret.y = translateReply->dst_y;
+        free(translateReply);
+    }
+
+    XWindow dWin = getDecorativeWindow(xid);
+    reply = xcb_get_geometry_reply(m_connect, xcb_get_geometry(m_connect, xcb_drawable_t(dWin)), nullptr);
+    if (!reply)
+        return ret;
+
+    if (reply->x == ret.x && reply->y == ret.y) {
+        // 无标题的窗口，比如deepin-editor, dconf-editor等
+        WindowFrameExtents windowFrameRect = getWindowFrameExtents(xid);
+        if (!windowFrameRect.isNull()) {
+            int x = ret.x + windowFrameRect.Left;
+            int y = ret.y + windowFrameRect.Top;
+            int width = ret.width - (windowFrameRect.Left + windowFrameRect.Right);
+            int height = ret.height - (windowFrameRect.Top + windowFrameRect.Bottom);
+            ret.x = x;
+            ret.y = y;
+            ret.width = width;
+            ret.height = height;
+        }
+    }
+
+    free(reply);
     return ret;
+}
+
+XWindow XCBUtils::getDecorativeWindow(XWindow xid)
+{
+    XWindow winId = xid;
+    for (int i = 0; i < 10; i++) {
+        xcb_query_tree_cookie_t cookie = xcb_query_tree(m_connect, winId);
+        xcb_query_tree_reply_t *reply = xcb_query_tree_reply(m_connect, cookie, nullptr);
+        if (!reply)
+            return 0;
+
+        if (reply->root == reply->parent)
+            return winId;
+
+        winId = reply->parent;
+    }
+
+    return 0;
+}
+
+WindowFrameExtents XCBUtils::getWindowFrameExtents(XWindow xid)
+{
+    xcb_atom_t perp = getAtom("_NET_FRAME_EXTENTS");
+    xcb_get_property_cookie_t cookie = xcb_get_property(m_connect, false, xid, perp, XCB_ATOM_CARDINAL, 0, 4);
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(m_connect, cookie, nullptr);
+    if (!reply || reply->format == 0) {
+        if (reply)
+            free(reply);
+        perp = getAtom("_GTK_FRAME_EXTENTS");
+        cookie = xcb_get_property(m_connect, false, xid, perp, XCB_ATOM_CARDINAL, 0, 4);
+        reply = xcb_get_property_reply(m_connect, cookie, nullptr);
+        if (!reply)
+            return WindowFrameExtents();
+    }
+
+    if (reply->format != 32 || reply->value_len != 4) {
+        free(reply);
+        return WindowFrameExtents();
+    }
+    uint32_t *data = static_cast<uint32_t *>(xcb_get_property_value(reply));
+    free(reply);
+
+    if (!data)
+        return WindowFrameExtents();
+
+    WindowFrameExtents winFrame(data[0], data[1], data[2], data[3]);
+    return winFrame;
 }
 
 XWindow XCBUtils::getActiveWindow()
@@ -437,8 +522,19 @@ bool XCBUtils::isGoodWindow(XWindow xid)
 // TODO XCB下无_MOTIF_WM_HINTS属性
 MotifWMHints XCBUtils::getWindowMotifWMHints(XWindow xid)
 {
-    MotifWMHints ret;
+    XCBAtom atomWmHints = getAtom("_MOTIF_WM_HINTS");
+    xcb_get_property_cookie_t cookie = xcb_get_property(m_connect, false, xid, atomWmHints, atomWmHints, 0, 5);
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(m_connect, cookie, nullptr);
+    if (!reply || reply->format != 32 || reply->value_len != 5)
+        return MotifWMHints{0, 0, 0, 0, 0};
 
+    uint32_t *data = static_cast<uint32_t *>(xcb_get_property_value(reply));
+    MotifWMHints ret;
+    ret.flags = data[0];
+    ret.functions = data[1];
+    ret.decorations = data[2];
+    ret.inputMode = data[3];
+    ret.status = data[4];
     return ret;
 }
 

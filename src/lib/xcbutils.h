@@ -68,6 +68,15 @@ typedef struct {
   std::vector<BYTE> data;   /** Rows, left to right and top to bottom of the CARDINAL ARGB */
 } WMIcon;
 
+typedef struct WindowFrameExtents {
+    uint32_t Left;
+    uint32_t Right;
+    uint32_t Top;
+    uint32_t Bottom;
+    WindowFrameExtents(int left = 0, int right = 0, int top = 0, int bottom = 0): Left(left), Right(right), Top(top), Bottom(bottom) {}
+    bool isNull() { return Left == 0 && Right == 0 && Top == 0 && Bottom == 0;}
+} WindowFrameExtents;
+
 // 缓存atom，减少X访问  TODO 加读写锁
 class AtomCache {
 public:
@@ -270,6 +279,9 @@ public:
     // 注册事件
     void registerEvents(XWindow xid, uint32_t eventMask);
 
+private:
+    XWindow getDecorativeWindow(XWindow xid);
+    WindowFrameExtents getWindowFrameExtents(XWindow xid);
 
 private:
     xcb_connection_t *m_connect;

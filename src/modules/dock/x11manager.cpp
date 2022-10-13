@@ -102,28 +102,44 @@ void X11Manager::listenXEventUseXlib()
         XEvent event;
         XNextEvent (dpy, &event);
 
-        if (event.type == DestroyNotify) {
-            XDestroyWindowEvent *eD = (XDestroyWindowEvent *) (&event);
+        switch (event.type) {
+        case DestroyNotify: {
+            XDestroyWindowEvent *eD = (XDestroyWindowEvent *)(&event);
             qDebug() <<  "DestroyNotify windowId=" << eD->window;
 
             handleDestroyNotifyEvent(XWindow(eD->window));
-        } else if (event.type == MapNotify) {
+            break;
+        }
+        case MapNotify: {
             XMapEvent *eM = (XMapEvent *)(&event);
             qDebug() << "MapNotify windowId=" << eM->window;
 
             handleMapNotifyEvent(XWindow(eM->window));
-        } else if (event.type == ConfigureNotify ) {
-            XConfigureEvent *eC = (XConfigureEvent *) (&event);
+            break;
+        }
+        case ConfigureNotify: {
+            XConfigureEvent *eC = (XConfigureEvent *)(&event);
             qDebug() << "ConfigureNotify windowId=" << eC->window;
 
             handleConfigureNotifyEvent(XWindow(eC->window), eC->x, eC->y, eC->width, eC->height);
-        } else if (event.type == PropertyNotify) {
-            XPropertyEvent *eP = (XPropertyEvent *) (&event);
+            break;
+        }
+        case PropertyNotify: {
+            XPropertyEvent *eP = (XPropertyEvent *)(&event);
             qDebug() << "PropertyNotify windowId=" << eP->window;
 
             handlePropertyNotifyEvent(XWindow(eP->window), XCBAtom(eP->atom));
-        } else {
+            break;
+        }
+        case UnmapNotify: {
+            // 当松开鼠标的时候会触发该事件，在松开鼠标的时候，需要检测当前窗口是否符合智能隐藏的条件，因此在此处加上该功能
+            // 如果不加上该处理，那么就会出现将窗口从任务栏下方移动到屏幕中央的时候，任务栏不隐藏
+            handleActiveWindowChangedX();
+            break;
+        }
+        default:
             qDebug() << "Unknown event type " << event.type;
+            break;
         }
     }
 
