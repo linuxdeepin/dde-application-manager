@@ -441,7 +441,7 @@ void Launcher::onHandleUninstall(const QDBusMessage &message)
         // 移除desktop文件
         Item appItem = Item();
         for (const Item &item : m_desktopAndItemMap) {
-            if (item.info.path == m_appInfo.getFileName().c_str()) {
+            if (item.info.path == QString::fromStdString(m_appInfo.getFileName())) {
                 appItem = item;
                 qDebug() << QString("app-%1 removed successfully").arg(item.info.name);
                 break;
@@ -1099,6 +1099,9 @@ void Launcher::uninstallApp(const QString &name, const QString &pkg)
     }
 
     QString servicePath = reply.value().path();
+
+    QDBusConnection::systemBus().disconnect(LASTORE_SERVICE, servicePath, "org.freedesktop.DBus.Properties",
+                                         "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
     QDBusConnection::systemBus().connect(LASTORE_SERVICE, servicePath, "org.freedesktop.DBus.Properties",
                                          "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
 }
@@ -1112,8 +1115,13 @@ bool Launcher::removeDesktop(const Item &item)
 {
     // 移除desktop文件
     QFile file(item.info.path);
+    if (!file.exists()) {
+        qDebug() << "file not exist...item info: " << item.info;
+        return false;
+    }
+
     bool ret = file.remove();
-    std::thread thread([&] {
+    std::thread thread([ this, item, ret ] {
         notifyUninstallDone(item, ret);
     });
     thread.detach();
@@ -1142,7 +1150,9 @@ void Launcher::removeAutoStart()
 {
     QString filePath(QDir::homePath() + "/.config/autostart/" + m_appInfo.getName().c_str() + ".desktop");
     QFile file(filePath);
-    file.remove();
+
+    if (file.exists())
+        file.remove();
 }
 
 /**
