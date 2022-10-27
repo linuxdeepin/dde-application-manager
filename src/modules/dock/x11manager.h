@@ -68,12 +68,13 @@ private:
     QPair<ConfigureEvent*, QTimer*> getWindowLastConfigureEvent(XWindow xid);
     void delWindowLastConfigureEvent(XWindow xid);
 
-    QMap<XWindow, WindowInfoX *> windowInfoMap;
-    Dock *dock;
-    QMap<XWindow, QPair<ConfigureEvent*, QTimer*>> windowLastConfigureEventMap; // 手动回收ConfigureEvent和QTimer
-    QMutex mutex;
-    XWindow rootWindow; // 根窗口
-    bool listenXEvent;  // 监听X事件
+private:
+    QMap<XWindow, WindowInfoX *> m_windowInfoMap;
+    Dock *m_dock;
+    QMap<XWindow, QPair<ConfigureEvent*, QTimer*>> m_windowLastConfigureEventMap; // 手动回收ConfigureEvent和QTimer
+    QMutex m_mutex;
+    XWindow m_rootWindow;                                                         // 根窗口
+    bool m_listenXEvent;                                                          // 监听X事件
 };
 
 #endif // X11MANAGER_H

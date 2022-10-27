@@ -86,24 +86,27 @@ private:
     bool isValidModal();
     bool shouldSkipWithWMClass();
 
-    int16_t x, y;
-    uint16_t width, height;
-    QVector<XCBAtom> wmState;
-    QVector<XCBAtom> wmWindowType;
-    QVector<XCBAtom> wmAllowedActions;
-    bool hasWMTransientFor;
-    WMClass wmClass;
-    QString wmName;
-    bool hasXEmbedInfo;
+private:
+    int16_t m_x;
+    int16_t m_y;
+    uint16_t m_width;
+    uint16_t m_height;
+    QVector<XCBAtom> m_wmState;
+    QVector<XCBAtom> m_wmWindowType;
+    QVector<XCBAtom> m_wmAllowedActions;
+    bool m_hasWMTransientFor;
+    WMClass m_wmClass;
+    QString m_wmName;
+    bool m_hasXEmbedInfo;
 
     // 自定义atom属性
-    QString gtkAppId;
-    QString flatpakAppId;
-    QString wmRole;
-    MotifWMHints motifWmHints;
+    QString m_gtkAppId;
+    QString m_flatpakAppId;
+    QString m_wmRole;
+    MotifWMHints m_motifWmHints;
 
-    bool updateCalled;
-    ConfigureEvent *lastConfigureNotifyEvent;
+    bool m_updateCalled;
+    ConfigureEvent *m_lastConfigureNotifyEvent;
 };
 
 #endif // WINDOWINFOX_H

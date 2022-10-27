@@ -58,7 +58,9 @@ public:
 private:
     void loadWindowPatterns();
     RuleValueParse parseRule(QVector<QString> rule);
-    QVector<WindowPattern> patterns;
+
+private:
+    QVector<WindowPattern> m_patterns;
 
 };
 

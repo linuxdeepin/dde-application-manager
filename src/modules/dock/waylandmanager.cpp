@@ -27,8 +27,8 @@
 
 WaylandManager::WaylandManager(Dock *_dock, QObject *parent)
  : QObject(parent)
- , dock(_dock)
- , mutex(QMutex(QMutex::NonRecursive))
+ , m_dock(_dock)
+ , m_mutex(QMutex(QMutex::NonRecursive))
 {
 
 }
@@ -44,7 +44,7 @@ void WaylandManager::registerWindow(const QString &objPath)
     if (findWindowByObjPath(objPath))
         return;
 
-    PlasmaWindow *plasmaWindow = dock->createPlasmaWindow(objPath);
+    PlasmaWindow *plasmaWindow = m_dock->createPlasmaWindow(objPath);
     if (!plasmaWindow) {
         qWarning() << "registerWindowWayland: createPlasmaWindow failed";
         return;
@@ -61,11 +61,11 @@ void WaylandManager::registerWindow(const QString &objPath)
         winId = realId;
 
     WindowInfoK *winInfo = new WindowInfoK(plasmaWindow, winId);
-    dock->listenKWindowSignals(winInfo);
+    m_dock->listenKWindowSignals(winInfo);
     insertWindow(objPath, winInfo);
-    dock->attachOrDetachWindow(winInfo);
+    m_dock->attachOrDetachWindow(winInfo);
     if (winId) {
-        windowInfoMap[winId] = winInfo;
+        m_windowInfoMap[winId] = winInfo;
     }
 }
 
@@ -77,16 +77,16 @@ void WaylandManager::unRegisterWindow(const QString &objPath)
     if (!winInfo)
         return;
 
-    dock->removePlasmaWindowHandler(winInfo->getPlasmaWindow());
-    dock->detachWindow(winInfo);
+    m_dock->removePlasmaWindowHandler(winInfo->getPlasmaWindow());
+    m_dock->detachWindow(winInfo);
     deleteWindow(objPath);
 }
 
 WindowInfoK *WaylandManager::handleActiveWindowChangedK(uint activeWin)
 {
     WindowInfoK *winInfo = nullptr;
-    QMutexLocker locker(&mutex);
-    for (auto iter = kWinInfos.begin(); iter != kWinInfos.end(); iter++) {
+    QMutexLocker locker(&m_mutex);
+    for (auto iter = m_kWinInfos.begin(); iter != m_kWinInfos.end(); iter++) {
         if (iter.value()->getInnerId() == activeWin) {
             winInfo = iter.value();
             break;
@@ -99,7 +99,7 @@ WindowInfoK *WaylandManager::handleActiveWindowChangedK(uint activeWin)
 WindowInfoK *WaylandManager::findWindowByXid(XWindow xid)
 {
     WindowInfoK *winInfo = nullptr;
-    for (auto iter = kWinInfos.begin(); iter != kWinInfos.end(); iter++) {
+    for (auto iter = m_kWinInfos.begin(); iter != m_kWinInfos.end(); iter++) {
         if (iter.value()->getXid() == xid) {
             winInfo = iter.value();
             break;
@@ -111,20 +111,20 @@ WindowInfoK *WaylandManager::findWindowByXid(XWindow xid)
 
 WindowInfoK *WaylandManager::findWindowByObjPath(QString objPath)
 {
-    if (kWinInfos.find(objPath) == kWinInfos.end())
+    if (m_kWinInfos.find(objPath) == m_kWinInfos.end())
         return nullptr;
 
-    return kWinInfos[objPath];
+    return m_kWinInfos[objPath];
 }
 
 void WaylandManager::insertWindow(QString objPath, WindowInfoK *windowInfo)
 {
-    QMutexLocker locker(&mutex);
-    kWinInfos[objPath] = windowInfo;
+    QMutexLocker locker(&m_mutex);
+    m_kWinInfos[objPath] = windowInfo;
 }
 
 void WaylandManager::deleteWindow(QString objPath)
 {
-    kWinInfos.remove(objPath);
+    m_kWinInfos.remove(objPath);
 }
 

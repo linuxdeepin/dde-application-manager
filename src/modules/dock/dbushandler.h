@@ -78,14 +78,14 @@ private Q_SLOTS:
     void handleWlActiveWindowChange();
 
 private:
-    Dock *dock;
-    QDBusConnection session;
+    Dock *m_dock;
+    QDBusConnection m_session;
 
-    LauncherBackEnd *launcherEnd;
-    LauncherFront *launcherFront;
-    com::deepin::WM *wm;
-    com::deepin::WMSwitcher *wmSwitcher;
-    com::deepin::daemon::kwayland::WindowManager *kwaylandManager;
+    LauncherBackEnd *m_launcherEnd;
+    LauncherFront *m_launcherFront;
+    com::deepin::WM *m_wm;
+    com::deepin::WMSwitcher *m_wmSwitcher;
+    com::deepin::daemon::kwayland::WindowManager *m_kwaylandManager;
 };
 
 #endif // DBUSHANDLER_H

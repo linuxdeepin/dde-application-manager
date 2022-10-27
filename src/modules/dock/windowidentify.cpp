@@ -82,20 +82,20 @@ static QMap<QString, QString> crxAppIdMap = {
 
 WindowIdentify::WindowIdentify(Dock *_dock, QObject *parent)
  : QObject(parent)
- , dock(_dock)
+ , m_dock(_dock)
 {
-    identifyWindowFuns["Android"] = identifyWindowAndroid;
-    identifyWindowFuns["PidEnv"] = identifyWindowByPidEnv;
-    identifyWindowFuns["CmdlineTurboBooster"] = identifyWindowByCmdlineTurboBooster;
-    identifyWindowFuns["Cmdline-XWalk"] = identifyWindowByCmdlineXWalk;
-    identifyWindowFuns["FlatpakAppID"] = identifyWindowByFlatpakAppID;
-    identifyWindowFuns["CrxId"] = identifyWindowByCrxId;
-    identifyWindowFuns["Rule"] = identifyWindowByRule;
-    identifyWindowFuns["Bamf"] = identifyWindowByBamf;
-    identifyWindowFuns["Pid"] = identifyWindowByPid;
-    identifyWindowFuns["Scratch"] = identifyWindowByScratch;
-    identifyWindowFuns["GtkAppId"] = identifyWindowByGtkAppId;
-    identifyWindowFuns["WmClass"] = identifyWindowByWmClass;
+    m_identifyWindowFuns["Android"] = identifyWindowAndroid;
+    m_identifyWindowFuns["PidEnv"] = identifyWindowByPidEnv;
+    m_identifyWindowFuns["CmdlineTurboBooster"] = identifyWindowByCmdlineTurboBooster;
+    m_identifyWindowFuns["Cmdline-XWalk"] = identifyWindowByCmdlineXWalk;
+    m_identifyWindowFuns["FlatpakAppID"] = identifyWindowByFlatpakAppID;
+    m_identifyWindowFuns["CrxId"] = identifyWindowByCrxId;
+    m_identifyWindowFuns["Rule"] = identifyWindowByRule;
+    m_identifyWindowFuns["Bamf"] = identifyWindowByBamf;
+    m_identifyWindowFuns["Pid"] = identifyWindowByPid;
+    m_identifyWindowFuns["Scratch"] = identifyWindowByScratch;
+    m_identifyWindowFuns["GtkAppId"] = identifyWindowByGtkAppId;
+    m_identifyWindowFuns["WmClass"] = identifyWindowByWmClass;
 
 }
 
@@ -121,11 +121,11 @@ AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerI
         return appInfo;
     }
 
-    for (auto iter = identifyWindowFuns.begin(); iter != identifyWindowFuns.end(); iter++) {
+    for (auto iter = m_identifyWindowFuns.begin(); iter != m_identifyWindowFuns.end(); iter++) {
         QString name = iter.key();
         IdentifyFunc func = iter.value();
         qInfo() << "identifyWindowX11: try " << name;
-        appInfo = func(dock, winInfo, innerId);
+        appInfo = func(m_dock, winInfo, innerId);
         if (appInfo) {  // TODO: if name == "Pid", appInfo may by nullptr
             // 识别成功
             qInfo() << "identify Window by " << name << " innerId " << appInfo->getInnerId() << " success!";
@@ -149,7 +149,7 @@ AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerI
 AppInfo *WindowIdentify::identifyWindowWayland(WindowInfoK *winInfo, QString &innerId)
 {
     // TODO: 对桌面调起的文管应用做规避处理，需要在此处添加，因为初始化时appId和title为空
-    if (winInfo->getAppId() == "dde-desktop" && dock->shouldShowOnDock(winInfo)) {
+    if (winInfo->getAppId() == "dde-desktop" && m_dock->shouldShowOnDock(winInfo)) {
         winInfo->setAppId("dde-file-manager");
     }
 
@@ -181,7 +181,7 @@ AppInfo *WindowIdentify::identifyWindowWayland(WindowInfoK *winInfo, QString &in
     } else {
         // bamf
         XWindow winId = winInfo->getXid();
-        QString desktop = dock->getDesktopFromWindowByBamf(winId);
+        QString desktop = m_dock->getDesktopFromWindowByBamf(winId);
         if (!desktop.isEmpty()) {
             appInfo = new AppInfo(desktop);
         }
@@ -530,15 +530,3 @@ QString WindowIdentify::getAndroidUengineName(XWindow winId)
     // TODO 获取AndroidUengineName
     return "";
 }
-
-
-
-
-
-
-
-
-
-
-
-

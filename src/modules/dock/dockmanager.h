@@ -36,13 +36,9 @@ public:
     explicit DockManager(QObject *parent = nullptr);
     ~DockManager();
 
-Q_SIGNALS:
-
-public Q_SLOTS:
-
 private:
-    Dock *dock;
-    DBusAdaptorDock *adaptor;
+    Dock *m_dock;
+    DBusAdaptorDock *m_adaptor;
 };
 
 #endif // DOCKMANAGER_H

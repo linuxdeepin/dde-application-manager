@@ -47,10 +47,10 @@ public:
     void deleteWindow(QString objPath);
 
 private:
-    Dock *dock;
-    QMap<QString, WindowInfoK *> kWinInfos; // dbusObjectPath -> kwayland window Info
-    QMap<XWindow, WindowInfoK *> windowInfoMap;
-    QMutex mutex;
+    Dock *m_dock;
+    QMap<QString, WindowInfoK *> m_kWinInfos;       // dbusObjectPath -> kwayland window Info
+    QMap<XWindow, WindowInfoK *> m_windowInfoMap;
+    QMutex m_mutex;
 };
 
 #endif // WAYLANDMANAGER_H

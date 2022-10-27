@@ -27,13 +27,13 @@
 #include <QCryptographicHash>
 
 AppInfo::AppInfo(DesktopInfo &info)
- : isValid(true)
+ : m_isValid(true)
 {
     init(info);
 }
 
 AppInfo::AppInfo(const QString &_fileName)
- : isValid(true)
+ : m_isValid(true)
 {
     DesktopInfo info(_fileName.toStdString());
     init(info);
@@ -42,26 +42,26 @@ AppInfo::AppInfo(const QString &_fileName)
 void AppInfo::init(DesktopInfo &info)
 {
     if (!info.isValidDesktop()) {
-        isValid = false;
+        m_isValid = false;
         return;
     }
 
     std::string xDeepinVendor= info.getKeyFile()->getStr(MainSection, "X-Deepin-Vendor");
     if (xDeepinVendor == "deepin") {
-        name = info.getGenericName().c_str();
-        if (name.isEmpty())
-            name = info.getName().c_str();
+        m_name = info.getGenericName().c_str();
+        if (m_name.isEmpty())
+            m_name = info.getName().c_str();
     } else {
-        name = info.getName().c_str();
+        m_name = info.getName().c_str();
     }
 
-    innerId = genInnerIdWithDesktopInfo(info);
-    fileName = info.getFileName().c_str();
-    id = info.getId().c_str();
-    icon = info.getIcon().c_str();
-    installed = info.isInstalled();
+    m_innerId = genInnerIdWithDesktopInfo(info);
+    m_fileName = info.getFileName().c_str();
+    m_id = info.getId().c_str();
+    m_icon = info.getIcon().c_str();
+    m_installed = info.isInstalled();
     for (const auto & action : info.getActions()) {
-        actions.push_back(action);
+        m_actions.push_back(action);
     }
 }
 

@@ -132,18 +132,18 @@ private:
     int getCurrentMode();
 
 private:
-    Dock *dock;
-    AppInfo *app;
-    AppMenu *menu;
+    Dock *m_dock;
+    AppInfo *m_app;
+    AppMenu *m_menu;
 
-    bool isActive;
-    bool isDocked;
+    bool m_isActive;
+    bool m_isDocked;
 
-    QString id;
-    QString name;
-    QString icon;
-    QString innerId;
-    QString desktopFile;
+    QString m_id;
+    QString m_name;
+    QString m_icon;
+    QString m_innerId;
+    QString m_desktopFile;
 
     // Dbus属性直接放到interface上
     QMap<XWindow, WindowInfoBase *> m_windowInfoMap; // 该应用所有窗口

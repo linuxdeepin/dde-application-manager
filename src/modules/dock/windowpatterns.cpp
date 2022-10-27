@@ -160,7 +160,7 @@ WindowPatterns::WindowPatterns()
  */
 QString WindowPatterns::match(WindowInfoX *winInfo)
 {
-    for (auto pattern : patterns) {
+    for (auto pattern : m_patterns) {
         bool patternOk = true;
         for (auto rule : pattern.parseRules) {
             if (!rule.match(winInfo)) {
@@ -195,7 +195,7 @@ void WindowPatterns::loadWindowPatterns()
      if (arr.size() == 0)
          return;
 
-     patterns.clear();
+     m_patterns.clear();
      for (auto iterp = arr.begin(); iterp != arr.end(); iterp++) {
          // 过滤非Object
         if (!(*iterp).isObject())
@@ -226,11 +226,11 @@ void WindowPatterns::loadWindowPatterns()
         for (const auto &item : pattern.rules) {
             qInfo() << item[0] << " " << item[1];
         }
-        patterns.push_back(pattern);
+        m_patterns.push_back(pattern);
      }
 
      // 解析patterns
-     for (auto &pattern : patterns) {
+     for (auto &pattern : m_patterns) {
         for (int i=0; i < pattern.rules.size(); i++) {
             RuleValueParse ruleValue = parseRule(pattern.rules[i]);
             pattern.parseRules.push_back(ruleValue);

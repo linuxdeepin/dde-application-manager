@@ -41,11 +41,11 @@
 
 X11Manager::X11Manager(Dock *_dock, QObject *parent)
     : QObject(parent)
-    , dock(_dock)
-    , mutex(QMutex(QMutex::NonRecursive))
-    , listenXEvent(true)
+    , m_dock(_dock)
+    , m_mutex(QMutex(QMutex::NonRecursive))
+    , m_listenXEvent(true)
 {
-    rootWindow = XCB->getRootWindow();
+    m_rootWindow = XCB->getRootWindow();
 }
 
 void X11Manager::listenXEventUseXlib()
@@ -98,7 +98,7 @@ void X11Manager::listenXEventUseXlib()
     attr.event_mask &= ~SubstructureRedirectMask;
     XSelectInput(dpy, w, attr.event_mask);
 
-    while (listenXEvent) {
+    while (m_listenXEvent) {
         XEvent event;
         XNextEvent (dpy, &event);
 
@@ -178,8 +178,8 @@ WindowInfoX *X11Manager::registerWindow(XWindow xid)
     qInfo() << "registWindow: windowId=" << xid;
     WindowInfoX *ret = nullptr;
     do {
-        if (windowInfoMap.find(xid) != windowInfoMap.end()) {
-            ret = windowInfoMap[xid];
+        if (m_windowInfoMap.find(xid) != m_windowInfoMap.end()) {
+            ret = m_windowInfoMap[xid];
             break;
         }
 
@@ -188,7 +188,7 @@ WindowInfoX *X11Manager::registerWindow(XWindow xid)
             break;
 
         listenWindowXEvent(winInfo);
-        windowInfoMap[xid] = winInfo;
+        m_windowInfoMap[xid] = winInfo;
         ret = winInfo;
     } while (0);
 
@@ -199,16 +199,16 @@ WindowInfoX *X11Manager::registerWindow(XWindow xid)
 void X11Manager::unregisterWindow(XWindow xid)
 {
     qInfo() << "unregisterWindow: windowId=" << xid;
-    if (windowInfoMap.find(xid) != windowInfoMap.end()) {
-        windowInfoMap.remove(xid);
+    if (m_windowInfoMap.find(xid) != m_windowInfoMap.end()) {
+        m_windowInfoMap.remove(xid);
     }
 }
 
 WindowInfoX *X11Manager::findWindowByXid(XWindow xid)
 {
     WindowInfoX *ret = nullptr;
-    if (windowInfoMap.find(xid) != windowInfoMap.end())
-        ret = windowInfoMap[xid];
+    if (m_windowInfoMap.find(xid) != m_windowInfoMap.end())
+        ret = m_windowInfoMap[xid];
 
     return ret;
 }
@@ -219,12 +219,12 @@ void X11Manager::handleClientListChanged()
     for (auto atom : XCB->getClientList())
         newClientList.insert(atom);
 
-    for (auto atom : dock->getClientList())
+    for (auto atom : m_dock->getClientList())
         oldClientList.insert(atom);
 
     addClientList = newClientList - oldClientList;
     rmClientList = oldClientList - newClientList;
-    dock->setClientList(newClientList.toList());
+    m_dock->setClientList(newClientList.toList());
 
     // 处理新增窗口
     for (auto xid : addClientList) {
@@ -246,15 +246,15 @@ void X11Manager::handleClientListChanged()
 
     // 处理需要移除的窗口
     for (auto xid : rmClientList) {
-        WindowInfoX *info = windowInfoMap[xid];
+        WindowInfoX *info = m_windowInfoMap[xid];
         if (info) {
-            dock->detachWindow(info);
+            m_dock->detachWindow(info);
             unregisterWindow(xid);
         } else {
             // no window
-            auto entry = dock->getEntryByWindowId(xid);
-            if (entry && !dock->isDocked(entry->getFileName())) {
-                dock->removeAppEntry(entry);
+            auto entry = m_dock->getEntryByWindowId(xid);
+            if (entry && !m_dock->isDocked(entry->getFileName())) {
+                m_dock->removeAppEntry(entry);
             }
         }
     }
@@ -272,7 +272,7 @@ void X11Manager::handleActiveWindowChangedX()
 void X11Manager::listenRootWindowXEvent()
 {
     uint32_t eventMask = EventMask::XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
-    XCB->registerEvents(rootWindow, eventMask);
+    XCB->registerEvents(m_rootWindow, eventMask);
     handleActiveWindowChangedX();
     handleClientListChanged();
 }
@@ -308,7 +308,7 @@ void X11Manager::handleDestroyNotifyEvent(XWindow xid)
     if (!winInfo)
         return;
 
-    dock->detachWindow(winInfo);
+    m_dock->detachWindow(winInfo);
     unregisterWindow(xid);
 }
 
@@ -323,8 +323,8 @@ void X11Manager::handleMapNotifyEvent(XWindow xid)
     //QTimer::singleShot(2 * 1000, this, [=] {
     qInfo() << "handleMapNotifyEvent: pass 2s, now call idnetifyWindow, windowId=" << winInfo->getXid();
     QString innerId;
-    AppInfo *appInfo = dock->identifyWindow(winInfo, innerId);
-    dock->markAppLaunched(appInfo);
+    AppInfo *appInfo = m_dock->identifyWindow(winInfo, innerId);
+    m_dock->markAppLaunched(appInfo);
     //});
 }
 
@@ -332,7 +332,7 @@ void X11Manager::handleMapNotifyEvent(XWindow xid)
 void X11Manager::handleConfigureNotifyEvent(XWindow xid, int x, int y, int width, int height)
 {
     WindowInfoX *winInfo = findWindowByXid(xid);
-    if (!winInfo || dock->getDockHideMode() != HideMode::SmartHide)
+    if (!winInfo || m_dock->getDockHideMode() != HideMode::SmartHide)
         return;
 
     WMClass wmClass = winInfo->getWMClass();
@@ -345,7 +345,7 @@ void X11Manager::handleConfigureNotifyEvent(XWindow xid, int x, int y, int width
 // property changed event
 void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
 {
-    if (xid == rootWindow) {
+    if (xid == m_rootWindow) {
         handleRootWindowPropertyNotifyEvent(atom);
         return;
     }
@@ -392,7 +392,7 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
 
     if (!newInnerId.isEmpty() && winInfo->getUpdateCalled() && winInfo->getInnerId() != newInnerId) {
         // winInfo.innerId changed
-        dock->detachWindow(winInfo);
+        m_dock->detachWindow(winInfo);
         winInfo->setInnerId(newInnerId);
         needAttachOrDetach = true;
     }
@@ -401,7 +401,7 @@ void X11Manager::handlePropertyNotifyEvent(XWindow xid, XCBAtom atom)
         Q_EMIT requestAttachOrDetachWindow(winInfo);
     }
 
-    Entry *entry = dock->getEntryByWindowId(xid);
+    Entry *entry = m_dock->getEntryByWindowId(xid);
     if (!entry)
         return;
 
@@ -444,28 +444,28 @@ void X11Manager::addWindowLastConfigureEvent(XWindow xid, ConfigureEvent *event)
 {
     delWindowLastConfigureEvent(xid);
 
-    QMutexLocker locker(&mutex);
+    QMutexLocker locker(&m_mutex);
     QTimer *timer = new QTimer();
     timer->setInterval(configureNotifyDelay);
-    windowLastConfigureEventMap[xid] = QPair(event, timer);
+    m_windowLastConfigureEventMap[xid] = QPair(event, timer);
 }
 
 QPair<ConfigureEvent *, QTimer *> X11Manager::getWindowLastConfigureEvent(XWindow xid)
 {
     QPair<ConfigureEvent *, QTimer *> ret;
-    QMutexLocker locker(&mutex);
-    if (windowLastConfigureEventMap.find(xid) != windowLastConfigureEventMap.end())
-        ret = windowLastConfigureEventMap[xid];
+    QMutexLocker locker(&m_mutex);
+    if (m_windowLastConfigureEventMap.find(xid) != m_windowLastConfigureEventMap.end())
+        ret = m_windowLastConfigureEventMap[xid];
 
     return ret;
 }
 
 void X11Manager::delWindowLastConfigureEvent(XWindow xid)
 {
-    QMutexLocker locker(&mutex);
-    if (windowLastConfigureEventMap.find(xid) != windowLastConfigureEventMap.end()) {
-        QPair<ConfigureEvent*, QTimer*> item = windowLastConfigureEventMap[xid];
-        windowLastConfigureEventMap.remove(xid);
+    QMutexLocker locker(&m_mutex);
+    if (m_windowLastConfigureEventMap.find(xid) != m_windowLastConfigureEventMap.end()) {
+        QPair<ConfigureEvent*, QTimer*> item = m_windowLastConfigureEventMap[xid];
+        m_windowLastConfigureEventMap.remove(xid);
         delete item.first;
         item.second->deleteLater();
     }

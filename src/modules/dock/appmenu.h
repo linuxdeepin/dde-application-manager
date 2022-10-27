@@ -58,7 +58,6 @@ struct AppMenuItem
     AppMenuAction action;
 };
 
-
 // 应用菜单类
 class AppMenu
 {
@@ -73,12 +72,13 @@ public:
 private:
     QString allocateId();
 
-    QVector<AppMenuItem> items; // json:"items"
-    bool checkableMenu; // json:"checkableMenu"
-    bool singleCheck; // json:"singleCheck"
+private:
+    QVector<AppMenuItem> m_items;       // json:"items"
+    bool m_checkableMenu;               // json:"checkableMenu"
+    bool m_singleCheck;                 // json:"singleCheck"
 
-    int itemcount;
-    bool dirty;
+    int m_itemCount;
+    bool m_dirty;
 };
 
 #endif // APPMENU_H

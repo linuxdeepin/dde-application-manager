@@ -34,29 +34,29 @@ public:
     explicit AppInfo(const QString &_fileName);
 
     void init(DesktopInfo &info);
-    QString getFileName() {return fileName;}
-    QString getIcon() {return icon;}
-    QString getId() {return id;}
-    QString getInnerId() {return innerId;}
-    QString getName() {return name;}
-    QVector<DesktopAction> getActions() {return actions;}
-    QString getIdentifyMethod() {return identifyMethod;}
-    void setIdentifyMethod(QString method) {identifyMethod = method;}
-    bool isInstalled() {return installed;}
-    bool isValidApp() {return isValid;}
+    QString getFileName() {return m_fileName;}
+    QString getIcon() {return m_icon;}
+    QString getId() {return m_id;}
+    QString getInnerId() {return m_innerId;}
+    QString getName() {return m_name;}
+    QVector<DesktopAction> getActions() {return m_actions;}
+    QString getIdentifyMethod() {return m_identifyMethod;}
+    void setIdentifyMethod(QString method) {m_identifyMethod = method;}
+    bool isInstalled() {return m_installed;}
+    bool isValidApp() {return m_isValid;}
 
 private:
     QString genInnerIdWithDesktopInfo(DesktopInfo &info);
 
-    QString fileName;
-    QString id;
-    QString icon;
-    QString identifyMethod;
-    QString innerId;
-    QString name;
-    QVector<DesktopAction> actions;
-    bool installed;
-    bool isValid;
+    QString m_fileName;
+    QString m_id;
+    QString m_icon;
+    QString m_identifyMethod;
+    QString m_innerId;
+    QString m_name;
+    QVector<DesktopAction> m_actions;
+    bool m_installed;
+    bool m_isValid;
 };
 
 #endif // APPINFO_H

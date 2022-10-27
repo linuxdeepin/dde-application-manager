@@ -81,7 +81,6 @@ int main(int argc, char *argv[])
     new AppManager(ApplicationManager::instance());
     new LauncherManager(ApplicationManager::instance());
     new DockManager(ApplicationManager::instance());
-    new StartManager(ApplicationManager::instance());
     new ApplicationManagerAdaptor(ApplicationManager::instance());
 
     QDBusConnection::sessionBus().registerService("org.desktopspec.Application");

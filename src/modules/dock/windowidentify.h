@@ -60,15 +60,14 @@ public:
     static AppInfo *identifyWindowByGtkAppId(Dock *_dock, WindowInfoX *winInfo, QString &innerId);
     static AppInfo *identifyWindowByWmClass(Dock *_dock, WindowInfoX *winInfo, QString &innerId);
 
-public Q_SLOTS:
-
 private:
     AppInfo *fixAutostartAppInfo(QString fileName);
     static int32_t getAndroidUengineId(XWindow winId);
     static QString getAndroidUengineName(XWindow winId);
 
-    Dock *dock;
-    QMap<QString, IdentifyFunc> identifyWindowFuns;
+private:
+    Dock *m_dock;
+    QMap<QString, IdentifyFunc> m_identifyWindowFuns;
 };
 
 #endif // IDENTIFYWINDOW_H

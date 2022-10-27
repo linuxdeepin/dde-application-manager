@@ -34,21 +34,21 @@
 
 Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
     : QObject(parent)
-    , dock(_dock)
-    , app(nullptr)
-    , menu(nullptr)
-    , isActive(false)
-    , isDocked(false)
-    , innerId(_innerId)
+    , m_dock(_dock)
+    , m_app(nullptr)
+    , m_menu(nullptr)
+    , m_isActive(false)
+    , m_isDocked(false)
+    , m_innerId(_innerId)
     , m_current(nullptr)
     , m_currentWindow(0)
     , m_winIconPreferred(false)
     , m_mode(getCurrentMode())
 {
     setApp(_app);
-    id = dock->allocEntryId();
-    name = getName();
-    icon = getIcon();
+    m_id = m_dock->allocEntryId();
+    m_name = getName();
+    m_icon = getIcon();
 }
 
 Entry::~Entry()
@@ -59,25 +59,25 @@ Entry::~Entry()
     }
     m_windowInfoMap.clear();
 
-    if (app) {
-        delete app;
-        app = nullptr;
+    if (m_app) {
+        delete m_app;
+        m_app = nullptr;
     }
 
-    if (menu) {
-        delete menu;
-        menu = nullptr;
+    if (m_menu) {
+        delete m_menu;
+        m_menu = nullptr;
     }
 }
 
 bool Entry::isValid()
 {
-    return app ? app->isValidApp() : false;
+    return m_app ? m_app->isValidApp() : false;
 }
 
 QString Entry::getId() const
 {
-    return id;
+    return m_id;
 }
 
 QString Entry::path() const
@@ -88,8 +88,8 @@ QString Entry::path() const
 QString Entry::getName()
 {
     QString ret;
-    if (app) {
-        ret = app->getName();
+    if (m_app) {
+        ret = m_app->getName();
     }
 
     if (ret.isEmpty() && m_current) {
@@ -121,19 +121,19 @@ QString Entry::getIcon()
             }
         }
 
-        if (app) {
-            icon = app->getIcon();
-            if (icon.size() > 0) {
-                return icon;
+        if (m_app) {
+            m_icon = m_app->getIcon();
+            if (m_icon.size() > 0) {
+                return m_icon;
             }
         }
 
         return m_current->getIcon();
     }
 
-    if (app) {
+    if (m_app) {
         // no window
-        return app->getIcon();
+        return m_app->getIcon();
     }
 
     return ret;
@@ -141,43 +141,43 @@ QString Entry::getIcon()
 
 QString Entry::getInnerId()
 {
-    return innerId;
+    return m_innerId;
 }
 
 void Entry::setInnerId(QString _innerId)
 {
-    innerId = _innerId;
+    m_innerId = _innerId;
 }
 
 QString Entry::getFileName()
 {
-    return app ? app->getFileName() : QString();
+    return m_app ? m_app->getFileName() : QString();
 }
 
 AppInfo *Entry::getApp()
 {
-    return app;
+    return m_app;
 }
 
 void Entry::setApp(AppInfo *appinfo)
 {
-    if (app == appinfo) {
+    if (m_app == appinfo) {
         return;
     }
 
-    if (app) {
-        delete app;
+    if (m_app) {
+        delete m_app;
     }
 
-    app = appinfo;
+    m_app = appinfo;
     if (!appinfo) {
         m_winIconPreferred = true;
         setPropDesktopFile("");
     } else {
         m_winIconPreferred = false;
         setPropDesktopFile(appinfo->getFileName());
-        QString id = app->getId();
-        auto perferredApps = dock->getWinIconPreferredApps();
+        QString id = m_app->getId();
+        auto perferredApps = m_dock->getWinIconPreferredApps();
         if (perferredApps.contains(id)) {
             m_winIconPreferred = true;
             return;
@@ -191,13 +191,13 @@ void Entry::setApp(AppInfo *appinfo)
 
 bool Entry::getIsDocked() const
 {
-    return isDocked;
+    return m_isDocked;
 }
 
 void Entry::setIsDocked(bool value)
 {
-    if (value != isDocked) {
-        isDocked = value;
+    if (value != m_isDocked) {
+        m_isDocked = value;
         Q_EMIT isDockedChanged(value);
     }
 }
@@ -237,11 +237,11 @@ void Entry::stopExport()
 void Entry::setMenu(AppMenu *_menu)
 {
     _menu->setDirtyStatus(true);
-    if (menu)
-        delete menu;
+    if (m_menu)
+        delete m_menu;
 
-    menu = _menu;
-    Q_EMIT menuChanged(menu->getMenuJsonStr());
+    m_menu = _menu;
+    Q_EMIT menuChanged(m_menu->getMenuJsonStr());
 }
 
 void Entry::updateMenu()
@@ -257,15 +257,15 @@ void Entry::updateMenu()
         appMenu->appendItem(getMenuItemAllWindows());
 
     // menu item dock or undock
-    qInfo() << "entry " << id << " docked? " << isDocked;
-    if (isDocked)
+    qInfo() << "entry " << m_id << " docked? " << m_isDocked;
+    if (m_isDocked)
         appMenu->appendItem(getMenuItemUndock());
     else
         appMenu->appendItem(getMenuItemDock());
 
     if (hasWindow()) {
-        if (dock->getForceQuitAppStatus() != ForceQuitAppMode::Disabled) {
-            if (app && app->getIdentifyMethod() == "Andriod")
+        if (m_dock->getForceQuitAppStatus() != ForceQuitAppMode::Disabled) {
+            if (m_app && m_app->getIdentifyMethod() == "Andriod")
                 appMenu->appendItem(getMenuItemForceQuitAndroid());
             else
                 appMenu->appendItem(getMenuItemForceQuit());
@@ -290,13 +290,13 @@ int Entry::getCurrentMode()
         return ENTRY_NORMAL;
 
     // 对于未驻留的应用则做如下处理
-    if (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Efficient) {
+    if (static_cast<DisplayMode>(m_dock->getDisplayMode()) == DisplayMode::Efficient) {
         // 高效模式下，只有存在子窗口的，则让其为nornal，没有子窗口的，一般不让其显示
         return hasWindow() ? ENTRY_NORMAL : ENTRY_NONE;
     }
     // 时尚模式下对未驻留应用做如下处理
     // 如果开启了最近打开应用的功能，则显示到最近打开区域（ENTRY_RECENT）
-    if (dock->showRecent())
+    if (m_dock->showRecent())
         return ENTRY_RECENT;
 
     // 未开启最近使用应用的功能，如果有子窗口，则显示成通用的(ENTRY_NORMAL)，如果没有子窗口，则不显示(ENTRY_NONE)
@@ -314,14 +314,14 @@ void Entry::updateMode()
 
 void Entry::forceUpdateIcon()
 {
-    icon = getIcon();
-    Q_EMIT iconChanged(icon);
+    m_icon = getIcon();
+    Q_EMIT iconChanged(m_icon);
 }
 
 void Entry::updateIsActive()
 {
     bool isActive = false;
-    auto activeWin = dock->getActiveWindow();
+    auto activeWin = m_dock->getActiveWindow();
     if (activeWin) {
         // 判断活跃窗口是否属于当前应用
         isActive = m_windowInfoMap.find(activeWin->getXid()) != m_windowInfoMap.end();
@@ -350,32 +350,32 @@ WindowInfoBase *Entry::getWindowInfoByWinId(XWindow windowId)
 
 void Entry::setPropIsDocked(bool docked)
 {
-    if (isDocked != docked) {
-        isDocked = docked;
+    if (m_isDocked != docked) {
+        m_isDocked = docked;
         Q_EMIT isDockedChanged(docked);
     }
 }
 
 void Entry::setPropIcon(QString value)
 {
-    if (value != icon) {
-        icon = value;
+    if (value != m_icon) {
+        m_icon = value;
         Q_EMIT iconChanged(value);
     }
 }
 
 void Entry::setPropName(QString value)
 {
-    if (value != name) {
-        name = value;
+    if (value != m_name) {
+        m_name = value;
         Q_EMIT nameChanged(value);
     }
 }
 
 void Entry::setPropIsActive(bool active)
 {
-    if (isActive != active) {
-        isActive = active;
+    if (m_isActive != active) {
+        m_isActive = active;
         Q_EMIT isActiveChanged(active);
     }
 }
@@ -490,7 +490,7 @@ bool Entry::detachWindow(WindowInfoBase *info)
     }
 
     if (m_windowInfoMap.isEmpty()) {
-        if (!isDocked) {
+        if (!m_isDocked) {
             // 既无窗口也非驻留应用，并且不是最近打开，无需在任务栏显示
             return true;
         }
@@ -523,8 +523,8 @@ bool Entry::isShowOnDock() const
 
     // 1.时尚模式下，如果开启了显示最近使用，则不管是否有子窗口，都在任务栏上显示
     // 如果没有开启显示最近使用，则只显示有子窗口的
-    if (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Fashion)
-        return (dock->showRecent() || m_exportWindowInfos.size() > 0);
+    if (static_cast<DisplayMode>(m_dock->getDisplayMode()) == DisplayMode::Fashion)
+        return (m_dock->showRecent() || m_exportWindowInfos.size() > 0);
 
     // 2.高效模式下，只有该应用有打开窗口才显示
     return m_exportWindowInfos.size() > 0;
@@ -556,7 +556,7 @@ bool Entry::attachWindow(WindowInfoBase *info)
 
     if (!lastShowOnDock && isShowOnDock()) {
         // 新打开的窗口始终显示到最后
-        Q_EMIT dock->entryAdded(QDBusObjectPath(path()), -1);
+        Q_EMIT m_dock->entryAdded(QDBusObjectPath(path()), -1);
     }
 
     return true;
@@ -564,7 +564,7 @@ bool Entry::attachWindow(WindowInfoBase *info)
 
 void Entry::launchApp(uint32_t timestamp)
 {
-    dock->launchApp(app->getFileName(), timestamp, QStringList());
+    m_dock->launchApp(m_app->getFileName(), timestamp, QStringList());
 }
 
 bool Entry::containsWindow(XWindow xid)
@@ -575,40 +575,40 @@ bool Entry::containsWindow(XWindow xid)
 // 处理菜单项
 void Entry::handleMenuItem(uint32_t timestamp, QString itemId)
 {
-    menu->handleAction(timestamp, itemId);
+    m_menu->handleAction(timestamp, itemId);
 }
 
 // 处理拖拽事件
 void Entry::handleDragDrop(uint32_t timestamp, QStringList files)
 {
-    dock->launchApp(app->getFileName(), timestamp, files);
+    m_dock->launchApp(m_app->getFileName(), timestamp, files);
 }
 
 // 驻留
 void Entry::requestDock(bool dockToEnd)
 {
-    if (dock->dockEntry(this, dockToEnd)) {
-        dock->saveDockedApps();
+    if (m_dock->dockEntry(this, dockToEnd)) {
+        m_dock->saveDockedApps();
     }
 }
 
 // 取消驻留
 void Entry::requestUndock(bool dockToEnd)
 {
-    dock->undockEntry(this, dockToEnd);
+    m_dock->undockEntry(this, dockToEnd);
 }
 
 void Entry::newInstance(uint32_t timestamp)
 {
     QStringList files;
-    dock->launchApp(app->getFileName(), timestamp, files);
+    m_dock->launchApp(m_app->getFileName(), timestamp, files);
 }
 
 // 检查应用窗口分离、合并状态
 void Entry::check()
 {
     for (auto iter = m_windowInfoMap.begin(); iter != m_windowInfoMap.end(); iter++) {
-        dock->attachOrDetachWindow(iter.value());
+        m_dock->attachOrDetachWindow(iter.value());
     }
 }
 
@@ -645,7 +645,7 @@ void Entry::presentWindows()
         windows.push_back(iter.key());
     }
 
-    dock->presentWindows(windows);
+    m_dock->presentWindows(windows);
 }
 
 /**
@@ -654,9 +654,9 @@ void Entry::presentWindows()
  */
 void Entry::active(uint32_t timestamp)
 {
-    if (dock->getHideMode() == HideMode::SmartHide) {
-        dock->setPropHideState(HideState::Show);
-        dock->updateHideState(false);
+    if (m_dock->getHideMode() == HideMode::SmartHide) {
+        m_dock->setPropHideState(HideState::Show);
+        m_dock->updateHideState(false);
     }
 
     // 无窗口则直接启动
@@ -671,12 +671,12 @@ void Entry::active(uint32_t timestamp)
     }
 
     WindowInfoBase *winInfo = m_current;
-    if (dock->isWaylandEnv()) {
+    if (m_dock->isWaylandEnv()) {
         // wayland环境
-        if (!dock->isActiveWindow(winInfo)) {
+        if (!m_dock->isActiveWindow(winInfo)) {
             winInfo->activate();
         } else {
-            bool showing = dock->isShowingDesktop();
+            bool showing = m_dock->isShowingDesktop();
             if (showing || winInfo->isMinimized()) {
                 winInfo->activate();
             } else if (m_windowInfoMap.size() == 1) {
@@ -691,9 +691,9 @@ void Entry::active(uint32_t timestamp)
     } else {
         // X11环境
         XWindow xid = winInfo->getXid();
-        WindowInfoBase *activeWin = dock->getActiveWindow();
+        WindowInfoBase *activeWin = m_dock->getActiveWindow();
         if (activeWin && xid != activeWin->getXid()) {
-            dock->doActiveWindow(xid);
+            m_dock->doActiveWindow(xid);
         } else {
             bool found = false;
             XWindow hiddenAtom = XCB->getAtom("_NET_WM_STATE_HIDDEN");
@@ -706,11 +706,11 @@ void Entry::active(uint32_t timestamp)
 
             if (found) {
                 // 激活隐藏窗口
-                dock->doActiveWindow(xid);
+                m_dock->doActiveWindow(xid);
             } else if (m_windowInfoMap.size() == 1) {
                 // 窗口图标化
                 XCB->minimizeWindow(xid);
-            } else if (dock->getActiveWindow() && dock->getActiveWindow()->getXid() == xid) {
+            } else if (m_dock->getActiveWindow() && m_dock->getActiveWindow()->getXid() == xid) {
                 WindowInfoBase *nextWin = findNextLeader();
                 if (nextWin) {
                     nextWin->activate();
@@ -722,13 +722,13 @@ void Entry::active(uint32_t timestamp)
 
 void Entry::activeWindow(quint32 winId)
 {
-    if (dock->isWaylandEnv()) {
+    if (m_dock->isWaylandEnv()) {
         if (!m_windowInfoMap.contains(winId))
             return;
 
         WindowInfoBase *winInfo = m_windowInfoMap[winId];
-        if (dock->isActiveWindow(winInfo)) {
-            bool showing = dock->isShowingDesktop();
+        if (m_dock->isActiveWindow(winInfo)) {
+            bool showing = m_dock->isShowingDesktop();
             if (showing || winInfo->isMinimized()) {
                 winInfo->activate();
             } else if (m_windowInfoMap.size() == 1) {
@@ -743,7 +743,7 @@ void Entry::activeWindow(quint32 winId)
             winInfo->activate();
         }
     } else {
-        dock->doActiveWindow(winId);
+        m_dock->doActiveWindow(winId);
     }
 }
 
@@ -759,17 +759,17 @@ XWindow Entry::getCurrentWindow()
 
 QString Entry::getDesktopFile()
 {
-    return desktopFile;
+    return m_desktopFile;
 }
 
 bool Entry::getIsActive()
 {
-    return isActive;
+    return m_isActive;
 }
 
 QString Entry::getMenu()
 {
-    return menu->getMenuJsonStr();
+    return m_menu->getMenuJsonStr();
 }
 
 QVector<XWindow> Entry::getAllowedClosedWindowIds()
@@ -805,14 +805,14 @@ QVector<WindowInfoBase *> Entry::getAllowedCloseWindows()
 QVector<AppMenuItem> Entry::getMenuItemDesktopActions()
 {
     QVector<AppMenuItem> ret;
-    if (!app) {
+    if (!m_app) {
         return ret;
     }
 
-    for (auto action : app->getActions()) {
+    for (auto action : m_app->getActions()) {
         AppMenuAction fn = [=](uint32_t timestamp) {
             qInfo() << "do MenuItem: " << action.name.c_str();
-            dock->launchAppAction(app->getFileName(), action.section.c_str(), timestamp);
+            m_dock->launchAppAction(m_app->getFileName(), action.section.c_str(), timestamp);
         };
 
         AppMenuItem item;
@@ -881,7 +881,7 @@ AppMenuItem Entry::getMenuItemCloseAll()
 
 AppMenuItem Entry::getMenuItemForceQuit()
 {
-    bool active = dock->getForceQuitAppStatus() != ForceQuitAppMode::Deactivated;
+    bool active = m_dock->getForceQuitAppStatus() != ForceQuitAppMode::Deactivated;
     AppMenuAction fn = [this](uint32_t) {
         qInfo() << "do MenuItem: Force Quit";
         forceQuit();
@@ -897,7 +897,7 @@ AppMenuItem Entry::getMenuItemForceQuit()
 //dock栏上Android程序的Force Quit功能
 AppMenuItem Entry::getMenuItemForceQuitAndroid()
 {
-    bool active = dock->getForceQuitAppStatus() != ForceQuitAppMode::Deactivated;
+    bool active = m_dock->getForceQuitAppStatus() != ForceQuitAppMode::Deactivated;
     auto allowedCloseWindows = getAllowedCloseWindows();
     AppMenuAction fn = [](uint32_t){};
     if (allowedCloseWindows.size() > 0) {
@@ -969,8 +969,8 @@ bool Entry::killProcess(int pid)
 
 bool Entry::setPropDesktopFile(QString value)
 {
-    if (value != desktopFile) {
-        desktopFile = value;
+    if (value != m_desktopFile) {
+        m_desktopFile = value;
         Q_EMIT desktopFileChanged(value);
         return true;
     }

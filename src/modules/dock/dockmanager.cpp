@@ -28,21 +28,21 @@
 
 DockManager::DockManager(QObject *parent)
  : QObject(parent)
- , dock(new Dock(this))
+ , m_dock(new Dock(this))
 {
     qInfo() << "DockManager";
-    adaptor = new DBusAdaptorDock(dock);
+    m_adaptor = new DBusAdaptorDock(m_dock);
     QDBusConnection con = QDBusConnection::sessionBus();
     if (!con.registerService(dbusService)) {
         qWarning() << "register service Dock1 error:" << con.lastError().message();
         return;
     }
 
-    if (!con.registerObject(dbusPath, dock, QDBusConnection::ExportAdaptors)) {
+    if (!con.registerObject(dbusPath, m_dock, QDBusConnection::ExportAdaptors)) {
         qWarning() << "register object Dock1 error:" << con.lastError().message();
     }
 
-    dock->serviceRestarted();
+    m_dock->serviceRestarted();
 }
 
 DockManager::~DockManager()

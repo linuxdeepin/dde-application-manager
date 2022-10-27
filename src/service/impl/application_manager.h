@@ -57,44 +57,43 @@ class ApplicationManager : public QObject, public QDBusContext
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), ApplicationManager)
 
 public:
-    ApplicationManager(QObject *parent = nullptr);
-    ~ApplicationManager() override;
     static ApplicationManager* instance();
 
     void addApplication(const QList<QSharedPointer<Application>> &list);
     void launchAutostartApps();
     void processInstanceStatus(Methods::ProcessStatus instanceStatus);
 
-
 Q_SIGNALS:
     void AutostartChanged(QString status, QString filePath);
 
-public: // PROPERTIES
-    QList<QDBusObjectPath> instances() const;
-    QList<QDBusObjectPath> list() const;
-
 public Q_SLOTS: // METHODS
-    QDBusObjectPath GetInformation(const QString &id);
-    QList<QDBusObjectPath> GetInstances(const QString &id);
-    QDBusObjectPath Launch(const QString &id, QStringList files);
-
-    // com.deepin.StartManager
+    //bool Launch(QString desktopFile); deprecated
     bool AddAutostart(QString fileName);
-    bool RemoveAutostart(QString fileName);
     QStringList AutostartList();
     QString DumpMemRecord();
-    //QString GetApps();
     bool IsAutostart(QString fileName);
     bool IsMemSufficient();
-    //bool Launch(QString desktopFile); deprecated
-    void LaunchApp(QString desktopFile, uint32_t timestamp, QStringList files);
+    QDBusObjectPath Launch(const QString &id, QStringList files);
+    bool RemoveAutostart(QString fileName);
+    bool IsPidVirtualMachine(uint32_t pid);
     void LaunchAppAction(QString desktopFile, QString action, uint32_t timestamp);
+    void RunCommand(QString exe, QStringList args);
+    void TryAgain(bool launch);
+
+protected:
+    ApplicationManager(QObject *parent = nullptr);
+    ~ApplicationManager() override;
+
+    QList<QDBusObjectPath> instances() const;
+    QList<QDBusObjectPath> list() const;
+    QDBusObjectPath GetInformation(const QString &id);
+    QList<QDBusObjectPath> GetInstances(const QString &id);
+    // com.deepin.StartManager
+    //QString GetApps();
+    void LaunchApp(QString desktopFile, uint32_t timestamp, QStringList files);
     void LaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
     //bool LaunchWithTimestamp(QString desktopFile, uint32_t timestamp); deprecated
-    void RunCommand(QString exe, QStringList args);
     void RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
-    void TryAgain(bool launch);
-    bool IsPidVirtualMachine(uint32_t pid);
     bool IsProcessExist(uint32_t pid);
 };
 

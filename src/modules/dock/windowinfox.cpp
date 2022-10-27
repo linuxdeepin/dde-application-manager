@@ -36,13 +36,13 @@
 
 WindowInfoX::WindowInfoX(XWindow _xid)
  : WindowInfoBase ()
- , x(0)
- , y(0)
- , width(0)
- , height(0)
- , hasWMTransientFor(false)
- , hasXEmbedInfo(false)
- , updateCalled(false)
+ , m_x(0)
+ , m_y(0)
+ , m_width(0)
+ , m_height(0)
+ , m_hasWMTransientFor(false)
+ , m_hasXEmbedInfo(false)
+ , m_updateCalled(false)
 {
     xid = _xid;
     createdTime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count(); // 获取当前时间，精确到纳秒 
@@ -56,15 +56,15 @@ WindowInfoX::~WindowInfoX()
 bool WindowInfoX::shouldSkip()
 {
     qInfo() << "window " << xid << " shouldSkip?";
-    if (!updateCalled) {
+    if (!m_updateCalled) {
         update();
-        updateCalled = true;
+        m_updateCalled = true;
     }
 
     if (hasWmStateSkipTaskBar() || isValidModal() || shouldSkipWithWMClass())
         return true;
 
-    for (auto atom : wmWindowType) {
+    for (auto atom : m_wmWindowType) {
         if (atom == XCB->getAtom("_NET_WM_WINDOW_TYPE_DIALOG") && !isActionMinimizeAllowed())
             return true;
 
@@ -109,7 +109,7 @@ void WindowInfoX::minimize()
 
 bool WindowInfoX::isMinimized()
 {
-    return containAtom(wmState, XCB->getAtom("_NET_WM_STATE_HIDDEN"));
+    return containAtom(m_wmState, XCB->getAtom("_NET_WM_STATE_HIDDEN"));
 }
 
 int64_t WindowInfoX::getCreatedTime()
@@ -129,12 +129,12 @@ bool WindowInfoX::allowClose()
     // 2. 或者设置了 functions 字段并且 设置了 MotifFunctionAll 标志位；
     // 3. 或者设置了 functions 字段并且 设置了 MotifFunctionClose 标志位。
     // 相关定义在 motif-2.3.8/lib/Xm/MwmUtil.h 。
-    if ((motifWmHints.flags & MotifHintFunctions) == 0
-     || (motifWmHints.functions & MotifFunctionAll) != 0
-     || (motifWmHints.functions & MotifFunctionClose) != 0)
+    if ((m_motifWmHints.flags & MotifHintFunctions) == 0
+     || (m_motifWmHints.functions & MotifFunctionAll) != 0
+     || (m_motifWmHints.functions & MotifFunctionClose) != 0)
         return true;
 
-    for (auto action : wmAllowedActions) {
+    for (auto action : m_wmAllowedActions) {
         if (action == XCB->getAtom("_NET_WM_ACTION_CLOSE")) {
             return true;
         }
@@ -147,10 +147,10 @@ QString WindowInfoX::getDisplayName()
 {
     XWindow winId = xid;
     //QString role = wmRole;
-    QString className(wmClass.className.c_str());
+    QString className(m_wmClass.className.c_str());
     QString instance;
-    if (wmClass.instanceName.size() > 0) {
-        int pos = QString(wmClass.instanceName.c_str()).lastIndexOf('/');
+    if (m_wmClass.instanceName.size() > 0) {
+        int pos = QString(m_wmClass.instanceName.c_str()).lastIndexOf('/');
         if (pos != -1)
             instance.remove(0, pos + 1);
     }
@@ -166,7 +166,7 @@ QString WindowInfoX::getDisplayName()
         return instance;
 
 
-    QString _wmName = wmName;
+    QString _wmName = m_wmName;
     if (!_wmName.isEmpty()) {
         int pos = _wmName.lastIndexOf('-');
         if (pos != -1 && !_wmName.startsWith("-")) {
@@ -196,60 +196,60 @@ QString WindowInfoX::uuid()
 
 QString WindowInfoX::getGtkAppId()
 {
-    return gtkAppId;
+    return m_gtkAppId;
 }
 
 QString WindowInfoX::getFlatpakAppId()
 {
-    return flatpakAppId;
+    return m_flatpakAppId;
 }
 
 QString WindowInfoX::getWmRole()
 {
-    return wmRole;
+    return m_wmRole;
 }
 
 WMClass WindowInfoX::getWMClass()
 {
-    return wmClass;
+    return m_wmClass;
 }
 
 QString WindowInfoX::getWMName()
 {
-    return wmName;
+    return m_wmName;
 }
 
 ConfigureEvent *WindowInfoX::getLastConfigureEvent()
 {
-    return lastConfigureNotifyEvent;
+    return m_lastConfigureNotifyEvent;
 }
 
 void WindowInfoX::setLastConfigureEvent(ConfigureEvent *event)
 {
-    lastConfigureNotifyEvent = event;
+    m_lastConfigureNotifyEvent = event;
 }
 
 bool WindowInfoX::isGeometryChanged(int _x, int _y, int _width, int _height)
 {
-    return !(_x == x && _y == y && _width == width && _height == height);
+    return !(_x == m_x && _y == m_y && _width == m_width && _height == m_height);
 }
 
 void WindowInfoX::setGtkAppId(QString _gtkAppId)
 {
-    gtkAppId = _gtkAppId;
+    m_gtkAppId = _gtkAppId;
 }
 
 void WindowInfoX::updateMotifWmHints()
 {
     // get from XCB
-    motifWmHints = XCB->getWindowMotifWMHints(xid);
+    m_motifWmHints = XCB->getWindowMotifWMHints(xid);
 }
 
 // XEmbed info
 // 一般 tray icon 会带有 _XEMBED_INFO 属性
 void WindowInfoX::updateHasXEmbedInfo()
 {
-    hasXEmbedInfo = XCB->hasXEmbedInfo(xid);
+    m_hasXEmbedInfo = XCB->hasXEmbedInfo(xid);
 }
 
 /**
@@ -308,39 +308,39 @@ QString WindowInfoX::genInnerId(WindowInfoX *winInfo)
 // 更新窗口类型
 void WindowInfoX::updateWmWindowType()
 {
-    wmWindowType.clear();
+    m_wmWindowType.clear();
     for (auto ty : XCB->getWMWindoType(xid)) {
-        wmWindowType.push_back(ty);
+        m_wmWindowType.push_back(ty);
     }
 }
 
 // 更新窗口许可动作
 void WindowInfoX::updateWmAllowedActions()
 {
-    wmAllowedActions.clear();
+    m_wmAllowedActions.clear();
     for (auto action : XCB->getWMAllowedActions(xid)) {
-        wmAllowedActions.push_back(action);
+        m_wmAllowedActions.push_back(action);
     }
 }
 
 void WindowInfoX::updateWmState()
 {
-    wmState.clear();
+    m_wmState.clear();
     for (auto a : XCB->getWMState(xid)) {
-        wmState.push_back(a);
+        m_wmState.push_back(a);
     }
 }
 
 void WindowInfoX::updateWmClass()
 {
-    wmClass = XCB->getWMClass(xid);
+    m_wmClass = XCB->getWMClass(xid);
 }
 
 void WindowInfoX::updateWmName()
 {
     auto name = XCB->getWMName(xid);
     if (!name.empty())
-        wmName = name.c_str();
+        m_wmName = name.c_str();
 
     title = getTitle();
 }
@@ -353,7 +353,7 @@ void WindowInfoX::updateIcon()
 void WindowInfoX::updateHasWmTransientFor()
 {
     if (XCB->getWMTransientFor(xid) == 1)
-        hasWMTransientFor = true;
+        m_hasWMTransientFor = true;
 }
 
 /**
@@ -379,22 +379,22 @@ QString WindowInfoX::getIconFromWindow()
 
 bool WindowInfoX::isActionMinimizeAllowed()
 {
-    return containAtom(wmAllowedActions, XCB->getAtom("_NET_WM_ACTION_MINIMIZE"));
+    return containAtom(m_wmAllowedActions, XCB->getAtom("_NET_WM_ACTION_MINIMIZE"));
 }
 
 bool WindowInfoX::hasWmStateDemandsAttention()
 {
-    return containAtom(wmState, XCB->getAtom("_NET_WM_STATE_DEMANDS_ATTENTION"));
+    return containAtom(m_wmState, XCB->getAtom("_NET_WM_STATE_DEMANDS_ATTENTION"));
 }
 
 bool WindowInfoX::hasWmStateSkipTaskBar()
 {
-    return containAtom(wmState, XCB->getAtom("_NET_WM_STATE_SKIP_TASKBAR"));
+    return containAtom(m_wmState, XCB->getAtom("_NET_WM_STATE_SKIP_TASKBAR"));
 }
 
 bool WindowInfoX::hasWmStateModal()
 {
-    return containAtom(wmState, XCB->getAtom("_NET_WM_STATE_MODAL"));
+    return containAtom(m_wmState, XCB->getAtom("_NET_WM_STATE_MODAL"));
 }
 
 bool WindowInfoX::isValidModal()
@@ -406,9 +406,9 @@ bool WindowInfoX::isValidModal()
 bool WindowInfoX::shouldSkipWithWMClass()
 {
     bool ret = false;
-    if (wmClass.instanceName == "explorer.exe" && wmClass.className == "Wine")
+    if (m_wmClass.instanceName == "explorer.exe" && m_wmClass.className == "Wine")
         ret = true;
-    else if (wmClass.className == "dde-launcher")
+    else if (m_wmClass.className == "dde-launcher")
         ret = true;
 
     return ret;
@@ -437,7 +437,7 @@ void WindowInfoX::updateProcessInfo()
 
 bool WindowInfoX::getUpdateCalled()
 {
-    return updateCalled;
+    return m_updateCalled;
 }
 
 void WindowInfoX::setInnerId(QString _innerId)
@@ -447,7 +447,7 @@ void WindowInfoX::setInnerId(QString _innerId)
 
 QString WindowInfoX::getTitle()
 {
-    QString name = wmName;
+    QString name = m_wmName;
     if (name.isEmpty())
         name = getDisplayName();
 

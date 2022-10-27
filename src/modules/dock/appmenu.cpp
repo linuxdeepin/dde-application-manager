@@ -25,10 +25,10 @@
 #include <QJsonDocument>
 
 AppMenu::AppMenu()
- : checkableMenu(false)
- , singleCheck(false)
- , itemcount(0)
- , dirty(false)
+ : m_checkableMenu(false)
+ , m_singleCheck(false)
+ , m_itemCount(0)
+ , m_dirty(false)
 {
 
 }
@@ -41,7 +41,7 @@ void AppMenu::appendItem(AppMenuItem item)
 {
     if (!item.text.isEmpty()) {
         item.id = allocateId();
-        items.push_back(item);
+        m_items.push_back(item);
     }
 }
 
@@ -52,7 +52,7 @@ void AppMenu::appendItem(AppMenuItem item)
  */
 void AppMenu::handleAction(uint32_t timestamp, QString itemId)
 {
-    for (auto &item : items) {
+    for (auto &item : m_items) {
         if (item.id == itemId) {
             item.action(timestamp);
             break;
@@ -62,14 +62,14 @@ void AppMenu::handleAction(uint32_t timestamp, QString itemId)
 
 void AppMenu::setDirtyStatus(bool isDirty)
 {
-    dirty = isDirty;
+    m_dirty = isDirty;
 }
 
 QString AppMenu::getMenuJsonStr()
 {
     QJsonObject obj;
     QJsonArray array;
-    for (auto item : items) {
+    for (auto item : m_items) {
         QJsonObject objItem;
         objItem["itemId"] = item.id;
         objItem["itemText"] = item.text;
@@ -84,8 +84,8 @@ QString AppMenu::getMenuJsonStr()
         array.push_back(objItem);
     }
     obj["items"] = QJsonValue(array);
-    obj["checkableMenu"] = checkableMenu;
-    obj["singleCheck"] = singleCheck;
+    obj["checkableMenu"] = m_checkableMenu;
+    obj["singleCheck"] = m_singleCheck;
 
     QString ret = QJsonDocument(obj).toJson();
     return ret;
@@ -93,7 +93,5 @@ QString AppMenu::getMenuJsonStr()
 
 QString AppMenu::allocateId()
 {
-    return QString::number(itemcount++);
+    return QString::number(m_itemCount++);
 }
-
-

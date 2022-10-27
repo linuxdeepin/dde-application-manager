@@ -26,71 +26,71 @@
 
 DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
     : QObject(parent)
-    , dock(_dock)
-    , session(QDBusConnection::sessionBus())
-    , launcherEnd(new LauncherBackEnd("org.deepin.dde.daemon.Launcher1", "/org/deepin/dde/daemon/Launcher1", session, this))
-    , launcherFront(new LauncherFront("org.deepin.dde.Launcher1", "/org/deepin/dde/Launcher1", session, this))
-    , wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", session, this))
-    , wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", session, this))
-    , kwaylandManager(nullptr)
+    , m_dock(_dock)
+    , m_session(QDBusConnection::sessionBus())
+    , m_launcherEnd(new LauncherBackEnd("org.deepin.dde.daemon.Launcher1", "/org/deepin/dde/daemon/Launcher1", m_session, this))
+    , m_launcherFront(new LauncherFront("org.deepin.dde.Launcher1", "/org/deepin/dde/Launcher1", m_session, this))
+    , m_wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", m_session, this))
+    , m_wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", m_session, this))
+    , m_kwaylandManager(nullptr)
 {
     // 关联org.deepin.dde.daemon.Launcher1事件 ItemChanged
-    connect(launcherEnd, &LauncherBackEnd::ItemChanged, this, &DBusHandler::handleLauncherItemChanged);
+    connect(m_launcherEnd, &LauncherBackEnd::ItemChanged, this, &DBusHandler::handleLauncherItemChanged);
 
     // 关联org.deepin.dde.Launcher1事件 VisibleChanged
-    connect(launcherFront, &LauncherFront::VisibleChanged, this, [&](bool visible) {
-        dock->setDdeLauncherVisible(visible);
-        dock->updateHideState(false);
+    connect(m_launcherFront, &LauncherFront::VisibleChanged, this, [&](bool visible) {
+        m_dock->setDdeLauncherVisible(visible);
+        m_dock->updateHideState(false);
     });
 
     // 关联com.deepin.WMSwitcher事件 WMChanged
-    connect(wmSwitcher, &__WMSwitcher::WMChanged, this, [&](QString name) {dock->setWMName(name);});
+    connect(m_wmSwitcher, &__WMSwitcher::WMChanged, this, [&](QString name) {m_dock->setWMName(name);});
 }
 
 // 关联com.deepin.daemon.KWayland.WindowManager事件
 void DBusHandler::listenWaylandWMSignals()
 {
-    kwaylandManager = new com::deepin::daemon::kwayland::WindowManager("com.deepin.daemon.KWayland", "/com/deepin/daemon/KWayland/WindowManager", session, this);
+    m_kwaylandManager = new com::deepin::daemon::kwayland::WindowManager("com.deepin.daemon.KWayland", "/com/deepin/daemon/KWayland/WindowManager", m_session, this);
 
     // ActiveWindowchanged
-    connect(kwaylandManager, &__KwaylandManager::ActiveWindowChanged, this, &DBusHandler::handleWlActiveWindowChange);
+    connect(m_kwaylandManager, &__KwaylandManager::ActiveWindowChanged, this, &DBusHandler::handleWlActiveWindowChange);
     // WindowCreated
-    connect(kwaylandManager, &__KwaylandManager::WindowCreated, this, [&] (const QString &ObjPath) {
-        dock->registerWindowWayland(ObjPath);
+    connect(m_kwaylandManager, &__KwaylandManager::WindowCreated, this, [&] (const QString &ObjPath) {
+        m_dock->registerWindowWayland(ObjPath);
     });
     // WindowRemove
-    connect(kwaylandManager, &__KwaylandManager::WindowRemove, this, [&] (const QString &ObjPath) {
-        dock->unRegisterWindowWayland(ObjPath);
+    connect(m_kwaylandManager, &__KwaylandManager::WindowRemove, this, [&] (const QString &ObjPath) {
+        m_dock->unRegisterWindowWayland(ObjPath);
     });
 }
 
 void DBusHandler::loadClientList()
 {
-    if (!kwaylandManager)
+    if (!m_kwaylandManager)
         return;
 
     // 加载已存在的窗口
-    QDBusPendingReply<QVariantList> windowList = kwaylandManager->Windows();
+    QDBusPendingReply<QVariantList> windowList = m_kwaylandManager->Windows();
     QVariantList windows = windowList.value();
     for (QVariant windowPath : windows)
-        dock->registerWindowWayland(windowPath.toString());
+        m_dock->registerWindowWayland(windowPath.toString());
 }
 
 void DBusHandler::handleLauncherItemChanged(const QString &status, LauncherItemInfo itemInfo, qlonglong categoryID)
 {
     qInfo() << "handleLauncherItemChanged status:" << status << " Name:" << itemInfo.name << " ID:" << itemInfo.id;
     if (status == "deleted") {
-        dock->handleLauncherItemDeleted(itemInfo.path);
+        m_dock->handleLauncherItemDeleted(itemInfo.path);
     } else if (status == "created") {
         // don't need to download to dock when app reinstall
     } else if (status == "updated") {
-        dock->handleLauncherItemUpdated(itemInfo.path);
+        m_dock->handleLauncherItemUpdated(itemInfo.path);
     }
 }
 
 QString DBusHandler::getCurrentWM()
 {
-    return wmSwitcher->CurrentWM().value();
+    return m_wmSwitcher->CurrentWM().value();
 }
 
 // TODO 扩展ApplicationManager Launch接口，允许带参数启动应用，暂时调用StartManager接口
@@ -115,8 +115,8 @@ void DBusHandler::markAppLaunched(const QString &filePath)
 bool DBusHandler::wlShowingDesktop()
 {
     bool ret = false;
-    if (kwaylandManager)
-        ret = kwaylandManager->IsShowingDesktop().value();
+    if (m_kwaylandManager)
+        ret = m_kwaylandManager->IsShowingDesktop().value();
 
     return ret;
 }
@@ -124,8 +124,8 @@ bool DBusHandler::wlShowingDesktop()
 uint DBusHandler::wlActiveWindow()
 {
     uint ret = 0;
-    if (kwaylandManager)
-        ret = kwaylandManager->ActiveWindow().value();
+    if (m_kwaylandManager)
+        ret = m_kwaylandManager->ActiveWindow().value();
 
     return ret;
 }
@@ -136,14 +136,14 @@ void DBusHandler::handleWlActiveWindowChange()
     if (activeWinInternalId == 0)
         return;
 
-    WindowInfoK *info = dock->handleActiveWindowChangedK(activeWinInternalId);
+    WindowInfoK *info = m_dock->handleActiveWindowChangedK(activeWinInternalId);
     if (info && info->getXid() != 0) {
         WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
         if (base) {
-            dock->handleActiveWindowChanged(base);
+            m_dock->handleActiveWindowChanged(base);
         }
     } else {
-        dock->updateHideState(false);
+        m_dock->updateHideState(false);
     }
 }
 
@@ -156,7 +156,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     // Title changed
     connect(window, &PlasmaWindow::TitleChanged, this, [=] {
         windowInfo->updateTitle();
-        auto entry = dock->getEntryByWindowId(windowInfo->getXid());
+        auto entry = m_dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
             return;
 
@@ -169,7 +169,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     // Icon changed
     connect(window, &PlasmaWindow::IconChanged, this, [=] {
         windowInfo->updateIcon();
-        auto entry = dock->getEntryByWindowId(windowInfo->getXid());
+        auto entry = m_dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
             return;
 
@@ -179,7 +179,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
     // DemandingAttention changed
     connect(window, &PlasmaWindow::DemandsAttentionChanged, this, [=] {
         windowInfo->updateDemandingAttention();
-        auto entry = dock->getEntryByWindowId(windowInfo->getXid());
+        auto entry = m_dock->getEntryByWindowId(windowInfo->getXid());
         if (!entry)
             return;
 
@@ -191,13 +191,13 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
         if (!windowInfo->updateGeometry())
             return;
 
-        dock->handleWindowGeometryChanged();
+        m_dock->handleWindowGeometryChanged();
     });
 }
 
 PlasmaWindow *DBusHandler::createPlasmaWindow(QString objPath)
 {
-    return new PlasmaWindow("com.deepin.daemon.KWayland", objPath, session, this);
+    return new PlasmaWindow("com.deepin.daemon.KWayland", objPath, m_session, this);
 }
 
 /**
@@ -211,7 +211,7 @@ void DBusHandler::removePlasmaWindowHandler(PlasmaWindow *window)
 
 void DBusHandler::presentWindows(QList<uint> windows)
 {
-    wm->PresentWindows(windows);
+    m_wm->PresentWindows(windows);
 }
 
 // TODO: 待优化点， 查看Bamf根据windowId获取对应应用desktopFile路径实现方式, 移除bamf依赖

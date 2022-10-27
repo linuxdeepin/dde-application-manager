@@ -312,8 +312,7 @@ int main(int argc, char* argv[])
         qWarning() << "error app prefix:" << QString::fromStdString(app.prefix);
     }
 
-    if(pid != -1)
-    {
+    if(pid != -1) {
         Methods::ProcessStatus processSuccess;
         processSuccess.code = 0;
         processSuccess.id   = task.id;
