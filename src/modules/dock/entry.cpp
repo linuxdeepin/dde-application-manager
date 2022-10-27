@@ -517,13 +517,17 @@ bool Entry::detachWindow(WindowInfoBase *info)
 bool Entry::isShowOnDock() const
 {
     // 当前应用显示图标的条件是
+    // 如果该图标已经固定在任务栏上，则始终显示
+    if (getIsDocked())
+        return true;
+
     // 1.时尚模式下，如果开启了显示最近使用，则不管是否有子窗口，都在任务栏上显示
     // 如果没有开启显示最近使用，则只显示有子窗口的
     if (static_cast<DisplayMode>(dock->getDisplayMode()) == DisplayMode::Fashion)
         return (dock->showRecent() || m_exportWindowInfos.size() > 0);
 
     // 2.高效模式下，只有该应用有打开窗口才显示
-    return (getIsDocked() || m_exportWindowInfos.size() > 0);
+    return m_exportWindowInfos.size() > 0;
 }
 
 bool Entry::attachWindow(WindowInfoBase *info)
@@ -554,6 +558,7 @@ bool Entry::attachWindow(WindowInfoBase *info)
         // 新打开的窗口始终显示到最后
         Q_EMIT dock->entryAdded(QDBusObjectPath(path()), -1);
     }
+
     return true;
 }
 
