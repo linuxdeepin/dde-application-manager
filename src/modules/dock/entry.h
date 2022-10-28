@@ -37,6 +37,8 @@
 
 // 单个应用类
 class Dock;
+class DBusAdaptorEntry;
+
 class Entry: public QObject
 {
     Q_OBJECT
@@ -67,7 +69,6 @@ public:
     void updateIsActive();
     WindowInfoBase *getWindowInfoByPid(int pid);
     WindowInfoBase *getWindowInfoByWinId(XWindow windowId);
-    void setPropIsDocked(bool docked);
     void setPropIcon(QString value);
     void setPropName(QString value);
     void setPropIsActive(bool active);
@@ -144,6 +145,8 @@ private:
     QString m_icon;
     QString m_innerId;
     QString m_desktopFile;
+
+    DBusAdaptorEntry *m_adapterEntry;
 
     // Dbus属性直接放到interface上
     QMap<XWindow, WindowInfoBase *> m_windowInfoMap; // 该应用所有窗口

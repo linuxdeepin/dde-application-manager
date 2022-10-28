@@ -40,6 +40,7 @@ Entry::Entry(Dock *_dock, AppInfo *_app, QString _innerId, QObject *parent)
     , m_isActive(false)
     , m_isDocked(false)
     , m_innerId(_innerId)
+    , m_adapterEntry(nullptr)
     , m_current(nullptr)
     , m_currentWindow(0)
     , m_winIconPreferred(false)
@@ -210,7 +211,12 @@ void Entry::startExport()
         return;
     }
 
-    new DBusAdaptorEntry(this); // export dbus by Adaptor
+    if (m_adapterEntry) {
+        qWarning() << "service " << getName() << " is running";
+        return;
+    }
+
+    m_adapterEntry = new DBusAdaptorEntry(this); // export dbus by Adaptor
     QDBusConnection con = QDBusConnection::sessionBus();
     if (!con.registerService(dbusService)) {
         qWarning() << "register service Dock1 error:" << con.lastError().message();
@@ -230,8 +236,16 @@ void Entry::stopExport()
         return;
     }
 
+    if (!m_adapterEntry) {
+        qWarning() << "serice " << getName() << "is not running";
+        return;
+    }
+
     QDBusConnection con = QDBusConnection::sessionBus();
     con.unregisterObject(path());
+
+    m_adapterEntry->deleteLater();
+    m_adapterEntry = nullptr;
 }
 
 void Entry::setMenu(AppMenu *_menu)
@@ -346,14 +360,6 @@ WindowInfoBase *Entry::getWindowInfoByWinId(XWindow windowId)
         return m_windowInfoMap[windowId];
 
     return nullptr;
-}
-
-void Entry::setPropIsDocked(bool docked)
-{
-    if (m_isDocked != docked) {
-        m_isDocked = docked;
-        Q_EMIT isDockedChanged(docked);
-    }
 }
 
 void Entry::setPropIcon(QString value)

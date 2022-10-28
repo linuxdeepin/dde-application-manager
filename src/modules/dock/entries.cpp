@@ -52,6 +52,10 @@ Entry *Entries::getByInnerId(QString innerId)
 
 void Entries::append(Entry *entry)
 {
+    // 如果当前应用在列表中存在(通常是该应用为最近打开应用但是关闭了最近打开应用的接口或者当前为高效模式)
+    if (m_items.contains(entry))
+        m_items.removeOne(entry);
+
     insert(entry, -1);
 }
 
@@ -276,10 +280,10 @@ void Entries::removeLastRecent()
     if (unDockCount >= MAX_UNOPEN_RECENT_COUNT && unDockEntrys.size() > 0) {
         // 只有当最近使用区域的图标大于等于某个数值（3）的时候，并且存在没有子窗口的Entry，那么就移除该Entry
         Entry *entry = unDockEntrys[0];
-        m_items.removeOne(entry);
         removeEntrys << entry;
     }
     for (Entry *entry : removeEntrys) {
+        m_items.removeOne(entry);
         removeCb(entry);
         delete entry;
     }

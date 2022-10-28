@@ -187,7 +187,7 @@ bool Dock::dockEntry(Entry *entry, bool moveToEnd)
     if (moveToEnd && SETTING->getDisplayMode() == DisplayMode::Fashion)
         m_entries->moveEntryToLast(entry);
 
-    entry->setPropIsDocked(true);
+    entry->setIsDocked(true);
     entry->updateMenu();
     entry->updateMode();
     return true;
@@ -255,7 +255,7 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
             m_entries->moveEntryToLast(entry);
 
         entry->updateIcon();
-        entry->setPropIsDocked(false);
+        entry->setIsDocked(false);
         entry->updateName();
         entry->updateMenu();
     } else {
@@ -528,20 +528,15 @@ bool Dock::requestDock(QString desktopFile, int index)
         return false;
     }
 
-    bool newCreated = false;
     Entry *entry = m_entries->getByInnerId(app->getInnerId());
-    if (!entry) {
-        newCreated = true;
+    if (!entry)
         entry = new Entry(this, app, app->getInnerId());
-    }
 
     if (!dockEntry(entry))
         return false;
 
-    if (newCreated) {
-        entry->startExport();
-        m_entries->append(entry);
-    }
+    entry->startExport();
+    m_entries->append(entry);
 
     saveDockedApps();
     return true;
