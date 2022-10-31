@@ -86,6 +86,8 @@ public:
     // 设置配置
     void setSynConfig(QByteArray ba);
     QByteArray getSyncConfig();
+
+    void initItems();
     const QMap<QString, Item> *getItems();
 
     int getDisplayMode();
@@ -101,15 +103,15 @@ public:
     bool isItemOnDesktop(QString appId);
     bool requestRemoveFromDesktop(QString appId);
     bool requestSendToDesktop(QString appId);
-    void requestUninstall(QString appId);
+    void requestUninstall(const QString &desktop);
     void setDisableScaling(QString appId, bool value);
     void setUseProxy(QString appId, bool value);
 
 Q_SIGNALS:
     void itemChanged(QString status, LauncherItemInfo itemInfo, qint64 ty);
     void newAppLaunched(QString appId);
-    void uninstallSuccess(QString appId);
-    void uninstallFailed(QString appId, QString errMsg);
+    void uninstallSuccess(const QString &desktop);
+    void uninstallFailed(const QString &desktop, QString errMsg);
 
     void displayModeChanged(int mode);
     void fullScreenChanged(bool isFull);
@@ -129,7 +131,6 @@ private:
     void loadPkgCategoryMap();
     void handleAppHiddenChanged();
     void loadNameMap();
-    void initItems();
     QString getAppIdByFilePath(QString filePath, QStringList dirs);
     bool isDeepinCustomDesktopFile(QString fileName);
     Item NewItemWithDesktopInfo(DesktopInfo &info);
@@ -141,13 +142,14 @@ private:
     Item getItemByPath(QString itemPath);
     void emitItemChanged(const Item *item, QString status);
     AppType getAppType(DesktopInfo &info, const Item &item);
+    bool isLingLongApp(const QString &filePath);
     void doUninstall(DesktopInfo &info, const Item &item);
     void uninstallFlatpak(DesktopInfo &info, const Item &item);
     bool uninstallWineApp(const Item &item);
     void uninstallApp(const QString &name, const QString &pkg);
-    bool removeDesktop(const Item &item);
+    void removeDesktop(const QString &desktop);
     void notifyUninstallDone(const Item &item, bool result);
-    void removeAutoStart();
+    void removeAutoStart(const QString &desktop);
 
 private:
     QMap<QString, Item> itemsMap;                                   // appId, Item
@@ -160,7 +162,6 @@ private:
     QStringList appDirs;
 
     QMap<QString, Item> m_desktopAndItemMap;                        // desktoppath,Item
-    bool m_removeState;                                             // 卸载状态
     DesktopInfo m_appInfo;                                          // 卸载应用
 };
 

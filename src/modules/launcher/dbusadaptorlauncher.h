@@ -78,7 +78,7 @@ class DBusAdaptorLauncher: public QDBusAbstractAdaptor
                                        "      <arg direction=\"out\" type=\"b\" name=\"ok\"/>\n"
                                        "    </method>\n"
                                        "    <method name=\"RequestUninstall\">\n"
-                                       "      <arg direction=\"in\" type=\"s\" name=\"id\"/>\n"
+                                       "      <arg direction=\"in\" type=\"s\" name=\"desktop\"/>\n"
                                        "      <arg direction=\"in\" type=\"b\" name=\"unused\"/>\n"
                                        "    </method>\n"
                                        "    <method name=\"SetDisableScaling\">\n"
@@ -134,7 +134,7 @@ public Q_SLOTS: // METHODS
     bool IsItemOnDesktop(const QString &id);
     bool RequestRemoveFromDesktop(const QString &id);
     bool RequestSendToDesktop(const QString &id);
-    void RequestUninstall(const QString &id, bool unused);
+    void RequestUninstall(const QString &desktop, bool unused);
     void SetDisableScaling(const QString &id, bool value);
     void SetUseProxy(const QString &id, bool value);
 

@@ -69,6 +69,7 @@ void DBusAdaptorLauncher::setFullscreen(bool value)
 
 LauncherItemInfoList DBusAdaptorLauncher::GetAllItemInfos()
 {
+    parent()->initItems();
     return parent()->getAllItemInfos();
 }
 
@@ -107,11 +108,11 @@ bool DBusAdaptorLauncher::RequestSendToDesktop(const QString &id)
     return parent()->requestSendToDesktop(id);
 }
 
-void DBusAdaptorLauncher::RequestUninstall(const QString &id, bool unused)
+void DBusAdaptorLauncher::RequestUninstall(const QString &desktop, bool unused)
 {
     Q_UNUSED(unused);
 
-    parent()->requestUninstall(id);
+    parent()->requestUninstall(desktop);
 }
 
 void DBusAdaptorLauncher::SetDisableScaling(const QString &id, bool value)

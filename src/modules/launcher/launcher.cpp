@@ -53,7 +53,6 @@ const QString LASTORE_INTERFACE = "org.deepin.lastore1.Manager";
 
 Launcher::Launcher(QObject *parent)
     : SynModule(parent)
-    , m_removeState(false)
     , m_appInfo(DesktopInfo(""))
 {
     registeModule("launcher");
@@ -130,7 +129,7 @@ void Launcher::setFullscreen(bool isFull)
 LauncherItemInfoList Launcher::getAllItemInfos()
 {
     LauncherItemInfoList allItemList;
-    for (auto item : m_desktopAndItemMap)
+    for (auto &item : m_desktopAndItemMap)
         allItemList.push_back(item.info);
 
     return allItemList;
@@ -279,10 +278,18 @@ bool Launcher::requestSendToDesktop(QString appId)
  * @brief Launcher::requestUninstall 卸载应用
  * @param appId
  */
-void Launcher::requestUninstall(QString appId)
+void Launcher::requestUninstall(const QString &desktop)
 {
-    if (itemsMap.find(appId) == itemsMap.end()) {
-        qDebug() << QString(" %1 uninstall faill ...").arg(appId);
+    bool exist = false;
+    for (const Item &item : m_desktopAndItemMap.values()) {
+        if (item.info.path == desktop) {
+            exist = true;
+            break;
+        }
+    }
+
+    if (!exist) {
+        qWarning() << QString(" %1 uninstall faill ...").arg(desktop);
         return;
     }
 
@@ -296,14 +303,19 @@ void Launcher::requestUninstall(QString appId)
     QString result = QString::fromUtf8(process.readAllStandardOutput());
     process.close();
     if (result != launcherExe) {
-        qDebug() << result << " has no right to uninstall " << appId;
+        qWarning() << result << " has no right to uninstall " << desktop;
         return;
     }
 
-    const Item &item = itemsMap[appId];
+    if (!m_desktopAndItemMap.keys().contains(desktop)) {
+        qWarning() << QString("can't find desktopPath: %1").arg(desktop);
+        return;
+    }
+
+    const Item &item = m_desktopAndItemMap[desktop];
     DesktopInfo info(item.info.path.toStdString());
     if (!info.isValidDesktop()) {
-        qDebug() << QString("%1 desktop file is invalid...").arg(item.info.name);
+        qWarning() << QString("%1 desktop file is invalid...").arg(item.info.name);
         return;
     }
 
@@ -436,29 +448,13 @@ void Launcher::onHandleUninstall(const QDBusMessage &message)
 #ifdef QT_DEBUG
         qInfo() <<  "changedProps: " << changedProps << ", status: " << status;
 #endif
-    const QString &appId = QString::fromStdString(m_appInfo.getId());
+    const QString &desktop = QString::fromStdString(m_appInfo.getFileName());
     if (status == "succeed" || status == "end") {
-        // 移除desktop文件
-        Item appItem = Item();
-        for (const Item &item : m_desktopAndItemMap) {
-            if (item.info.path == QString::fromStdString(m_appInfo.getFileName())) {
-                appItem = item;
-                qDebug() << QString("app-%1 removed successfully").arg(item.info.name);
-                break;
-            }
-        }
-
-        removeDesktop(appItem);
-
-        // 从自动启动目录中移除
-        removeAutoStart();
-        m_removeState = true;
-
-        Q_EMIT uninstallSuccess(appId);
+        removeDesktop(desktop);
+        removeAutoStart(desktop);
+        Q_EMIT uninstallSuccess(desktop);
     } else if (status == "failed") {
-        m_removeState = false;
-        QString msg = QString("uninstall %1 result %2").arg(m_appInfo.getName().c_str()).arg(false);
-        Q_EMIT uninstallFailed(appId, msg);
+        Q_EMIT uninstallFailed(desktop, QString());
     }
 }
 
@@ -693,6 +689,8 @@ void Launcher::loadNameMap()
  */
 void Launcher::initItems()
 {
+    itemsMap.clear();
+    m_desktopAndItemMap.clear();
     std::vector<DesktopInfo> infos = AppsDir::getAllDesktopInfos();
     for (auto &app : infos) {
         if (!app.isExecutableOk()
@@ -965,6 +963,11 @@ end:
     return ty;
 }
 
+bool Launcher::isLingLongApp(const QString &filePath)
+{
+    return filePath.contains("/persistent/linglong");
+}
+
 /**
  * @brief Launcher::doUninstall 执行卸载操作
  * @param info
@@ -973,46 +976,48 @@ end:
  */
 void Launcher::doUninstall(DesktopInfo &info, const Item &item)
 {
-    // 查询包名
-    QString pkg = queryPkgName(item.info.id, item.info.path);
-    if (pkg.isEmpty())
-        pkg = queryPkgNameWithDpkg(item.info.path);
+    if (isLingLongApp(QString::fromStdString(info.getFileName()))) {
+        QProcess process;
+        // 获取 appId
+        QStringList args;
+        QString appId = item.exec.section(' ', 2, 2);
+        args.append("uninstall");
+        args.append(appId);
 
-    if (pkg.isEmpty()) {
-        qDebug() << "uninstall failed, becase package name is Empty";
-        return;
+        int retCode = QProcess::execute("ll-cli", args);
+        if (retCode != 0) {
+            Q_EMIT uninstallFailed(item.info.path, QString());
+            notifyUninstallDone(item, false);
+            qWarning() << QString("uninstall %1 failed...").arg(info.getFileName().c_str());
+            return;
+        }
+
+        Q_EMIT uninstallSuccess(item.info.path);
+
+        // 浮窗通知
+        notifyUninstallDone(item, true);
+    } else {
+        // 查询包名
+        QString pkg = queryPkgName(item.info.id, item.info.path);
+        if (pkg.isEmpty())
+            pkg = queryPkgNameWithDpkg(item.info.path);
+
+        if (pkg.isEmpty()) {
+            qWarning() << "uninstall failed, becase package name is Empty";
+            return;
+        }
+
+        // 检测包是否安装
+        QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
+        QDBusReply<bool> reply = lastoreDbus.call("PackageExists", pkg);
+
+        // 包未安装时
+        if (!(reply.isValid() && reply.value()))
+            return;
+
+        // 卸载系统应用
+        uninstallApp(item.info.name, pkg);
     }
-
-    // 检测包是否安装
-    QDBusInterface lastoreDbus = QDBusInterface(LASTORE_SERVICE, LASTORE_PATH, LASTORE_INTERFACE, QDBusConnection::systemBus());
-    QDBusReply<bool> reply = lastoreDbus.call("PackageExists", pkg);
-
-    // 包未安装时
-    if (!(reply.isValid() && reply.value()))
-        return;
-
-    // 卸载系统应用
-    m_desktopAndItemMap.remove(item.info.path);
-    uninstallApp(item.info.name, pkg);
-
-    // TODO: 不同类型的应用分别进行处理
-    //    switch (getAppType(info, item)) {
-    //    case (AppType::Flatpak):
-    //        uninstallFlatpak(info, item); // 待测
-    //        break;
-    //    case (AppType::ChromeShortcut):
-    //        removeDesktop(item);
-    //        break;
-    //    case (AppType::CrossOver):
-    //        uninstallApp(item.info.name, "crossvoer"); // 待测
-    //        break;
-    //    case (AppType::WineApp):
-    //        uninstallWineApp(item);   // 待测
-    //        break;
-    //    case (AppType::Default):
-    //        removeDesktop(item);
-    //        break;
-    //    }
 }
 
 /**
@@ -1094,7 +1099,7 @@ void Launcher::uninstallApp(const QString &name, const QString &pkg)
     QDBusReply<QDBusObjectPath> reply = lastoreDbus.call(QDBus::Block, "RemovePackage", name, pkg);
 
     if (!reply.isValid() || reply.value().path().isEmpty()) {
-        qDebug() << "RemovePackage failed: " << reply.error();
+        qWarning() << "RemovePackage failed: " << reply.error();
         return;
     }
 
@@ -1106,27 +1111,20 @@ void Launcher::uninstallApp(const QString &name, const QString &pkg)
                                          "PropertiesChanged","sa{sv}as", this, SLOT(onHandleUninstall(const QDBusMessage &)));
 }
 
-/**
- * @brief Launcher::removeDesktop 移除desktop文件
- * @param item
- * @return
+/** 移除desktop文件
+ * @brief Launcher::removeDesktop
+ * @param desktop
  */
-bool Launcher::removeDesktop(const Item &item)
+void Launcher::removeDesktop(const QString &desktop)
 {
-    // 移除desktop文件
-    QFile file(item.info.path);
+    QFile file(desktop);
     if (!file.exists()) {
-        qDebug() << "file not exist...item info: " << item.info;
-        return false;
+        qDebug() << "file not exist...item info: " << desktop;
+        return;
     }
 
-    bool ret = file.remove();
-    std::thread thread([ this, item, ret ] {
-        notifyUninstallDone(item, ret);
-    });
-    thread.detach();
-
-    return ret;
+    m_desktopAndItemMap.remove(desktop);
+    file.remove();
 }
 
 /**
@@ -1138,21 +1136,33 @@ void Launcher::notifyUninstallDone(const Item &item, bool result)
 {
     QString msg;
     if (result)
-        msg = QString("%1 removed successfully").arg(item.info.name);
+        msg = QString(tr("Removed successfully"));
     else
-        msg = QString("Failed to uninstall %1").arg(item.info.name);
+        msg = QString(tr("Failed to remove the app"));
+
+    QList<QVariant> argList;
+    argList << QString("deepin-app-store")
+            << quint32(0)
+            << QString("deepin-app-store")
+            << msg
+            << QString("")
+            << QStringList("")
+            << QVariantMap()
+            << qint32(-1);
 
     QDBusInterface interface = QDBusInterface("org.freedesktop.Notifications", "/org/freedesktop/Notifications", "org.freedesktop.Notifications");
-    interface.call("Notify", "deepin-app-store", 0, "deepin-appstore", msg, "", QVariant(), QVariant(), -1);
+    interface.callWithArgumentList(QDBus::Block, "Notify", argList);
 }
 
-void Launcher::removeAutoStart()
+void Launcher::removeAutoStart(const QString &desktop)
 {
-    QString filePath(QDir::homePath() + "/.config/autostart/" + m_appInfo.getName().c_str() + ".desktop");
-    QFile file(filePath);
+    QFile file(desktop);
+    if (!file.exists()) {
+        qDebug() << QString("desktop file  %1 doesn't exist...").arg(desktop);
+        return;
+    }
 
-    if (file.exists())
-        file.remove();
+    file.remove();
 }
 
 /**
