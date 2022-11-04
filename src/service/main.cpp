@@ -18,6 +18,10 @@
 
 DCORE_USE_NAMESPACE
 
+#define ApplicationManagerServiceName "org.desktopspec.ApplicationManager"
+#define ApplicationManagerServicePath "/org/desktopspec/ApplicationManager"
+#define ApplicationManagerInterface   "org.desktopspec.ApplicationManager"
+
 QFileInfoList scan(const QString &path)
 {
     QDir dir(path);
@@ -83,16 +87,31 @@ int main(int argc, char *argv[])
     new DockManager(ApplicationManager::instance());
     new ApplicationManagerAdaptor(ApplicationManager::instance());
 
-    QDBusConnection::sessionBus().registerService("org.desktopspec.Application");
-    QDBusConnection::sessionBus().registerService("org.desktopspec.ApplicationManager");
-    QDBusConnection::sessionBus().registerObject("/org/desktopspec/ApplicationManager", "org.desktopspec.ApplicationManager", ApplicationManager::instance());
+    QDBusConnection connection = QDBusConnection::sessionBus();
+    if (!connection.registerService("org.desktopspec.Application")) {
+        qWarning() << "error: " << connection.lastError().message();
+        return -1;
+    }
+
+    if (!connection.registerService(ApplicationManagerServiceName)) {
+        qWarning() << "error: " << connection.lastError().message();
+        return -1;
+    }
+
+    if (!connection.registerObject(ApplicationManagerServicePath, ApplicationManagerInterface, ApplicationManager::instance())) {
+        qWarning() << "error: " << connection.lastError().message();
+        return -1;
+    }
 
     QList<QSharedPointer<Application>> apps{ scanFiles() };
     QList<QSharedPointer<ApplicationAdaptor>> appAdapters;
     for (const QSharedPointer<Application> app : apps) {
         QSharedPointer<ApplicationAdaptor> adapter = QSharedPointer<ApplicationAdaptor>(new ApplicationAdaptor(app.get()));
         appAdapters << adapter;
-        QDBusConnection::sessionBus().registerObject(app->path().path(), "org.desktopspec.Application", app.get());
+        if (!connection.registerObject(app->path().path(), "org.desktopspec.Application", app.get())) {
+            qWarning() << "error: " << connection.lastError().message();
+            continue;
+        }
     }
 
     ApplicationManager::instance()->addApplication(apps);
@@ -102,8 +121,15 @@ int main(int argc, char *argv[])
     MimeApp* mimeApp = new MimeApp;
 
     new MimeAdaptor(mimeApp);
-    QDBusConnection::sessionBus().registerService("org.deepin.daemon.Mime1");
-    QDBusConnection::sessionBus().registerObject("/org/deepin/daemon/Mime1", "org.deepin.daemon.Mime1", mimeApp);
+    if (!connection.registerService("org.deepin.daemon.Mime1")) {
+        qWarning() << "error: " << connection.lastError().message();
+        return -1;
+    }
+
+    if (!connection.registerObject("/org/deepin/daemon/Mime1", "org.deepin.daemon.Mime1", mimeApp)) {
+        qWarning() << "error: " << connection.lastError().message();
+        return -1;
+    }
 
     return app.exec();
 }

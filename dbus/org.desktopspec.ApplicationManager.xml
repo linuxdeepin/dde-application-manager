@@ -1,50 +1,34 @@
 <interface name='org.desktopspec.ApplicationManager'>
-    <method name='Launch'>
-        <arg type='s' name='id' direction='in'/>
-        <arg type='as' name='files' direction='in' />
-        <arg type='o' name='instance' direction='out'/>
-    </method>
     <method name='AddAutostart'>
-        <arg type='s' name='fileNamae' direction='in' />
-        <arg type='b' name='outArg0' direction='out' />
-    </method>
-    <method name='RemoveAutostart'>
         <arg type='s' name='fileNamae' direction='in' />
         <arg type='b' name='outArg0' direction='out' />
     </method>
     <method name='AutostartList'>
         <arg type='as' name='outArg0' direction='out' />
     </method>
-    <method name='DumpMemRecord'>
-        <arg type='s' name='outArg0' direction='out' />
-    </method>
     <method name='IsAutostart'>
         <arg type='s' name='fileName' direction='in' />
         <arg type='b' name='outArg0' direction='out' />
     </method>
-    <method name='IsMemSufficient'>
+    <method name='RemoveAutostart'>
+        <arg type='s' name='fileNamae' direction='in' />
         <arg type='b' name='outArg0' direction='out' />
+    </method>
+    <method name="Launch">
+        <arg type='s' name='desktopFile' direction='in'/>
+    </method>
+    <method name="LaunchApp">
+        <arg type='s' name='desktopFile' direction='in'/>
+        <arg type='u' name='timestamp' direction='in'/>
+        <arg type='as' name='files' direction='in'/>
     </method>
     <method name='LaunchAppAction'>
         <arg type='s' name='desktopFile' direction='in' />
         <arg type='s' name='action' direction='in' />
         <arg type='u' name='timestamp' direction='in' />
     </method>
-    <method name='RunCommand'>
-        <arg type='s' name='exe' direction='in' />
-        <arg type='as' name='args' direction='in' />
-    </method>
-    <method name='TryAgain'>
-        <arg type='b' name='launch' direction='in' />
-    </method>
-    <method name='IsPidVirtualMachine'>
-           <arg type='i' name='pid' direction='in' />
-           <arg type='b' name='isVM' direction='out' />
-    </method>
     <signal name='AutostartChanged'>
      	<arg type='s' name='status' />
      	<arg type='s' name='filePath' />
     </signal>
-    <property access='read' type='ao' name='list' />
-    <property access='read' type='ao' name='instances' />
 </interface>

@@ -66,19 +66,14 @@ public:
 Q_SIGNALS:
     void AutostartChanged(QString status, QString filePath);
 
-public Q_SLOTS: // METHODS
-    //bool Launch(QString desktopFile); deprecated
+public Q_SLOTS:
     bool AddAutostart(QString fileName);
     QStringList AutostartList();
-    QString DumpMemRecord();
     bool IsAutostart(QString fileName);
-    bool IsMemSufficient();
-    QDBusObjectPath Launch(const QString &id, QStringList files);
     bool RemoveAutostart(QString fileName);
-    bool IsPidVirtualMachine(uint32_t pid);
+    void Launch(const QString &desktopFile);
+    void LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files);
     void LaunchAppAction(QString desktopFile, QString action, uint32_t timestamp);
-    void RunCommand(QString exe, QStringList args);
-    void TryAgain(bool launch);
 
 protected:
     ApplicationManager(QObject *parent = nullptr);
@@ -88,11 +83,7 @@ protected:
     QList<QDBusObjectPath> list() const;
     QDBusObjectPath GetInformation(const QString &id);
     QList<QDBusObjectPath> GetInstances(const QString &id);
-    // com.deepin.StartManager
-    //QString GetApps();
-    void LaunchApp(QString desktopFile, uint32_t timestamp, QStringList files);
     void LaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
-    //bool LaunchWithTimestamp(QString desktopFile, uint32_t timestamp); deprecated
     void RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
     bool IsProcessExist(uint32_t pid);
 };

@@ -41,16 +41,14 @@ public:
     bool addAutostart(QString fileName);
     bool removeAutostart(QString fileName);
     QStringList autostartList();
-    QString dumpMemRecord();
-    QString getApps();
     bool isAutostart(QString fileName);
     bool isMemSufficient();
+    void launchApp(const QString &desktopFile);
     void launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
     void launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp);
     void launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
     void runCommand(QString exe, QStringList args);
     void runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
-    void tryAgain(bool launch);
 
 Q_SIGNALS:
     void autostartChanged(QString status, QString fileName);
@@ -60,6 +58,7 @@ public Q_SLOTS:
 
 private:
     bool setAutostart(QString fileName, bool value);
+    bool doLaunchAppWithOptions(const QString &desktopFile);
     bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
     bool launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
     bool doRunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);

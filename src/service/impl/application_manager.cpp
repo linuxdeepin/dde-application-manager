@@ -246,41 +246,6 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString& id)
     return {};
 }
 
-/**
- * @brief ApplicationManager::Launch 启动应用
- * @param id   QString("/%1/%2/%3").arg(Apptype).arg(d->m_type == Application::Type::System ? "system" : "user").arg(appId)
- * @param files 应用打开的文件
- * @return
- */
-QDBusObjectPath ApplicationManager::Launch(const QString& id, QStringList files)
-{
-    qInfo() << "Launch " << id;
-    Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return {};
-
-    // 创建一个实例
-    for (const QSharedPointer<Application>& app : d->applications) {
-        QString appId = app->id();
-        if (app->id() == id) {
-            // 创建任务所需的数据，并记录到任务队列，等待 loader 消耗
-            QSharedPointer<ApplicationInstance> instance{app->createInstance(files)};
-            const std::string hash{instance->hash().toStdString()};
-            connect(instance.get(), &ApplicationInstance::taskFinished, this, [ = ] {
-                for (auto it = d->tasks.begin(); it != d->tasks.end(); ++it){
-                    if (it->first == hash) {
-                        d->tasks.erase(it);
-                        break;
-                    }
-                }
-            });
-            d->tasks.insert(std::make_pair(hash, instance));
-            return instance->path();
-        }
-    }
-    return {};
-}
-
 bool ApplicationManager::AddAutostart(QString fileName)
 {
     Q_D(ApplicationManager);
@@ -308,15 +273,6 @@ QStringList ApplicationManager::AutostartList()
     return d->startManager->autostartList();
 }
 
-QString ApplicationManager::DumpMemRecord()
-{
-    Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return "";
-
-    return d->startManager->dumpMemRecord();
-}
-
 bool ApplicationManager::IsAutostart(QString fileName)
 {
     Q_D(ApplicationManager);
@@ -326,16 +282,17 @@ bool ApplicationManager::IsAutostart(QString fileName)
     return d->startManager->isAutostart(fileName);
 }
 
-bool ApplicationManager::IsMemSufficient()
+void ApplicationManager::Launch(const QString &desktopFile)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
-        return false;
+        return;
 
-    return d->startManager->isMemSufficient();
+    d->startManager->launchApp(desktopFile);
 }
 
-void ApplicationManager::LaunchApp(QString desktopFile, uint32_t timestamp, QStringList files)
+
+void ApplicationManager::LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
@@ -362,15 +319,6 @@ void ApplicationManager::LaunchAppWithOptions(QString desktopFile, uint32_t time
     d->startManager->launchAppWithOptions(desktopFile, timestamp, files, options);
 }
 
-void ApplicationManager::RunCommand(QString exe, QStringList args)
-{
-    Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return;
-
-    d->startManager->runCommand(exe, args);
-}
-
 void ApplicationManager::RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
 {
     Q_D(ApplicationManager);
@@ -378,15 +326,6 @@ void ApplicationManager::RunCommandWithOptions(QString exe, QStringList args, QM
         return;
 
     d->startManager->runCommandWithOptions(exe, args, options);
-}
-
-void ApplicationManager::TryAgain(bool launch)
-{
-    Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return;
-
-    d->startManager->tryAgain(launch);
 }
 
 QList<QDBusObjectPath> ApplicationManager::instances() const
@@ -412,28 +351,6 @@ QList<QDBusObjectPath> ApplicationManager::list() const
     }
 
     return result;
-}
-
-// 如果app manager拥有全部进程信息，可以在app manger里面获取
-bool ApplicationManager::IsPidVirtualMachine(uint32_t pid)
-{
-    Q_D(const ApplicationManager);
-    char buff[256];
-    ssize_t nbytes = readlink(QString("/proc/%1/exe").arg(pid).toStdString().c_str(), buff, 256);
-    if (nbytes == -1) {
-        return false;
-    }
-    std::string execPath(buff);
-
-    for (auto iter : d->virtualMachines) {
-        std::string::size_type idx = iter.find(execPath);
-
-        if (idx != std::string::npos) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 bool ApplicationManager::IsProcessExist(uint32_t pid)

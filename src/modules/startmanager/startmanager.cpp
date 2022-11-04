@@ -95,16 +95,6 @@ QStringList StartManager::autostartList()
     return autostartFiles;
 }
 
-QString StartManager::dumpMemRecord()
-{
-
-}
-
-QString StartManager::getApps()
-{
-
-}
-
 /**
  * @brief StartManager::isAutostart
  * @param fileName  desktopFile
@@ -131,6 +121,11 @@ bool StartManager::isAutostart(QString fileName)
 bool StartManager::isMemSufficient()
 {
     return SETTING->getMemCheckerEnabled() ? MemInfo::isSufficient(minMemAvail, maxSwapUsed) : true;
+}
+
+void StartManager::launchApp(const QString &desktopFile)
+{
+    doLaunchAppWithOptions(desktopFile);
 }
 
 void StartManager::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
@@ -181,11 +176,6 @@ void StartManager::runCommand(QString exe, QStringList args)
 void StartManager::runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
 {
     doRunCommandWithOptions(exe, args, options);
-}
-
-void StartManager::tryAgain(bool launch)
-{
-
 }
 
 void StartManager::onAutoStartupPathChange(const QString &dirPath)
@@ -282,6 +272,19 @@ bool StartManager::setAutostart(QString fileName, bool value)
     return true;
 }
 
+bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
+{
+    DesktopInfo info(desktopFile.toStdString());
+    if (!info.isValidDesktop())
+        return false;
+
+    launch(&info, info.getCommandLine().c_str(), 0, QStringList());
+
+    dbusHandler->markLaunched(desktopFile);
+
+    return true;
+}
+
 bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
 {
     // launchApp
@@ -359,9 +362,23 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     QString exec = exeArgs[0];
     exeArgs.removeAt(0);
 
+#ifdef QT_DEBUG
     qDebug() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
+#endif
+
     process.setWorkingDirectory(workingDir.c_str());
     process.setEnvironment(envs);
+
+    if (desktopFile.contains("/persistent/linglong")) {
+        exeArgs.clear();
+
+#ifdef QT_DEBUG
+        qDebug() << "exeArgs:"  << cmdLine.section(" ", 1, 2);
+#endif
+
+        exeArgs.append(cmdLine.section(" ", 1, 2).split(" "));
+    }
+
     return process.startDetached(exec, exeArgs);
 }
 
