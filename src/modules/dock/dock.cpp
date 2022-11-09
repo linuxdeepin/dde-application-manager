@@ -258,13 +258,13 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
         entry->setIsDocked(false);
         entry->updateName();
         entry->updateMenu();
+        // 更新模式， 是在应用区域还是在最近打开区域
+        entry->updateMode();
     } else {
         // 直接移除
         removeAppEntry(entry);
     }
 
-    // 更新模式， 是在应用区域还是在最近打开区域
-    entry->updateMode();
     saveDockedApps();
 }
 
