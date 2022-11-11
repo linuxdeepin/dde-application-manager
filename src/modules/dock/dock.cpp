@@ -896,13 +896,13 @@ bool Dock::hasInterSectionK(const DockRect &windowRect, QRect dockRect)
     int rbX = MIN(windowRect.X + windowRect.Width, dockRect.x() + dockRect.width());
     int rbY = MIN(windowRect.Y + windowRect.Height, dockRect.y() + dockRect.height());
 
-    if (position == int(PositionMode::Left) || position == int(PositionMode::Right)) {
+    if (position == int(PositionMode::Left) || position == int(PositionMode::Right))
         return ltX <= rbX && ltY < rbY;
-    } else if (position == int(PositionMode::Top) || position == int(PositionMode::Bottom)) {
+
+    if (position == int(PositionMode::Top) || position == int(PositionMode::Bottom))
         return ltX < rbX && ltY <= rbY;
-    } else {
-        return ltX < rbX && ltY < rbY;
-    }
+
+    return ltX < rbX && ltY < rbY;
 }
 
 /**
@@ -1213,7 +1213,7 @@ bool Dock::isWaylandEnv()
  */
 WindowInfoK *Dock::handleActiveWindowChangedK(uint activeWin)
 {
-    return m_waylandManager->handleActiveWindowChangedK(activeWin);
+    return m_waylandManager->findWindowById(activeWin);
 }
 
 /**

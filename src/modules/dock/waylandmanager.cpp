@@ -82,18 +82,16 @@ void WaylandManager::unRegisterWindow(const QString &objPath)
     deleteWindow(objPath);
 }
 
-WindowInfoK *WaylandManager::handleActiveWindowChangedK(uint activeWin)
+WindowInfoK *WaylandManager::findWindowById(uint activeWin)
 {
-    WindowInfoK *winInfo = nullptr;
     QMutexLocker locker(&m_mutex);
     for (auto iter = m_kWinInfos.begin(); iter != m_kWinInfos.end(); iter++) {
-        if (iter.value()->getInnerId() == activeWin) {
-            winInfo = iter.value();
-            break;
+        if (iter.value()->getInnerId() == QString::number(activeWin)) {
+            return iter.value();
         }
     }
 
-    return winInfo;
+    return nullptr;
 }
 
 WindowInfoK *WaylandManager::findWindowByXid(XWindow xid)

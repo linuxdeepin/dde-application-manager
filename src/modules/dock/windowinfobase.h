@@ -30,6 +30,7 @@
 class Entry;
 class AppInfo;
 class ProcessInfo;
+
 class WindowInfoBase
 {
 public:
@@ -56,17 +57,17 @@ public:
     virtual void update() = 0;
     virtual void killClient() = 0;
     virtual QString uuid() = 0;
+    virtual QString getInnerId() { return innerId; }
 
     XWindow getXid() {return xid;}
-    void setEntry(Entry *value) {entry = value;}
-    Entry *getEntry() {return entry;}
-    QString getEntryInnerId() {return entryInnerId;}
-    QString getInnerId() {return innerId;}
-    void setEntryInnerId(QString value) {entryInnerId = value;}
-    AppInfo *getAppInfo() {return app;}
-    void setAppInfo(AppInfo *value) {app = value;}
-    int getPid() {return pid;}
-    ProcessInfo *getProcess() {return processInfo;}
+    void setEntry(Entry *value) { entry = value; }
+    Entry *getEntry() { return entry; }
+    QString getEntryInnerId() { return entryInnerId; }
+    void setEntryInnerId(QString value) { entryInnerId = value; }
+    AppInfo *getAppInfo() { return app; }
+    void setAppInfo(AppInfo *value) { app = value; }
+    int getPid() { return pid; }
+    ProcessInfo *getProcess() { return processInfo; }
     bool containAtom(QVector<XCBAtom> supports, XCBAtom ty) {return supports.indexOf(ty) != -1;}
 
 protected:

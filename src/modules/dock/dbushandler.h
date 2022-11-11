@@ -29,6 +29,7 @@
 #include "dbuskwaylandwindowmanager.h"
 #include "windowinfok.h"
 #include "dbusplasmawindow.h"
+#include "dbusxeventmonitor.h"
 
 #include <QObject>
 #include <QDBusConnection>
@@ -76,6 +77,7 @@ public:
 
 private Q_SLOTS:
     void handleWlActiveWindowChange();
+    void onActiveWindowButtonRelease(int type, int x, int y, const QString &key);
 
 private:
     Dock *m_dock;
@@ -86,6 +88,9 @@ private:
     com::deepin::WM *m_wm;
     com::deepin::WMSwitcher *m_wmSwitcher;
     com::deepin::daemon::kwayland::WindowManager *m_kwaylandManager;
+
+    org::deepin::api::XEventMonitor1 *m_xEventMonitor;
+    QString m_activeWindowMonitorKey;
 };
 
 #endif // DBUSHANDLER_H

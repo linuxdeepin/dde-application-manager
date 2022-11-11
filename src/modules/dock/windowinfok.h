@@ -52,6 +52,7 @@ public:
     virtual void update() override;
     virtual void killClient() override;
     virtual QString uuid() override;
+    QString getInnerId() override;
 
     QString getAppId();
     void setAppId(QString _appId);

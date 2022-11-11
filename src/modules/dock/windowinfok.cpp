@@ -222,3 +222,8 @@ QString WindowInfoK::uuid()
     return QString(m_plasmaWindow->Uuid());
 }
 
+QString WindowInfoK::getInnerId()
+{
+    return QString::number(m_internalId);
+}
+

@@ -40,7 +40,7 @@ public:
     void registerWindow(const QString &objPath);
     void unRegisterWindow(const QString &objPath);
 
-    WindowInfoK *handleActiveWindowChangedK(uint activeWin);
+    WindowInfoK *findWindowById(uint activeWin);
     WindowInfoK *findWindowByXid(XWindow xid);
     WindowInfoK *findWindowByObjPath(QString objPath);
     void insertWindow(QString objPath, WindowInfoK *windowInfo);

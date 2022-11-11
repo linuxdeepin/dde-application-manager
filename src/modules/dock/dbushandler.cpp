@@ -33,6 +33,7 @@ DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
     , m_wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", m_session, this))
     , m_wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", m_session, this))
     , m_kwaylandManager(nullptr)
+    , m_xEventMonitor(nullptr)
 {
     // 关联org.deepin.dde.daemon.Launcher1事件 ItemChanged
     connect(m_launcherEnd, &LauncherBackEnd::ItemChanged, this, &DBusHandler::handleLauncherItemChanged);
@@ -45,6 +46,14 @@ DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
 
     // 关联com.deepin.WMSwitcher事件 WMChanged
     connect(m_wmSwitcher, &__WMSwitcher::WMChanged, this, [&](QString name) {m_dock->setWMName(name);});
+
+    if (QString(getenv("XDG_SESSION_TYPE")).contains("wayland")) {
+        m_xEventMonitor = new org::deepin::api::XEventMonitor1("org.deepin.api.XEventMonitor1", "/org/deepin/api/XEventMonitor1", m_session, this);
+        // 注册XEventMonitor区域为整个屏幕的区域
+        m_activeWindowMonitorKey = m_xEventMonitor->RegisterFullScreen();
+        // 关联XEventMonitor的ButtonRelease事件
+        connect(m_xEventMonitor, &org::deepin::api::XEventMonitor1::ButtonRelease, this, &DBusHandler::onActiveWindowButtonRelease);
+    }
 }
 
 // 关联com.deepin.daemon.KWayland.WindowManager事件
@@ -138,11 +147,30 @@ void DBusHandler::handleWlActiveWindowChange()
 
     WindowInfoK *info = m_dock->handleActiveWindowChangedK(activeWinInternalId);
     if (info && info->getXid() != 0) {
-        WindowInfoBase *base = static_cast<WindowInfoBase *>(info);
-        if (base) {
-            m_dock->handleActiveWindowChanged(base);
-        }
+        m_dock->handleActiveWindowChanged(info);
     } else {
+        m_dock->updateHideState(false);
+    }
+}
+
+void DBusHandler::onActiveWindowButtonRelease(int type, int x, int y, const QString &key)
+{
+    // 当鼠标松开区域事件的时候，取消注册，同时调用激活窗口的方法来触发智能隐藏的相关信号
+    if (key != m_activeWindowMonitorKey)
+        return;
+
+    uint activeWinInternalId = wlActiveWindow();
+    if (activeWinInternalId == 0)
+        return;
+
+    WindowInfoK *info = m_dock->handleActiveWindowChangedK(activeWinInternalId);
+    if (!info)
+        return;
+
+    // 如果是在当前激活窗口区域内释放的，则触发检测智能隐藏的方法
+    DockRect dockRect = info->getGeometry();
+    if (dockRect.X <= x && x <= dockRect.X + dockRect.Width && dockRect.Y <= y && y <= dockRect.Y + dockRect.Height) {
+        // 取消智能隐藏
         m_dock->updateHideState(false);
     }
 }
