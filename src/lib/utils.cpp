@@ -193,6 +193,3 @@ bool hasBeginWith(std::string const& fullString, std::string const& ending)
         return false;
     }
 }
-
-
-

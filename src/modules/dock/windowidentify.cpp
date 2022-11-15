@@ -28,6 +28,7 @@
 #include "basedir.h"
 #include "dfile.h"
 #include "xcbutils.h"
+#include "../apps/desktopfilereader.h"
 
 #include <QDebug>
 #include <QThread>
@@ -474,34 +475,42 @@ AppInfo *WindowIdentify::identifyWindowByGtkAppId(Dock *_dock, WindowInfoX *winI
 
 AppInfo *WindowIdentify::identifyWindowByWmClass(Dock *_dock, WindowInfoX *winInfo, QString &innerId)
 {
-    AppInfo *ret = nullptr;
     WMClass wmClass = winInfo->getWMClass();
-    do {
-        if (wmClass.instanceName.size() > 0) {
-            // example:
-            // WM_CLASS(STRING) = "Brackets", "Brackets"
-            // wm class instance is Brackets
-            // try app id org.deepin.flatdeb.brackets
-            ret = new AppInfo("org.deepin.flatdeb." + QString(wmClass.instanceName.c_str()).toLower());
-            if (ret)
-                break;
-
-            ret = new AppInfo(wmClass.instanceName.c_str());
-            if (ret)
-                break;
+    if (wmClass.instanceName.size() > 0) {
+        // example:
+        // WM_CLASS(STRING) = "Brackets", "Brackets"
+        // wm class instance is Brackets
+        // try app id org.deepin.flatdeb.brackets
+        //ret = new AppInfo("org.deepin.flatdeb." + QString(wmClass.instanceName.c_str()).toLower());
+        if (DesktopInfo("org.deepin.flatdeb." + QString(wmClass.instanceName.c_str()).toLower().toStdString()).isValidDesktop()) {
+            AppInfo *appInfo = new AppInfo("org.deepin.flatdeb." + QString(wmClass.instanceName.c_str()).toLower());
+            innerId = appInfo->getInnerId();
+            return appInfo;
         }
 
-        if (wmClass.className.size() > 0) {
-            ret = new AppInfo(wmClass.className.c_str());
-            if (ret)
-                break;
+        if (DesktopInfo(wmClass.instanceName).isValidDesktop()) {
+            AppInfo *appInfo = new AppInfo(wmClass.instanceName.c_str());
+            innerId = appInfo->getInnerId();
+            return appInfo;
         }
-    } while (0);
+    }
 
-    if (ret)
-        innerId = ret->getInnerId();
+    if (wmClass.className.size() > 0) {
+        std::string filename = wmClass.className;
+        bool isValid = DesktopInfo(filename).isValidDesktop();
+        if (!isValid) {
+            filename = DesktopFileReader::instance()->fileName(wmClass.instanceName.c_str()).toStdString();
+            isValid = DesktopInfo(filename).isValidDesktop();
+        }
 
-    return ret;
+        if (isValid) {
+            AppInfo *appInfo = new AppInfo(filename.c_str());
+            innerId = appInfo->getInnerId();
+            return appInfo;
+        }
+    }
+
+    return nullptr;
 }
 
 AppInfo *WindowIdentify::fixAutostartAppInfo(QString fileName)
