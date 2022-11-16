@@ -74,7 +74,6 @@ private:
     uint32_t m_internalId;
     bool m_demaningAttention;
     bool m_closeable;
-    bool m_minimized;
     PlasmaWindow *m_plasmaWindow;
     DockRect m_geometry;
 };

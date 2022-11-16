@@ -32,7 +32,6 @@ WindowInfoK::WindowInfoK(PlasmaWindow *window, XWindow _xid)
  , m_internalId(0)
  , m_demaningAttention(false)
  , m_closeable(true)
- , m_minimized(true)
  , m_plasmaWindow(window)
 {
     xid = _xid;
@@ -116,7 +115,7 @@ void WindowInfoK::minimize()
 
 bool WindowInfoK::isMinimized()
 {
-    return m_minimized;
+    return m_plasmaWindow->IsMinimized();
 }
 
 bool WindowInfoK::changeXid(XWindow _xid)
