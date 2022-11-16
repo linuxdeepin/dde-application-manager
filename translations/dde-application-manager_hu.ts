@@ -26,4 +26,15 @@
         <translation>Összes ablak</translation>
     </message>
 </context>
+<context>
+    <name>Launcher</name>
+    <message>
+        <source>Removed successfully</source>
+        <translation>Sikeresen eltávolítva</translation>
+    </message>
+    <message>
+        <source>Failed to remove the app</source>
+        <translation>Az alkalmazás eltávolítása sikertelen</translation>
+    </message>
+</context>
 </TS>

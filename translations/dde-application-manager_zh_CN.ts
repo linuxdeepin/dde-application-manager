@@ -26,4 +26,15 @@
         <translation>所有窗口</translation>
     </message>
 </context>
+<context>
+    <name>Launcher</name>
+    <message>
+        <source>Removed successfully</source>
+        <translation>卸载成功</translation>
+    </message>
+    <message>
+        <source>Failed to remove the app</source>
+        <translation>卸载失败</translation>
+    </message>
+</context>
 </TS>

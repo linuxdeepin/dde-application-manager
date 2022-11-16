@@ -26,4 +26,15 @@
         <translation>All Windows</translation>
     </message>
 </context>
+<context>
+    <name>Launcher</name>
+    <message>
+        <source>Removed successfully</source>
+        <translation>Removed successfully</translation>
+    </message>
+    <message>
+        <source>Failed to remove the app</source>
+        <translation>Failed to remove the app</translation>
+    </message>
+</context>
 </TS>
