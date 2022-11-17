@@ -36,13 +36,13 @@ AppManager::AppManager(QObject *parent)
     qInfo() << "AppManager";
     new DBusAdaptorRecorder(recorder);
     QDBusConnection con = QDBusConnection::sessionBus();
-    if (!con.registerService("org.deepin.daemon.AlRecorder1"))
+    if (!con.registerService("org.deepin.dde.AlRecorder1"))
     {
         qWarning() << "register service AlRecorder1 error:" << con.lastError().message();
         return;
     }
 
-    if (!con.registerObject("/org/deepin/daemon/AlRecorder1", recorder))
+    if (!con.registerObject("/org/deepin/dde/AlRecorder1", recorder))
     {
         qWarning() << "register object AlRecorder1 error:" << con.lastError().message();
         return;

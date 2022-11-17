@@ -35,7 +35,6 @@ public:
 
     const static std::string    EnvDesktopEnv;
     const static std::string    DesktopExt;
-    const static std::string    GsSchemaStartdde;
     const static std::string    EnableInvoker;
     const static std::string    TurboInvokerFailedMsg;
     const static std::string    TurboInvokerErrMsg;

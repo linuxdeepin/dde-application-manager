@@ -30,7 +30,6 @@ const std::string AppinfoCommon::TypeDirectory              = "Directory";
 
 const std::string AppinfoCommon::EnvDesktopEnv              = "XDG_CURRENT_DESKTOP";
 const std::string AppinfoCommon::DesktopExt                 = ".desktop";
-const std::string AppinfoCommon::GsSchemaStartdde           = "com.deepin.dde.startdde";
 const std::string AppinfoCommon::EnableInvoker              = "ENABLE_TURBO_INVOKER";
 const std::string AppinfoCommon::TurboInvokerFailedMsg      = "Failed to invoke: Booster:";
 const std::string AppinfoCommon::TurboInvokerErrMsg         = "deepin-turbo-invoker: error";

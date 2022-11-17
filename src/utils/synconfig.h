@@ -30,7 +30,7 @@
 class SynConfig final : public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.deepin.sync.Config1")
+    Q_CLASSINFO("D-Bus Interface", "org.deepin.dde.Sync1.Config")
 public:
     // 实例
     static SynConfig *instance(QObject *parent = nullptr);

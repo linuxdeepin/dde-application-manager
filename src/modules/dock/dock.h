@@ -40,6 +40,8 @@ class WindowInfoK;
 class WindowInfoX;
 class ApplicationManager;
 
+using PlasmaWindow = org::deepin::dde::kwayland1::PlasmaWindow;
+
 enum class HideState
 {
     Unknown,

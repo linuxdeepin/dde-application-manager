@@ -1,4 +1,4 @@
-<interface name='org.desktopspec.ApplicationInstance'>
+<interface name='org.deepin.dde.Application1.Instance'>
     <method name='Exit'>
     </method>
     <method name='Kill'>

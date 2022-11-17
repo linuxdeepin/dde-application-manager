@@ -18,9 +18,9 @@
 class DBusAdaptorRecorder: public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.deepin.daemon.AlRecorder1")
+    Q_CLASSINFO("D-Bus Interface", "org.deepin.dde.AlRecorder1")
     Q_CLASSINFO("D-Bus Introspection", ""
-                                       "  <interface name=\"org.deepin.daemon.AlRecorder1\">\n"
+                                       "  <interface name=\"org.deepin.dde.AlRecorder1\">\n"
                                        "    <method name=\"GetNew\">\n"
                                        "      <arg direction=\"out\" type=\"a{sas}\" name=\"newApps\"/>\n"
                                        "      <annotation value=\"UnLaunchedAppMap\" name=\"org.qtproject.QtDBus.QtTypeName.Out0\"/>\n"

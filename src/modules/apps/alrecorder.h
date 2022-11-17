@@ -32,7 +32,7 @@ class DFWatcher;
 class AlRecorder: public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.deepin.daemon.AlRecorder1")
+    Q_CLASSINFO("D-Bus Interface", "org.deepin.dde.AlRecorder1")
 
 public:
     // 各个应用目录中应用的启动记录

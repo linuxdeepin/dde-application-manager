@@ -47,9 +47,9 @@ DCORE_USE_NAMESPACE
 
 #define SETTING LauncherSettings::instance()
 
-const QString LASTORE_SERVICE = "org.deepin.lastore1";
-const QString LASTORE_PATH = "/org/deepin/lastore1";
-const QString LASTORE_INTERFACE = "org.deepin.lastore1.Manager";
+const QString LASTORE_SERVICE = "org.deepin.dde.Lastore1";
+const QString LASTORE_PATH = "/org/deepin/dde/Lastore1";
+const QString LASTORE_INTERFACE = "org.deepin.dde.Lastore1.Manager";
 
 Launcher::Launcher(QObject *parent)
     : SynModule(parent)
@@ -143,7 +143,7 @@ QStringList Launcher::getAllNewInstalledApps()
 {
     QStringList ret;
     QMap<QString, QStringList> newApps;
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.AlRecorder1", "/org/deepin/dde/AlRecorder1", "org.deepin.dde.AlRecorder1");
     QDBusReply<QMap<QString, QStringList>> reply = interface.call("GetNew");
     if (reply.isValid())
         newApps = reply;
@@ -579,16 +579,16 @@ void Launcher::onNewAppLaunched(const QString &filePath)
 
 void Launcher::initConnection()
 {
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.DFWatcher1",
-                                          "/org/deepin/daemon/DFWatcher1",
-                                          "org.deepin.daemon.DFWatcher1",
+    QDBusConnection::sessionBus().connect("org.deepin.dde.DFWatcher1",
+                                          "/org/deepin/dde/DFWatcher1",
+                                          "org.deepin.dde.DFWatcher1",
                                           "Event",
                                           this,
                                           SLOT(onCheckDesktopFile(const QString &, int)));
 
-    QDBusConnection::sessionBus().connect("org.deepin.daemon.AlRecorder1",
-                                          "/org/deepin/daemon/AlRecorder1",
-                                          "org.deepin.daemon.AlRecorder1",
+    QDBusConnection::sessionBus().connect("org.deepin.dde.AlRecorder1",
+                                          "/org/deepin/dde/AlRecorder1",
+                                          "org.deepin.dde.AlRecorder1",
                                           "Launched",
                                           this,
                                           SLOT(onNewAppLaunched(const QString &)));

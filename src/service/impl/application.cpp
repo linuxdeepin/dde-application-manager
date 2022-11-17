@@ -124,7 +124,7 @@ QString Application::Name(const QString &locale)
 
 QDBusObjectPath Application::path() const
 {
-    return QDBusObjectPath(QString("/org/desktopspec/Application/%1").arg(QString(QCryptographicHash::hash(id().toUtf8(), QCryptographicHash::Md5).toHex())));
+    return QDBusObjectPath(QString("/org/deepin/dde/Application1/%1").arg(QString(QCryptographicHash::hash(id().toUtf8(), QCryptographicHash::Md5).toHex())));
 }
 
 Application::Type Application::type() const

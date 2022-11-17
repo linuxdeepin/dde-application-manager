@@ -25,21 +25,21 @@
 #include "types/dockrect.h"
 
 /*
- * Proxy class for interface com.deepin.daemon.KWayland.PlasmaWindow
+ * Proxy class for interface org.deepin.dde.KWayland1.PlasmaWindow
  */
 class __WindowPrivate;
-class PlasmaWindow : public DBusExtendedAbstractInterface
+class __PlasmaWindow : public DBusExtendedAbstractInterface
 {
     Q_OBJECT
 
 public:
     static inline const char *staticInterfaceName()
-    { return "com.deepin.daemon.KWayland.PlasmaWindow"; }
+    { return "org.deepin.dde.KWayland1.PlasmaWindow"; }
 
 public:
-    explicit PlasmaWindow(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent = 0);
+    explicit __PlasmaWindow(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent = 0);
 
-    ~PlasmaWindow();
+    ~__PlasmaWindow();
 
 public Q_SLOTS: // METHODS
     inline QDBusPendingReply<QString> AppId()
@@ -425,11 +425,11 @@ private:
     __WindowPrivate *d_ptr;
 };
 
-namespace com {
+namespace org {
   namespace deepin {
-    namespace daemon {
-      namespace kwayland {
-        typedef ::PlasmaWindow PlasmaWindow;
+    namespace dde {
+      namespace kwayland1 {
+        typedef ::__PlasmaWindow PlasmaWindow;
       }
     }
   }

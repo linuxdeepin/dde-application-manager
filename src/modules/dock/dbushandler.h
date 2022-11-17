@@ -86,10 +86,10 @@ private:
     LauncherBackEnd *m_launcherEnd;
     LauncherFront *m_launcherFront;
     com::deepin::WM *m_wm;
-    com::deepin::WMSwitcher *m_wmSwitcher;
-    com::deepin::daemon::kwayland::WindowManager *m_kwaylandManager;
+    org::deepin::dde::WMSwitcher1 *m_wmSwitcher;
+    org::deepin::dde::kwayland1::WindowManager *m_kwaylandManager;
 
-    org::deepin::api::XEventMonitor1 *m_xEventMonitor;
+    org::deepin::dde::XEventMonitor1 *m_xEventMonitor;
     QString m_activeWindowMonitorKey;
 };
 

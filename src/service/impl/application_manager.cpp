@@ -21,7 +21,7 @@
 #include "../../modules/startmanager/startmanager.h"
 #include "application.h"
 #include "application_instance.h"
-#include "applicationinstanceadaptor.h"
+#include "instanceadaptor.h"
 #include "../lib/keyfile.h"
 
 ApplicationManagerPrivate::ApplicationManagerPrivate(ApplicationManager* parent)

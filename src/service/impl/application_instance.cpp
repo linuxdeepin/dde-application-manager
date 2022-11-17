@@ -1,7 +1,7 @@
 #include "application_instance.h"
 #include "../applicationhelper.h"
 #include "application.h"
-#include "applicationinstanceadaptor.h"
+#include "instanceadaptor.h"
 
 #include <qdatetime.h>
 #include <QCryptographicHash>
@@ -21,7 +21,7 @@ class ApplicationInstancePrivate
     Q_DECLARE_PUBLIC(ApplicationInstance);
 
     Application* application;
-    ApplicationInstanceAdaptor* adapter;
+    InstanceAdaptor* adapter;
     QString m_path;
     QSharedPointer<modules::ApplicationHelper::Helper> helper;
     QDateTime startupTime;
@@ -33,8 +33,8 @@ public:
     {
         startupTime = QDateTime::currentDateTime();
         m_id = QString(QCryptographicHash::hash(QUuid::createUuid().toByteArray(), QCryptographicHash::Md5).toHex());
-        m_path = QString("/org/desktopspec/ApplicationInstance/%1").arg(m_id);
-        adapter = new ApplicationInstanceAdaptor(q_ptr);
+        m_path = QString("/org/deepin/dde/Application1/Instance/%1").arg(m_id);
+        adapter = new InstanceAdaptor(q_ptr);
     }
 
     ~ApplicationInstancePrivate()
@@ -70,9 +70,9 @@ public:
             Q_EMIT q_ptr->taskFinished(p->exitCode());
         }
 #else
-        qInfo() << "app manager load service:" << QString("org.desktopspec.application.instance@%1.service").arg(m_id);
+        qInfo() << "app manager load service:" << QString("org.deepin.dde.Application1.Instance@%1.service").arg(m_id);
         QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
-        QDBusReply<void> reply = systemd.call("StartUnit", QString("org.desktopspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
+        QDBusReply<void> reply = systemd.call("StartUnit", QString("org.deepin.dde.Application1.Instance@%1.service").arg(m_id), "replace-irreversibly");
         if (!reply.isValid()) {
             qInfo() << reply.error();
             q_ptr->deleteLater();
@@ -85,7 +85,7 @@ public:
 #ifdef LOADER_PATH
 #else
         QDBusInterface systemd("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager");
-        qInfo() << systemd.call("StopUnit", QString("org.desktopspec.application.instance@%1.service").arg(m_id), "replace-irreversibly");
+        qInfo() << systemd.call("StopUnit", QString("org.deepin.dde.Application1.Instance@%1.service").arg(m_id), "replace-irreversibly");
 #endif
     }
 
@@ -112,7 +112,7 @@ ApplicationInstance::ApplicationInstance(Application* parent, QSharedPointer<mod
     d->helper = helper;
 
     QTimer::singleShot(0, this, [ = ] {
-        QDBusConnection::sessionBus().registerObject(d->m_path, "org.desktopspec.ApplicationInstance", this);
+        QDBusConnection::sessionBus().registerObject(d->m_path, "org.deepin.dde.Application1.Instance", this);
         d->run();
     });
 }
@@ -196,6 +196,6 @@ uint32_t ApplicationInstance::getPid()
 void ApplicationInstance::Success(const QString& data)
 {
     Q_D(ApplicationInstance);
-    QDBusConnection::sessionBus().registerObject(d->m_path, "org.desktopspec.ApplicationInstance", this);
+    QDBusConnection::sessionBus().registerObject(d->m_path, "org.deepin.dde.Application1.Instance", this);
     return d->_success(data);
 }

@@ -34,13 +34,13 @@ const QString configSuffix = ".json";
   , watcher(new QFileSystemWatcher(this))
  {
      QDBusConnection con = QDBusConnection::sessionBus();
-     if (!con.registerService("org.deepin.daemon.DFWatcher1"))
+     if (!con.registerService("org.deepin.dde.DFWatcher1"))
      {
          qInfo() << "register service DFWatcher error:" << con.lastError().message();
          return;
      }
 
-     if (!con.registerObject("/org/deepin/daemon/DFWatcher1", this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals))
+     if (!con.registerObject("/org/deepin/dde/DFWatcher1", this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals))
      {
          qInfo() << "register object DFWatcher error:" << con.lastError().message();
          return;
@@ -52,7 +52,7 @@ const QString configSuffix = ".json";
 
  DFWatcher::~DFWatcher()
  {
-     QDBusConnection::sessionBus().unregisterObject("/org/deepin/daemon/DFWatcher1");
+     QDBusConnection::sessionBus().unregisterObject("/org/deepin/dde/DFWatcher1");
  }
 
  void DFWatcher::addDir(const QString &path)

@@ -24,7 +24,7 @@
 
 
 /*
- * Proxy class for interface com.deepin.daemon.KWayland.Output
+ * Proxy class for interface org.deepin.dde.KWayland1.Output
  */
 class __OutputManagementPrivate;
 class __OutputManagement : public DBusExtendedAbstractInterface
@@ -33,7 +33,7 @@ class __OutputManagement : public DBusExtendedAbstractInterface
 
 public:
     static inline const char *staticInterfaceName()
-    { return "com.deepin.daemon.KWayland.Output"; }
+    { return "org.deepin.dde.KWayland1.Output"; }
 
 public:
     explicit __OutputManagement(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent = 0);
@@ -109,8 +109,8 @@ private:
 
 namespace com {
   namespace deepin {
-    namespace daemon {
-      namespace kwayland {
+    namespace dde {
+      namespace kwayland1 {
         typedef ::__OutputManagement Output;
       }
     }

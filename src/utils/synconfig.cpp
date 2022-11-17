@@ -27,8 +27,8 @@
 #include <QDBusInterface>
 #include <QDBusConnectionInterface>
 
-const QString syncDBusService = "org.deepin.sync.Config1";
-const QString syncDBusObject = "/org/deepin/sync/Config1";
+const QString syncDBusService = "org.deepin.dde.Sync1.Config";
+const QString syncDBusObject = "/org/deepin/dde/Sync1/Config";
 const QString syncDBusDaemonService = "com.deepin.sync.Daemon";
 const QString syncDBusDaemonObject = "/com/deepin/sync/Daemon";
 const QString syncDBusDaemonInterface = syncDBusDaemonService;
@@ -82,13 +82,13 @@ SynConfig::SynConfig(QObject *parent)
     QDBusConnection con = QDBusConnection::sessionBus();
     if (!con.registerService(syncDBusService))
     {
-        qCritical() << "register service org.deepin.sync.Config1 error:" << con.lastError().message();
+        qCritical() << "register service org.deepin.dde.Sync1.Config error:" << con.lastError().message();
         return;
     }
 
     if (!con.registerObject(syncDBusObject, this, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAllSignals))
     {
-        qCritical() << "register object /org/deepin/sync/Config1 error:" << con.lastError().message();
+        qCritical() << "register object /org/deepin/dde/Sync1/Config error:" << con.lastError().message();
         return;
     }
 

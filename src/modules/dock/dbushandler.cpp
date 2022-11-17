@@ -31,7 +31,7 @@ DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
     , m_launcherEnd(new LauncherBackEnd("org.deepin.dde.daemon.Launcher1", "/org/deepin/dde/daemon/Launcher1", m_session, this))
     , m_launcherFront(new LauncherFront("org.deepin.dde.Launcher1", "/org/deepin/dde/Launcher1", m_session, this))
     , m_wm(new com::deepin::WM("com.deepin.wm", "/com/deepin/wm", m_session, this))
-    , m_wmSwitcher(new com::deepin::WMSwitcher("com.deepin.wmWMSwitcher", "/com/deepin/WMSwitcher", m_session, this))
+    , m_wmSwitcher(new org::deepin::dde::WMSwitcher1("org.deepin.dde.WMSwitcher1", "/org/deepin/dde/WMSwitcher1", m_session, this))
     , m_kwaylandManager(nullptr)
     , m_xEventMonitor(nullptr)
 {
@@ -44,22 +44,22 @@ DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
         m_dock->updateHideState(false);
     });
 
-    // 关联com.deepin.WMSwitcher事件 WMChanged
+    // 关联org.deepin.dde.WMSwitcher1事件 WMChanged
     connect(m_wmSwitcher, &__WMSwitcher::WMChanged, this, [&](QString name) {m_dock->setWMName(name);});
 
     if (QString(getenv("XDG_SESSION_TYPE")).contains("wayland")) {
-        m_xEventMonitor = new org::deepin::api::XEventMonitor1("org.deepin.api.XEventMonitor1", "/org/deepin/api/XEventMonitor1", m_session, this);
+        m_xEventMonitor = new org::deepin::dde::XEventMonitor1("org.deepin.dde.XEventMonitor1", "/org/deepin/dde/XEventMonitor1", m_session, this);
         // 注册XEventMonitor区域为整个屏幕的区域
         m_activeWindowMonitorKey = m_xEventMonitor->RegisterFullScreen();
         // 关联XEventMonitor的ButtonRelease事件
-        connect(m_xEventMonitor, &org::deepin::api::XEventMonitor1::ButtonRelease, this, &DBusHandler::onActiveWindowButtonRelease);
+        connect(m_xEventMonitor, &org::deepin::dde::XEventMonitor1::ButtonRelease, this, &DBusHandler::onActiveWindowButtonRelease);
     }
 }
 
-// 关联com.deepin.daemon.KWayland.WindowManager事件
+// 关联org.deepin.dde.KWayland.WindowManager事件
 void DBusHandler::listenWaylandWMSignals()
 {
-    m_kwaylandManager = new com::deepin::daemon::kwayland::WindowManager("com.deepin.daemon.KWayland", "/com/deepin/daemon/KWayland/WindowManager", m_session, this);
+    m_kwaylandManager = new org::deepin::dde::kwayland1::WindowManager("org.deepin.dde.KWayland1", "/org/deepin/dde/KWayland1/WindowManager", m_session, this);
 
     // ActiveWindowchanged
     connect(m_kwaylandManager, &__KwaylandManager::ActiveWindowChanged, this, &DBusHandler::handleWlActiveWindowChange);
@@ -102,22 +102,22 @@ QString DBusHandler::getCurrentWM()
     return m_wmSwitcher->CurrentWM().value();
 }
 
-// TODO 扩展ApplicationManager Launch接口，允许带参数启动应用，暂时调用StartManager接口
+// TODO 扩展Application Manager Launch接口，允许带参数启动应用，暂时调用StartManager接口
 void DBusHandler::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.Application1.Manager", "/org/deepin/dde/Application1/Manager", "org.deepin.dde.Application1.Manager");
     interface.call("LaunchApp", desktopFile, timestamp, files);
 }
 
 void DBusHandler::launchAppAction(QString desktopFile, QString action, uint32_t timestamp)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.daemon.Display", "/com/deepin/StartManager", "com.deepin.StartManager");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.Application1.Manager", "/org/deepin/dde/Application1/Manager", "org.deepin.dde.Application1.Manager");
     interface.call("LaunchAppAction", desktopFile, action, timestamp);
 }
 
 void DBusHandler::markAppLaunched(const QString &filePath)
 {
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.AlRecorder1", "/org/deepin/dde/AlRecorder1", "org.deepin.dde.AlRecorder1");
     interface.call("MarkLaunched", filePath);
 }
 
@@ -225,7 +225,7 @@ void DBusHandler::listenKWindowSignals(WindowInfoK *windowInfo)
 
 PlasmaWindow *DBusHandler::createPlasmaWindow(QString objPath)
 {
-    return new PlasmaWindow("com.deepin.daemon.KWayland", objPath, m_session, this);
+    return new PlasmaWindow("org.deepin.dde.KWayland1", objPath, m_session, this);
 }
 
 /**

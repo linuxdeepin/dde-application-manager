@@ -27,7 +27,7 @@ public:
     QMap<QString, QList<QVariant>> m_waittingCalls;
 };
 
-PlasmaWindow::PlasmaWindow(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent)
+__PlasmaWindow::__PlasmaWindow(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent)
     : DBusExtendedAbstractInterface(service, path, staticInterfaceName(), connection, parent)
     , d_ptr(new __WindowPrivate)
 {
@@ -35,13 +35,13 @@ PlasmaWindow::PlasmaWindow(const QString &service, const QString &path, const QD
         registerRectMetaType();
 }
 
-PlasmaWindow::~PlasmaWindow()
+__PlasmaWindow::~__PlasmaWindow()
 {
     qDeleteAll(d_ptr->m_processingCalls.values());
     delete d_ptr;
 }
 
-void PlasmaWindow::CallQueued(const QString &callName, const QList<QVariant> &args)
+void __PlasmaWindow::CallQueued(const QString &callName, const QList<QVariant> &args)
 {
     if (d_ptr->m_waittingCalls.contains(callName))
     {
@@ -53,12 +53,12 @@ void PlasmaWindow::CallQueued(const QString &callName, const QList<QVariant> &ar
         d_ptr->m_waittingCalls.insert(callName, args);
     } else {
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(asyncCallWithArgumentList(callName, args));
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, &PlasmaWindow::onPendingCallFinished);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, &__PlasmaWindow::onPendingCallFinished);
         d_ptr->m_processingCalls.insert(callName, watcher);
     }
 }
 
-void PlasmaWindow::onPendingCallFinished(QDBusPendingCallWatcher *w)
+void __PlasmaWindow::onPendingCallFinished(QDBusPendingCallWatcher *w)
 {
     w->deleteLater();
     const auto callName = d_ptr->m_processingCalls.key(w);

@@ -24,7 +24,7 @@
 
 #include <QString>
 
-const QString AMServiceName = "/org/desktopspec/ApplicationManager";
+const QString AMServiceName = "/org/deepin/dde/Application1/Manager";
 const QString autostartDir  = "autostart";
 const QString proxychainsBinary = "proxychains4";
 

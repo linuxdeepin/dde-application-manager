@@ -2,10 +2,10 @@
 
 #include "impl/application_manager.h"
 #include "impl/application.h"
-#include "applicationmanageradaptor.h"
-#include "applicationadaptor.h"
+#include "manageradaptor.h"
+#include "application1adaptor.h"
 #include "applicationhelper.h"
-#include "mimeadaptor.h"
+#include "mime1adaptor.h"
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
 #include "../modules/dock/dockmanager.h"
@@ -18,9 +18,9 @@
 
 DCORE_USE_NAMESPACE
 
-#define ApplicationManagerServiceName "org.desktopspec.ApplicationManager"
-#define ApplicationManagerServicePath "/org/desktopspec/ApplicationManager"
-#define ApplicationManagerInterface   "org.desktopspec.ApplicationManager"
+#define ApplicationManagerServiceName "org.deepin.dde.Application1.Manager"
+#define ApplicationManagerServicePath "/org/deepin/dde/Application1/Manager"
+#define ApplicationManagerInterface   "org.deepin.dde.Application1.Manager"
 
 QFileInfoList scan(const QString &path)
 {
@@ -85,10 +85,10 @@ int main(int argc, char *argv[])
     new AppManager(ApplicationManager::instance());
     new LauncherManager(ApplicationManager::instance());
     new DockManager(ApplicationManager::instance());
-    new ApplicationManagerAdaptor(ApplicationManager::instance());
+    new ManagerAdaptor(ApplicationManager::instance());
 
     QDBusConnection connection = QDBusConnection::sessionBus();
-    if (!connection.registerService("org.desktopspec.Application")) {
+    if (!connection.registerService("org.deepin.dde.Application1")) {
         qWarning() << "error: " << connection.lastError().message();
         return -1;
     }
@@ -104,11 +104,11 @@ int main(int argc, char *argv[])
     }
 
     QList<QSharedPointer<Application>> apps{ scanFiles() };
-    QList<QSharedPointer<ApplicationAdaptor>> appAdapters;
+    QList<QSharedPointer<Application1Adaptor>> appAdapters;
     for (const QSharedPointer<Application> app : apps) {
-        QSharedPointer<ApplicationAdaptor> adapter = QSharedPointer<ApplicationAdaptor>(new ApplicationAdaptor(app.get()));
+        QSharedPointer<Application1Adaptor> adapter = QSharedPointer<Application1Adaptor>(new Application1Adaptor(app.get()));
         appAdapters << adapter;
-        if (!connection.registerObject(app->path().path(), "org.desktopspec.Application", app.get())) {
+        if (!connection.registerObject(app->path().path(), "org.deepin.dde.Application1", app.get())) {
             qWarning() << "error: " << connection.lastError().message();
             continue;
         }
@@ -120,13 +120,13 @@ int main(int argc, char *argv[])
 
     MimeApp* mimeApp = new MimeApp;
 
-    new MimeAdaptor(mimeApp);
-    if (!connection.registerService("org.deepin.daemon.Mime1")) {
+    new Mime1Adaptor(mimeApp);
+    if (!connection.registerService("org.deepin.dde.Mime1")) {
         qWarning() << "error: " << connection.lastError().message();
         return -1;
     }
 
-    if (!connection.registerObject("/org/deepin/daemon/Mime1", "org.deepin.daemon.Mime1", mimeApp)) {
+    if (!connection.registerObject("/org/deepin/dde/Mime1", "org.deepin.dde.Mime1", mimeApp)) {
         qWarning() << "error: " << connection.lastError().message();
         return -1;
     }

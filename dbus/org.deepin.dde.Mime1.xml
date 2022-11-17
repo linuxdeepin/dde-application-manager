@@ -1,4 +1,4 @@
- <interface name='org.deepin.daemon.Mime'>
+ <interface name='org.deepin.dde.Mime1'>
     <method name='AddUserApp'>
         <arg type='as' name='mimeTypes' direction='in'/>
         <arg type='s' name='desktopId' direction='in'/>

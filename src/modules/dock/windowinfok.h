@@ -27,6 +27,8 @@
 
 #include <QString>
 
+using PlasmaWindow = org::deepin::dde::kwayland1::PlasmaWindow;
+
 class Entry;
 class ProcessInfo;
 

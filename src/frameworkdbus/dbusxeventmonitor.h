@@ -25,21 +25,21 @@
 #include <QtDBus/QtDBus>
 
 /*
- * Proxy class for interface org.deepin.api.XEventMonitor1
+ * Proxy class for interface org.deepin.dde.XEventMonitor1
  */
-class __org_deepin_api_XEventMonitorPrivate;
-class __org_deepin_api_XEventMonitor : public DBusExtendedAbstractInterface
+class __org_deepin_dde_XEventMonitorPrivate;
+class __org_deepin_dde_XEventMonitor : public DBusExtendedAbstractInterface
 {
     Q_OBJECT
 
 public:
     static inline const char *staticInterfaceName()
-    { return "org.deepin.api.XEventMonitor1"; }
+    { return "org.deepin.dde.XEventMonitor1"; }
 
 public:
-    explicit __org_deepin_api_XEventMonitor(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent = 0);
+    explicit __org_deepin_dde_XEventMonitor(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent = 0);
 
-    ~__org_deepin_api_XEventMonitor();
+    ~__org_deepin_dde_XEventMonitor();
 
 public Q_SLOTS: // METHODS
     inline QDBusPendingReply<QString> RegisterArea(int in0, int in1, int in2, int in3, int in4)
@@ -87,13 +87,13 @@ private Q_SLOTS:
     void onPendingCallFinished(QDBusPendingCallWatcher *w);
 
 private:
-    __org_deepin_api_XEventMonitorPrivate *d_ptr;
+    __org_deepin_dde_XEventMonitorPrivate *d_ptr;
 };
 
 namespace org {
   namespace deepin {
-    namespace api {
-      typedef ::__org_deepin_api_XEventMonitor XEventMonitor1;
+    namespace dde {
+      typedef ::__org_deepin_dde_XEventMonitor XEventMonitor1;
     }
   }
 }

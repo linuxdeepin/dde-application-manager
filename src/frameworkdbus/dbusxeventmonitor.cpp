@@ -12,13 +12,13 @@
 #include "dbusxeventmonitor.h"
 
 /*
- * Implementation of interface class __org_deepin_api_XEventMonitor
+ * Implementation of interface class __org_deepin_dde_XEventMonitor
  */
 
-class __org_deepin_api_XEventMonitorPrivate
+class __org_deepin_dde_XEventMonitorPrivate
 {
 public:
-   __org_deepin_api_XEventMonitorPrivate() = default;
+   __org_deepin_dde_XEventMonitorPrivate() = default;
 
     // begin member variables
 
@@ -27,21 +27,21 @@ public:
     QMap<QString, QList<QVariant>> m_waittingCalls;
 };
 
-__org_deepin_api_XEventMonitor::__org_deepin_api_XEventMonitor(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent)
+__org_deepin_dde_XEventMonitor::__org_deepin_dde_XEventMonitor(const QString &service, const QString &path, const QDBusConnection &connection, QObject *parent)
     : DBusExtendedAbstractInterface(service, path, staticInterfaceName(), connection, parent)
-    , d_ptr(new __org_deepin_api_XEventMonitorPrivate)
+    , d_ptr(new __org_deepin_dde_XEventMonitorPrivate)
 {
     if (QMetaType::type("AreaList") == QMetaType::UnknownType)
         registerAreaListMetaType();
 }
 
-__org_deepin_api_XEventMonitor::~__org_deepin_api_XEventMonitor()
+__org_deepin_dde_XEventMonitor::~__org_deepin_dde_XEventMonitor()
 {
     qDeleteAll(d_ptr->m_processingCalls.values());
     delete d_ptr;
 }
 
-void __org_deepin_api_XEventMonitor::CallQueued(const QString &callName, const QList<QVariant> &args)
+void __org_deepin_dde_XEventMonitor::CallQueued(const QString &callName, const QList<QVariant> &args)
 {
     if (d_ptr->m_waittingCalls.contains(callName)) {
         d_ptr->m_waittingCalls[callName] = args;
@@ -51,12 +51,12 @@ void __org_deepin_api_XEventMonitor::CallQueued(const QString &callName, const Q
         d_ptr->m_waittingCalls.insert(callName, args);
     } else {
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(asyncCallWithArgumentList(callName, args));
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, &__org_deepin_api_XEventMonitor::onPendingCallFinished);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, &__org_deepin_dde_XEventMonitor::onPendingCallFinished);
         d_ptr->m_processingCalls.insert(callName, watcher);
     }
 }
 
-void __org_deepin_api_XEventMonitor::onPendingCallFinished(QDBusPendingCallWatcher *w)
+void __org_deepin_dde_XEventMonitor::onPendingCallFinished(QDBusPendingCallWatcher *w)
 {
     w->deleteLater();
     const auto callName = d_ptr->m_processingCalls.key(w);

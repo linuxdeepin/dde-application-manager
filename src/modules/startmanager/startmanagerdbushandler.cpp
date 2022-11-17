@@ -32,14 +32,14 @@ StartManagerDBusHandler::StartManagerDBusHandler(QObject *parent)
 
 void StartManagerDBusHandler::markLaunched(QString desktopFile)
 {
-    QDBusInterface interface = QDBusInterface("org.deepin.daemon.AlRecorder1", "/org/deepin/daemon/AlRecorder1", "org.deepin.daemon.AlRecorder1");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.AlRecorder1", "/org/deepin/dde/AlRecorder1", "org.deepin.dde.AlRecorder1");
     interface.call("MarkLaunched", desktopFile);
 }
 
 QString StartManagerDBusHandler::getProxyMsg()
 {
     QString ret;
-    QDBusInterface interface = QDBusInterface("com.deepin.system.proxy", "/com/deepin/system/proxy", "com.deepin.system.proxy.App");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
     QDBusReply<QString> reply = interface.call("GetProxy");
     if (reply.isValid())
         ret = reply.value();
@@ -49,8 +49,8 @@ QString StartManagerDBusHandler::getProxyMsg()
 
 void StartManagerDBusHandler::addProxyProc(int32_t pid)
 {
-    QDBusInterface interface = QDBusInterface("com.deepin.system.proxy", "/com/deepin/system/proxy", "com.deepin.system.proxy.App");
-    interface.call("AddProc");
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
+    interface.call("AddProc", pid);
 }
 
 

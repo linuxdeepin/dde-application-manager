@@ -12,22 +12,22 @@ pkg_check_modules(GLib REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(QGSettings REQUIRED IMPORTED_TARGET gsettings-qt)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../dbus/org.desktopspec.ApplicationManager.xml
+                     ../../dbus/org.deepin.dde.Application1.Manager.xml
                      impl/application_manager.h
                      ApplicationManager)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../dbus/org.desktopspec.Application.xml
+                     ../../dbus/org.deepin.dde.Application1.xml
                      impl/application.h
                      Application)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-                     ../../dbus/org.desktopspec.ApplicationInstance.xml
+                     ../../dbus/org.deepin.dde.Application1.Instance.xml
                      impl/application_instance.h
                      ApplicationInstance)
 
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
-               ../../dbus/org.deepin.daemon.Mime.xml
+               ../../dbus/org.deepin.dde.Mime1.xml
                ../modules/mimeapp/mime_app.h
                MimeApp)
 
