@@ -145,6 +145,7 @@ public:
     void setPluginSettings(QString jsonStr);
     void mergePluginSettings(QString jsonStr);
     void removePluginSettings(QString pluginName, QStringList settingkeys);
+    void removeEntryFromDock(Entry *entry);
 
 Q_SIGNALS:
     void serviceRestarted();

@@ -1135,29 +1135,8 @@ void Dock::detachWindow(WindowInfoBase *info)
     if (!entry)
         return;
 
-    bool needRemove = entry->detachWindow(info);
-    if (needRemove) {
-        // 如果是最近打开应用
-        if (m_entries->shouldInRecent()) {
-            // 更新entry的导出窗口信息
-            entry->updateExportWindowInfos();
-            // 更新entry的右键菜单的信息
-            entry->updateMenu();
-            // 更新entry的当前窗口的信息
-            entry->setCurrentWindowInfo(nullptr);
-            // 移除应用后，同时更新最近打开的应用
-            updateRecentApps();
-            // 如果是高效模式，则发送消息或者关闭了显示最近应用的功能，则从任务栏移除
-            if (SETTING->getDisplayMode() == DisplayMode::Efficient
-                    || !m_showRecent) {
-                Q_EMIT entryRemoved(entry->getId());
-            }
-        } else {
-            removeAppEntry(entry);
-            // 移除应用后，同时更新最近打开的应用
-            updateRecentApps();
-        }
-    }
+    if (entry->detachWindow(info))
+        removeEntryFromDock(entry);
 }
 
 /**
@@ -1263,6 +1242,30 @@ void Dock::updateRecentApps()
 
     // 保存未驻留的应用作为最近打开的应用
     SETTING->setRecentApps(unDockedApps);
+}
+
+void Dock::removeEntryFromDock(Entry *entry)
+{
+    // 如果是最近打开应用
+    if (m_entries->shouldInRecent()) {
+        // 更新entry的导出窗口信息
+        entry->updateExportWindowInfos();
+        // 更新entry的右键菜单的信息
+        entry->updateMenu();
+        // 更新entry的当前窗口的信息
+        entry->setCurrentWindowInfo(nullptr);
+        // 移除应用后，同时更新最近打开的应用
+        updateRecentApps();
+        // 如果是高效模式，则发送消息或者关闭了显示最近应用的功能，则从任务栏移除
+        if ((SETTING->getDisplayMode() == DisplayMode::Efficient
+                || !m_showRecent) && !entry->getIsDocked()) {
+            Q_EMIT entryRemoved(entry->getId());
+        }
+    } else {
+        removeAppEntry(entry);
+        // 移除应用后，同时更新最近打开的应用
+        updateRecentApps();
+    }
 }
 
 void Dock::onShowRecentChanged(bool visible)

@@ -642,6 +642,7 @@ void Entry::forceQuit()
     m_windowInfoMap.clear();
     // 退出所有的进程后，及时更新当前剩余的窗口数量
     updateExportWindowInfos();
+    m_dock->removeEntryFromDock(this);
 }
 
 void Entry::presentWindows()
