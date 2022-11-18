@@ -531,42 +531,40 @@ void Launcher::onCheckDesktopFile(const QString &filePath, int type)
 {
     Q_UNUSED(type);
 
-    QString appId = getAppIdByFilePath(filePath, appDirs);
-    if (appId.isEmpty())
+    if (filePath.isEmpty()) {
+        qWarning() << "Desktop path is empty. ";
         return;
+    }
 
     DesktopInfo info(filePath.toStdString());
     if (info.isValidDesktop()) {
         Item newItem = NewItemWithDesktopInfo(info);
-        newItem.info.id = getAppIdByFilePath(newItem.info.path, appDirs);
         bool shouldShow = info.shouldShow() &&
                 !isDeepinCustomDesktopFile(newItem.info.path) &&
                 !appsHidden.contains(newItem.info.id);
 
-        // update item
-        if (itemsMap.find(appId) != itemsMap.end()) {
+        if (m_desktopAndItemMap.find(filePath) != m_desktopAndItemMap.end()) {
             if (shouldShow) {
+                // update item
                 addItem(newItem);
                 emitItemChanged(&newItem, appStatusModified);
             } else {
-                itemsMap.remove(appId);
+                // hide item
                 emitItemChanged(&newItem, appStatusDeleted);
             }
-        } else if (shouldShow){ // add item
+        } else if (shouldShow) {
             if (info.isExecutableOk()) {
+                // add item
                 addItem(newItem);
                 emitItemChanged(&newItem, appStatusCreated);
             }
         }
     } else {
-        if (itemsMap.find(appId) != itemsMap.end()) {
-            Item item = itemsMap[appId];
+        if (m_desktopAndItemMap.find(filePath) != m_desktopAndItemMap.end()) {
+            // remove item
+            const Item &item = itemsMap[filePath];
+            removeDesktop(filePath);
             emitItemChanged(&item, appStatusDeleted);
-            itemsMap.remove(appId);
-
-            // 移除桌面上对应文件
-            QFile file(QDir::homePath() + "/Desktop" + appId + ".desktop");
-            file.remove();
         }
     }
 }
@@ -623,13 +621,13 @@ void Launcher::handleAppHiddenChanged()
         if (itemsMap.find(appId) == itemsMap.end())
             continue;
 
-        DesktopInfo info = DesktopInfo(appId.toStdString());
+        DesktopInfo info = DesktopInfo(itemsMap[appId].info.path.toStdString());
         if (!info.isValidDesktop()) {
-            qInfo() << "appId " << appId << "is invalid app";
+            qWarning() << "invalid Desktop Path";
+            continue;
         }
 
         Item item = NewItemWithDesktopInfo(info);
-        item.info.id = getAppIdByFilePath(item.info.path, appDirs);
 
         if (!(info.shouldShow() && !isDeepinCustomDesktopFile(info.getFileName().c_str())))
             continue;
