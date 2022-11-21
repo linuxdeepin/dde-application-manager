@@ -40,7 +40,7 @@ WindowInfoK::WindowInfoK(PlasmaWindow *window, XWindow _xid)
 
 WindowInfoK::~WindowInfoK()
 {
-
+    delete m_plasmaWindow;
 }
 
 bool WindowInfoK::shouldSkip()

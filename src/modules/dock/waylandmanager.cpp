@@ -50,10 +50,18 @@ void WaylandManager::registerWindow(const QString &objPath)
         return;
     }
 
-    QString appId = plasmaWindow->AppId();
-    QStringList list {"dde-dock", "dde-launcher", "dde-clipboard", "dde-osd", "dde-polkit-agent", "dde-simple-egl", "dmcs"};
-    if (list.indexOf(appId) >= 0)
+    if (!plasmaWindow->IsValid() || !plasmaWindow->isValid()) {
+        qWarning() << "PlasmaWindow is not valid:" << objPath;
+        delete plasmaWindow;
         return;
+    }
+
+    QString appId = plasmaWindow->AppId();
+    QStringList list {"dde-dock", "dde-launcher", "dde-clipboard", "dde-osd", "dde-polkit-agent", "dde-simple-egl", "dmcs", "dde-lock"};
+    if (list.indexOf(appId) >= 0 || appId.startsWith("No such object path")) {
+        delete plasmaWindow;
+        return;
+    }
 
     XWindow winId = XCB->allocId();     // XCB中未发现释放XID接口
     XWindow realId = plasmaWindow->WindowId();
