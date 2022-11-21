@@ -52,15 +52,15 @@ Entry *Entries::getByInnerId(QString innerId)
 
 void Entries::append(Entry *entry)
 {
-    // 如果当前应用在列表中存在(通常是该应用为最近打开应用但是关闭了最近打开应用的接口或者当前为高效模式)
-    if (m_items.contains(entry))
-        m_items.removeOne(entry);
-
     insert(entry, -1);
 }
 
 void Entries::insert(Entry *entry, int index)
 {
+    // 如果当前应用在列表中存在(通常是该应用为最近打开应用但是关闭了最近打开应用的接口或者当前为高效模式)
+    if (m_items.contains(entry))
+        m_items.removeOne(entry);
+
     if (index < 0 || index >= m_items.size()) {
         // append
         index = m_items.size();

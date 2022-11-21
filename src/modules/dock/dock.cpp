@@ -536,7 +536,7 @@ bool Dock::requestDock(QString desktopFile, int index)
         return false;
 
     entry->startExport();
-    m_entries->append(entry);
+    m_entries->insert(entry, index);
 
     saveDockedApps();
     return true;
