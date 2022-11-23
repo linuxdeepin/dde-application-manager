@@ -56,7 +56,7 @@ StartManager::StartManager(QObject *parent)
     // load sysMemLimitConfig
     loadSysMemLimitConfig();
 
-    autostartFiles = getAutostartList();
+    m_autostartFiles = getAutostartList();
 
     // listen autostart files
     listenAutostartFileEvents();
@@ -66,49 +66,42 @@ StartManager::StartManager(QObject *parent)
     //startAutostartProgram();
 }
 
-/**
- * @brief StartManager::addAutostart
- * @param fileName desktopFile
- * @return
- */
-bool StartManager::addAutostart(QString fileName)
+bool StartManager::addAutostart(const QString &desktop)
 {
-    return setAutostart(fileName, true);
+    return setAutostart(desktop, true);
 }
 
-/**
- * @brief StartManager::removeAutostart
- * @param fileName desktopFile
- * @return
- */
-bool StartManager::removeAutostart(QString fileName)
+bool StartManager::removeAutostart(const QString &desktop)
 {
-    return setAutostart(fileName, false);
+    return setAutostart(desktop, false);
 }
 
 QStringList StartManager::autostartList()
 {
-    if (autostartFiles.size() == 0) {
-        autostartFiles = getAutostartList();
+    if (m_autostartFiles.isEmpty()) {
+        m_autostartFiles = getAutostartList();
     }
 
-    return autostartFiles;
+    return m_autostartFiles;
 }
 
-/**
+/**desktop为全路径或者相对路径都应该返回true
+ * 其他情况返回false
  * @brief StartManager::isAutostart
- * @param fileName  desktopFile
+ * @param desktop
  * @return
  */
-bool StartManager::isAutostart(QString fileName)
+bool StartManager::isAutostart(const QString &desktop)
 {
-    if (!fileName.endsWith(DESKTOPEXT))
+    if (!desktop.endsWith(DESKTOPEXT))
         return false;
 
+    QFileInfo file(desktop);
     for (auto autostartDir : BaseDir::autoStartDirs()) {
-        std::string filePath = autostartDir + fileName.toStdString();
-        if (DFile::isExisted(filePath)) {
-            DesktopInfo info(filePath);
+        std::string filePath = autostartDir + file.baseName().toStdString();
+        QDir dir(autostartDir.c_str());
+        if (dir.exists(file.fileName())) {
+            DesktopInfo info(desktop.toStdString());
             if (info.isValidDesktop() && !info.getIsHidden()) {
                 return true;
             }
@@ -182,7 +175,7 @@ void StartManager::onAutoStartupPathChange(const QString &dirPath)
 {
     QStringList autostartFilesList = getAutostartList();
     QSet<QString> newAutostartFiles = QSet<QString>::fromList(autostartFilesList);
-    QSet<QString> oldAutostartFiles = QSet<QString>::fromList(autostartFiles);
+    QSet<QString> oldAutostartFiles = QSet<QString>::fromList(m_autostartFiles);
 
     // 添加
     QSet<QString> newFiles = newAutostartFiles - oldAutostartFiles;
@@ -193,7 +186,7 @@ void StartManager::onAutoStartupPathChange(const QString &dirPath)
     QStringList deleteFile = deletedFiles.toList();
 
     // 更新autostartFiles记录
-    autostartFiles = autostartFilesList;
+    m_autostartFiles = autostartFilesList;
 
     for (auto &file : newFile) {
         Q_EMIT autostartChanged(autostartAdded, file);
@@ -204,72 +197,65 @@ void StartManager::onAutoStartupPathChange(const QString &dirPath)
     }
 }
 
-bool StartManager::setAutostart(QString fileName, bool value)
+bool StartManager::setAutostart(const QString &desktop, const bool value)
 {
-    if (!fileName.endsWith(DESKTOPEXT))
-        return false;
-
-    if (isAutostart(fileName) == value)
-        return true;
-
-    QFileInfo info(fileName);
-    QString appId = info.baseName();
-    QString autostartDir(BaseDir::userAutoStartDir().c_str());
-    QString autostartFileName = fileName;
-    bool isUserAutostart = false;
-    // if has no user autostart file, create it
-    if (info.isAbsolute()) {
-        if (info.exists() && info.baseName() == autostartDir) {
-            isUserAutostart = true;
-        }
-    } else {
-        autostartFileName = autostartDir + fileName;
-        if (DFile::isExisted(autostartFileName.toStdString())) {
-            isUserAutostart = true;
-        }
-    }
-
-    if (!isUserAutostart && !DFile::isExisted(autostartFileName.toStdString())) {
-        // get system autostart desktop file
-        for (auto appDir : BaseDir::appDirs()) {
+    QString desktopFullPath = desktop;
+    QFileInfo info(desktopFullPath);
+    if (!info.isAbsolute()) {
+        for (const std::string &appDir : BaseDir::appDirs()) {
             QDir dir(appDir.c_str());
             dir.setFilter(QDir::Files);
             dir.setNameFilters({ "*.desktop" });
-            bool hiddenStatusChanged = false;
-            for (auto entry : dir.entryInfoList()) {
-                QString desktopFile = entry.absoluteFilePath();
-                if (!desktopFile.contains(fileName))
+            for (const auto &entry : dir.entryInfoList()) {
+                const QString &desktopPath = entry.absoluteFilePath();
+                if (!desktopPath.contains(desktop))
                     continue;
 
-                if (!QFile::copy(desktopFile, autostartFileName))   // copy origin file
-                    return false;
-
-                hiddenStatusChanged = true;
+                desktopFullPath = desktopPath;
+                info.setFile(desktopFullPath);
                 break;
             }
-
-            if (hiddenStatusChanged)
-                break;
         }
     }
 
+    QDir autostartDir(BaseDir::userAutoStartDir().c_str());
+    const QString &appId = info.baseName();
 
-    // change autostart hidden status in file
-    KeyFile kf;
-    kf.loadFile(autostartFileName.toStdString());
-    kf.setKey(MainSection, KeyXDeepinCreatedBy.toStdString(), AMServiceName.toStdString());
-    kf.setKey(MainSection, KeyXDeepinAppID.toStdString(), appId.toStdString());
-    kf.setBool(MainSection, KeyHidden, !value ? "true" : "false");
-    kf.saveToFile(autostartFileName.toStdString());
+   if (value && isAutostart(desktopFullPath)) {
+       qWarning() << "invalid desktop or item is already in the autostart list.";
+       return false;
+   }
 
-    if (value && autostartFiles.indexOf(fileName) != -1) {
-        autostartFiles.push_back(fileName);
-    } else if (!value) {
-        autostartFiles.removeAll(fileName);
-    }
+   if (!value && !isAutostart(desktopFullPath)) {
+       qWarning() << "can't find autostart item";
+       return false;
+   }
 
-    Q_EMIT autostartChanged(value ? autostartAdded : autostartDeleted, fileName);
-    return true;
+   const QString &autostartDesktopPath = autostartDir.path() + QString("/") + info.fileName();
+   if (value && !m_autostartFiles.contains(desktopFullPath)) {
+       m_autostartFiles.push_back(desktopFullPath);
+       const bool ret = QFile::copy(info.filePath(), autostartDesktopPath);
+       if (!ret)
+           qWarning() << "add to autostart list failed...";
+
+       /* 设置为自启动时，手动将Hidden字段写入到自启动目录的desktop文件中，并设置为false，只有这样，
+        * 安全中心才不会弹出自启动确认窗口, 这种操作是沿用V20阶段的约定规范，这块已经与安全中心研发对接过 */
+       KeyFile kf;
+       kf.loadFile(autostartDesktopPath.toStdString());
+       kf.setKey(MainSection, KeyXDeepinCreatedBy.toStdString(), AMServiceName.toStdString());
+       kf.setKey(MainSection, KeyXDeepinAppID.toStdString(), appId.toStdString());
+       kf.setBool(MainSection, KeyHidden, "false");
+       kf.saveToFile(autostartDesktopPath.toStdString());
+   } else if (!value && m_autostartFiles.contains(desktopFullPath)) {
+       m_autostartFiles.removeAll(desktopFullPath);
+       autostartDir.remove(info.fileName());
+   } else {
+       qWarning() << "error happen...";
+       return false;
+   }
+
+   Q_EMIT autostartChanged(value ? autostartAdded : autostartDeleted, desktopFullPath);
+   return true;
 }
 
 bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
@@ -473,21 +459,5 @@ void StartManager::startAutostartProgram()
 
 QStringList StartManager::getAutostartList()
 {
-    QStringList ret;
-    for (auto autostartDir : BaseDir::autoStartDirs()) {
-        if (!DFile::isExisted(autostartDir))
-            continue;
-
-        QDir dir(autostartDir.c_str());
-        dir.setFilter(QDir::Files);
-        dir.setNameFilters({ "*.desktop" });
-        for (auto entry : dir.entryInfoList()) {
-            if (ret.contains(entry.absoluteFilePath()))
-                continue;
-
-            ret.push_back(entry.absoluteFilePath());
-        }
-    }
-
-    return ret;
+    return m_autostartFiles;
 }

@@ -188,9 +188,10 @@ void KeyFile::setKey(const std::string &section, const std::string &key, const s
 bool KeyFile::saveToFile(const std::string &filePath)
 {
     FILE *sfp = fopen(filePath.data(), "w+");
-    if (!sfp)
+    if (!sfp) {
+        perror("open file failed...");
         return false;
-
+    }
 
     for (const auto &im : m_mainKeyMap) {
         const auto &keyMap = im.second;

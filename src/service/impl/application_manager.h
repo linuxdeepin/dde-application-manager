@@ -64,16 +64,16 @@ public:
     void processInstanceStatus(Methods::ProcessStatus instanceStatus);
 
 Q_SIGNALS:
-    void AutostartChanged(QString status, QString filePath);
+    void AutostartChanged(const QString &status, const QString &filePath);
 
 public Q_SLOTS:
-    bool AddAutostart(QString fileName);
+    bool AddAutostart(const QString &desktop);
     QStringList AutostartList();
-    bool IsAutostart(QString fileName);
-    bool RemoveAutostart(QString fileName);
+    bool IsAutostart(const QString &fileName);
+    bool RemoveAutostart(const QString &fileName);
     void Launch(const QString &desktopFile);
     void LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files);
-    void LaunchAppAction(QString desktopFile, QString action, uint32_t timestamp);
+    void LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp);
 
 protected:
     ApplicationManager(QObject *parent = nullptr);

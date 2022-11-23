@@ -38,10 +38,10 @@ class StartManager : public QObject
 public:
     explicit StartManager(QObject *parent = nullptr);
 
-    bool addAutostart(QString fileName);
-    bool removeAutostart(QString fileName);
+    bool addAutostart(const QString &desktop);
+    bool removeAutostart(const QString &desktop);
     QStringList autostartList();
-    bool isAutostart(QString fileName);
+    bool isAutostart(const QString &desktop);
     bool isMemSufficient();
     void launchApp(const QString &desktopFile);
     void launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
@@ -51,13 +51,13 @@ public:
     void runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
 
 Q_SIGNALS:
-    void autostartChanged(QString status, QString fileName);
+    void autostartChanged(const QString &status, const QString &fileName);
 
 public Q_SLOTS:
     void onAutoStartupPathChange(const QString &dirPath);
 
 private:
-    bool setAutostart(QString fileName, bool value);
+    bool setAutostart(const QString &fileName, const bool value);
     bool doLaunchAppWithOptions(const QString &desktopFile);
     bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
     bool launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
@@ -74,7 +74,7 @@ private:
     uint64_t minMemAvail;
     uint64_t maxSwapUsed;
     StartManagerDBusHandler *dbusHandler;
-    QStringList autostartFiles;
+    QStringList m_autostartFiles;
     QFileSystemWatcher *fileWatcher;
     ApplicationManager *am;
 };

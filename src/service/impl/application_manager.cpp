@@ -246,16 +246,16 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString& id)
     return {};
 }
 
-bool ApplicationManager::AddAutostart(QString fileName)
+bool ApplicationManager::AddAutostart(const QString &desktop)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
         return false;
 
-    return d->startManager->addAutostart(fileName);
+    return d->startManager->addAutostart(desktop);
 }
 
-bool ApplicationManager::RemoveAutostart(QString fileName)
+bool ApplicationManager::RemoveAutostart(const QString &fileName)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
@@ -273,7 +273,7 @@ QStringList ApplicationManager::AutostartList()
     return d->startManager->autostartList();
 }
 
-bool ApplicationManager::IsAutostart(QString fileName)
+bool ApplicationManager::IsAutostart(const QString &fileName)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
@@ -301,7 +301,7 @@ void ApplicationManager::LaunchApp(const QString &desktopFile, uint32_t timestam
     d->startManager->launchApp(desktopFile, timestamp, files);
 }
 
-void ApplicationManager::LaunchAppAction(QString desktopFile, QString action, uint32_t timestamp)
+void ApplicationManager::LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid())
