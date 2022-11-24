@@ -217,8 +217,10 @@ bool KeyFile::loadFile(const std::string &filePath)
 
     std::string lastSection;
     m_fp = fopen(filePath.data(), "r");
-    if (!m_fp)
+    if (!m_fp) {
+        perror("open file failed: ");
         return false;
+    }
 
     char line[MAX_LINE_LEN] = {0};
     while (fgets(line, MAX_LINE_LEN, m_fp)) {

@@ -70,13 +70,17 @@ private:
     void listenAutostartFileEvents();
     void startAutostartProgram();
     QStringList getAutostartList();
+    QMap<QString, QString> getDesktopToAutostartMap();
+    void setIsDBusCalled(const bool state);
+    bool isDBusCalled() const;
 
     uint64_t minMemAvail;
     uint64_t maxSwapUsed;
     StartManagerDBusHandler *dbusHandler;
     QStringList m_autostartFiles;
-    QFileSystemWatcher *fileWatcher;
-    ApplicationManager *am;
+    QMap<QString, QString> m_desktopDirToAutostartDirMap;   // Desktop全路径和自启动目录
+    QFileSystemWatcher *m_autostartFileWatcher;
+    bool m_isDBusCalled;
 };
 
 #endif // STARTMANAGER_H
