@@ -251,6 +251,11 @@ void StartManager::onAutoStartupPathChange(const QString &path)
 
 bool StartManager::setAutostart(const QString &desktop, const bool value)
 {
+    if (!desktop.endsWith(".desktop")) {
+        qWarning() << "invalid desktop item...";
+        return false;
+    }
+
     QString desktopFullPath = desktop;
     QFileInfo info(desktopFullPath);
     if (!info.isAbsolute()) {
@@ -268,6 +273,12 @@ bool StartManager::setAutostart(const QString &desktop, const bool value)
                 break;
             }
         }
+    }
+
+    // 本地没有找到该应用就直接返回
+    if (!info.isAbsolute()) {
+        qWarning() << "invalid item...";
+        return false;
     }
 
     QDir autostartDir(BaseDir::userAutoStartDir().c_str());
