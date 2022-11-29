@@ -282,29 +282,29 @@ bool ApplicationManager::IsAutostart(const QString &fileName)
     return d->startManager->isAutostart(fileName);
 }
 
-void ApplicationManager::Launch(const QString &desktopFile)
+void ApplicationManager::Launch(const QString &desktopFile, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
+    if (withMsgCheck && !d->checkDMsgUid())
         return;
 
     d->startManager->launchApp(desktopFile);
 }
 
 
-void ApplicationManager::LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files)
+void ApplicationManager::LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
+    if (withMsgCheck && !d->checkDMsgUid())
         return;
 
     d->startManager->launchApp(desktopFile, timestamp, files);
 }
 
-void ApplicationManager::LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp)
+void ApplicationManager::LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
+    if (withMsgCheck && !d->checkDMsgUid())
         return;
 
     d->startManager->launchAppAction(desktopFile, action, timestamp);

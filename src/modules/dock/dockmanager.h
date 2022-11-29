@@ -27,13 +27,14 @@
 #include <QObject>
 
 class Dock;
+class ApplicationManager;
 
 // 任务栏管理类
 class DockManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit DockManager(QObject *parent = nullptr);
+    explicit DockManager(ApplicationManager *parent = nullptr);
     ~DockManager();
 
 private:

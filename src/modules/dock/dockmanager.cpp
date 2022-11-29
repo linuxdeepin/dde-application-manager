@@ -21,14 +21,15 @@
 
 #include "dockmanager.h"
 #include "dock.h"
+#include "impl/application_manager.h"
 
 #include <QDBusConnection>
 #include <QDebug>
 #include <QDBusError>
 
-DockManager::DockManager(QObject *parent)
+DockManager::DockManager(ApplicationManager *parent)
  : QObject(parent)
- , m_dock(new Dock(this))
+ , m_dock(new Dock(parent, this))
 {
     qInfo() << "DockManager";
     m_adaptor = new DBusAdaptorDock(m_dock);

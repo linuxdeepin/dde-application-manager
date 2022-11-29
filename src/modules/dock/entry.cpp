@@ -570,7 +570,8 @@ bool Entry::attachWindow(WindowInfoBase *info)
 
 void Entry::launchApp(uint32_t timestamp)
 {
-    m_dock->launchApp(m_app->getFileName(), timestamp, QStringList());
+    if (m_app)
+        m_dock->launchApp(m_app->getFileName(), timestamp, QStringList());
 }
 
 bool Entry::containsWindow(XWindow xid)

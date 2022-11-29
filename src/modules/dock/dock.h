@@ -38,6 +38,7 @@ class WaylandManager;
 class X11Manager;
 class WindowInfoK;
 class WindowInfoX;
+class ApplicationManager;
 
 enum class HideState
 {
@@ -51,7 +52,7 @@ class Dock : public SynModule
 {
     Q_OBJECT
 public:
-    explicit Dock(QObject *parent = nullptr);
+    explicit Dock(ApplicationManager *applicationManager, QObject *parent = nullptr);
     ~Dock();
 
     bool dockEntry(Entry *entry, bool moveToEnd = false);
@@ -202,6 +203,7 @@ private:
     QMutex m_windowOperateMutex;  // 窗口合并或拆分锁
     bool m_showRecent;
     bool m_showMultiWindow;
+    ApplicationManager *m_applicationManager;
 };
 
 #endif // DOCK_H

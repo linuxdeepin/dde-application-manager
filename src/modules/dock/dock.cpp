@@ -29,6 +29,7 @@
 #include "x11manager.h"
 #include "windowinfobase.h"
 #include "dbusplasmawindow.h"
+#include "impl/application_manager.h"
 
 #include "macro.h"
 
@@ -39,7 +40,7 @@
 #define SETTING DockSettings::instance()
 #define XCB XCBUtils::instance()
 
-Dock::Dock(QObject *parent)
+Dock::Dock(ApplicationManager *applicationManager, QObject *parent)
  : SynModule(parent)
  , m_entriesSum(0)
  , m_windowIdentify(new WindowIdentify(this))
@@ -52,6 +53,7 @@ Dock::Dock(QObject *parent)
  , m_windowOperateMutex(QMutex(QMutex::NonRecursive))
  , m_showRecent(false)
  , m_showMultiWindow(false)
+ , m_applicationManager(applicationManager)
 {
     registeModule("dock");
 
@@ -1146,7 +1148,7 @@ void Dock::detachWindow(WindowInfoBase *info)
  */
 void Dock::launchApp(const QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    m_dbusHandler->launchApp(desktopFile, timestamp, files);
+    m_applicationManager->LaunchApp(desktopFile, timestamp, files, false);
 }
 
 /**
@@ -1157,7 +1159,7 @@ void Dock::launchApp(const QString desktopFile, uint32_t timestamp, QStringList 
  */
 void Dock::launchAppAction(const QString desktopFile, QString action, uint32_t timestamp)
 {
-    m_dbusHandler->launchAppAction(desktopFile, action, timestamp);
+    m_applicationManager->LaunchAppAction(desktopFile, action ,timestamp, false);
 }
 
 /**

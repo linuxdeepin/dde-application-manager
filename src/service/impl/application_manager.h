@@ -71,9 +71,9 @@ public Q_SLOTS:
     QStringList AutostartList();
     bool IsAutostart(const QString &fileName);
     bool RemoveAutostart(const QString &fileName);
-    void Launch(const QString &desktopFile);
-    void LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files);
-    void LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp);
+    void Launch(const QString &desktopFile, bool withMsgCheck = true);
+    void LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files, bool withMsgCheck = true);
+    void LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp, bool withMsgCheck = true);
 
 protected:
     ApplicationManager(QObject *parent = nullptr);
