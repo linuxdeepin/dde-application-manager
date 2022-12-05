@@ -533,7 +533,20 @@ QStringList StartManager::getAutostartList()
             if (autostartList.contains(entry.absoluteFilePath()))
                 continue;
 
-            autostartList.push_back(entry.absoluteFilePath());
+            // 需要检查desktop文件中的Hidden,OnlyShowIn和NotShowIn字段,再决定是否需要自启动
+            auto isNeedAutoStart = [ ](const std::string &_fileName){
+                DesktopInfo info(_fileName);
+                if (!info.isValidDesktop())
+                    return false;
+
+                if (info.getIsHidden())
+                    return false;
+
+                return info.getShowIn(std::vector<std::string>());
+            };
+
+            if (isNeedAutoStart(entry.absoluteFilePath().toStdString()))
+                autostartList.push_back(entry.absoluteFilePath());
         }
     }
 
