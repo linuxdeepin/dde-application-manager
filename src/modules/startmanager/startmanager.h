@@ -43,12 +43,12 @@ public:
     QStringList autostartList();
     bool isAutostart(const QString &desktop);
     bool isMemSufficient();
-    void launchApp(const QString &desktopFile);
-    void launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
-    void launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp);
-    void launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
-    void runCommand(QString exe, QStringList args);
-    void runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
+    bool launchApp(const QString &desktopFile);
+    bool launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
+    bool launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp);
+    bool launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
+    bool runCommand(QString exe, QStringList args);
+    bool runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
 
 Q_SIGNALS:
     void autostartChanged(const QString &status, const QString &fileName);

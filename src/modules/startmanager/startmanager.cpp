@@ -85,8 +85,10 @@ QStringList StartManager::autostartList()
  */
 bool StartManager::isAutostart(const QString &desktop)
 {
-    if (!desktop.endsWith(DESKTOPEXT))
+    if (!desktop.endsWith(DESKTOPEXT)) {
+        qWarning() << "invalid desktop path";
         return false;
+    }
 
     QFileInfo file(desktop);
     for (auto autostartDir : BaseDir::autoStartDirs()) {
@@ -108,21 +110,23 @@ bool StartManager::isMemSufficient()
     return SETTING->getMemCheckerEnabled() ? MemInfo::isSufficient(minMemAvail, maxSwapUsed) : true;
 }
 
-void StartManager::launchApp(const QString &desktopFile)
+bool StartManager::launchApp(const QString &desktopFile)
 {
-    doLaunchAppWithOptions(desktopFile);
+    return doLaunchAppWithOptions(desktopFile);
 }
 
-void StartManager::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
+bool StartManager::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    doLaunchAppWithOptions(desktopFile, timestamp, files, QMap<QString, QString>());
+    return doLaunchAppWithOptions(desktopFile, timestamp, files, QMap<QString, QString>());
 }
 
-void StartManager::launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp)
+bool StartManager::launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp)
 {
     DesktopInfo info(desktopFile.toStdString());
-    if (!info.isValidDesktop())
-        return;
+    if (!info.isValidDesktop()) {
+        qWarning() << "invalid arguments";
+        return false;
+    }
 
     DesktopAction targetAction;
     for (auto action : info.getActions()) {
@@ -134,33 +138,34 @@ void StartManager::launchAppAction(QString desktopFile, QString actionSection, u
 
     if (targetAction.section.empty()) {
         qWarning() << "launchAppAction: targetAction section is empty";
-        return;
+        return false;
     }
 
     if (targetAction.exec.empty()) {
         qInfo() << "launchAppAction: targetAction exe is empty";
-        return;
+        return false;
     }
 
     launch(&info, targetAction.exec.c_str(), timestamp, QStringList());
 
     // mark app launched
     dbusHandler->markLaunched(desktopFile);
+    return true;
 }
 
-void StartManager::launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
+bool StartManager::launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
 {
-    doLaunchAppWithOptions(desktopFile, timestamp, files, options);
+    return doLaunchAppWithOptions(desktopFile, timestamp, files, options);
 }
 
-void StartManager::runCommand(QString exe, QStringList args)
+bool StartManager::runCommand(QString exe, QStringList args)
 {
-    doRunCommandWithOptions(exe, args, QMap<QString, QString>());
+    return doRunCommandWithOptions(exe, args, QMap<QString, QString>());
 }
 
-void StartManager::runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
+bool StartManager::runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
 {
-    doRunCommandWithOptions(exe, args, options);
+    return doRunCommandWithOptions(exe, args, options);
 }
 
 void StartManager::onAutoStartupPathChange(const QString &path)
@@ -251,60 +256,59 @@ void StartManager::onAutoStartupPathChange(const QString &path)
 
 bool StartManager::setAutostart(const QString &desktop, const bool value)
 {
-    if (!desktop.endsWith(".desktop")) {
-        qWarning() << "invalid desktop item...";
+    QFileInfo fileInfo(desktop);
+    if (!desktop.endsWith(".desktop") && !fileInfo.isAbsolute()) {
+        qWarning() << "invalid desktop path";
         return false;
     }
 
-    QString desktopFullPath = desktop;
-    QFileInfo info(desktopFullPath);
-    if (!info.isAbsolute()) {
-        for (const std::string &appDir : BaseDir::appDirs()) {
-            QDir dir(appDir.c_str());
-            dir.setFilter(QDir::Files);
-            dir.setNameFilters({ "*.desktop" });
-            for (const auto &entry : dir.entryInfoList()) {
-                const QString &desktopPath = entry.absoluteFilePath();
-                if (!desktopPath.contains(desktop))
-                    continue;
-
-                desktopFullPath = desktopPath;
-                info.setFile(desktopFullPath);
+    bool exist = false;
+    for (const std::string &appDir : BaseDir::appDirs()) {
+        QDir dir(appDir.c_str());
+        dir.setFilter(QDir::Files);
+        dir.setNameFilters({ "*.desktop" });
+        for (const auto &entry : dir.entryInfoList()) {
+            const QString &desktopPath = entry.absoluteFilePath();
+            if (desktopPath == desktop) {
+                exist = true;
                 break;
             }
         }
+
+        if (exist)
+            break;
     }
 
     // 本地没有找到该应用就直接返回
-    if (!info.isAbsolute()) {
-        qWarning() << "invalid item...";
+    if (!exist) {
+        qWarning() << "no such file or directory";
         return false;
     }
 
     QDir autostartDir(BaseDir::userAutoStartDir().c_str());
-    const QString &appId = info.baseName();
+    const QString &appId = fileInfo.baseName();
 
-   if (value && isAutostart(desktopFullPath)) {
-       qWarning() << "invalid desktop or item is already in the autostart list.";
+   if (value && isAutostart(desktop)) {
+       qWarning() << "invalid path or item is already in the autostart list.";
        return false;
    }
 
-   if (!value && !isAutostart(desktopFullPath)) {
-       qWarning() << "can't find autostart item";
+   if (!value && !isAutostart(desktop)) {
+       qWarning() << "invalid path or item is not in the autostart list.";
        return false;
    }
 
-   const QString &autostartDesktopPath = autostartDir.path() + QString("/") + info.fileName();
+   const QString &autostartDesktopPath = autostartDir.path() + QString("/") + fileInfo.fileName();
    if (value && !m_autostartFiles.contains(autostartDesktopPath)) {
        m_autostartFiles.push_back(autostartDesktopPath);
 
        // 建立映射关系
-       if (!m_desktopDirToAutostartDirMap.keys().contains(desktopFullPath))
-           m_desktopDirToAutostartDirMap[desktopFullPath] = autostartDesktopPath;
+       if (!m_desktopDirToAutostartDirMap.keys().contains(desktop))
+           m_desktopDirToAutostartDirMap[desktop] = autostartDesktopPath;
 
-       const bool ret = QFile::copy(info.filePath(), autostartDesktopPath);
+       const bool ret = QFile::copy(fileInfo.filePath(), autostartDesktopPath);
        if (!ret)
-           qWarning() << "add to autostart list failed...";
+           qWarning() << "add to autostart list failed.";
 
        /* 设置为自启动时，手动将Hidden字段写入到自启动目录的desktop文件中，并设置为false，只有这样，
         * 安全中心才不会弹出自启动确认窗口, 这种操作是沿用V20阶段的约定规范，这块已经与安全中心研发对接过 */
@@ -316,17 +320,17 @@ bool StartManager::setAutostart(const QString &desktop, const bool value)
        kf.saveToFile(autostartDesktopPath.toStdString());
    } else if (!value && m_autostartFiles.contains(autostartDesktopPath)) {
        // 删除映射关系
-       if (m_desktopDirToAutostartDirMap.keys().contains(desktopFullPath))
-           m_desktopDirToAutostartDirMap.remove(desktopFullPath);
+       if (m_desktopDirToAutostartDirMap.keys().contains(desktop))
+           m_desktopDirToAutostartDirMap.remove(desktop);
 
        m_autostartFiles.removeAll(autostartDesktopPath);
-       autostartDir.remove(info.fileName());
+       autostartDir.remove(fileInfo.fileName());
    } else {
-       qWarning() << "error happen...";
+       qWarning() << "invalid path or item is not in the autostart list.";
        return false;
    }
 
-   Q_EMIT autostartChanged(value ? autostartAdded : autostartDeleted, desktopFullPath);
+   Q_EMIT autostartChanged(value ? autostartAdded : autostartDeleted, desktop);
    setIsDBusCalled(false);
    return true;
 }
@@ -334,8 +338,10 @@ bool StartManager::setAutostart(const QString &desktop, const bool value)
 bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
 {
     DesktopInfo info(desktopFile.toStdString());
-    if (!info.isValidDesktop())
+    if (!info.isValidDesktop()) {
+        qWarning() << "invalid desktop path";
         return false;
+    }
 
     launch(&info, info.getCommandLine().c_str(), 0, QStringList());
 
@@ -348,8 +354,10 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
 {
     // launchApp
     DesktopInfo info(desktopFile.toStdString());
-    if (!info.isValidDesktop())
+    if (!info.isValidDesktop()) {
+        qWarning() << "invalid desktop path";
         return false;
+    }
 
     if (options.find("path") != options.end()) {
         info.getKeyFile()->setKey(MainSection, KeyPath, options["path"].toStdString());
@@ -360,7 +368,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
     }
 
     if (info.getCommandLine().empty()) {
-        qInfo() << "command line is empty";
+        qWarning() << "command line is empty";
         return false;
     }
 

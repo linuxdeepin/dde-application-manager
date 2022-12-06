@@ -249,26 +249,57 @@ QList<QDBusObjectPath> ApplicationManager::GetInstances(const QString& id)
 bool ApplicationManager::AddAutostart(const QString &desktop)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return false;
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    return d->startManager->addAutostart(desktop);
+        qWarning() << "check msg failed...";
+        return false;
+    }
+
+    if (!d->startManager->addAutostart(desktop)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+        return false;
+    }
+
+    return true;
 }
 
 bool ApplicationManager::RemoveAutostart(const QString &fileName)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return false;
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    return d->startManager->removeAutostart(fileName);
+        qWarning() << "check msg failed...";
+        return false;
+    }
+
+    if (!d->startManager->removeAutostart(fileName)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+        return false;
+    }
+
+    return true;
 }
 
 QStringList ApplicationManager::AutostartList()
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return {};
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
+
+        qWarning() << "check msg failed...";
+        return QStringList();
+    }
 
     return d->startManager->autostartList();
 }
@@ -276,56 +307,119 @@ QStringList ApplicationManager::AutostartList()
 bool ApplicationManager::IsAutostart(const QString &fileName)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return false;
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    return d->startManager->isAutostart(fileName);
+        qWarning() << "check msg failed...";
+        return false;
+    }
+
+    if (!d->startManager->isAutostart(fileName)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+        return false;
+    }
+
+    return true;
 }
 
 void ApplicationManager::Launch(const QString &desktopFile, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (withMsgCheck && !d->checkDMsgUid())
-        return;
+    if (withMsgCheck && !d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    d->startManager->launchApp(desktopFile);
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->launchApp(desktopFile)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
 }
 
 
 void ApplicationManager::LaunchApp(const QString &desktopFile, uint32_t timestamp, const QStringList &files, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (withMsgCheck && !d->checkDMsgUid())
-        return;
+    if (withMsgCheck && !d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    d->startManager->launchApp(desktopFile, timestamp, files);
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->launchApp(desktopFile, timestamp, files)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
 }
 
 void ApplicationManager::LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp, bool withMsgCheck)
 {
     Q_D(ApplicationManager);
-    if (withMsgCheck && !d->checkDMsgUid())
-        return;
+    if (withMsgCheck && !d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    d->startManager->launchAppAction(desktopFile, action, timestamp);
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->launchAppAction(desktopFile, action, timestamp)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
 }
 
 void ApplicationManager::LaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return;
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    d->startManager->launchAppWithOptions(desktopFile, timestamp, files, options);
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->launchAppWithOptions(desktopFile, timestamp, files, options)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
 }
 
 void ApplicationManager::RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
 {
     Q_D(ApplicationManager);
-    if (!d->checkDMsgUid())
-        return;
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
 
-    d->startManager->runCommandWithOptions(exe, args, options);
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->runCommandWithOptions(exe, args, options)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
 }
 
 QList<QDBusObjectPath> ApplicationManager::instances() const
