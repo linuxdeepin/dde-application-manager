@@ -6,6 +6,8 @@
 #include "application1adaptor.h"
 #include "applicationhelper.h"
 #include "mime1adaptor.h"
+#include "settings.h"
+#include "dsysinfo.h"
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
 #include "../modules/dock/dockmanager.h"
@@ -69,6 +71,18 @@ QList<QSharedPointer<Application>> scanFiles()
     return applications;
 }
 
+void init()
+{
+    // 从DConfig中读取当前的显示模式，如果为空，则认为是第一次进入（新安装的系统），否则，就认为系统之前已经进入设置过，直接返回即可
+    QSharedPointer<DConfig> config(Settings::ConfigPtr("com.deepin.dde.dock"));
+    if (config.isNull() || !config->value("Display_Mode").toString().isEmpty())
+        return;
+
+    // 然后判断当前系统是否为社区版，社区版默认任务栏模式为时尚模式，其他版本默认为高效模式
+    QString displayMode = DSysInfo::isCommunityEdition() ? QString("fashion") : QString("efficient");
+    config->setValue("Display_Mode", displayMode);
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -81,6 +95,9 @@ int main(int argc, char *argv[])
     QTranslator *translator = new QTranslator();
     translator->load(QString("/usr/share/dde-application-manager/translations/dde-application-manager_%1.qm").arg(QLocale::system().name()));
     QCoreApplication::installTranslator(translator);
+
+    // 初始化
+    init();
 
     new AppManager(ApplicationManager::instance());
     new LauncherManager(ApplicationManager::instance());

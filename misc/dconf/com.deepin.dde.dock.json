@@ -133,7 +133,7 @@
 			"visibility": "private"
 		},
 		"Display_Mode": {
-			"value": "efficient",
+			"value": "",
 			"serial": 0,
 			"flags": [],
 			"name": "Display_Mode",
