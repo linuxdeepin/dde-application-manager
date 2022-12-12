@@ -114,7 +114,7 @@ public:
     void setWindowSizeFashion(uint size);
 
     // 设置配置
-    void setSynConfig(QByteArray ba);
+    void setSyncConfig(QByteArray ba);
     QByteArray getSyncConfig();
 
     /******************************** dbus handler ****************************/

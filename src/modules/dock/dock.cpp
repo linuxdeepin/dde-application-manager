@@ -330,10 +330,10 @@ void Dock::setWMName(QString name)
 }
 
 /**
- * @brief Dock::setSynConfig 同步配置 TODO
+ * @brief Dock::setSyncConfig 同步配置 TODO
  * @param ba 配置数据
  */
-void Dock::setSynConfig(QByteArray ba)
+void Dock::setSyncConfig(QByteArray ba)
 {
 
 }

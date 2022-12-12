@@ -65,14 +65,14 @@ QByteArray SynConfig::GetSyncConfig(QString moduleName)
         return {};
 }
 
-void SynConfig::SetSynConfig(QString moduleName, QByteArray ba)
+void SynConfig::setSyncConfig(QString moduleName, QByteArray ba)
 {
     if (synModulesMap.find(moduleName) == synModulesMap.end())
         return;
 
     SynModuleBase *module = synModulesMap[moduleName];
     if (module) {
-        module->setSynConfig(ba);
+        module->setSyncConfig(ba);
     }
 }
 

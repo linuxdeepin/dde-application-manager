@@ -76,7 +76,7 @@ Launcher::~Launcher()
     QDBusConnection::sessionBus().unregisterObject(dbusPath);
 }
 
-void Launcher::setSynConfig(QByteArray ba)
+void Launcher::setSyncConfig(QByteArray ba)
 {
     if (!SETTING)
         return;

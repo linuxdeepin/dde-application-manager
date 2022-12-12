@@ -36,7 +36,7 @@ public:
     // 获取配置信息
     virtual QByteArray getSyncConfig() = 0;
     // 设置配置信息
-    virtual void setSynConfig(QByteArray ba) = 0;
+    virtual void setSyncConfig(QByteArray ba) = 0;
 };
 
 

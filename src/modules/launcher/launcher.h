@@ -84,7 +84,7 @@ public:
     ~Launcher();
 
     // 设置配置
-    void setSynConfig(QByteArray ba);
+    void setSyncConfig(QByteArray ba);
     QByteArray getSyncConfig();
 
     void initItems();
