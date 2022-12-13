@@ -39,10 +39,13 @@
 #include <QDBusConnectionInterface>
 #include <QEventLoop>
 
+#include <DSysInfo>
+
 #include <regex>
 #include <stdlib.h>
 #include <thread>
 
+DCORE_USE_NAMESPACE
 DCORE_USE_NAMESPACE
 
 #define SETTING LauncherSettings::instance()
@@ -68,12 +71,19 @@ Launcher::Launcher(QObject *parent)
     loadNameMap();
     initItems();
 
+    initData();
     initConnection();
 }
 
 Launcher::~Launcher()
 {
     QDBusConnection::sessionBus().unregisterObject(dbusPath);
+}
+
+void Launcher::initData()
+{
+    if (DSysInfo::isCommunityEdition())
+        setFullscreen(true);
 }
 
 void Launcher::setSyncConfig(QByteArray ba)
