@@ -1,3 +1,34 @@
+dde-application-manager (1.0.4.2) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * fix: 修复卸载应用程序崩溃问题(Bug: 165773)(Influence: 启动器-右键菜单-卸载应用，启动器可以正常进行操作)
+  * fix: 修复时尚模式下从任务栏打开图标显示重复的问题(Bug: 157249)(Influence: 进入任务栏时尚模式，在任务栏上打开一个已经驻留的应用，观察该应用图标是否显示重复)
+  * style: 修改成员变量命名(Task: 96831)(Influence: 无)
+  * fix: 修复控制中心发送应用到任务栏不显示的问题(Bug: 165891)(Influence: 从任务栏打开一个已经驻留的应用，对这个应用取消驻留，关闭应用，打开启动器，把这个应用发送到任务栏，观察任务栏是否有这个应用)
+  * feat: 启动器支持玲珑应用卸载功能实现(Task: 207481)(Influence: 启动器支持玲珑应用卸载)
+  * fix: AM 暴露出调起应用的接口(Task: 211667)(Influence: dbus接口暴露给启动器/任务栏等应用调用)
+  * fix: 修复任务栏从移除没有打开窗口的应用时任务栏崩溃的问题(Task: 213211)(Influence: 从任务栏移除没有打开子窗口的图标，观察任务栏是否重启)
+  * fix: 修复wayland下设置智能隐藏失败的问题(Bug: 154513)(Influence: 进入wayland环境，任务栏设置智能隐藏，窗口拖动到任务栏下方，观察窗口是否隐藏，窗口移出任务栏，观察任务栏是否显示)
+  * fix: 修复任务栏部分应用图标显示异常(Bug: 147569)(Influence: 打开安全中心、企业微信、微信等应用，观察其在任务栏上的图标)
+  * fix: 修复wayland下无法通过点击任务栏图标最小化窗口的问题(Bug: 167011)(Influence: 进入wayland，打开一个窗口，从任务栏点击图标观察是否可以最小化)
+  * fix: 修复玲珑应用横幅提示没有翻译的问题(Bug: 171875)(Influence: 启动器-卸载玲珑应用横幅提示正常)
+  * fix: 修复新装应用没有排列在首位的问题(Bug: 150623)(Influence: 启动器-新装应用-在小窗口所有应用列表中排列在首位)
+  * fix: 修复任务栏应用强制退出后图标没有移除的问题(Bug: 172223)(Influence: 打开一个应用，鼠标右键-强制退出，观察应用图标是否在任务栏上)
+  * fix: 修复任务栏最近打开区域偶现锁屏图标(Bug: 171529)(Influence: 进入wayland，任务栏时尚模式，打开显示最新打开应用，锁屏，进入桌面，观察任务栏最近打开区域是否存在锁屏图标)
+  * fix: 修复从启动器拖动应用到任务栏上面始终显示到任务栏最后面的问题(Task: 217779)(Influence: 将启动器中的图标拖动到任务栏上，观察该图标是否显示在任务栏合适的位置)
+  * fix: 修复设置开机自启动应用重启后失效问题(Bug: 172263, 172281)(Task: 215413)(Influence: 设置自启动后重启应用也会保持生效)
+  * fix: 修复设置开机自启动应用重启后失效问题(Bug: 172263)(Influence: 设置自启动后重启应用也会保持生效)
+  * fix: setAutostart接口优化(Task: 215413)(Influence: setAutostart接口功能正常)
+  * feat: 任务栏应用启动方式修改为startManager来启动(Task: 211667)(Influence: 从任务栏启动应用)
+  * fix: 修复开机后虚拟键盘自动启动的问题(Bug: 175031)(Influence: 虚拟键盘自动开机启动)
+  * chore: V23接口改造适配(Task: 207483)(Influence: 无)
+  * fix: 修复社区版任务栏的显示模式错误(Bug: 175723)(Influence: 安装社区版，观察任务栏启动是否为时尚模式)
+  * fix: 修复拼写错误(Task: 226119)(Influence: 拼写错误)
+  * fix: 增加DBus接口调用异常信息(Bug: 172281)(Influence: org.desktopspec.ApplicationManager服务中接口调用异常时，有提示信息)
+  * feat: 社区差异化需求实现(Task: 225013)(Influence: 社区版桌面环境下-启动器第一次启动时，默认全屏模式)
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Tue, 13 Dec 2022 18:49:59 +0800
+
 dde-application-manager (1.0.3) unstable; urgency=medium
 
   * release 1.0.3
