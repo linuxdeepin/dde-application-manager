@@ -614,8 +614,9 @@ void Entry::newInstance(uint32_t timestamp)
 // 检查应用窗口分离、合并状态
 void Entry::check()
 {
-    for (auto iter = m_windowInfoMap.begin(); iter != m_windowInfoMap.end(); iter++) {
-        m_dock->attachOrDetachWindow(iter.value());
+    QList<WindowInfoBase *> windows = m_windowInfoMap.values();
+    for (WindowInfoBase *window : windows) {
+        m_dock->attachOrDetachWindow(window);
     }
 }
 
@@ -623,12 +624,13 @@ void Entry::check()
 void Entry::forceQuit()
 {
     QMap<int, QVector<WindowInfoBase*>> pidWinInfoMap;
-    for (auto iter = m_windowInfoMap.begin(); iter != m_windowInfoMap.end(); iter++) {
-        int pid = iter.value()->getPid();
+    QList<WindowInfoBase *> windows = m_windowInfoMap.values();
+    for (WindowInfoBase *window : windows) {
+        int pid = window->getPid();
         if (pid != 0) {
-            pidWinInfoMap[pid].push_back(iter.value());
+            pidWinInfoMap[pid].push_back(window);
         } else {
-            iter.value()->killClient();
+            window->killClient();
         }
     }
 
@@ -648,11 +650,7 @@ void Entry::forceQuit()
 
 void Entry::presentWindows()
 {
-    QList<uint> windows;
-    for (auto iter = m_windowInfoMap.begin(); iter != m_windowInfoMap.end(); iter++) {
-        windows.push_back(iter.key());
-    }
-
+    QList<uint> windows = m_windowInfoMap.keys();
     m_dock->presentWindows(windows);
 }
 
