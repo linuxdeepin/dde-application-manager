@@ -40,13 +40,14 @@
 #include <QEventLoop>
 
 #include <DSysInfo>
+#include <DDesktopServices>
 
 #include <regex>
 #include <stdlib.h>
 #include <thread>
 
 DCORE_USE_NAMESPACE
-DCORE_USE_NAMESPACE
+DWIDGET_USE_NAMESPACE
 
 #define SETTING LauncherSettings::instance()
 
@@ -275,11 +276,8 @@ bool Launcher::requestSendToDesktop(QString appId)
     if (!dinfo.getKeyFile()->saveToFile(filePath.toStdString()))
         return false;
 
-    std::thread thread([]() {
-        // TODO 播放系统音效
-
-    });
-    thread.detach();
+    // 播放音频
+    DDesktopServices::playSystemSoundEffect(DDesktopServices::SSE_SendFileComplete);
 
     return true;
 }

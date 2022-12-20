@@ -2,8 +2,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+find_package(PkgConfig REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core DBus Concurrent Gui)
 find_package(DtkCore REQUIRED)
+find_package(DtkWidget REQUIRED)
 
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb-icccm xcb-ewmh xcb)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
@@ -49,6 +51,7 @@ target_link_libraries(deepin-application-manager
     Qt5::DBus
     Qt5::Concurrent
     ${DtkCore_LIBRARIES}
+    ${DtkWidget_LIBRARIES}
     pthread
     PkgConfig::XCB
     PkgConfig::X11
