@@ -46,7 +46,7 @@ public:
     bool launchApp(const QString &desktopFile);
     bool launchApp(QString desktopFile, uint32_t timestamp, QStringList files);
     bool launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp);
-    bool launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
+    bool launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);
     bool runCommand(QString exe, QStringList args);
     bool runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
 
@@ -59,7 +59,7 @@ public Q_SLOTS:
 private:
     bool setAutostart(const QString &fileName, const bool value);
     bool doLaunchAppWithOptions(const QString &desktopFile);
-    bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options);
+    bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);
     bool launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
     bool doRunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
     void waitCmd(DesktopInfo *info, QProcess *process, QString cmdName);

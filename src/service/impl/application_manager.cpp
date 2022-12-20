@@ -384,7 +384,7 @@ void ApplicationManager::LaunchAppAction(const QString &desktopFile, const QStri
     }
 }
 
-void ApplicationManager::LaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
+void ApplicationManager::LaunchAppWithOptions(const QString &desktopFile, uint32_t timestamp, const QStringList &files, QVariantMap options)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid()) {
@@ -396,6 +396,25 @@ void ApplicationManager::LaunchAppWithOptions(QString desktopFile, uint32_t time
     }
 
     if (!d->startManager->launchAppWithOptions(desktopFile, timestamp, files, options)) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
+
+        qWarning() << "invalid arguments";
+    }
+}
+
+void ApplicationManager::RunCommand(const QString &exe, const QStringList &args)
+{
+    Q_D(ApplicationManager);
+    if (!d->checkDMsgUid()) {
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::Failed, "The call failed");
+
+        qWarning() << "check msg failed...";
+        return;
+    }
+
+    if (!d->startManager->runCommand(exe, args)) {
         if (calledFromDBus())
             sendErrorReply(QDBusError::InvalidArgs, "invalid arguments");
 

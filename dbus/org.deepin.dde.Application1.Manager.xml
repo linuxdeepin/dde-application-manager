@@ -27,6 +27,17 @@
         <arg type='s' name='action' direction='in' />
         <arg type='u' name='timestamp' direction='in' />
     </method>
+    <method name="LaunchAppWithOptions">
+        <arg name="desktopFile" type="s" direction="in"></arg>
+        <arg name="timestamp" type="u" direction="in"></arg>
+        <arg name="files" type="as" direction="in"></arg>
+        <arg name="options" type="a{sv}" direction="in"></arg>
+        <annotation name="org.qtproject.QtDBus.QtTypeName.In3" value="QVariantMap"/>
+    </method>
+    <method name="RunCommand">
+        <arg name="exe" type="s" direction="in"></arg>
+        <arg name="args" type="as" direction="in"></arg>
+    </method>
     <signal name='AutostartChanged'>
      	<arg type='s' name='status' />
      	<arg type='s' name='filePath' />

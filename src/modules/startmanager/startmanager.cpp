@@ -117,7 +117,7 @@ bool StartManager::launchApp(const QString &desktopFile)
 
 bool StartManager::launchApp(QString desktopFile, uint32_t timestamp, QStringList files)
 {
-    return doLaunchAppWithOptions(desktopFile, timestamp, files, QMap<QString, QString>());
+    return doLaunchAppWithOptions(desktopFile, timestamp, files, QVariantMap());
 }
 
 bool StartManager::launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp)
@@ -153,7 +153,7 @@ bool StartManager::launchAppAction(QString desktopFile, QString actionSection, u
     return true;
 }
 
-bool StartManager::launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
+bool StartManager::launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options)
 {
     return doLaunchAppWithOptions(desktopFile, timestamp, files, options);
 }
@@ -350,7 +350,7 @@ bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
     return true;
 }
 
-bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QMap<QString, QString> options)
+bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options)
 {
     // launchApp
     DesktopInfo info(desktopFile.toStdString());
@@ -360,11 +360,11 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
     }
 
     if (options.find("path") != options.end()) {
-        info.getKeyFile()->setKey(MainSection, KeyPath, options["path"].toStdString());
+        info.getKeyFile()->setKey(MainSection, KeyPath, options["path"].toString().toStdString());
     }
 
     if (options.find("desktop-override-exec") != options.end()) {
-        info.setDesktopOverrideExec(options["desktop-override-exec"].toStdString());
+        info.setDesktopOverrideExec(options["desktop-override-exec"].toString().toStdString());
     }
 
     if (info.getCommandLine().empty()) {
