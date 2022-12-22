@@ -38,6 +38,12 @@
         <arg name="exe" type="s" direction="in"></arg>
         <arg name="args" type="as" direction="in"></arg>
     </method>
+    <method name="RunCommandWithOptions">
+        <arg name="exe" type="s" direction="in"></arg>
+        <arg name="args" type="as" direction="in"></arg>
+        <arg name="options" type="a{sv}" direction="in"></arg>
+        <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
+    </method>
     <signal name='AutostartChanged'>
      	<arg type='s' name='status' />
      	<arg type='s' name='filePath' />

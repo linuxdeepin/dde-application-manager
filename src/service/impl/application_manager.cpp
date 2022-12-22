@@ -422,7 +422,7 @@ void ApplicationManager::RunCommand(const QString &exe, const QStringList &args)
     }
 }
 
-void ApplicationManager::RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
+void ApplicationManager::RunCommandWithOptions(const QString &exe, const QStringList &args, const QVariantMap &options)
 {
     Q_D(ApplicationManager);
     if (!d->checkDMsgUid()) {

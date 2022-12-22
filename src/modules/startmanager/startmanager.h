@@ -48,7 +48,7 @@ public:
     bool launchAppAction(QString desktopFile, QString actionSection, uint32_t timestamp);
     bool launchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);
     bool runCommand(QString exe, QStringList args);
-    bool runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
+    bool runCommandWithOptions(QString exe, QStringList args, QVariantMap options);
 
 Q_SIGNALS:
     void autostartChanged(const QString &status, const QString &fileName);
@@ -61,7 +61,7 @@ private:
     bool doLaunchAppWithOptions(const QString &desktopFile);
     bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);
     bool launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
-    bool doRunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
+    bool doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options);
     void waitCmd(DesktopInfo *info, QProcess *process, QString cmdName);
     bool shouldUseProxy(QString appId);
     bool shouldDisableScaling(QString appId);

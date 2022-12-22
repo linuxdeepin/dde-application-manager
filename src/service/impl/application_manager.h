@@ -76,6 +76,7 @@ public Q_SLOTS:
     void LaunchAppAction(const QString &desktopFile, const QString &action, uint32_t timestamp, bool withMsgCheck = true);
     void LaunchAppWithOptions(const QString &desktopFile, uint32_t timestamp, const QStringList &files, QVariantMap options);
     void RunCommand(const QString &exe, const QStringList &args);
+    void RunCommandWithOptions(const QString &exe, const QStringList &args, const QVariantMap &options);
 
 protected:
     ApplicationManager(QObject *parent = nullptr);
@@ -85,7 +86,6 @@ protected:
     QList<QDBusObjectPath> list() const;
     QDBusObjectPath GetInformation(const QString &id);
     QList<QDBusObjectPath> GetInstances(const QString &id);
-    void RunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options);
     bool IsProcessExist(uint32_t pid);
 };
 

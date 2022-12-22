@@ -160,10 +160,10 @@ bool StartManager::launchAppWithOptions(QString desktopFile, uint32_t timestamp,
 
 bool StartManager::runCommand(QString exe, QStringList args)
 {
-    return doRunCommandWithOptions(exe, args, QMap<QString, QString>());
+    return doRunCommandWithOptions(exe, args, QVariantMap());
 }
 
-bool StartManager::runCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
+bool StartManager::runCommandWithOptions(QString exe, QStringList args, QVariantMap options)
 {
     return doRunCommandWithOptions(exe, args, options);
 }
@@ -449,11 +449,11 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     return process.startDetached(exec, exeArgs);
 }
 
-bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QMap<QString, QString> options)
+bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options)
 {
     QProcess process;
     if (options.find("dir") != options.end()) {
-        process.setWorkingDirectory(options["dir"]);
+        process.setWorkingDirectory(options["dir"].toString());
     }
 
     return process.startDetached(exe, args);
