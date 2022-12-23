@@ -41,7 +41,7 @@ public Q_SLOTS:
     // 获取配置信息
     QByteArray GetSyncConfig(QString moduleName);
     // 设置配置信息
-    void setSyncConfig(QString moduleName, QByteArray ba);
+    void SetSyncConfig(QString moduleName, QByteArray ba);
 
 private:
     explicit SynConfig(QObject *parent = nullptr);
