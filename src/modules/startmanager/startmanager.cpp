@@ -343,7 +343,7 @@ bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
         return false;
     }
 
-    launch(&info, info.getCommandLine().c_str(), 0, QStringList());
+    launch(&info, QString::fromStdString(info.getCommandLine()).remove("\""), 0, QStringList());
 
     dbusHandler->markLaunched(desktopFile);
 
@@ -372,7 +372,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
         return false;
     }
 
-    launch(&info, info.getCommandLine().c_str(), timestamp, files);
+    launch(&info,  QString::fromStdString(info.getCommandLine()).remove("\""), timestamp, files);
 
     // mark app launched
     dbusHandler->markLaunched(desktopFile);
