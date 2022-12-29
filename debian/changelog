@@ -1,3 +1,13 @@
+dde-application-manager (1.0.5) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * feat: 增加RunCommandWithOptions接口(Task: 220801)(Influence: 无)
+  * fix: 修复拼写错误(Task: 226119)(Influence: 拼写错误)
+  * chore: 删除重复文件(Influence: 无)
+  * fix: 修复打开部分应用失败的问题(Bug: 232525)(Influence: 启动器-应用列表中的所有应用都可以正常启动)
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Thu, 29 Dec 2022 19:17:36 +0800
+
 dde-application-manager (1.0.4.2) unstable; urgency=medium
 
   [ TagBuilder ]
