@@ -1,3 +1,14 @@
+dde-application-manager (1.0.6.1) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * fix: 修复无法启动玲珑应用对应功能的问题(Bug: 177111)(Influence: 从任务栏触发截图录屏玲珑应用的全屏截图和延时截图的功能，判断是否可以正常使用)
+  * fix: 修复卸载wine应用，桌面残留应用的问题(Bug: 180665)(Influence: 启动器-卸载wine应用时，桌面不残留应用图标)
+  * fix: 修复默认程序设置失败的问题(Task: 235759)(Influence: 默认程序设置)
+  * fix: AM 适配打开参数问题(Bug: 182185, 182161, 182395, 182327, 182137)(Influence: 1. 双击桌面文件夹-打开文件夹功能正常；)
+  * chore: update changelog(Task: 235277)(Influence: null)
+
+ -- lvpeilong <lvpeilong@uniontech.com>  Mon, 09 Jan 2023 17:41:28 +0800
+
 dde-application-manager (1.0.5) unstable; urgency=medium
 
   [ TagBuilder ]
