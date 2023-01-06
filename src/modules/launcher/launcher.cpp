@@ -38,6 +38,7 @@
 #include <QDBusInterface>
 #include <QDBusConnectionInterface>
 #include <QEventLoop>
+#include <QFileInfo>
 
 #include <DSysInfo>
 #include <DDesktopServices>
@@ -288,16 +289,18 @@ bool Launcher::requestSendToDesktop(QString appId)
  */
 void Launcher::requestUninstall(const QString &desktop)
 {
+    QString appDesktopPath = desktop;
+
     bool exist = false;
     for (const Item &item : m_desktopAndItemMap.values()) {
-        if (item.info.path == desktop) {
+        if (item.info.path == appDesktopPath) {
             exist = true;
             break;
         }
     }
 
     if (!exist) {
-        qWarning() << QString(" %1 uninstall faill ...").arg(desktop);
+        qWarning() << QString(" %1 uninstall faill ...").arg(appDesktopPath);
         return;
     }
 
@@ -311,16 +314,21 @@ void Launcher::requestUninstall(const QString &desktop)
     QString result = QString::fromUtf8(process.readAllStandardOutput());
     process.close();
     if (result != launcherExe) {
-        qWarning() << result << " has no right to uninstall " << desktop;
+        qWarning() << result << " has no right to uninstall " << appDesktopPath;
         return;
     }
 
-    if (!m_desktopAndItemMap.keys().contains(desktop)) {
-        qWarning() << QString("can't find desktopPath: %1").arg(desktop);
-        return;
+    if (!m_desktopAndItemMap.keys().contains(appDesktopPath)) {
+        QFileInfo fileInfo(appDesktopPath);
+        if (!fileInfo.isSymLink()) {
+            qWarning() << QString("can't find desktopPath: %1").arg(appDesktopPath);
+            return;
+        }
+
+        appDesktopPath = fileInfo.symLinkTarget();
     }
 
-    const Item &item = m_desktopAndItemMap[desktop];
+    const Item &item = m_desktopAndItemMap[appDesktopPath];
     DesktopInfo info(item.info.path.toStdString());
     if (!info.isValidDesktop()) {
         qWarning() << QString("%1 desktop file is invalid...").arg(item.info.name);
@@ -729,7 +737,13 @@ void Launcher::addItem(Item &item)
 
     item.info.categoryId = qint64(queryCategoryId(&item));
     itemsMap[item.info.id] = item;
-    m_desktopAndItemMap[item.info.path] = item;
+
+    QFileInfo desktopInfo(item.info.path);
+    if (desktopInfo.isSymLink()) {
+        m_desktopAndItemMap[desktopInfo.symLinkTarget()] = item;
+    } else {
+        m_desktopAndItemMap[item.info.path] = item;
+    }
 }
 
 Categorytype Launcher::queryCategoryId(const Item *item)
@@ -1123,13 +1137,20 @@ void Launcher::uninstallApp(const QString &name, const QString &pkg)
  */
 void Launcher::removeDesktop(const QString &desktop)
 {
-    QFile file(desktop);
+    QFileInfo fileInfo(desktop);
+    const QString &curDesktop = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    const QString &appDesktopPath = curDesktop + "/" + fileInfo.fileName();
+
+    QFile file(appDesktopPath);
     if (!file.exists()) {
         qDebug() << "file not exist...item info: " << desktop;
         return;
     }
 
+    // 删除应用列表中的数据
     m_desktopAndItemMap.remove(desktop);
+
+    // 删除发送到桌面的应用
     file.remove();
 }
 
@@ -1162,13 +1183,16 @@ void Launcher::notifyUninstallDone(const Item &item, bool result)
 
 void Launcher::removeAutoStart(const QString &desktop)
 {
-    QFile file(desktop);
-    if (!file.exists()) {
-        qDebug() << QString("desktop file  %1 doesn't exist...").arg(desktop);
-        return;
-    }
+   QFileInfo fileInfo(desktop);
+   const QString &autostartPath = BaseDir::userAutoStartDir().c_str() + fileInfo.fileName();
 
-    file.remove();
+   QFile file(autostartPath);
+   if (!file.exists()) {
+       qDebug() << QString("desktop file  %1 doesn't exist...").arg(autostartPath);
+       return;
+   }
+
+   file.remove();
 }
 
 /**
