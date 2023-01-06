@@ -436,7 +436,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     process.setWorkingDirectory(workingDir.c_str());
     process.setEnvironment(envs);
 
-    if (desktopFile.contains("/persistent/linglong")) {
+    if (exec != "dbus-send" && desktopFile.contains("/persistent/linglong")) {
         exeArgs.clear();
 
 #ifdef QT_DEBUG
