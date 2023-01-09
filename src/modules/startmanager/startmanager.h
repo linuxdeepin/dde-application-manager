@@ -73,6 +73,7 @@ private:
     QMap<QString, QString> getDesktopToAutostartMap();
     void setIsDBusCalled(const bool state);
     bool isDBusCalled() const;
+    void handleRecognizeArgs(QStringList &exeArgs, QStringList files);
 
     uint64_t minMemAvail;
     uint64_t maxSwapUsed;

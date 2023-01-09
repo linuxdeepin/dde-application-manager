@@ -414,7 +414,9 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     envs << cmdPrefixesEnvs;
 
     QStringList exeArgs;
-    exeArgs << cmdLine.split(" ") << files;
+    exeArgs << cmdLine.split(" ");
+
+    handleRecognizeArgs(exeArgs, files);
 
     if (info->getTerminal()) {
         exeArgs.insert(0, SETTING->getDefaultTerminalExecArg());
@@ -435,16 +437,6 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
 
     process.setWorkingDirectory(workingDir.c_str());
     process.setEnvironment(envs);
-
-    if (exec != "dbus-send" && desktopFile.contains("/persistent/linglong")) {
-        exeArgs.clear();
-
-#ifdef QT_DEBUG
-        qDebug() << "exeArgs:"  << cmdLine.section(" ", 1, 2);
-#endif
-
-        exeArgs.append(cmdLine.section(" ", 1, 2).split(" "));
-    }
 
     return process.startDetached(exec, exeArgs);
 }
@@ -594,4 +586,44 @@ void StartManager::setIsDBusCalled(const bool state)
 bool StartManager::isDBusCalled() const
 {
     return m_isDBusCalled;
+}
+
+/**遵循 freedesktop 规范，添加识别的字段处理
+ * @brief StartManager::hangleRecognizeArgs
+ * @param exeArgs desktop文件中 exec 字段对应的内容
+ * @param files 启动应用的路径列表
+ */
+void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
+{
+    QStringList argList;
+    argList << "%f" << "%F" << "%u" << "%U" << "%i" << "%c" << "%k";
+    for (const QString &arg : argList) {
+        if (exeArgs.contains(arg) && files.isEmpty()) {
+            exeArgs.removeOne(arg);
+            return;
+        }
+    }
+
+    if (exeArgs.contains("%f")) {
+        exeArgs.replaceInStrings("%f", files.at(0));
+    } else if (exeArgs.contains("%F")) {
+        QStringList urlList;
+        for (const QString &file : files) {
+            QUrl url(file);
+            urlList.append(url.toLocalFile());
+        }
+
+        const QString &fileUlr = urlList.join(" ");
+        exeArgs.replaceInStrings("%F", fileUlr);
+    } else if (exeArgs.contains("%u")) {
+        exeArgs.replaceInStrings("%u", files.at(0));
+    } else if (exeArgs.contains("%U")) {
+        exeArgs.replaceInStrings("%U", files.join(" "));
+    } else if (exeArgs.contains("%i")) {
+        // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
+    } else if (exeArgs.contains("%c")) {
+        // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
+    } else if (exeArgs.contains("%k")) {
+        // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
+    }
 }
