@@ -16,7 +16,7 @@ public:
     static std::shared_ptr<AppInfoManger> loadByDesktopId(std::string desktopId);
     static std::string getDefaultApp(std::string mimeType, bool supportUri);
     static std::vector<std::string> getAppList(std::string mimeType);
-    static bool getDefaultApp(std::string mimeType, std::string desktopId);
+    static bool setDefaultApp(std::string mimeType, std::string desktopId);
     static std::vector<std::string>& getXdgDataDirs();
     static std::vector<std::string>& getXdgAppsDirs();
     static std::vector<std::shared_ptr<AppInfoManger>> getAll(std::map<std::string, std::vector<std::string>> skipDirs);

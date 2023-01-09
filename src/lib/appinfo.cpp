@@ -219,7 +219,7 @@ std::vector<std::string> AppInfoManger::getAppList(std::string mimeType)
 }
 
 
-bool AppInfoManger::getDefaultApp(std::string mimeType, std::string desktopId)
+bool AppInfoManger::setDefaultApp(std::string mimeType, std::string desktopId)
 {
     GDesktopAppInfo* gDesktopAppInfo = g_desktop_app_info_new(desktopId.c_str());
 
@@ -229,7 +229,7 @@ bool AppInfoManger::getDefaultApp(std::string mimeType, std::string desktopId)
 
     GAppInfo* gAppInfo = G_APP_INFO(gDesktopAppInfo);
 
-    GError* err;
+    GError* err = nullptr;
     g_app_info_set_as_default_for_type(gAppInfo, mimeType.c_str(), &err);
 
     if (err != nullptr) {

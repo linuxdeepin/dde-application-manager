@@ -291,7 +291,7 @@ bool MimeApp::setDefaultApp(const std::string &mimeType, const  std::string &des
         return true;
     }
 
-    return  AppInfoManger::getDefaultApp(mimeType, desktopId);
+    return  AppInfoManger::setDefaultApp(mimeType, desktopId);
 }
 
 void MimeApp::DeleteApp(QStringList mimeTypes, const QString &desktopId)
@@ -415,7 +415,7 @@ void MimeApp::SetDefaultApp(const QStringList &mimeTypes, const QString &desktop
         if (mime.toStdString().compare(AppinfoCommon::AppMimeTerminal) == 0) {
             bSuccess = TerminalInfo::getInstanceTerminal().setDefaultTerminal(desktopId.toStdString());
         } else {
-            bSuccess = AppInfoManger::getDefaultApp(mime.toStdString(), desktopId.toStdString());
+            bSuccess = AppInfoManger::setDefaultApp(mime.toStdString(), desktopId.toStdString());
         }
 
         if (!bSuccess) {
