@@ -475,12 +475,12 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
 
 bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options)
 {
-    QProcess process;
     if (options.find("dir") != options.end()) {
-        process.setWorkingDirectory(options["dir"].toString());
+        qDebug() << options["dir"].toString();
+        return QProcess::startDetached(exe, args, options["dir"].toString());
     }
 
-    return process.startDetached(exe, args);
+    return QProcess::startDetached(exe, args);
 }
 
 void StartManager::waitCmd(DesktopInfo *info, QProcess *process, QString cmdName)
