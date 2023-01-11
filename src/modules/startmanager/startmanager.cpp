@@ -464,13 +464,15 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     }
 
 #ifdef QT_DEBUG
-        qInfo() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
+    qInfo() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
 #endif
 
+    process.setProgram(exec);
+    process.setArguments(exeArgs);
     process.setWorkingDirectory(workingDir.c_str());
     process.setEnvironment(envs);
-
-    return process.startDetached(exec, exeArgs);
+    qint64 *pid = nullptr;
+    return process.startDetached(pid);
 }
 
 bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options)
