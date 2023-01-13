@@ -197,6 +197,7 @@ void MimeApp::deleteMimeAssociation(std::string mimeType, std::string desktopId)
 
 void MimeApp::initConfigData()
 {
+    // TODO 这个配置文件当前仍然是在dde-daemon中，但mime的服务已经迁移到此项目，后续应该把这个配置文件拿过来
     std::string filename = findFilePath("/dde-daemon/mime/data.json");
 
     QFile file(filename.c_str());
@@ -236,7 +237,6 @@ void MimeApp::initConfigData()
             }
         }
     }
-
 }
 
 std::string MimeApp::findFilePath(std::string fileName)

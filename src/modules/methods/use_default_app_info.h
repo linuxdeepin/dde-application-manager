@@ -19,22 +19,22 @@ struct DefaultUserAppInfos {
 
 inline void toJson(QJsonObject& j, const DefaultUserAppInfo& userAppInfo)
 {
-    j = QJsonObject{ { "appId", QJsonArray::fromVariantList(userAppInfo.appId) }, { "appType", userAppInfo.appType.c_str() }, { "supportedType", QJsonArray::fromVariantList(userAppInfo.supportedType) }};
+    j = QJsonObject{ { "AppId", QJsonArray::fromVariantList(userAppInfo.appId) }, { "AppType", userAppInfo.appType.c_str() }, { "SupportedType", QJsonArray::fromVariantList(userAppInfo.supportedType) }};
 }
 
 inline void fromJson(const QJsonObject& j, DefaultUserAppInfo& userAppInfo)
 {
 
-    if (j.contains("appId")) {
-        userAppInfo.appId = j.value("appId").toArray().toVariantList();
+    if (j.contains("AppId")) {
+        userAppInfo.appId = j.value("AppId").toArray().toVariantList();
     }
 
-    if (j.contains("appType")) {
-        userAppInfo.appType = j.value("appType").toString().toStdString();
+    if (j.contains("AppType")) {
+        userAppInfo.appType = j.value("AppType").toString().toStdString();
     }
 
-    if (j.contains("supportedType")) {
-        userAppInfo.supportedType = j.value("supportedType").toArray().toVariantList();
+    if (j.contains("SupportedType")) {
+        userAppInfo.supportedType = j.value("SupportedType").toArray().toVariantList();
     }
 }
 
@@ -49,7 +49,7 @@ inline void toJson(QJsonObject& j, const DefaultUserAppInfos& userAppInfos)
     }
 
     j = QJsonObject {
-        {"appInfos", appInfoArray}
+        {"DefaultApps", appInfoArray}
     };
 }
 
@@ -57,9 +57,9 @@ inline void fromJson(const QJsonObject& j, DefaultUserAppInfos& userAppInfos)
 {
     QJsonObject tmpObj = j;
 
-    if (j.contains("appInfos")) {
+    if (j.contains("DefaultApps")) {
         DefaultUserAppInfo userAppInfo;
-        for (auto appInfo : tmpObj.take("appInfos").toArray()) {
+        for (auto appInfo : tmpObj.take("DefaultApps").toArray()) {
             fromJson(appInfo.toObject(), userAppInfo);
             userAppInfos.appInfos.push_back(userAppInfo);
         }
