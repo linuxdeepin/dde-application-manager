@@ -1,3 +1,12 @@
+dde-application-manager (1.0.7) unstable; urgency=medium
+
+  [ TagBuilder ]
+  * fix: 修复sh脚本部分情况下执行失败的问题(Bug: 181747)(Influence: RunCommandWithOptions接口执行脚本文件)
+  * fix: 修复launch情况下执行异常的问题(Bug: 181747)(Influence: launch类接口功能)
+  * fix: 修复默认程序有多个会冲突的问题(Bug: 182127)(Influence: 默认程序)
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Fri, 13 Jan 2023 11:31:27 +0800
+
 dde-application-manager (1.0.6.1) unstable; urgency=medium
 
   [ TagBuilder ]
