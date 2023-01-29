@@ -408,8 +408,11 @@ bool WindowInfoX::shouldSkipWithWMClass()
     bool ret = false;
     if (m_wmClass.instanceName == "explorer.exe" && m_wmClass.className == "Wine")
         ret = true;
-    else if (m_wmClass.className == "dde-launcher")
+    else if (m_wmClass.className == "dde-launcher" ||
+        m_wmClass.className == "dde-dock" ||
+        m_wmClass.className == "dde-lock") {
         ret = true;
+    }
 
     return ret;
 }
