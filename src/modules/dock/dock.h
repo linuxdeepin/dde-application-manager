@@ -155,7 +155,7 @@ Q_SIGNALS:
     void entryAdded(QDBusObjectPath entryObjPath, int index);
     void entryRemoved(QString id);
     void hideStateChanged(int);
-    void frontendWindowRectChanged();
+    void frontendWindowRectChanged(const QRect &dockRect);
     void showRecentChanged(bool);
     void showMultiWindowChanged(bool);
 
