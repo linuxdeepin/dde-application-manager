@@ -501,7 +501,7 @@ void Dock::setFrontendWindowRect(int32_t x, int32_t y, uint width, uint height)
     m_frontendWindowRect.setHeight(height);
     updateHideState(false);
 
-    Q_EMIT frontendWindowRectChanged();
+    Q_EMIT frontendWindowRectChanged(m_frontendWindowRect);
 }
 
 /**

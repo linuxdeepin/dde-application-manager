@@ -216,7 +216,7 @@ Q_SIGNALS: // SIGNALS
     void DisplayModeChanged(int value) const;
     void DockedAppsChanged(const QStringList &value) const;
     void EntriesChanged(const QList<QDBusObjectPath> &value) const;
-    void FrontendWindowRectChanged() const;
+    void FrontendWindowRectChanged(const QRect &dockRect) const;
     void HideModeChanged(int value) const;
     void HideStateChanged(int value) const;
     void HideTimeoutChanged(uint value) const;
