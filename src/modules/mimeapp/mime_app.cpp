@@ -1,3 +1,6 @@
+//SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
+//
+//SPDX-License-Identifier: GPL-3.0-or-later
 #include "mime_app.h"
 #include "utils.h"
 #include "../methods/use_mime_app_info.h"
