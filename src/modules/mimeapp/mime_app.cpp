@@ -221,6 +221,12 @@ void MimeApp::initConfigData()
         std::string validAppId;
 
         for (auto type : defaultApp.supportedType) {
+            // 如果之前用户有修改默认程序，在每次初始化时不应该再使用配置文件里面的默认程序
+            std::string appId = AppInfoManger::getDefaultApp(type.toString().toStdString(), false);
+            if (!appId.empty()) {
+                continue;
+            }
+
             if (!validAppId.empty()) {
                 if (setDefaultApp(type.toString().toStdString(), validAppId)) {
                     continue;
