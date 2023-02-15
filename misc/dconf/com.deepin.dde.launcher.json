@@ -53,7 +53,7 @@
 			"visibility": "private"
 		},
 		"Fullscreen": {
-			"value": false,
+			"value": true,
 			"serial": 0,
 			"flags": [],
 			"name": "Fullscreen",
