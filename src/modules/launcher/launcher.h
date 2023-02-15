@@ -69,8 +69,6 @@ public:
     explicit Launcher(QObject *parent);
     ~Launcher();
 
-    void initData();
-
     // 设置配置
     void setSyncConfig(QByteArray ba);
     QByteArray getSyncConfig();
