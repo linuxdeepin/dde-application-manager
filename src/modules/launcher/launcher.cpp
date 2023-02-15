@@ -26,7 +26,6 @@
 #include <QEventLoop>
 #include <QFileInfo>
 
-#include <DSysInfo>
 #include <DDesktopServices>
 
 #include <regex>
@@ -59,19 +58,12 @@ Launcher::Launcher(QObject *parent)
     loadNameMap();
     initItems();
 
-    initData();
     initConnection();
 }
 
 Launcher::~Launcher()
 {
     QDBusConnection::sessionBus().unregisterObject(dbusPath);
-}
-
-void Launcher::initData()
-{
-    if (DSysInfo::isCommunityEdition())
-        setFullscreen(true);
 }
 
 void Launcher::setSyncConfig(QByteArray ba)
