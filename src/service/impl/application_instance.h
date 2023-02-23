@@ -1,6 +1,7 @@
-//SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
 //
-//SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef D6D05668_8A58_43AA_91C5_C6278643A1AF
 #define D6D05668_8A58_43AA_91C5_C6278643A1AF
 

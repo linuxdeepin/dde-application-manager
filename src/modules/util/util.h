@@ -1,15 +1,6 @@
-//SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2018 - 2023 UnionTech Software Technology Co., Ltd.
 //
-//SPDX-License-Identifier: GPL-3.0-or-later
-/*
- * Copyright (c) 2020-2021. Uniontech Software Ltd. All rights reserved.
- *
- * Author:     Iceyer <me@iceyer.net>
- *
- * Maintainer: Iceyer <me@iceyer.net>
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #ifndef LINGLONG_BOX_SRC_UTIL_UTIL_H_
 #define LINGLONG_BOX_SRC_UTIL_UTIL_H_
