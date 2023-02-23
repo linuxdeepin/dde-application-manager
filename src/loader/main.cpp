@@ -238,7 +238,7 @@ int main(int argc, char* argv[])
     }
 
     char socketPath[50];
-    sprintf(socketPath, "/run/user/%d/deepin-application-manager.socket", getuid());
+    sprintf(socketPath, "/run/user/%d/dde-application-manager.socket", getuid());
 
     // register client and run quitConnect
     Socket::Client client;

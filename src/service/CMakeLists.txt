@@ -2,6 +2,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+set(BIN_NAME dde-application-manager)
+
 find_package(PkgConfig REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Core DBus Concurrent Gui)
 find_package(DtkCore REQUIRED)
@@ -41,27 +43,27 @@ file(GLOB_RECURSE SRCS "*.h" "*.cpp" "../frameworkdbus/*.h" "../frameworkdbus/*.
     "../modules/*.h" "../modules/*.cpp" "../modules/*.hpp"
     "../utils.h" "../utils/*.cpp")
 
-add_executable(deepin-application-manager
+add_executable(${BIN_NAME}
     ${SRCS}
     ${ADAPTER_SOURCES}
 )
 
-target_link_libraries(deepin-application-manager
+target_link_libraries(${BIN_NAME}
     Qt5::Core
     Qt5::DBus
     Qt5::Concurrent
-    ${DtkCore_LIBRARIES}
-    ${DtkWidget_LIBRARIES}
+    Qt5::Gui
+    Dtk::Core
     pthread
     PkgConfig::XCB
     PkgConfig::X11
     PkgConfig::GIO
     PkgConfig::GLib
     PkgConfig::QGSettings
-    ${Qt5Gui_LIBRARIES}
+    ${DtkWidget_LIBRARIES}
 )
 
-target_include_directories(deepin-application-manager PUBLIC
+target_include_directories(${BIN_NAME} PUBLIC
     PkgConfig::XCB
     PkgConfig::X11
     PkgConfig::GIO
@@ -76,6 +78,6 @@ target_include_directories(deepin-application-manager PUBLIC
 )
 
 # binary file
-install(TARGETS deepin-application-manager DESTINATION bin)
+install(TARGETS ${BIN_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_definitions(-DQT_NO_KEYWORDS)

@@ -1,3 +1,5 @@
+set(BIN_NAME dde-application-loader)
+
 pkg_check_modules(LIBCAP REQUIRED IMPORTED_TARGET libcap)
 
 set(SRCS
@@ -29,12 +31,12 @@ set(SRCS
     ../modules/util/debug/debug.cpp
 )
 
-add_executable(deepin-application-loader ${SRCS})
+add_executable(${BIN_NAME} ${SRCS})
 
-target_link_libraries(deepin-application-loader
+target_link_libraries(${BIN_NAME}
     pthread
     PkgConfig::LIBCAP
     stdc++fs
     Qt5::Core
 )
-install(TARGETS deepin-application-loader DESTINATION bin)
+install(TARGETS ${BIN_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})

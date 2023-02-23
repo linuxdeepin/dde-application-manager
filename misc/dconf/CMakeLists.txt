@@ -6,4 +6,4 @@ set(DCONFIG_FILES
     com.deepin.xsettings.json
 )
 
-install(FILES ${DCONFIG_FILES} DESTINATION /usr/share/dsg/configs/dde-application-manager)
+install(FILES ${DCONFIG_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dsg/configs/dde-application-manager)

@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(deepin-application-manager)
+project(dde-application-manager)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(GNUInstallDirs)
 
 #install settings
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -23,4 +25,4 @@ endif ()
 
 # qm files
 file(GLOB QM_FILES "translations/*.qm")
-install(FILES ${QM_FILES} DESTINATION share/dde-application-manager/translations)
+install(FILES ${QM_FILES} DESTINATION  ${CMAKE_INSTALL_DATADIR}/dde-application-manager/translations)

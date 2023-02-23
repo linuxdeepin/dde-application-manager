@@ -1,5 +1,5 @@
 [Unit]
-Description=dde application manager service
+Description=DDE application manager service
 RefuseManualStart=no
 RefuseManualStop=no
 #OnFailure=dde-session-shutdown.target
@@ -19,9 +19,8 @@ Before=dde-session-daemon.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/deepin-application-manager
+ExecStart=/usr/bin/dde-application-manager
 TimeoutStartSec=infinity
 Slice=components.slice
 Restart=on-failure
 RestartSec=300ms
-
