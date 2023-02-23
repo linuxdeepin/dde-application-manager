@@ -1,8 +1,8 @@
 [Unit]
-Description=Deepin Application Manager service
+Description=DDE Application Manager service
 
 [Service]
 Type=DBus
 BusName=org.deepin.dde.Application1.Manager
-ExecStart=/usr/bin/deepin-application-manager
+ExecStart=/usr/bin/dde-application-manager
 Slice=services.slice

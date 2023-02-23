@@ -1,9 +1,9 @@
 [Unit]
-Description=Deepin Application Loader is managing %I
+Description=DDE Application Loader is managing %I
 
 [Service]
 Type=simple
 Environment="DAM_TASK_HASH=%I"
 Environment="DAM_TASK_TYPE=freedesktop"
-ExecStart=/usr/bin/deepin-application-loader
+ExecStart=/usr/bin/dde-application-loader
 Slice=applications.slice
