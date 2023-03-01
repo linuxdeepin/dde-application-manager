@@ -359,7 +359,7 @@ std::string XCBUtils::getWMName(XWindow xid)
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_name(&m_ewmh, xid);
     xcb_ewmh_get_utf8_strings_reply_t reply;
     if (xcb_ewmh_get_wm_name_reply(&m_ewmh, cookie, &reply, nullptr)) {
-        ret.assign(reply.strings);
+        ret.assign(reply.strings, reply.strings_len);
         // 释放utf8_strings_reply分配的内存
         xcb_ewmh_get_utf8_strings_reply_wipe(&reply);
     } else {
