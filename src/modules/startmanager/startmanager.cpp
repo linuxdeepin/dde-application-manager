@@ -12,6 +12,8 @@
 #include "meminfo.h"
 #include "../../service/impl/application_manager.h"
 
+#include <wordexp.h>
+
 #include <QFileSystemWatcher>
 #include <QDebug>
 #include <QDir>
@@ -326,7 +328,7 @@ bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
         return false;
     }
 
-    launch(&info, QString::fromStdString(info.getCommandLine()).remove("\""), 0, QStringList());
+    launch(&info, QString::fromStdString(info.getCommandLine()), 0, QStringList());
 
     dbusHandler->markLaunched(desktopFile);
 
@@ -355,7 +357,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
         return false;
     }
 
-    launch(&info,  QString::fromStdString(info.getCommandLine()).remove("\""), timestamp, files);
+    launch(&info,  QString::fromStdString(info.getCommandLine()), timestamp, files);
 
     // mark app launched
     dbusHandler->markLaunched(desktopFile);
@@ -395,7 +397,18 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     envs << cmdPrefixesEnvs;
 
     QStringList exeArgs;
-    exeArgs << cmdLine.split(" ");
+
+    auto stdCmdLine = cmdLine.toStdString();
+    wordexp_t words;
+    auto ret = wordexp(stdCmdLine.c_str(), &words, 0);
+    if (ret != 0) {
+        qCritical() << "wordexp failed, error code:" << ret;
+        return false;
+    }
+
+    for (int i = 0; i < (int)words.we_wordc; i++) {
+        exeArgs << words.we_wordv[i];
+    }
 
     handleRecognizeArgs(exeArgs, files);
 
