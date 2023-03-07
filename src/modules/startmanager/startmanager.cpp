@@ -600,16 +600,28 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
 {
     QStringList argList;
     argList << "%f" << "%F" << "%u" << "%U" << "%i" << "%c" << "%k";
-    for (const QString &arg : argList) {
-        if (exeArgs.contains(arg) && files.isEmpty()) {
-            exeArgs.removeOne(arg);
-            return;
+
+    // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#exec-variables
+
+    // > If the application should not open any file the %f, %u, %F and %U field
+    // > codes must be removed from the command line and ignored.
+
+    if (files.isEmpty()) {
+        for (QString &exeArg: exeArgs) {
+            for (const QString &arg : argList) {
+                exeArg.replace(arg, "");
+            }
         }
+        return;
     }
 
-    if (exeArgs.contains("%f")) {
+    // 若 Recognized field codes 并非单独出现, 而是出现在引号中, 应该如何对其进行替换.
+    // 这一点在XDG spec中似乎并没有详细的说明.
+
+    if (!exeArgs.filter("%f").isEmpty()) {
+        // > A single file name (including the path), even if multiple files are selected.
         exeArgs.replaceInStrings("%f", files.at(0));
-    } else if (exeArgs.contains("%F")) {
+    } else if (!exeArgs.filter("%F").isEmpty()) {
         QStringList urlList;
         for (const QString &file : files) {
             QUrl url(file);
@@ -618,15 +630,15 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
 
         const QString &fileUlr = urlList.join(" ");
         exeArgs.replaceInStrings("%F", fileUlr);
-    } else if (exeArgs.contains("%u")) {
+    } else if (!exeArgs.filter("%u").isEmpty()) {
         exeArgs.replaceInStrings("%u", files.at(0));
-    } else if (exeArgs.contains("%U")) {
+    } else if (!exeArgs.filter("%U").isEmpty()) {
         exeArgs.replaceInStrings("%U", files.join(" "));
-    } else if (exeArgs.contains("%i")) {
+    } else if (!exeArgs.filter("%i").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
-    } else if (exeArgs.contains("%c")) {
+    } else if (!exeArgs.filter("%c").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
-    } else if (exeArgs.contains("%k")) {
+    } else if (!exeArgs.filter("%k").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
     }
 }
