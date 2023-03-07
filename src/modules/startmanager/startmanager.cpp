@@ -12,6 +12,8 @@
 #include "meminfo.h"
 #include "../../service/impl/application_manager.h"
 
+#include <wordexp.h>
+
 #include <QFileSystemWatcher>
 #include <QDebug>
 #include <QDir>
@@ -343,7 +345,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
     }
 
     if (options.find("path") != options.end()) {
-        info.getKeyFile()->setKey(MainSection, KeyPath, options["path"].toString().toStdString());
+        info.getDesktopFile()->setKey(MainSection, KeyPath, options["path"].toString().toStdString());
     }
 
     if (options.find("desktop-override-exec") != options.end()) {
@@ -355,7 +357,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
         return false;
     }
 
-    launch(&info, info.getCommandLine().c_str(), timestamp, files);
+    launch(&info,  QString::fromStdString(info.getCommandLine()), timestamp, files);
 
     // mark app launched
     dbusHandler->markLaunched(desktopFile);
@@ -365,21 +367,6 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
 
 bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files)
 {
-    /// 玲珑应用-浏览器应用比较特殊，Exec字段内容字符串中包含子串，且以空格分割时会导致浏览器无法启动的问题
-    /// 与玲珑组开发对接，他们暂无有效方式优化该问题，AM 从自身Exec字段内容特点进行解析，修复该问题
-    /// \brief subExecPos
-    ///
-    const int subExecPos = cmdLine.indexOf("--exec", 0);
-    const QString subArgStr = cmdLine.mid(subExecPos);
-
-    // 保留字符串头部的转移字符\"
-    const QString subExecArgStr = subArgStr.section("\"", 1, 2, QString::SectionIncludeLeadingSep);
-    // 保留字符串尾部的转移字符\"
-    const QString subStr = subExecArgStr.section("\"", 0, 1, QString::SectionIncludeTrailingSep).remove("\"");
-
-    // 从Exec字段内容中移除引号
-    cmdLine.remove("\"");
-
     QProcess process;
     QStringList cmdPrefixesEnvs;
     QStringList envs;
@@ -412,20 +399,17 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     envs << cmdPrefixesEnvs;
 
     QStringList exeArgs;
-    exeArgs << cmdLine.split(" ");
 
-    // 如果Exec字段内容字符串中包含子字符串，则要确保子串的内容不被分割
-    // 先从被分割的列表中移除重复字段，然后将--Exec后面的子串内容整体插入
-    if (!subStr.isEmpty()) {
-        QStringList tempExeArgs = exeArgs;
-        for (const QString &arg : exeArgs) {
-            if (subStr.contains(arg))
-                tempExeArgs.removeOne(arg);
-        }
+    auto stdCmdLine = cmdLine.toStdString();
+    wordexp_t words;
+    auto ret = wordexp(stdCmdLine.c_str(), &words, 0);
+    if (ret != 0) {
+        qCritical() << "wordexp failed, error code:" << ret;
+        return false;
+    }
 
-        exeArgs = tempExeArgs;
-        int pos = exeArgs.indexOf("--exec");
-        exeArgs.insert(pos + 1, subStr);
+    for (int i = 0; i < (int)words.we_wordc; i++) {
+        exeArgs << words.we_wordv[i];
     }
 
     handleRecognizeArgs(exeArgs, files);
@@ -435,19 +419,16 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         exeArgs.insert(0, SETTING->getDefaultTerminalExec());
     }
 
-    std::string workingDir = info->getKeyFile()->getStr(MainSection, KeyPath);
+    std::string workingDir = info->getDesktopFile()->getStr(MainSection, KeyPath);
     if (workingDir.empty()) {
         workingDir = BaseDir::homeDir();
     }
 
-    QString exec;
-    if (!exeArgs.isEmpty()) {
-        exec = exeArgs[0];
-        exeArgs.removeAt(0);
-    }
+    QString exec = exeArgs[0];
+    exeArgs.removeAt(0);
 
 #ifdef QT_DEBUG
-    qInfo() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
+    qDebug() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
 #endif
 
     process.setProgram(exec);
@@ -614,16 +595,19 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
 {
     QStringList argList;
     argList << "%f" << "%F" << "%u" << "%U" << "%i" << "%c" << "%k";
-    for (const QString &arg : argList) {
-        if (exeArgs.contains(arg) && files.isEmpty()) {
-            exeArgs.removeOne(arg);
-            return;
+
+    if (files.isEmpty()) {
+        for (QString &exeArg: exeArgs) {
+            for (const QString &arg : argList) {
+                exeArg.replace(arg, "");
+            }
         }
+        return;
     }
 
-    if (exeArgs.contains("%f")) {
+    if (!exeArgs.filter("%f").isEmpty()) {
         exeArgs.replaceInStrings("%f", files.at(0));
-    } else if (exeArgs.contains("%F")) {
+    } else if (!exeArgs.filter("%F").isEmpty()) {
         QStringList urlList;
         for (const QString &file : files) {
             QUrl url(file);
@@ -632,15 +616,15 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
 
         const QString &fileUlr = urlList.join(" ");
         exeArgs.replaceInStrings("%F", fileUlr);
-    } else if (exeArgs.contains("%u")) {
+    } else if (!exeArgs.filter("%u").isEmpty()) {
         exeArgs.replaceInStrings("%u", files.at(0));
-    } else if (exeArgs.contains("%U")) {
+    } else if (!exeArgs.filter("%U").isEmpty()) {
         exeArgs.replaceInStrings("%U", files.join(" "));
-    } else if (exeArgs.contains("%i")) {
+    } else if (!exeArgs.filter("%i").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
-    } else if (exeArgs.contains("%c")) {
+    } else if (!exeArgs.filter("%c").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
-    } else if (exeArgs.contains("%k")) {
+    } else if (!exeArgs.filter("%k").isEmpty()) {
         // TODO: 待出现这个类型的问题时再行适配，优先解决阻塞问题
     }
 }

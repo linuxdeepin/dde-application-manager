@@ -29,7 +29,7 @@ void AppInfo::init(DesktopInfo &info)
         return;
     }
 
-    std::string xDeepinVendor= info.getKeyFile()->getStr(MainSection, "X-Deepin-Vendor");
+    std::string xDeepinVendor= info.getDesktopFile()->getStr(MainSection, "X-Deepin-Vendor");
     if (xDeepinVendor == "deepin") {
         m_name = info.getGenericName().c_str();
         if (m_name.isEmpty())

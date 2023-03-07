@@ -5,7 +5,7 @@
 #ifndef DESKTOPINFO_H
 #define DESKTOPINFO_H
 
-#include "keyfile.h"
+#include "desktopfile.h"
 
 #include <string>
 #include <vector>
@@ -82,7 +82,7 @@ public:
     std::vector<std::string> getCategories();
     void setDesktopOverrideExec(const std::string &execStr);
 
-    KeyFile *getKeyFile();
+    DesktopFile *getDesktopFile();
 
 private:
     std::string getTryExec();
@@ -96,7 +96,7 @@ private:
     std::string m_icon;
     std::string m_overRideExec;
     bool m_isValid;
-    KeyFile m_keyFile;
+    DesktopFile m_desktopFile;
 };
 
 // 应用目录类
