@@ -326,7 +326,7 @@ bool StartManager::doLaunchAppWithOptions(const QString &desktopFile)
         return false;
     }
 
-    launch(&info, QString::fromStdString(info.getCommandLine()), 0, QStringList());
+    launch(&info, QString::fromStdString(info.getCommandLine()).remove("\""), 0, QStringList());
 
     dbusHandler->markLaunched(desktopFile);
 
@@ -355,7 +355,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
         return false;
     }
 
-    launch(&info, info.getCommandLine().c_str(), timestamp, files);
+    launch(&info,  QString::fromStdString(info.getCommandLine()).remove("\""), timestamp, files);
 
     // mark app launched
     dbusHandler->markLaunched(desktopFile);
@@ -365,21 +365,6 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
 
 bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files)
 {
-    /// 玲珑应用-浏览器应用比较特殊，Exec字段内容字符串中包含子串，且以空格分割时会导致浏览器无法启动的问题
-    /// 与玲珑组开发对接，他们暂无有效方式优化该问题，AM 从自身Exec字段内容特点进行解析，修复该问题
-    /// \brief subExecPos
-    ///
-    const int subExecPos = cmdLine.indexOf("--exec", 0);
-    const QString subArgStr = cmdLine.mid(subExecPos);
-
-    // 保留字符串头部的转移字符\"
-    const QString subExecArgStr = subArgStr.section("\"", 1, 2, QString::SectionIncludeLeadingSep);
-    // 保留字符串尾部的转移字符\"
-    const QString subStr = subExecArgStr.section("\"", 0, 1, QString::SectionIncludeTrailingSep).remove("\"");
-
-    // 从Exec字段内容中移除引号
-    cmdLine.remove("\"");
-
     QProcess process;
     QStringList cmdPrefixesEnvs;
     QStringList envs;
@@ -412,20 +397,6 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     QStringList exeArgs;
     exeArgs << cmdLine.split(" ");
 
-    // 如果Exec字段内容字符串中包含子字符串，则要确保子串的内容不被分割
-    // 先从被分割的列表中移除重复字段，然后将--Exec后面的子串内容整体插入
-    if (!subStr.isEmpty()) {
-        QStringList tempExeArgs = exeArgs;
-        for (const QString &arg : exeArgs) {
-            if (subStr.contains(arg))
-                tempExeArgs.removeOne(arg);
-        }
-
-        exeArgs = tempExeArgs;
-        int pos = exeArgs.indexOf("--exec");
-        exeArgs.insert(pos + 1, subStr);
-    }
-
     handleRecognizeArgs(exeArgs, files);
 
     if (info->getTerminal()) {
@@ -438,11 +409,8 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         workingDir = BaseDir::homeDir();
     }
 
-    QString exec;
-    if (!exeArgs.isEmpty()) {
-        exec = exeArgs[0];
-        exeArgs.removeAt(0);
-    }
+    QString exec = exeArgs[0];
+    exeArgs.removeAt(0);
 
     qDebug() << "Launching app, desktop: " << QString::fromStdString(info->getFileName()) << " exec:  " << exec
              << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId;
