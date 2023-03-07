@@ -12,12 +12,12 @@
 typedef std::map<std::string, std::string> KeyMap;
 typedef std::map<std::string, KeyMap> MainKeyMap;
 
-// 解析ini、desktop文件类
+// 解析ini文件类
 class KeyFile
 {
 public:
     explicit KeyFile(char separtor = ';');
-    ~KeyFile();
+    virtual ~KeyFile();
 
     bool getBool(const std::string &section, const std::string &key, bool defaultValue = false);
     void setBool(const std::string &section, const std::string &key, const std::string &defaultValue = "false");
@@ -34,7 +34,7 @@ public:
     std::vector<std::string> getLocaleStrList(const std::string &section, const std::string &key, std::string defaultLocale = "");
 
     void setKey(const std::string &section, const std::string &key, const std::string &value);
-    bool saveToFile(const std::string &filePath);
+    virtual bool saveToFile(const std::string &filePath);
     bool loadFile(const std::string &filePath);
     std::vector<std::string> getMainKeys();
     std::string getFilePath()
@@ -45,12 +45,14 @@ public:
     // for test
     void print();
 
-private:
+protected:
     MainKeyMap m_mainKeyMap; // section -> key : value
     std::string m_filePath;
     FILE *m_fp;
     bool m_modified;
     char m_listSeparator;
+
+    static bool writeSectionToFile(const std::string& sectionName, const KeyMap& keyMap, FILE * file);
 };
 
 #endif // KEYFILE_H

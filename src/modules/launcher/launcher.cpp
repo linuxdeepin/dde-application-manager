@@ -247,9 +247,9 @@ bool Launcher::requestSendToDesktop(QString appId)
 
     // 创建桌面快捷方式文件
     DesktopInfo dinfo(itemsMap[appId].info.path.toStdString());
-    dinfo.getKeyFile()->setKey(MainSection, dbusService.toStdString(), "X-Deepin-CreatedBy");
-    dinfo.getKeyFile()->setKey(MainSection, appId.toStdString(), "X-Deepin-AppID");
-    if (!dinfo.getKeyFile()->saveToFile(filePath.toStdString()))
+    dinfo.getDesktopFile()->setKey(MainSection, dbusService.toStdString(), "X-Deepin-CreatedBy");
+    dinfo.getDesktopFile()->setKey(MainSection, appId.toStdString(), "X-Deepin-AppID");
+    if (!dinfo.getDesktopFile()->saveToFile(filePath.toStdString()))
         return false;
 
     // 播放音频
@@ -907,7 +907,7 @@ AppType Launcher::getAppType(DesktopInfo &info, const Item &item)
     QFileInfo  fileInfo;
     // 判断是否为flatpak应用
     do {
-        if (!info.getKeyFile()->containKey(MainSection, "X-Flatpak"))
+        if (!info.getDesktopFile()->containKey(MainSection, "X-Flatpak"))
             break;
 
         std::vector<std::string> parts = DString::splitStr(info.getCommandLine(), ' ');
@@ -946,7 +946,7 @@ AppType Launcher::getAppType(DesktopInfo &info, const Item &item)
 
     // 判断是否为wineApp
     do {
-        std::string createdBy = info.getKeyFile()->getStr(MainSection, "X-Created-By");
+        std::string createdBy = info.getDesktopFile()->getStr(MainSection, "X-Created-By");
         if (DString::startWith(createdBy, "cxoffice-") || strstr(info.getCommandLine().c_str(), "env WINEPREFIX=")) {
             ty = AppType::WineApp;
             goto end;
@@ -1184,10 +1184,10 @@ bool Launcher::isDeepinCustomDesktopFile(QString fileName)
 
 Item Launcher::NewItemWithDesktopInfo(DesktopInfo &info)
 {
-    QString enName(info.getKeyFile()->getStr(MainSection, KeyName).c_str());
-    QString enComment(info.getKeyFile()->getStr(MainSection, KeyComment).c_str());
-    QString xDeepinCategory(info.getKeyFile()->getStr(MainSection, "X-Deepin-Category").c_str());
-    QString xDeepinVendor(info.getKeyFile()->getStr(MainSection, "X-Deepin-Vendor").c_str());
+    QString enName(info.getDesktopFile()->getStr(MainSection, KeyName).c_str());
+    QString enComment(info.getDesktopFile()->getStr(MainSection, KeyComment).c_str());
+    QString xDeepinCategory(info.getDesktopFile()->getStr(MainSection, "X-Deepin-Category").c_str());
+    QString xDeepinVendor(info.getDesktopFile()->getStr(MainSection, "X-Deepin-Vendor").c_str());
 
     QString appName;
     if (xDeepinVendor == "deepin")

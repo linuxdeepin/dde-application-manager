@@ -177,16 +177,28 @@ bool KeyFile::saveToFile(const std::string &filePath)
     }
 
     for (const auto &im : m_mainKeyMap) {
-        const auto &keyMap = im.second;
-        std::string section = "[" + im.first + "]\n";
-        fputs(section.c_str(), sfp);
-        for (const auto &ik : keyMap) {
-            std::string kv = ik.first + "=" + ik.second + "\n";
-            fputs(kv.c_str(), sfp);
+        if (!writeSectionToFile(im.first, im.second,sfp)){
+            return false;
         }
     }
 
     fclose(sfp);
+    return true;
+}
+
+bool KeyFile::writeSectionToFile(const std::string& sectionName, const KeyMap& keyMap, FILE * file){
+    if (file == nullptr) {
+        return false;
+    }
+
+    std::string section = "[" + sectionName + "]\n";
+    fputs(section.c_str(), file);
+    for (const auto &ik : keyMap) {
+        std::string kv = ik.first + "=" + ik.second + "\n";
+        fputs(kv.c_str(), file);
+    }
+
+    // FIXME(black_desk): should handle fputs error
     return true;
 }
 
