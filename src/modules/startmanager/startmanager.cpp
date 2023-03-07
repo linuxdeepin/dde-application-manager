@@ -343,7 +343,7 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
     }
 
     if (options.find("path") != options.end()) {
-        info.getKeyFile()->setKey(MainSection, KeyPath, options["path"].toString().toStdString());
+        info.getDesktopFile()->setKey(MainSection, KeyPath, options["path"].toString().toStdString());
     }
 
     if (options.find("desktop-override-exec") != options.end()) {
@@ -433,7 +433,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         exeArgs.insert(0, SETTING->getDefaultTerminalExec());
     }
 
-    std::string workingDir = info->getKeyFile()->getStr(MainSection, KeyPath);
+    std::string workingDir = info->getDesktopFile()->getStr(MainSection, KeyPath);
     if (workingDir.empty()) {
         workingDir = BaseDir::homeDir();
     }
