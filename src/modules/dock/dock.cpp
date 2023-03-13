@@ -23,6 +23,16 @@
 #define SETTING DockSettings::instance()
 #define XCB XCBUtils::instance()
 
+bool shouldShowEntry(Entry *entry)
+{
+    if (entry->getApp()->isValidApp()) {
+        QString path = entry->getApp()->getFileName();
+        DesktopInfo desktopInfo(path.toStdString());
+        return desktopInfo.shouldShow();
+    }
+    return false;
+}
+
 Dock::Dock(ApplicationManager *applicationManager, QObject *parent)
  : SynModule(parent)
  , m_entriesSum(0)
@@ -1221,8 +1231,9 @@ void Dock::updateRecentApps()
     QStringList unDockedApps;
     QList<Entry *> recentEntrys = m_entries->unDockedEntries();
     for (Entry *entry : recentEntrys) {
-        QString path = entry->getApp()->getFileName();
-        unDockedApps << path;
+        if (shouldShowEntry(entry)) {
+            unDockedApps << entry->getApp()->getFileName();
+        }
     }
 
     // 保存未驻留的应用作为最近打开的应用
@@ -1242,9 +1253,17 @@ void Dock::removeEntryFromDock(Entry *entry)
         // 移除应用后，同时更新最近打开的应用
         updateRecentApps();
         // 如果是高效模式，则发送消息或者关闭了显示最近应用的功能，则从任务栏移除
+        // 或者时尚模式显示最近应用时，当前应用不应该驻留最近应用时，需要移除
         if ((SETTING->getDisplayMode() == DisplayMode::Efficient
                 || !m_showRecent) && !entry->getIsDocked()) {
             Q_EMIT entryRemoved(entry->getId());
+        } else if (SETTING->getDisplayMode() == DisplayMode::Fashion && m_showRecent && !entry->getIsDocked()) {
+            if (shouldShowEntry(entry)) {
+                return;
+            }
+            removeAppEntry(entry);
+            // 移除应用后，同时更新最近打开的应用
+            updateRecentApps();
         }
     } else {
         removeAppEntry(entry);
