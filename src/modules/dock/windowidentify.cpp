@@ -127,6 +127,8 @@ AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerI
     }
 
     qInfo() << "identifyWindowX11: failed";
+    // 如果识别窗口失败，则该app的entryInnerId使用当前窗口的innerId
+    innerId = winInfo->getInnerId();
     return appInfo;
 }
 
