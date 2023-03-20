@@ -5,6 +5,7 @@
 #ifndef WINDOWINFOBASE_H
 #define WINDOWINFOBASE_H
 
+#include "processinfo.h"
 #include "xcbutils.h"
 
 #include <QString>
@@ -12,7 +13,6 @@
 
 class Entry;
 class AppInfo;
-class ProcessInfo;
 
 class WindowInfoBase
 {
@@ -23,7 +23,6 @@ public:
             delete processInfo;
         }
     }
-
 
     virtual bool shouldSkip() = 0;
     virtual QString getIcon() = 0;

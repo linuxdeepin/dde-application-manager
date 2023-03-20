@@ -14,6 +14,9 @@
 #include <QTimer>
 #include <QImage>
 #include <QIcon>
+#include <QBuffer>
+
+#include <X11/Xlib.h>
 
 #define XCB XCBUtils::instance()
 
@@ -354,10 +357,52 @@ void WindowInfoX::update()
     innerId = genInnerId(this);
 }
 
-// TODO 从窗口中获取图标， 并设置best size   be used in Entry
 QString WindowInfoX::getIconFromWindow()
 {
-    return QString();
+    char *displayname = nullptr;
+    Display * dpy = XOpenDisplay (displayname);
+    if (!dpy) {
+        exit (1);
+    }
+
+    Atom net_wm_icon = XCB->getAtom("_NET_WM_ICON");
+
+    unsigned char *buf;
+    int format;
+    Atom type;
+    unsigned long nitems, bytes;
+
+    // Get image size
+    XGetWindowProperty(dpy, xid, net_wm_icon, 0, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
+    int width = *(int *)buf;
+    XFree(buf);
+    XGetWindowProperty(dpy, xid, net_wm_icon, 1, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
+    int height = *(int *)buf;
+    XFree(buf);
+
+    long size = width * height;
+    XGetWindowProperty(dpy, xid, net_wm_icon, 2, size, 0, AnyPropertyType, &type, &format, &nitems, &bytes,
+                       &buf);
+    unsigned long *imgArr = (unsigned long *)(buf);
+    std::vector<uint32_t> imgARGB32(size);
+    for (long i = 0; i < size; ++i) {
+        imgARGB32[i] = (uint32_t)(imgArr[i]);
+    }
+
+    XFree(buf);
+
+    QImage img = QImage((uchar *)imgARGB32.data(), width, height, QImage::Format_ARGB32);
+    QBuffer buffer;
+    buffer.open(QIODevice::WriteOnly);
+    img.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    img.save(&buffer, "PNG");
+
+    // convert to base64
+    QString encode = buffer.data().toBase64();
+    QString iconPath = QString("%1,%2").arg("data:image/png:base64").arg(encode);
+    buffer.close();
+
+    return iconPath;
 }
 
 bool WindowInfoX::isActionMinimizeAllowed()
