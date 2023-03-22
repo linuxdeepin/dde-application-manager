@@ -64,7 +64,7 @@ Copyright: Red Hat Inc.
 License: MIT
 
 # ci
-Files: .github/* .gitlab-ci.yml
+Files: .github/* .gitlab-ci.yml .obs/workflows.yml
 Copyright: None
 License: CC0-1.0
 
