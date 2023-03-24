@@ -383,9 +383,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     QProcess process;
     QStringList cmdPrefixesEnvs;
     QStringList envs;
-    QString desktopFile(info->getFileName().c_str());
-    QFileInfo fileInfo(desktopFile);
-    QString appId = fileInfo.baseName();
+    QString appId(QString::fromStdString(info->getId()));
 
     bool useProxy = shouldUseProxy(appId);
     for (QString var : QProcess::systemEnvironment()) {
@@ -446,7 +444,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         exeArgs.removeAt(0);
     }
 
-    qDebug() << "Launching app, desktop: " << desktopFile << " exec:  " << exec
+    qDebug() << "Launching app, desktop: " << QString::fromStdString(info->getFileName()) << " exec:  " << exec
              << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId;
 
     process.setProgram(exec);
