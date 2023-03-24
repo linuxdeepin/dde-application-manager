@@ -22,7 +22,7 @@ void StartManagerDBusHandler::markLaunched(QString desktopFile)
 QString StartManagerDBusHandler::getProxyMsg()
 {
     QString ret;
-    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1/App", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
     QDBusReply<QString> reply = interface.call("GetProxy");
     if (reply.isValid())
         ret = reply.value();
@@ -32,6 +32,6 @@ QString StartManagerDBusHandler::getProxyMsg()
 
 void StartManagerDBusHandler::addProxyProc(int32_t pid)
 {
-    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
+    QDBusInterface interface = QDBusInterface("org.deepin.dde.NetworkProxy1", "/org/deepin/dde/NetworkProxy1/App", "org.deepin.dde.NetworkProxy1.App", QDBusConnection::systemBus());
     interface.call("AddProc", pid);
 }
