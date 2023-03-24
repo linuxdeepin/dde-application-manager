@@ -446,16 +446,23 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         exeArgs.removeAt(0);
     }
 
-#ifdef QT_DEBUG
-    qInfo() << "launchApp: " << desktopFile << " exec:  " << exec << " args:   " << exeArgs;
-#endif
+    qDebug() << "Launching app, desktop: " << desktopFile << " exec:  " << exec
+             << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId;
 
     process.setProgram(exec);
     process.setArguments(exeArgs);
     process.setWorkingDirectory(workingDir.c_str());
     process.setEnvironment(envs);
-    qint64 *pid = nullptr;
-    return process.startDetached(pid);
+    qint64 pid = 0;
+    if (process.startDetached(&pid)) {
+        if (useProxy) {
+            qDebug() << "Launch the process[" << pid << "] by app proxy.";
+            dbusHandler->addProxyProc(pid);
+        }
+
+        return true;
+    }
+    return false;
 }
 
 bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options)
