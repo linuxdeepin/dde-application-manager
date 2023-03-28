@@ -367,16 +367,24 @@ QString WindowInfoX::getIconFromWindow()
 
     Atom net_wm_icon = XCB->getAtom("_NET_WM_ICON");
 
-    unsigned char *buf;
+    unsigned char *buf = nullptr;
     int format;
     Atom type;
     unsigned long nitems, bytes;
 
     // Get image size
     XGetWindowProperty(dpy, xid, net_wm_icon, 0, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
+    if (!buf) {
+        qWarning() << "Failed to get width for window icon, window id:" << xid;
+        return QString();
+    }
     int width = *(int *)buf;
     XFree(buf);
     XGetWindowProperty(dpy, xid, net_wm_icon, 1, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
+    if (!buf) {
+        qWarning() << "Failed to get height for window icon, window id:" << xid;
+        return QString();
+    }
     int height = *(int *)buf;
     XFree(buf);
 
