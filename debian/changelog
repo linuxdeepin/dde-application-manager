@@ -1,3 +1,15 @@
+dde-application-manager (1.0.9) unstable; urgency=medium
+
+  * fix get a longer name then it actually is
+  * fix abnormal icon display in the dock
+  * set fullscreen launcher by default
+  * fix default application resets after relogin
+  * fix crash when get windowicon
+  * fix app proxy invalid
+  * fix invalid appid
+
+ -- zsien <quezhiyong@uniontech.com>  Wed, 29 Mar 2023 13:14:37 +0800
+
 dde-application-manager (1.0.8) unstable; urgency=medium
 
   [ TagBuilder ]
