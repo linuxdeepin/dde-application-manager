@@ -74,7 +74,7 @@ Copyright: None
 License: CC0-1.0
 
 # xml json conf yaml
-Files: .clog.toml .tx/config dbus/*.xml misc/*/*.service misc/*/*.json src/*.in src/frameworkdbus/*
+Files: .clog.toml .tx/* dbus/*.xml misc/*/*.service misc/*/*.json src/*.in src/frameworkdbus/*
 Copyright: None
 License: CC0-1.0
 
