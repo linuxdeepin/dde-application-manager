@@ -3,7 +3,7 @@ host = https://www.transifex.com
 minimum_perc = 80
 mode = developer
 
-[deepin-desktop-environment.dde-application-manager]
+[o:linuxdeepin:p:deepin-desktop-environment:r:dde-application-manager]
 file_filter = translations/dde-application-manager_<lang>.ts
 source_file = translations/dde-application-manager.ts
 source_lang = en_US
