@@ -11,6 +11,7 @@ find_package(DtkWidget REQUIRED)
 
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb-icccm xcb-ewmh xcb)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+pkg_check_modules(XRes REQUIRED IMPORTED_TARGET xres)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
 pkg_check_modules(GLib REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(QGSettings REQUIRED IMPORTED_TARGET gsettings-qt)
@@ -57,6 +58,7 @@ target_link_libraries(${BIN_NAME}
     pthread
     PkgConfig::XCB
     PkgConfig::X11
+    PkgConfig::XRes
     PkgConfig::GIO
     PkgConfig::GLib
     PkgConfig::QGSettings
@@ -66,6 +68,7 @@ target_link_libraries(${BIN_NAME}
 target_include_directories(${BIN_NAME} PUBLIC
     PkgConfig::XCB
     PkgConfig::X11
+    PkgConfig::XRes
     PkgConfig::GIO
     PkgConfig::GLib
     PkgConfig::QGSettings
