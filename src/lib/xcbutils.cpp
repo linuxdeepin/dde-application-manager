@@ -6,6 +6,10 @@
 
 #include <iostream>
 #include <cstring>
+#include <memory>
+
+#include <X11/Xlib.h>
+#include <X11/extensions/XRes.h>
 
 XCBUtils::XCBUtils()
 {
@@ -371,13 +375,36 @@ std::string XCBUtils::getWMName(XWindow xid)
 
 uint32_t XCBUtils::getWMPid(XWindow xid)
 {
-    uint32_t ret = 0;
-    xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_pid(&m_ewmh, xid);
-    if (!xcb_ewmh_get_wm_pid_reply(&m_ewmh, cookie, &ret, nullptr)) {
-        std::cout << xid << " getWMPid error" << std::endl;
+    // NOTE(black_desk): code copy from https://gitlab.gnome.org/GNOME/metacity/-/merge_requests/13/diffs
+
+    XResClientIdSpec spec = {
+        .client = xid,
+        .mask = XRES_CLIENT_ID_PID_MASK,
+    };
+
+    std::shared_ptr<Display> dpy = {
+        XOpenDisplay(nullptr),
+        [](Display *p){ XCloseDisplay(p); },
+    };
+
+    long num_ids;
+    XResClientIdValue *client_ids;
+    XResQueryClientIds(dpy.get(),
+                       1,
+                       &spec,
+                       &num_ids,
+                       &client_ids);
+
+    pid_t pid = -1;
+    for (long i = 0; i < num_ids; i++) {
+        if (client_ids[i].spec.mask == XRES_CLIENT_ID_PID_MASK) {
+            pid = XResGetClientPid(&client_ids[i]);
+            break;
+        }
     }
 
-    return ret;
+    XResClientIdsDestroy(num_ids, client_ids);
+    return pid;
 }
 
 std::string XCBUtils::getWMIconName(XWindow xid)
