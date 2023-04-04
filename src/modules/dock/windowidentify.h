@@ -50,7 +50,7 @@ private:
 
 private:
     Dock *m_dock;
-    QMap<QString, IdentifyFunc> m_identifyWindowFuns;
+    QList<QPair<QString, IdentifyFunc>> m_identifyWindowFuns;
 };
 
 #endif // IDENTIFYWINDOW_H
