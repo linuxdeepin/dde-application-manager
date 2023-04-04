@@ -68,19 +68,18 @@ WindowIdentify::WindowIdentify(Dock *_dock, QObject *parent)
  : QObject(parent)
  , m_dock(_dock)
 {
-    m_identifyWindowFuns["Android"] = identifyWindowAndroid;
-    m_identifyWindowFuns["PidEnv"] = identifyWindowByPidEnv;
-    m_identifyWindowFuns["CmdlineTurboBooster"] = identifyWindowByCmdlineTurboBooster;
-    m_identifyWindowFuns["Cmdline-XWalk"] = identifyWindowByCmdlineXWalk;
-    m_identifyWindowFuns["FlatpakAppID"] = identifyWindowByFlatpakAppID;
-    m_identifyWindowFuns["CrxId"] = identifyWindowByCrxId;
-    m_identifyWindowFuns["Rule"] = identifyWindowByRule;
-    m_identifyWindowFuns["Bamf"] = identifyWindowByBamf;
-    m_identifyWindowFuns["Pid"] = identifyWindowByPid;
-    m_identifyWindowFuns["Scratch"] = identifyWindowByScratch;
-    m_identifyWindowFuns["GtkAppId"] = identifyWindowByGtkAppId;
-    m_identifyWindowFuns["WmClass"] = identifyWindowByWmClass;
-
+    m_identifyWindowFuns << qMakePair(QString("Android") , &identifyWindowAndroid);
+    m_identifyWindowFuns << qMakePair(QString("PidEnv"), &identifyWindowByPidEnv);
+    m_identifyWindowFuns << qMakePair(QString("CmdlineTurboBooster"), &identifyWindowByCmdlineTurboBooster);
+    m_identifyWindowFuns << qMakePair(QString("Cmdline-XWalk"), &identifyWindowByCmdlineXWalk);
+    m_identifyWindowFuns << qMakePair(QString("FlatpakAppID"), &identifyWindowByFlatpakAppID);
+    m_identifyWindowFuns << qMakePair(QString("CrxId"), &identifyWindowByCrxId);
+    m_identifyWindowFuns << qMakePair(QString("Rule"), &identifyWindowByRule);
+    m_identifyWindowFuns << qMakePair(QString("Bamf"), &identifyWindowByBamf);
+    m_identifyWindowFuns << qMakePair(QString("Pid"), &identifyWindowByPid);
+    m_identifyWindowFuns << qMakePair(QString("Scratch"), &identifyWindowByScratch);
+    m_identifyWindowFuns << qMakePair(QString("GtkAppId"), &identifyWindowByGtkAppId);
+    m_identifyWindowFuns << qMakePair(QString("WmClass"), &identifyWindowByWmClass);
 }
 
 AppInfo *WindowIdentify::identifyWindow(WindowInfoBase *winInfo, QString &innerId)
@@ -106,8 +105,8 @@ AppInfo *WindowIdentify::identifyWindowX11(WindowInfoX *winInfo, QString &innerI
     }
 
     for (auto iter = m_identifyWindowFuns.begin(); iter != m_identifyWindowFuns.end(); iter++) {
-        QString name = iter.key();
-        IdentifyFunc func = iter.value();
+        QString name = iter->first;
+        IdentifyFunc func = iter->second;
         qInfo() << "identifyWindowX11: try " << name;
         appInfo = func(m_dock, winInfo, innerId);
         if (appInfo) {  // TODO: if name == "Pid", appInfo may by nullptr
