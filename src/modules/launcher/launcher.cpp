@@ -714,11 +714,7 @@ void Launcher::addItem(Item &item)
     itemsMap[item.info.id] = item;
 
     QFileInfo desktopInfo(item.info.path);
-    if (desktopInfo.isSymLink()) {
-        m_desktopAndItemMap[desktopInfo.symLinkTarget()] = item;
-    } else {
-        m_desktopAndItemMap[item.info.path] = item;
-    }
+    m_desktopAndItemMap[item.info.path] = item;
 }
 
 Categorytype Launcher::queryCategoryId(const Item *item)
