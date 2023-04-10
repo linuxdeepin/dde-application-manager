@@ -622,14 +622,11 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
         // > A single file name (including the path), even if multiple files are selected.
         exeArgs.replaceInStrings("%f", files.at(0));
     } else if (!exeArgs.filter("%F").isEmpty()) {
-        QStringList urlList;
+        exeArgs.removeOne("%F");
         for (const QString &file : files) {
             QUrl url(file);
-            urlList.append(url.toLocalFile());
+            exeArgs << url.toLocalFile();
         }
-
-        const QString &fileUlr = urlList.join(" ");
-        exeArgs.replaceInStrings("%F", fileUlr);
     } else if (!exeArgs.filter("%u").isEmpty()) {
         exeArgs.replaceInStrings("%u", files.at(0));
     } else if (!exeArgs.filter("%U").isEmpty()) {
