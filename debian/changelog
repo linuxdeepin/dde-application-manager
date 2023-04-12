@@ -1,3 +1,11 @@
+dde-application-manager (1.0.10) unstable; urgency=medium
+
+  * introduce new DesktopFile class
+  * correct Exec parsin
+  * fix unable to open multiple files
+
+ -- zsien <quezhiyong@uniontech.com>  Wed, 12 Apr 2023 14:39:13 +0800
+
 dde-application-manager (1.0.9) unstable; urgency=medium
 
   * fix get a longer name then it actually is
