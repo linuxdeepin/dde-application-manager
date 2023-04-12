@@ -555,6 +555,7 @@ void Launcher::onCheckDesktopFile(const QString &filePath, int type)
             // remove item
             const Item &item = itemsMap[filePath];
             removeDesktop(filePath);
+
             emitItemChanged(&item, appStatusDeleted);
         }
     }
@@ -982,6 +983,8 @@ void Launcher::doUninstall(DesktopInfo &info, const Item &item)
             qWarning() << QString("uninstall %1 failed...").arg(info.getFileName().c_str());
             return;
         }
+
+        removeDesktop(item.info.path);
 
         Q_EMIT uninstallSuccess(item.info.path);
 
