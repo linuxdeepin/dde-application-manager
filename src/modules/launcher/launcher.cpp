@@ -1056,6 +1056,7 @@ void Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
             return;
 
         QString content(file.readAll());
+        file.close();
         QString pkgName = content.trimmed();
         uninstallApp(item.info.name, pkgName);
     } else {
