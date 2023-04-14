@@ -807,7 +807,8 @@ Categorytype Launcher::getXCategory(const Item *item)
 QString Launcher::queryPkgNameWithDpkg(const QString &itemPath)
 {
     QProcess process;
-    process.start("dpkg -S " + itemPath);
+    QStringList args {"-S", itemPath};
+    process.start("dpkg", args);
     if (!process.waitForFinished())
         return QString();
 
@@ -845,12 +846,14 @@ QString Launcher::queryPkgName(const QString &itemID, const QString &itemPath)
             // dpkg命令检查通过路径匹配的包是否存在
             QString pkgName(result[1].str().c_str());
             QProcess process;
-            process.start("dpkg -s " + pkgName);
+            QStringList args0 {"-s", pkgName};
+            process.start("dpkg", args0);
             if (process.waitForFinished())
                 return pkgName;
 
             // 当包不存在则使用dpkg -S来查找包
-            process.start("dpkg -S" + pkgName);
+            QStringList args1 {"-S", pkgName};
+            process.start("dpkg", args1);
             if (!process.waitForFinished())
                 return QString();
 
@@ -1062,7 +1065,8 @@ void Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
         QString ref = QString("app/%1/%2/%3").arg(flat.name.c_str()).arg(flat.arch.c_str()).arg(flat.branch.c_str());
         qInfo() << "uninstall flatpak ref= " << ref;
         QProcess process;
-        process.start("flatpak " + sysOrUser + " uninstall " + ref);
+        QStringList args {sysOrUser, "uninstall", ref};
+        process.start("flatpak", args);
         bool res = process.waitForFinished();
         std::thread thread([&] {
             notifyUninstallDone(item, res);
@@ -1079,7 +1083,8 @@ void Launcher::uninstallFlatpak(DesktopInfo &info, const Item &item)
 bool Launcher::uninstallWineApp(const Item &item)
 {
     QProcess process;
-    process.start("/opt/deepinwine/tools/uninstall.sh" + item.info.path);
+    QStringList args {item.info.path};
+    process.start("/opt/deepinwine/tools/uninstall.sh", args);
     bool res = process.waitForFinished();
     std::thread thread([&] {
         notifyUninstallDone(item, res);
