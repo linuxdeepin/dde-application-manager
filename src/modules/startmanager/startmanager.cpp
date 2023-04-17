@@ -426,7 +426,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     exeArgs.removeAt(0);
 
     qDebug() << "Launching app, desktop: " << QString::fromStdString(info->getFileName()) << " exec:  " << exec
-             << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId;
+             << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId << "envs:" << envs;
 
     process.setProgram(exec);
     process.setArguments(exeArgs);
