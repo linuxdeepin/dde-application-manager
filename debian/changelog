@@ -1,3 +1,17 @@
+dde-application-manager (1.0.11) unstable; urgency=medium
+
+  * fix: icon in launcher after uninstall linglong app
+  * fix: desktop file still in Desktop after uninstall
+  * fix: use XResQueryClientIds to get pid of xwindow
+  * fix: force windowidentify method order
+  * refact: return early in identifyWindowByPidEnv
+  * refact: use lambda in identifyWindowByPidEnv
+  * fix: use identifyWindowByPidEnv for linglong apps
+  * fix: set GIO_LAUNCHED_DESKTOP_FILE when launch app
+  * chore: log envs in launch
+
+ -- Deepin Packages Builder <packages@deepin.org>  Mon, 17 Apr 2023 20:30:59 +0800
+
 dde-application-manager (1.0.10) unstable; urgency=medium
 
   * introduce new DesktopFile class
