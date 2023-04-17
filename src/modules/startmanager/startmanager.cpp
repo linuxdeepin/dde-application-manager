@@ -431,6 +431,12 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     process.setProgram(exec);
     process.setArguments(exeArgs);
     process.setWorkingDirectory(workingDir.c_str());
+
+    // NOTE(black_desk): This have to be done after load system environment.
+    // Set same env twice in qt make the first one gone.
+    envs << QString("GIO_LAUNCHED_DESKTOP_FILE=") +
+            QString::fromStdString(info->getDesktopFile()->getFilePath());
+
     process.setEnvironment(envs);
     qint64 pid = 0;
     if (process.startDetached(&pid)) {
