@@ -253,12 +253,28 @@ AppInfo *WindowIdentify::identifyWindowByPidEnv(Dock *_dock, WindowInfoX *winInf
         return false;
     };
 
+    auto processInLinglong = [](ProcessInfo* const process) -> bool {
+        for (Process p(process->getPpid()); p.getPid() != 0; p = Process(p.getPpid())) {
+            if (!p.getCmdLine().size()){
+                qWarning() << "Failed to get command line of" << p.getPid() << " SKIP it.";
+                continue;
+            }
+            if (p.getCmdLine()[0].find("ll-box") != std::string::npos) {
+                qDebug() << "process ID" << process->getPid() << "is in linglong container,"
+                         <<"ll-box PID" << p.getPid();
+                return true;
+            }
+        }
+        return false;
+    };
+
     // 以下几种情况下，才能信任环境变量 GIO_LAUNCHED_DESKTOP_FILE。
     if (pid == launchedDesktopFilePid || // 当窗口pid和launchedDesktopFilePid相同时
         ( process->getPpid() &&
           process->getPpid() == launchedDesktopFilePid &&
           pidIsSh(process->getPpid())
-        ) // 当窗口的进程的父进程id（即ppid）和launchedDesktopFilePid相同，并且该父进程是sh或bash时。
+        ) || // 当窗口的进程的父进程id（即ppid）和launchedDesktopFilePid相同，并且该父进程是sh或bash时。
+        processInLinglong(process) // 当窗口pid在玲珑容器中
        ) {
 
         ret = new AppInfo(launchedDesktopFile);
