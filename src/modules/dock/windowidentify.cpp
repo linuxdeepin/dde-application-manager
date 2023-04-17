@@ -233,29 +233,34 @@ AppInfo *WindowIdentify::identifyWindowByPidEnv(Dock *_dock, WindowInfoX *winInf
     int launchedDesktopFilePid = launchedDesktopFilePidStr.toInt();
     qInfo() << "launchedDesktopFilePid=" << launchedDesktopFilePid << " launchedDesktopFile=" << launchedDesktopFile;
 
-    // 以下 2 种情况下，才能信任环境变量 GIO_LAUNCHED_DESKTOP_FILE。
-    // 1. 当窗口 pid 和 launchedDesktopFilePid 相同时；
-    // 2. 当窗口的进程的父进程 id（即 ppid）和 launchedDesktopFilePid 相同，
-    // 并且该父进程是 sh 或 bash 时。
-    bool needTry = false;
-    if (pid == launchedDesktopFilePid) {
-        needTry = true;
-    } else if (process->getPpid() && process->getPpid() == launchedDesktopFilePid) {
-        Process parentProcess(launchedDesktopFilePid);
+    auto pidIsSh = [](int pid) -> bool {
+        Process parentProcess(pid);
         auto parentCmdLine = parentProcess.getCmdLine();
-        if (parentCmdLine.size() > 0) {
-            qInfo() << "ppid equal " << "parentCmdLine[0]:" << parentCmdLine[0].c_str();
-            QString cmd0 = parentCmdLine[0].c_str();
-            int pos = cmd0.lastIndexOf('/');
-            if (pos > 0)
-                cmd0 = cmd0.remove(0, pos + 1);
-
-            if (cmd0 == "sh" || cmd0 == "bash")
-                needTry = true;
+        if (parentCmdLine.size() <= 0) {
+            return false;
         }
-    }
 
-    if (needTry) {
+        qInfo() << "ppid equal" << "parentCmdLine[0]:" << parentCmdLine[0].c_str();
+        QString cmd0 = parentCmdLine[0].c_str();
+        int pos = cmd0.lastIndexOf('/');
+        if (pos > 0)
+            cmd0 = cmd0.remove(0, pos + 1);
+
+        if (cmd0 == "sh" || cmd0 == "bash"){
+            return true;
+        }
+
+        return false;
+    };
+
+    // 以下几种情况下，才能信任环境变量 GIO_LAUNCHED_DESKTOP_FILE。
+    if (pid == launchedDesktopFilePid || // 当窗口pid和launchedDesktopFilePid相同时
+        ( process->getPpid() &&
+          process->getPpid() == launchedDesktopFilePid &&
+          pidIsSh(process->getPpid())
+        ) // 当窗口的进程的父进程id（即ppid）和launchedDesktopFilePid相同，并且该父进程是sh或bash时。
+       ) {
+
         ret = new AppInfo(launchedDesktopFile);
         innerId = ret->getInnerId();
     }
