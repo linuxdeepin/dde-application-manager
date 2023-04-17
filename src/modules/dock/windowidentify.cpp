@@ -223,38 +223,41 @@ AppInfo *WindowIdentify::identifyWindowByPidEnv(Dock *_dock, WindowInfoX *winInf
     int pid = winInfo->getPid();
     auto process = winInfo->getProcess();
     qInfo() << "identifyWindowByPidEnv: pid=" << pid << " WindowId=" << winInfo->getXid();
-    if (pid != 0 && process) {
-        QString launchedDesktopFile = process->getEnv("GIO_LAUNCHED_DESKTOP_FILE").c_str();
-        QString launchedDesktopFilePidStr = process->getEnv("GIO_LAUNCHED_DESKTOP_FILE_PID").c_str();
-        int launchedDesktopFilePid = launchedDesktopFilePidStr.toInt();
-        qInfo() << "launchedDesktopFilePid=" << launchedDesktopFilePid << " launchedDesktopFile=" << launchedDesktopFile;
 
-        // 以下 2 种情况下，才能信任环境变量 GIO_LAUNCHED_DESKTOP_FILE。
-        // 1. 当窗口 pid 和 launchedDesktopFilePid 相同时；
-        // 2. 当窗口的进程的父进程 id（即 ppid）和 launchedDesktopFilePid 相同，
-        // 并且该父进程是 sh 或 bash 时。
-        bool needTry = false;
-        if (pid == launchedDesktopFilePid) {
-            needTry = true;
-        } else if (process->getPpid() && process->getPpid() == launchedDesktopFilePid) {
-            Process parentProcess(launchedDesktopFilePid);
-            auto parentCmdLine = parentProcess.getCmdLine();
-            if (parentCmdLine.size() > 0) {
-                qInfo() << "ppid equal " << "parentCmdLine[0]:" << parentCmdLine[0].c_str();
-                QString cmd0 = parentCmdLine[0].c_str();
-                int pos = cmd0.lastIndexOf('/');
-                if (pos > 0)
-                    cmd0 = cmd0.remove(0, pos + 1);
+    if (pid == 0 || !process) {
+        return ret;
+    }
 
-                if (cmd0 == "sh" || cmd0 == "bash")
-                    needTry = true;
-            }
+    QString launchedDesktopFile = process->getEnv("GIO_LAUNCHED_DESKTOP_FILE").c_str();
+    QString launchedDesktopFilePidStr = process->getEnv("GIO_LAUNCHED_DESKTOP_FILE_PID").c_str();
+    int launchedDesktopFilePid = launchedDesktopFilePidStr.toInt();
+    qInfo() << "launchedDesktopFilePid=" << launchedDesktopFilePid << " launchedDesktopFile=" << launchedDesktopFile;
+
+    // 以下 2 种情况下，才能信任环境变量 GIO_LAUNCHED_DESKTOP_FILE。
+    // 1. 当窗口 pid 和 launchedDesktopFilePid 相同时；
+    // 2. 当窗口的进程的父进程 id（即 ppid）和 launchedDesktopFilePid 相同，
+    // 并且该父进程是 sh 或 bash 时。
+    bool needTry = false;
+    if (pid == launchedDesktopFilePid) {
+        needTry = true;
+    } else if (process->getPpid() && process->getPpid() == launchedDesktopFilePid) {
+        Process parentProcess(launchedDesktopFilePid);
+        auto parentCmdLine = parentProcess.getCmdLine();
+        if (parentCmdLine.size() > 0) {
+            qInfo() << "ppid equal " << "parentCmdLine[0]:" << parentCmdLine[0].c_str();
+            QString cmd0 = parentCmdLine[0].c_str();
+            int pos = cmd0.lastIndexOf('/');
+            if (pos > 0)
+                cmd0 = cmd0.remove(0, pos + 1);
+
+            if (cmd0 == "sh" || cmd0 == "bash")
+                needTry = true;
         }
+    }
 
-        if (needTry) {
-            ret = new AppInfo(launchedDesktopFile);
-            innerId = ret->getInnerId();
-        }
+    if (needTry) {
+        ret = new AppInfo(launchedDesktopFile);
+        innerId = ret->getInnerId();
     }
 
     return ret;
