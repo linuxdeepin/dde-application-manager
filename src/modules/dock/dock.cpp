@@ -40,17 +40,17 @@ Dock::Dock(ApplicationManager *applicationManager, QObject *parent)
 {
     registeModule("dock");
 
-    QString sessionType {getenv("XDG_SESSION_TYPE")};
-    qInfo() << "sessionType=" << sessionType;
-    if (sessionType.contains("wayland")) {
+    if (isWaylandSession()) {
         // wayland env
         m_isWayland = true;
         m_waylandManager = new WaylandManager(this);
         m_dbusHandler->listenWaylandWMSignals();
-    } else if (sessionType.contains("x11")) {
+    } else if (isX11Session()) {
         // x11 env
         m_isWayland = false;
         m_x11Manager = new X11Manager(this);
+    } else {
+        qFatal("Unknown XDG_SESSION_TYPE '%s'", sessionType().constData());
     }
 
     initSettings();

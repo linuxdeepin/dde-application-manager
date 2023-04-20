@@ -163,31 +163,6 @@ AppInfo *WindowIdentify::identifyWindowWayland(WindowInfoK *winInfo, QString &in
             appInfo = fixedAppInfo;
             appInfo->setIdentifyMethod("FixAutostart");
         }
-    } else {
-        // bamf
-        XWindow winId = winInfo->getXid();
-        QString desktop = m_dock->getDesktopFromWindowByBamf(winId);
-        if (!desktop.isEmpty()) {
-            appInfo = new AppInfo(desktop);
-        }
-
-        WMClass wmClass = XCB->getWMClass(winId);
-        if (wmClass.instanceName.size() > 0) {
-            QString instance(wmClass.instanceName.c_str());
-            appInfo = new AppInfo("org.deepin.flatdeb." + instance);
-            if (appInfo)
-                return appInfo;
-
-            appInfo = new AppInfo(instance);
-            if (appInfo)
-                return appInfo;
-
-            if (wmClass.className.size() > 0) {
-                appInfo = new AppInfo(wmClass.className.c_str());
-                if (appInfo)
-                    return appInfo;
-            }
-        }
     }
 
     if (appInfo)
@@ -421,6 +396,10 @@ AppInfo *WindowIdentify::identifyWindowByRule(Dock *_dock, WindowInfoX *winInfo,
 
 AppInfo *WindowIdentify::identifyWindowByBamf(Dock *_dock, WindowInfoX *winInfo, QString &innerId)
 {
+    if (_dock->isWaylandEnv()) {
+        return nullptr;
+    }
+
     AppInfo *ret = nullptr;
     XWindow xid = winInfo->getXid();
     qInfo() << "identifyWindowByBamf:  windowId=" << xid;

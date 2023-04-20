@@ -30,7 +30,7 @@ DBusHandler::DBusHandler(Dock *_dock, QObject *parent)
     // 关联org.deepin.dde.WMSwitcher1事件 WMChanged
     connect(m_wmSwitcher, &__WMSwitcher::WMChanged, this, [&](QString name) {m_dock->setWMName(name);});
 
-    if (QString(getenv("XDG_SESSION_TYPE")).contains("wayland")) {
+    if (isWaylandSession()) {
         m_xEventMonitor = new org::deepin::dde::XEventMonitor1("org.deepin.dde.XEventMonitor1", "/org/deepin/dde/XEventMonitor1", m_session, this);
         // 注册XEventMonitor区域为整个屏幕的区域
         m_activeWindowMonitorKey = m_xEventMonitor->RegisterFullScreen();
