@@ -74,4 +74,17 @@ const int MotifFunctionClose = 32;
 
 const QString ddeLauncherWMClass = "dde-launcher";
 
+static inline QByteArray sessionType() {
+    static QByteArray type = qgetenv("XDG_SESSION_TYPE");
+    return type;
+}
+
+static inline bool isWaylandSession() {
+    return sessionType().compare("wayland") == 0;
+}
+
+static inline bool isX11Session() {
+    return sessionType().compare("x11") == 0;
+}
+
 #endif // COMMON_H
