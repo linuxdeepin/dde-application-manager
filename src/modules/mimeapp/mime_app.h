@@ -19,7 +19,6 @@ class MimeApp : public QObject
 public:
     explicit MimeApp(QObject *parent = nullptr);
     void deleteMimeAssociation(std::string mimeType, std::string desktopId);
-    void initConfigData();
     bool setDefaultApp(const std::string &mimeType, const  std::string &desktopId);
     std::string findFilePath(std::string fileName);
     ~MimeApp() override;

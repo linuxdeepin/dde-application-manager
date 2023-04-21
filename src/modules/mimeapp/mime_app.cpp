@@ -162,7 +162,6 @@ MimeApp::MimeApp(QObject *parent) : QObject(parent), dd_ptr(new MimeAppPrivate(t
 {
     Q_D(MimeApp);
     d->Init();
-    initConfigData();
 }
 
 MimeApp::~MimeApp()
@@ -197,56 +196,6 @@ void MimeApp::deleteMimeAssociation(std::string mimeType, std::string desktopId)
     }
 
     keyFile.saveToFile(d->filename);
-}
-
-void MimeApp::initConfigData()
-{
-    // TODO 这个配置文件当前仍然是在dde-daemon中，但mime的服务已经迁移到此项目，后续应该把这个配置文件拿过来
-    std::string filename = findFilePath("/dde-daemon/mime/data.json");
-
-    QFile file(filename.c_str());
-    if (!file.exists()) {
-        return;
-    }
-
-    if (!file.open(QIODevice::ReadOnly)) {
-        return;
-    }
-
-    QJsonParseError *error = new QJsonParseError;
-    QJsonDocument jdc = QJsonDocument::fromJson(file.readAll(), error);
-
-    Methods::DefaultUserAppInfos defaultAppInfos;
-    Methods::fromJson(jdc.object(), defaultAppInfos);
-
-    file.close();
-
-    for (auto defaultApp : defaultAppInfos.appInfos) {
-        std::string validAppId;
-
-        for (auto type : defaultApp.supportedType) {
-            // 如果之前用户有修改默认程序，在每次初始化时不应该再使用配置文件里面的默认程序
-            std::string appId = AppInfoManger::getDefaultApp(type.toString().toStdString(), false);
-            if (!appId.empty()) {
-                continue;
-            }
-
-            if (!validAppId.empty()) {
-                if (setDefaultApp(type.toString().toStdString(), validAppId)) {
-                    continue;
-                }
-            }
-
-            for (auto appId : defaultApp.appId) {
-                if (setDefaultApp(type.toString().toStdString(), appId.toString().toStdString())) {
-                    validAppId = appId.toString().toStdString();
-                    break;
-                } else {
-                    continue;
-                }
-            }
-        }
-    }
 }
 
 std::string MimeApp::findFilePath(std::string fileName)
