@@ -372,6 +372,34 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     QStringList envs;
     QString appId(QString::fromStdString(info->getId()));
 
+    // FIXME: Fix in deepin-wine, this is a workaround
+    bool isDeepinWine = false;
+    do {
+        int shFilePathStart = cmdLine.indexOf("/opt/apps/");
+        if (shFilePathStart < 0)
+           break;
+        const QString shFileName("/run.sh");
+        int shFilePathEnd = cmdLine.lastIndexOf(shFileName);
+        if (shFilePathEnd < 0)
+           break;
+
+        const QString shFilePath = cmdLine.mid(shFilePathStart, shFilePathEnd - shFilePathStart + shFileName.size());
+        QFile file(shFilePath);
+        if (file.open(QIODevice::ReadOnly)) {
+           while (!file.atEnd()) {
+                const QByteArray &line = file.readLine();
+                if (line.contains("deepin-wine")) {
+                    isDeepinWine = true;
+                    break;
+                }
+           }
+        }
+    } while (false);
+
+    if (isDeepinWine) {
+        envs << "XDG_CURRENT_DESKTOP=Deepin" << "DESKTOP_SESSION=deepin" << "XDG_SESSION_DESKTOP=Deepin";
+    }
+
     bool useProxy = shouldUseProxy(appId);
     for (QString var : QProcess::systemEnvironment()) {
         if (useProxy && (var.startsWith("auto_proxy")
@@ -384,14 +412,25 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
             continue;
         }
 
+        if (isDeepinWine && (var.startsWith("XDG_CURRENT_DESKTOP")
+                             || var.startsWith("DESKTOP_SESSION")
+                             || var.startsWith("XDG_SESSION_DESKTOP"))) {
+            continue;
+        }
+
         envs << var;
     }
 
     if (!appId.isEmpty() && shouldDisableScaling(appId)) {
         double scale = SETTING->getScaleFactor();
         scale = scale > 0 ? 1 / scale : 1;
-        QString qtEnv = "QT_SCALE_FACTOR=" + QString::number(scale, 'f', -1);
+        const QString scaleString = QString::number(scale, 'f', -1);
+        QString qtEnv = "QT_SCALE_FACTOR=" + scaleString;
         cmdPrefixesEnvs << "/usr/bin/env" << "GDK_DPI_SCALE=1" << "GDK_SCALE=1" << qtEnv;
+
+        if (isDeepinWine) {
+            envs << "DEEPIN_WINE_SCALE=" + scaleString;
+        }
     }
 
     envs << cmdPrefixesEnvs;
