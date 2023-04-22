@@ -22,6 +22,8 @@
 #include <QJsonObject>
 #include <QTimer>
 #include <QThread>
+#include <QDBusConnection>
+#include <QDBusReply>
 
 #define DESKTOPEXT ".desktop"
 #define SETTING StartManagerSettings::instance()
@@ -387,11 +389,22 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         envs << var;
     }
 
-    if (!appId.isEmpty() && shouldDisableScaling(appId)) {
-        double scale = SETTING->getScaleFactor();
-        scale = scale > 0 ? 1 / scale : 1;
-        QString qtEnv = "QT_SCALE_FACTOR=" + QString::number(scale, 'f', -1);
-        cmdPrefixesEnvs << "/usr/bin/env" << "GDK_DPI_SCALE=1" << "GDK_SCALE=1" << qtEnv;
+    // FIXME: Don't using env to control the window scale factor,  this function
+    // should via using graphisc server(Wayland Compositor/Xorg Xft) in deepin wine.
+    if (!appId.isEmpty() && !shouldDisableScaling(appId)) {
+        auto dbus = QDBusConnection::sessionBus();
+        QDBusMessage reply = dbus.call(QDBusMessage::createMethodCall("org.deepin.dde.XSettings1",
+                                                                      "/org/deepin/dde/XSettings1",
+                                                                      "org.deepin.dde.XSettings1",
+                                                                      "GetScaleFactor"), QDBus::Block, 2);
+
+        if (reply.type() == QDBusMessage::ReplyMessage) {
+            QDBusReply<double> ret(reply);
+            double scale = ret.isValid() ? ret.value() : 1.0;
+            scale = scale > 0 ? scale : 1;
+            const QString scaleStr = QString::number(scale, 'f', -1);
+            envs << "DEEPIN_WINE_SCALE=" + scaleStr;
+        }
     }
 
     envs << cmdPrefixesEnvs;
