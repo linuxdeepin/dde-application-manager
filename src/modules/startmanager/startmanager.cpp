@@ -12,6 +12,7 @@
 #include "meminfo.h"
 #include "../../service/impl/application_manager.h"
 
+#include <sys/wait.h>
 #include <wordexp.h>
 
 #include <QFileSystemWatcher>
@@ -37,10 +38,23 @@ StartManager::StartManager(QObject *parent)
     , m_autostartFiles(getAutostartList())
     , m_isDBusCalled(false)
 {
+    waitForDeadChild();
     loadSysMemLimitConfig();
     getDesktopToAutostartMap();
     listenAutostartFileEvents();
     startAutostartProgram();
+}
+
+static void sig_child(int signo)
+{
+    int stat;
+    int pid;
+    while((pid = waitpid(-1, &stat, WNOHANG)) > 0);
+}
+
+void StartManager::waitForDeadChild()
+{
+    signal(SIGCHLD, sig_child);
 }
 
 bool StartManager::addAutostart(const QString &desktop)
@@ -369,24 +383,26 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
 
 bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files)
 {
-    QProcess process;
+    QProcess process; // NOTE(black_desk): this QProcess not used to start, we
+                      // have to manually fork and exec to set
+                      // GIO_LAUNCHED_DESKTOP_FILE_PID.
     QStringList cmdPrefixesEnvs;
-    QStringList envs;
+    QProcessEnvironment envs = QProcessEnvironment::systemEnvironment();
     QString appId(QString::fromStdString(info->getId()));
 
     bool useProxy = shouldUseProxy(appId);
-    for (QString var : QProcess::systemEnvironment()) {
-        if (useProxy && (var.startsWith("auto_proxy")
-                         || var.startsWith("http_proxy")
-                         || var.startsWith("https_proxy")
-                         || var.startsWith("ftp_proxy")
-                         || var.startsWith("all_proxy")
-                         || var.startsWith("SOCKS_SERVER")
-                         || var.startsWith("no_proxy"))) {
-            continue;
-        }
-
-        envs << var;
+    if (useProxy) {
+        envs.remove("auto_proxy");
+        envs.remove("AUTO_PROXY");
+        envs.remove("http_proxy");
+        envs.remove("HTTP_PROXY");
+        envs.remove("https_proxy");
+        envs.remove("HTTPS_PROXY");
+        envs.remove("ftp_proxy");
+        envs.remove("FTP_PROXY");
+        envs.remove("SOCKS_SERVER");
+        envs.remove("no_proxy");
+        envs.remove("NO_PROXY");
     }
 
     // FIXME: Don't using env to control the window scale factor,  this function
@@ -403,11 +419,9 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
             double scale = ret.isValid() ? ret.value() : 1.0;
             scale = scale > 0 ? scale : 1;
             const QString scaleStr = QString::number(scale, 'f', -1);
-            envs << "DEEPIN_WINE_SCALE=" + scaleStr;
+            envs.insert("DEEPIN_WINE_SCALE", scaleStr);
         }
     }
-
-    envs << cmdPrefixesEnvs;
 
     QStringList exeArgs;
 
@@ -438,8 +452,8 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     QString exec = exeArgs[0];
     exeArgs.removeAt(0);
 
-    qDebug() << "Launching app, desktop: " << QString::fromStdString(info->getFileName()) << " exec:  " << exec
-             << " args:   " << exeArgs << " useProxy:" << useProxy << "appid:" << appId << "envs:" << envs;
+    qDebug() << "Launching app, desktop:" << QString::fromStdString(info->getFileName()) << "exec:" << exec
+             << "args:" << exeArgs << "useProxy:" << useProxy << "appid:" << appId << "envs:" << envs.toStringList();
 
     process.setProgram(exec);
     process.setArguments(exeArgs);
@@ -447,17 +461,36 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
 
     // NOTE(black_desk): This have to be done after load system environment.
     // Set same env twice in qt make the first one gone.
-    envs << QString("GIO_LAUNCHED_DESKTOP_FILE=") +
-            QString::fromStdString(info->getDesktopFile()->getFilePath());
+    envs.insert("GIO_LAUNCHED_DESKTOP_FILE", QString::fromStdString(info->getDesktopFile()->getFilePath()));
 
-    process.setEnvironment(envs);
-    qint64 pid = 0;
-    if (process.startDetached(&pid)) {
+    qint64 pid = fork();
+    if (pid == 0) {
+        envs.insert("GIO_LAUNCHED_DESKTOP_FILE_PID", QByteArray::number(getpid()).constData());
+        auto argList = process.arguments();
+        char const * args[argList.length() + 1];
+        std::transform(argList.constBegin(), argList.constEnd(), args, [](const QString& str){
+                auto byte = new QByteArray;
+                *byte = str.toUtf8();
+                auto tmp_buf = byte->data();
+                return tmp_buf;
+        });
+        args[process.arguments().length()] = 0;
+        auto envStringList = envs.toStringList();
+        char const * envs[envStringList.length() + 1];
+        std::transform(envStringList.constBegin(), envStringList.constEnd(), envs, [](const QString& str){
+                auto byte = new QByteArray;
+                *byte = str.toUtf8();
+                auto tmp_buf = byte->data();
+                return tmp_buf;
+        });
+        envs[envStringList.length()] = 0;
+        execvpe(process.program().toLocal8Bit().constData(), (char**)args, (char**)envs);
+        exit(-1);
+    } else {
         if (useProxy) {
             qDebug() << "Launch the process[" << pid << "] by app proxy.";
             dbusHandler->addProxyProc(pid);
         }
-
         return true;
     }
     return false;

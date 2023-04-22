@@ -40,6 +40,7 @@ public Q_SLOTS:
     void onAutoStartupPathChange(const QString &dirPath);
 
 private:
+    void waitForDeadChild();
     bool setAutostart(const QString &fileName, const bool value);
     bool doLaunchAppWithOptions(const QString &desktopFile);
     bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);

@@ -247,8 +247,8 @@ bool Launcher::requestSendToDesktop(QString appId)
 
     // 创建桌面快捷方式文件
     DesktopInfo dinfo(itemsMap[appId].info.path.toStdString());
-    dinfo.getDesktopFile()->setKey(MainSection, dbusService.toStdString(), "X-Deepin-CreatedBy");
-    dinfo.getDesktopFile()->setKey(MainSection, appId.toStdString(), "X-Deepin-AppID");
+    dinfo.getDesktopFile()->setKey(MainSection, "X-Deepin-CreatedBy", dbusService.toStdString());
+    dinfo.getDesktopFile()->setKey(MainSection, "X-Deepin-AppID", appId.toStdString());
     if (!dinfo.getDesktopFile()->saveToFile(filePath.toStdString()))
         return false;
 
