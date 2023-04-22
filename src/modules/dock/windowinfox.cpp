@@ -359,47 +359,53 @@ void WindowInfoX::update()
 
 QString WindowInfoX::getIconFromWindow()
 {
-    char *displayname = nullptr;
-    Display * dpy = XOpenDisplay (displayname);
-    if (!dpy) {
-        exit (1);
-    }
-
     Atom net_wm_icon = XCB->getAtom("_NET_WM_ICON");
 
-    unsigned char *buf = nullptr;
-    int format;
-    Atom type;
-    unsigned long nitems, bytes;
-
-    // Get image size
-    XGetWindowProperty(dpy, xid, net_wm_icon, 0, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
-    if (!buf) {
-        qWarning() << "Failed to get width for window icon, window id:" << xid;
+    std::unique_ptr<xcb_get_property_reply_t> reply;
+    reply.reset(XCB->getPropertyValueReply(xid, net_wm_icon));
+    if (!reply) {
+        qWarning() << "Failed to get icon for window, window id:" << xid;
         return QString();
     }
-    int width = *(int *)buf;
-    XFree(buf);
-    XGetWindowProperty(dpy, xid, net_wm_icon, 1, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
-    if (!buf) {
-        qWarning() << "Failed to get height for window icon, window id:" << xid;
+
+    uint32_t *data = static_cast<uint32_t *>(xcb_get_property_value(reply.get()));
+    if (!data) {
+        qWarning() << "Failed to get icon value for window, window id:" << xid;
         return QString();
     }
-    int height = *(int *)buf;
-    XFree(buf);
 
-    long size = width * height;
-    XGetWindowProperty(dpy, xid, net_wm_icon, 2, size, 0, AnyPropertyType, &type, &format, &nitems, &bytes,
-                       &buf);
-    unsigned long *imgArr = (unsigned long *)(buf);
-    std::vector<uint32_t> imgARGB32(size);
-    for (long i = 0; i < size; ++i) {
-        imgARGB32[i] = (uint32_t)(imgArr[i]);
+    uint32_t *data_end = static_cast<uint32_t *>(xcb_get_property_value_end(reply.get()).data);
+
+    int max_w = 0;
+    int max_h = 0;
+    uint32_t *max_icon = nullptr;
+    uint32_t *p = data;
+    while (p < data_end) {
+        int width = p[0];
+        int height = p[1];
+        int size = width * height;
+        p += 2;
+        if (size == 0) {
+            continue;
+        }
+
+        uint32_t *icon = (p + 2);
+        p += size;
+        if (width > max_w || height > max_h) {
+            max_w = width;
+            max_h = height;
+            max_icon = icon;
+        }
     }
 
-    XFree(buf);
+    if (!max_icon) {
+        return QString();
+    }
 
-    QImage img = QImage((uchar *)imgARGB32.data(), width, height, QImage::Format_ARGB32);
+    QImage img(max_w, max_h, QImage::Format_ARGB32);
+    int byteCount = img.sizeInBytes();
+    std::copy_n(max_icon, byteCount, img.bits());
+
     QBuffer buffer;
     buffer.open(QIODevice::WriteOnly);
     img.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation);
