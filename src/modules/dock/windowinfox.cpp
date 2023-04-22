@@ -359,47 +359,14 @@ void WindowInfoX::update()
 
 QString WindowInfoX::getIconFromWindow()
 {
-    char *displayname = nullptr;
-    Display * dpy = XOpenDisplay (displayname);
-    if (!dpy) {
-        exit (1);
-    }
+    WMIcon icon = XCB->getWMIcon(xid);
 
-    Atom net_wm_icon = XCB->getAtom("_NET_WM_ICON");
-
-    unsigned char *buf = nullptr;
-    int format;
-    Atom type;
-    unsigned long nitems, bytes;
-
-    // Get image size
-    XGetWindowProperty(dpy, xid, net_wm_icon, 0, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
-    if (!buf) {
-        qWarning() << "Failed to get width for window icon, window id:" << xid;
+    // invalid icon
+    if (icon.width == 0) {
         return QString();
     }
-    int width = *(int *)buf;
-    XFree(buf);
-    XGetWindowProperty(dpy, xid, net_wm_icon, 1, 1, 0, AnyPropertyType, &type, &format, &nitems, &bytes, &buf);
-    if (!buf) {
-        qWarning() << "Failed to get height for window icon, window id:" << xid;
-        return QString();
-    }
-    int height = *(int *)buf;
-    XFree(buf);
 
-    long size = width * height;
-    XGetWindowProperty(dpy, xid, net_wm_icon, 2, size, 0, AnyPropertyType, &type, &format, &nitems, &bytes,
-                       &buf);
-    unsigned long *imgArr = (unsigned long *)(buf);
-    std::vector<uint32_t> imgARGB32(size);
-    for (long i = 0; i < size; ++i) {
-        imgARGB32[i] = (uint32_t)(imgArr[i]);
-    }
-
-    XFree(buf);
-
-    QImage img = QImage((uchar *)imgARGB32.data(), width, height, QImage::Format_ARGB32);
+    QImage img = QImage((uchar *)icon.data.data(), icon.width, icon.width, QImage::Format_ARGB32);
     QBuffer buffer;
     buffer.open(QIODevice::WriteOnly);
     img.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation);

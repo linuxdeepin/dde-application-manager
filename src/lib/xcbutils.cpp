@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstring>
 #include <memory>
+#include <algorithm>
 
 #include <X11/Xlib.h>
 #include <X11/extensions/XRes.h>
@@ -421,41 +422,52 @@ std::string XCBUtils::getWMIconName(XWindow xid)
     return ret;
 }
 
-std::vector<WMIcon> XCBUtils::getWMIcon(XWindow xid)
+WMIcon XCBUtils::getWMIcon(XWindow xid)
 {
-    std::vector<WMIcon> ret;
+    WMIcon wmIcon{};
     xcb_get_property_cookie_t cookie = xcb_ewmh_get_wm_icon(&m_ewmh, xid);
     xcb_ewmh_get_wm_icon_reply_t reply;
-    if (xcb_ewmh_get_wm_icon_reply(&m_ewmh, cookie, &reply, nullptr)) {
-        xcb_ewmh_wm_icon_iterator_t iter = xcb_ewmh_get_wm_icon_iterator(&reply);
+    xcb_generic_error_t *error;
+
+    auto ret = xcb_ewmh_get_wm_icon_reply(&m_ewmh, cookie, &reply, &error);
+
+    if (error) {
+        std::cout << "failed to get wm icon" << error->error_code;
+        std::free(error);
+        return wmIcon;
+    }
+
+    if (ret) {
         auto fcn = [](xcb_ewmh_wm_icon_iterator_t it) {
-            std::vector<BYTE> ret;
+            // 根据宽高获取每个位置的数据，每行前有两个位置offset
+            const auto size = 2 + it.width * it.height;
+            std::vector<uint32_t> ret(size);
             // data数据是按行从左至右，从上至下排列
             uint32_t *data = it.data;
             if (!data) {
                 return ret;
             }
 
-            // 根据宽高获取每个位置的数据，每行前有两个位置offset
-            int area = it.width * it.height;
-            for (int i = 0; i < (2 + area) * 4; i++, data++) {
-                ret.push_back(*data);
-            }
+            std::copy_n(data, size, ret.begin());
             return ret;
         };
 
-        ret.push_back({iter.width, iter.height, fcn(iter)});
-
-        // 获取不同size图标数据
-        while (iter.rem >= 1) {
-            xcb_ewmh_get_wm_icon_next(&iter);
-            ret.push_back({iter.width, iter.height, fcn(iter)});
+        // 获取icon中size最大的图标
+        xcb_ewmh_wm_icon_iterator_t iter = xcb_ewmh_get_wm_icon_iterator(&reply);
+        xcb_ewmh_wm_icon_iterator_t wmIconIt{0, 0, nullptr};
+        for (; iter.rem; xcb_ewmh_get_wm_icon_next(&iter)) {
+            const int size = iter.width * iter.height;
+            if (size > 0 && size > wmIconIt.width * wmIconIt.height) {
+                wmIconIt = iter;
+            }
         }
+
+        wmIcon = WMIcon{wmIconIt.width, wmIconIt.height, fcn(wmIconIt)};
 
         xcb_ewmh_get_wm_icon_reply_wipe(&reply); // clear
     }
 
-    return ret;
+    return wmIcon;
 }
 
 XWindow XCBUtils::getWMClientLeader(XWindow xid)

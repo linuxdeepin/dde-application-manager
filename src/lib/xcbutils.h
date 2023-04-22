@@ -44,11 +44,10 @@ typedef struct {
     uint32_t status;
 } MotifWMHints;
 
-typedef unsigned char BYTE;
 typedef struct {
   uint32_t width;   /** Icon width */
   uint32_t height;  /** Icon height */
-  std::vector<BYTE> data;   /** Rows, left to right and top to bottom of the CARDINAL ARGB */
+  std::vector<uint32_t> data;   /** Rows, left to right and top to bottom of the CARDINAL ARGB */
 } WMIcon;
 
 typedef struct WindowFrameExtents {
@@ -202,7 +201,7 @@ public:
     std::string getWMIconName(XWindow xid);
 
     // 获取窗口图标信息 _NET_WM_ICON
-    std::vector<WMIcon> getWMIcon(XWindow xid);
+    WMIcon getWMIcon(XWindow xid);
 
     // WM_CLIENT_LEADER
     XWindow getWMClientLeader(XWindow xid);
