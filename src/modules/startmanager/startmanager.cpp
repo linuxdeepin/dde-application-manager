@@ -467,14 +467,16 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     if (pid == 0) {
         envs.insert("GIO_LAUNCHED_DESKTOP_FILE_PID", QByteArray::number(getpid()).constData());
         auto argList = process.arguments();
-        char const * args[argList.length() + 1];
-        std::transform(argList.constBegin(), argList.constEnd(), args, [](const QString& str){
+        char const * args[argList.length() + 2];
+        std::transform(argList.constBegin(), argList.constEnd(), args + 1, [](const QString& str){
                 auto byte = new QByteArray;
                 *byte = str.toUtf8();
                 auto tmp_buf = byte->data();
                 return tmp_buf;
         });
-        args[process.arguments().length()] = 0;
+        auto arg0 = process.program().toLocal8Bit();
+        args[0] = arg0.constData();
+        args[process.arguments().length() + 1] = 0;
         auto envStringList = envs.toStringList();
         char const * envs[envStringList.length() + 1];
         std::transform(envStringList.constBegin(), envStringList.constEnd(), envs, [](const QString& str){
@@ -484,7 +486,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
                 return tmp_buf;
         });
         envs[envStringList.length()] = 0;
-        execvpe(process.program().toLocal8Bit().constData(), (char**)args, (char**)envs);
+        execvpe(arg0.constData(), (char**)args, (char**)envs);
         exit(-1);
     } else {
         if (useProxy) {
