@@ -1,3 +1,15 @@
+dde-application-manager (1.0.12) unstable; urgency=medium
+
+  * fix: 退出没有图标的应用AM崩溃
+  * fix GIO_LAUNCHED_DESKTOP_FILE_PID
+  * fix: set DEEPIN_WINE_SCALE on launch an application
+  * fix: 任务栏最近使用任务区域残留锯齿图标应用
+  * chore: don't initialize the default applications
+  * fix: don't use bamf on wayland session
+  * fix: 修改了process.start函数参数的问题
+
+ -- dengbo <dengbo@uniontech.com>  Sun, 23 Apr 2023 17:57:05 +0800
+
 dde-application-manager (1.0.11) unstable; urgency=medium
 
   * fix: icon in launcher after uninstall linglong app
