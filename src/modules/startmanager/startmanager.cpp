@@ -661,10 +661,8 @@ void StartManager::handleRecognizeArgs(QStringList &exeArgs, QStringList files)
     // > codes must be removed from the command line and ignored.
 
     if (files.isEmpty()) {
-        for (QString &exeArg: exeArgs) {
-            for (const QString &arg : argList) {
-                exeArg.replace(arg, "");
-            }
+        for (const QString &arg : argList) {
+            exeArgs.removeAll(arg);
         }
         return;
     }
