@@ -1142,14 +1142,14 @@ void Launcher::notifyUninstallDone(const Item &item, bool result)
 {
     QString msg;
     if (result)
-        msg = QString(tr("Removed successfully"));
+        msg = tr("%1 removed successfully").arg(item.info.name);
     else
-        msg = QString(tr("Failed to remove the app"));
+        msg = tr("Failed to remove the app");
 
     QList<QVariant> argList;
-    argList << QString("deepin-app-store")
+    argList << QStringLiteral("deepin-app-store")
             << quint32(0)
-            << QString("deepin-app-store")
+            << QStringLiteral("application-x-executable")
             << msg
             << QString("")
             << QStringList("")
