@@ -7,6 +7,9 @@ CollectMode=inactive-or-failed
 StartLimitIntervalSec=10s
 StartLimitBurst=30
 
+Requires=dde-session-pre.target
+After=dde-session-pre.target
+
 [Service]
 Type=dbus
 BusName=org.deepin.dde.Application1.Manager
