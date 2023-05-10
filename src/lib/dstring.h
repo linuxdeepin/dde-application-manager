@@ -24,7 +24,6 @@ public:
     // 字符串拆分
     static std::vector<std::string> splitChars(const char *cs, char c);
     static std::vector<std::string> splitStr(const std::string &str, char c);
-    static std::vector<std::string> splitVectorChars(const std::vector<char> &content, size_t length, char c);
     // 字符串前缀判断
     static bool startWith(const char *chars, const char *prefix);
     static bool startWith(const std::string &str, const std::string &prefix);
