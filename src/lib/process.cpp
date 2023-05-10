@@ -8,6 +8,7 @@
 #include "dfile.h"
 
 #include <algorithm>
+#include <fstream>
 #include <dirent.h>
 #include <unistd.h>
 
@@ -154,18 +155,19 @@ std::string Process::getFile(const std::string &name)
     return "/proc/" + std::to_string(m_pid) + "/" + name;
 }
 
-// /proc is not real file system
+// This funciton only can used to read `environ` and `cmdline`
 std::vector<std::string> Process::readFile(std::string fileName)
 {
     std::vector<std::string> ret;
-    std::FILE *fp = std::fopen(fileName.c_str(), "r");
-    if (!fp)
-        return ret;
+    std::ifstream fs(fileName);
+    if (!fs.is_open()) {
+            return ret;
+    }
 
-    std::vector<char> content(FILECONTENLEN);
-    std::size_t len = std::fread(&content[0], 1, FILECONTENLEN, fp);
-    std::fclose(fp);
+    std::string tmp;
+    while (std::getline(fs, tmp, '\0')) {
+        ret.push_back(tmp);
+    }
 
-    ret = DString::splitVectorChars(content, len, '\0');
     return ret;
 }
