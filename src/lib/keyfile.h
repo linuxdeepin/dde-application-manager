@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <cstdint>
 
 typedef std::map<std::string, std::string> KeyMap;
 typedef std::map<std::string, KeyMap> MainKeyMap;
