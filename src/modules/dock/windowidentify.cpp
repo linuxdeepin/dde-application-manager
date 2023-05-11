@@ -208,6 +208,10 @@ AppInfo *WindowIdentify::identifyWindowByPidEnv(Dock *_dock, WindowInfoX *winInf
     int launchedDesktopFilePid = launchedDesktopFilePidStr.toInt();
     qInfo() << "launchedDesktopFilePid=" << launchedDesktopFilePid << " launchedDesktopFile=" << launchedDesktopFile;
 
+    if (launchedDesktopFile.isEmpty()) {
+            return ret;
+    }
+
     auto pidIsSh = [](int pid) -> bool {
         Process parentProcess(pid);
         auto parentCmdLine = parentProcess.getCmdLine();
