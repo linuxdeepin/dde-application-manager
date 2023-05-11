@@ -8,6 +8,7 @@
 #include "dfile.h"
 
 #include <algorithm>
+#include <fstream>
 #include <dirent.h>
 #include <unistd.h>
 
@@ -99,20 +100,30 @@ std::string Process::getEnv(const std::string &key)
 
 Status Process::getStatus()
 {
-    if (m_status.size() == 0) {
-        std::string statusFile = getFile("status");
-        FILE *fp = fopen(statusFile.c_str(), "r");
-        if (!fp)
-            return m_status;
+    if (!m_status.empty()){
+        return m_status;
+    }
 
-        char line[MAX_LINE_LEN] = {0};
-        while (fgets(line, MAX_LINE_LEN, fp)) {
-            std::string info(line);
-            std::vector<std::string> parts = DString::splitStr(info, ':');
-            if (parts.size() == 2)
-            m_status[parts[0]] = parts[1];
+    std::string statusFile = getFile("status");
+
+    std::ifstream fs(statusFile);
+    if (!fs.is_open()) {
+        return m_status;
+    }
+
+    std::string tmp = "";
+    while (std::getline(fs, tmp)) {
+        auto pos = tmp.find_first_of(':');
+        if (pos == std::string::npos) {
+            continue;
         }
-        fclose(fp);
+
+        std::string value;
+        if (pos + 1 < tmp.length()) {
+            value = tmp.substr(pos + 1);
+        }
+
+        m_status[tmp.substr(0, pos)] = value;
     }
 
     return m_status;
@@ -154,18 +165,19 @@ std::string Process::getFile(const std::string &name)
     return "/proc/" + std::to_string(m_pid) + "/" + name;
 }
 
-// /proc is not real file system
+// This funciton only can used to read `environ` and `cmdline`
 std::vector<std::string> Process::readFile(std::string fileName)
 {
     std::vector<std::string> ret;
-    std::FILE *fp = std::fopen(fileName.c_str(), "r");
-    if (!fp)
-        return ret;
+    std::ifstream fs(fileName);
+    if (!fs.is_open()) {
+            return ret;
+    }
 
-    std::vector<char> content(FILECONTENLEN);
-    std::size_t len = std::fread(&content[0], 1, FILECONTENLEN, fp);
-    std::fclose(fp);
+    std::string tmp;
+    while (std::getline(fs, tmp, '\0')) {
+        ret.push_back(tmp);
+    }
 
-    ret = DString::splitVectorChars(content, len, '\0');
     return ret;
 }

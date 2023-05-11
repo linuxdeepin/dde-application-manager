@@ -49,28 +49,6 @@ std::vector<std::string> DString::splitStr(const std::string &str, char c)
     return splitChars(str.c_str(), c);
 }
 
-std::vector<std::string> DString::splitVectorChars(const std::vector<char> &content, size_t length, char c)
-{
-    std::vector<std::string> ret;
-    size_t pos = 0;
-    bool hasChar = true;
-    for (size_t i = 0; i < length; i++) {
-        if (content[i] == c && i > pos && hasChar) {
-            std::string str;
-            for (size_t j = pos; j <= i; j++) {
-                str += std::string(1, content[j]);
-            }
-            ret.push_back(str);
-            pos = i + 1;
-            hasChar = false;
-        } else {
-            hasChar = true;
-        }
-    }
-
-    return ret;
-}
-
 bool DString::startWith(const char *chars, const char *prefix)
 {
     if (!chars || !prefix) {
