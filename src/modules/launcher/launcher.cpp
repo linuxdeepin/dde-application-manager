@@ -915,7 +915,7 @@ AppType Launcher::getAppType(DesktopInfo &info, const Item &item)
             break;
 
         fileInfo.setFile(parts[0].c_str());
-        if (flatpakBin != fileInfo.baseName())
+        if (flatpakBin != fileInfo.completeBaseName())
             break;
 
         ty = AppType::Flatpak;
@@ -937,7 +937,7 @@ AppType Launcher::getAppType(DesktopInfo &info, const Item &item)
     // 判断是否为CrossOver
     do {
         fileInfo.setFile(info.getExecutable().c_str());
-        QString execBase(fileInfo.baseName());
+        QString execBase(fileInfo.completeBaseName());
         if (execBase.contains("CrossOver") && (execBase.contains("crossover") || execBase.contains("cxuninstall"))) {
             ty = AppType::CrossOver;
             goto end;
@@ -1183,7 +1183,7 @@ bool Launcher::isDeepinCustomDesktopFile(QString fileName)
 {
     QFileInfo fileInfo(fileName);
     return fileInfo.dir() == QDir::homePath() + ".local/share/applications"
-            && fileInfo.baseName().startsWith("deepin-custom-");
+            && fileInfo.completeBaseName().startsWith("deepin-custom-");
 }
 
 Item Launcher::NewItemWithDesktopInfo(DesktopInfo &info)

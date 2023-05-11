@@ -42,7 +42,7 @@ ProcessInfo::ProcessInfo(int pid)
             return false;
 
         QFileInfo info(firstArg.c_str());
-        if (info.baseName() == firstArg.c_str())
+        if (info.completeBaseName() == firstArg.c_str())
             return true;
 
         if (!QDir::isAbsolutePath(firstArg.c_str()))

@@ -64,7 +64,7 @@ void AlRecorder::markLaunched(const QString &filePath)
             continue;
 
         info.setFile(filePath);
-        QString name = info.baseName();
+        QString name = info.completeBaseName();
         for (auto li = sri.value().launchedMap.begin(); li != sri.value().launchedMap.end(); li++) {
             // 查找同名且未启动过的应用
             if (li.key() == name && !li.value()) {
@@ -91,7 +91,7 @@ void AlRecorder::uninstallHints(const QStringList &desktopFiles)
                 continue;
 
             QFileInfo info(desktop);
-            sri.value().uninstallMap[info.baseName()] = true;
+            sri.value().uninstallMap[info.completeBaseName()] = true;
         }
     }
 }
@@ -182,7 +182,7 @@ void AlRecorder::onDFChanged(const QString &filePath, uint32_t op)
 {
     QFileInfo info(filePath);
     QString dirPath = info.absolutePath() + "/";
-    QString name = info.baseName();
+    QString name = info.completeBaseName();
     subRecorder &sub = subRecoders[dirPath];
     QMap<QString, bool> &launchedMap = sub.launchedMap;
 

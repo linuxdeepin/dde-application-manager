@@ -93,7 +93,7 @@ bool StartManager::isAutostart(const QString &desktop)
 
     QFileInfo file(desktop);
     for (auto autostartDir : BaseDir::autoStartDirs()) {
-        std::string filePath = autostartDir + file.baseName().toStdString();
+        std::string filePath = autostartDir + file.completeBaseName().toStdString();
         QDir dir(autostartDir.c_str());
         if (dir.exists(file.fileName())) {
             DesktopInfo info(desktop.toStdString());
@@ -191,7 +191,7 @@ void StartManager::onAutoStartupPathChange(const QString &path)
                 dir.setNameFilters({ "*.desktop" });
                 for (const auto &entry : dir.entryInfoList()) {
                     const QString &desktopPath = entry.absoluteFilePath();
-                    if (desktopPath.contains(info.baseName())) {
+                    if (desktopPath.contains(info.completeBaseName())) {
                         desktopFullPath = desktopPath;
                         break;
                     }
@@ -223,7 +223,7 @@ void StartManager::onAutoStartupPathChange(const QString &path)
             KeyFile kf;
             kf.loadFile(autostartDesktopPath.toStdString());
             kf.setKey(MainSection, KeyXDeepinCreatedBy.toStdString(), AMServiceName.toStdString());
-            kf.setKey(MainSection, KeyXDeepinAppID.toStdString(), info.baseName().toStdString());
+            kf.setKey(MainSection, KeyXDeepinAppID.toStdString(), info.completeBaseName().toStdString());
             kf.setBool(MainSection, KeyHidden, "false");
             kf.saveToFile(autostartDesktopPath.toStdString());
 
@@ -233,7 +233,7 @@ void StartManager::onAutoStartupPathChange(const QString &path)
                 dir.setNameFilters({ "*.desktop" });
                 for (const auto &entry : dir.entryInfoList()) {
                     const QString &desktopPath = entry.absoluteFilePath();
-                    if (desktopPath.contains(info.baseName())) {
+                    if (desktopPath.contains(info.completeBaseName())) {
                         desktopFullPath = desktopPath;
                         break;
                     }
@@ -287,7 +287,7 @@ bool StartManager::setAutostart(const QString &desktop, const bool value)
     }
 
     QDir autostartDir(BaseDir::userAutoStartDir().c_str());
-    const QString &appId = fileInfo.baseName();
+    const QString &appId = fileInfo.completeBaseName();
 
    if (value && isAutostart(desktop)) {
        qWarning() << "invalid path or item is already in the autostart list.";
@@ -624,7 +624,7 @@ QMap<QString, QString> StartManager::getDesktopToAutostartMap()
             dir.setNameFilters({ "*.desktop" });
             for (const auto &entry : dir.entryInfoList()) {
                 const QString &desktopPath = entry.absoluteFilePath();
-                if (desktopPath.contains(fileInfo.baseName()) &&
+                if (desktopPath.contains(fileInfo.completeBaseName()) &&
                         m_desktopDirToAutostartDirMap.find(desktopPath) == m_desktopDirToAutostartDirMap.end()) {
                     m_desktopDirToAutostartDirMap.insert(desktopPath, entry.absoluteFilePath());
                 }

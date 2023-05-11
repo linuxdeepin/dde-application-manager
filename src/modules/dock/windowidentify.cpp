@@ -277,7 +277,7 @@ AppInfo *WindowIdentify::identifyWindowByCmdlineTurboBooster(Dock *_dock, Window
             } else if (QString(cmdline[0].c_str()).contains("/applications/")) {
                 QFileInfo fileInfo(cmdline[0].c_str());
                 QString path = fileInfo.path();
-                QString base = fileInfo.baseName();
+                QString base = fileInfo.completeBaseName();
                 QDir dir(path);
                 QStringList files = dir.entryList(QDir::Files);
                 for (auto f : files) {
@@ -310,14 +310,14 @@ AppInfo *WindowIdentify::identifyWindowByCmdlineXWalk(Dock *_dock, WindowInfoX *
 
         QString exe = process->getExe().c_str();
         QFileInfo file(exe);
-        QString exeBase = file.baseName();
+        QString exeBase = file.completeBaseName();
         auto args = process->getArgs();
         if (exe != "xwalk" || args.size() == 0)
             break;
 
         QString lastArg = args[args.size() - 1].c_str();
         file.setFile(lastArg);
-        if (file.baseName() == "manifest.json") {
+        if (file.completeBaseName() == "manifest.json") {
             auto strs = lastArg.split("/");
             if (strs.size() > 3 && strs[strs.size() - 2].size() > 0) {    // appId为 strs倒数第二个字符串
                 ret = new AppInfo(strs[strs.size() - 2]);
@@ -516,7 +516,7 @@ AppInfo *WindowIdentify::fixAutostartAppInfo(QString fileName)
         }
     }
 
-    return isAutoStart ? new AppInfo(file.baseName()) : nullptr;
+    return isAutoStart ? new AppInfo(file.completeBaseName()) : nullptr;
 }
 
 int32_t WindowIdentify::getAndroidUengineId(XWindow winId)
