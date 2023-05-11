@@ -1,3 +1,10 @@
+dde-application-manager (1.0.14) unstable; urgency=medium
+
+  * fix: no environment variable on wayland
+  * fix: get wrong prefix of desktop name
+
+ -- dengbo <dengbo@deepin.org>  Thu, 11 May 2023 18:16:20 +0800
+
 dde-application-manager (1.0.13) unstable; urgency=medium
 
   * fix: early return in WindowIdentify::identifyWindowByPidEnv
