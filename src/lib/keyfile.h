@@ -49,7 +49,6 @@ public:
 protected:
     MainKeyMap m_mainKeyMap; // section -> key : value
     std::string m_filePath;
-    FILE *m_fp;
     bool m_modified;
     char m_listSeparator;
 

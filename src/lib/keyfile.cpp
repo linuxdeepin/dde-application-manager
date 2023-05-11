@@ -8,22 +8,19 @@
 #include "macro.h"
 
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 KeyFile::KeyFile(char separtor)
- : m_fp(nullptr)
- , m_modified(false)
+ : m_modified(false)
  , m_listSeparator(separtor)
 {
 }
 
 KeyFile::~KeyFile()
 {
-    if (m_fp) {
-        fclose(m_fp);
-        m_fp = nullptr;
-    }
 }
 
 bool KeyFile::getBool(const std::string &section, const std::string &key, bool defaultValue)
@@ -205,71 +202,72 @@ bool KeyFile::writeSectionToFile(const std::string& sectionName, const KeyMap& k
 bool KeyFile::loadFile(const std::string &filePath)
 {
     m_mainKeyMap.clear();
-    if (m_fp) {
-        fclose(m_fp);
-        m_fp = nullptr;
-    }
 
     std::string lastSection;
-    m_fp = fopen(filePath.data(), "r");
-    if (!m_fp) {
+    std::ifstream fs(filePath);
+    if (!fs.is_open()) {
         perror("open file failed: ");
         return false;
     }
 
-    char line[MAX_LINE_LEN] = {0};
-    while (fgets(line, MAX_LINE_LEN, m_fp)) {
-        char *start = &line[0];
-        char *end = start;
-        while (!strneq(end, "\0", 1))
-            end++;
+    std::string line;
+    while (std::getline(fs, line)) {
+        line.erase(
+            line.begin(),
+            std::find_if(
+                line.begin(), line.end(),
+                std::not1(std::ptr_fun<int, int>(std::isspace))
+            )
+        );
 
-        end--; // 返回'\0'前一个字符
-
-        // 移除行首
-        while (strneq(start, " ", 1) || strneq(start, "\t", 1))
-            start++;
-
-        // 过滤注释行
-        if (strneq(start, "#", 1))
+        if (line.front() == '#') {
             continue;
-
-        // 移除行尾
-        while (strneq(end, "\n", 1) || strneq(end, "\r", 1)
-            || strneq(end, " ", 1) || strneq(end, "\t", 1))
-            end--;
-
-        char *lPos = strchr(start, '[');
-        char *rPos = strchr(start, ']');
-        if (lPos && rPos && rPos - lPos > 0 && lPos == start && rPos == end) {
-            // 主键
-            std::string section(lPos + 1, size_t(rPos - lPos - 1));
-            m_mainKeyMap.insert({section, KeyMap()});
-            lastSection = section;
-        } else {
-            char *equal = strchr(start, '=');
-            if (!equal)
-                continue;
-
-            // 文件格式错误
-            if (lastSection.empty()) {
-                std::cout << "failed to load file " << filePath << std::endl;
-                return false;
-            }
-
-            // 子键
-            std::string key(start, size_t(equal - start));
-            std::string value(equal + 1, size_t(end - equal));
-            for (auto &iter : m_mainKeyMap) {
-                if (iter.first != lastSection)
-                    continue;
-
-                iter.second[key] = value;
-            }
         }
+
+        line.erase(
+            std::find_if(
+                line.rbegin(), line.rend(),
+                std::not1(std::ptr_fun<int, int>(std::isspace))
+            ).base(),
+            line.end()
+        );
+
+        if (line.front() == '[') {
+            auto rPos = line.find_first_of(']');
+            if ( rPos != std::string::npos && 0 < rPos ) {
+
+                lastSection = line.substr(1, rPos-1);
+
+                m_mainKeyMap.insert({
+                    lastSection,
+                    KeyMap()
+                });
+
+            }
+            continue;
+        }
+
+
+        auto equalPos = line.find_first_of('=');
+
+        if (equalPos == std::string::npos) {
+            continue;
+        }
+
+        // 文件格式错误
+        if (lastSection.empty()) {
+            std::cout << "failed to load file " << filePath << std::endl;
+            return false;
+        }
+
+        // 子键
+        std::string key = line.substr(0, equalPos);
+        std::string value = equalPos + 1 < line.length() ?
+            line.substr(equalPos + 1) :
+            "";
+        m_mainKeyMap[lastSection][key] = value;
     }
-    fclose(m_fp);
-    m_fp = nullptr;
+
     m_filePath = filePath;
 
     return true;
