@@ -206,23 +206,25 @@ WindowFrameExtents XCBUtils::getWindowFrameExtents(XWindow xid)
 {
     xcb_atom_t perp = getAtom("_NET_FRAME_EXTENTS");
     xcb_get_property_cookie_t cookie = xcb_get_property(m_connect, false, xid, perp, XCB_ATOM_CARDINAL, 0, 4);
-    xcb_get_property_reply_t *reply = xcb_get_property_reply(m_connect, cookie, nullptr);
+    std::shared_ptr<xcb_get_property_reply_t> reply(
+        xcb_get_property_reply(m_connect, cookie, nullptr),
+        [](xcb_get_property_reply_t* ptr) { free(ptr); }
+    );
     if (!reply || reply->format == 0) {
-        if (reply)
-            free(reply);
         perp = getAtom("_GTK_FRAME_EXTENTS");
         cookie = xcb_get_property(m_connect, false, xid, perp, XCB_ATOM_CARDINAL, 0, 4);
-        reply = xcb_get_property_reply(m_connect, cookie, nullptr);
+        reply.reset(
+            xcb_get_property_reply(m_connect, cookie, nullptr),
+            [](xcb_get_property_reply_t* ptr) { free(ptr); }
+        );
         if (!reply)
             return WindowFrameExtents();
     }
 
     if (reply->format != 32 || reply->value_len != 4) {
-        free(reply);
         return WindowFrameExtents();
     }
-    uint32_t *data = static_cast<uint32_t *>(xcb_get_property_value(reply));
-    free(reply);
+    uint32_t *data = static_cast<uint32_t *>(xcb_get_property_value(reply.get()));
 
     if (!data)
         return WindowFrameExtents();
