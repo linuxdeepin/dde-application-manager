@@ -230,7 +230,7 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
         m_entries->removeLastRecent();
         if (desktopFile.contains(scratchDir) && entry->getCurrentWindowInfo()) {
             QFileInfo info(desktopFile);
-            QString baseName = info.baseName();
+            QString baseName = info.completeBaseName();
             if (baseName.startsWith(windowHashPrefix)) {
                 // desktop base starts with w:
                 // 由于有 Pid 识别方法在，在这里不能用 m.identifyWindow 再次识别
