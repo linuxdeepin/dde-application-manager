@@ -1,3 +1,10 @@
+dde-application-manager (1.0.13) unstable; urgency=medium
+
+  * fix: early return in WindowIdentify::identifyWindowByPidEnv
+  * temporary circumvention of coredump when updateProcessInfo
+
+ -- tsic404 <liuheng@deepin.org>  Thu, 11 May 2023 15:47:29 +0800
+
 dde-application-manager (1.0.12) unstable; urgency=medium
 
   * fix: 退出没有图标的应用AM崩溃
