@@ -235,7 +235,9 @@ bool KeyFile::loadFile(const std::string &filePath)
         if (line.front() == '[') {
             auto rPos = line.find_first_of(']');
             if ( rPos != std::string::npos && 0 < rPos ) {
-
+                // TODO(black_desk): lastSection might be empty string here.
+                // I cannot found a spec for the space before groupname in
+                // freedesktop.org
                 lastSection = line.substr(1, rPos-1);
 
                 m_mainKeyMap.insert({
@@ -261,10 +263,16 @@ bool KeyFile::loadFile(const std::string &filePath)
         }
 
         // 子键
+
+        // TODO(black_desk): we should check chars in key here, as spec says
+        // that it can only contain a-z0-9A-Z
         std::string key = line.substr(0, equalPos);
         std::string value = equalPos + 1 < line.length() ?
             line.substr(equalPos + 1) :
             "";
+
+        // TODO(black_desk): space after value is removed before. But I cannot
+        // find a spec about this behavior.
         m_mainKeyMap[lastSection][key] = value;
     }
 
