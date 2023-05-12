@@ -430,12 +430,15 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     auto ret = wordexp(stdCmdLine.c_str(), &words, 0);
     if (ret != 0) {
         qCritical() << "wordexp failed, error code:" << ret;
+        wordfree(&words);
         return false;
     }
 
     for (int i = 0; i < (int)words.we_wordc; i++) {
         exeArgs << words.we_wordv[i];
     }
+
+    wordfree(&words);
 
     handleRecognizeArgs(exeArgs, files);
 
