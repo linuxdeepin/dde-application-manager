@@ -25,7 +25,8 @@
 
 bool shouldShowEntry(Entry *entry)
 {
-    if (entry->getApp()->isValidApp()) {
+    auto app = entry->getApp();
+    if (app && app->isValidApp()) {
         QString path = entry->getApp()->getFileName();
         DesktopInfo desktopInfo(path.toStdString());
         return desktopInfo.shouldShow();
