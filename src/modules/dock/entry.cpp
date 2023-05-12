@@ -473,9 +473,15 @@ bool Entry::detachWindow(WindowInfoBase *info)
     info->setEntry(nullptr);
     XWindow winId = info->getXid();
     if (m_windowInfoMap.contains(winId)) {
-        WindowInfoBase *info = m_windowInfoMap[winId];
+        // WARN(black_desk): Address sanitizer report Dock::m_activeWindow use
+        // this pointer after free here.
+        // After comment out the delete, leak sanitizer report nothing. So I
+        // believe this pointer is free somewhere else.
+
+        // WindowInfoBase *info = m_windowInfoMap[winId];
         m_windowInfoMap.remove(winId);
-        delete info;
+        // delete info;
+
     }
 
     if (m_windowInfoMap.isEmpty()) {
