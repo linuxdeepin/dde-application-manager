@@ -16,10 +16,6 @@ pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
 pkg_check_modules(GLib REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(QGSettings REQUIRED IMPORTED_TARGET gsettings-qt)
 
-#TODO: use jemalloc to temporary circumvention of crash issues, 
-#find the root cause and remove jemalloc
-pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc)
-
 qt5_add_dbus_adaptor(ADAPTER_SOURCES
                      ../../dbus/org.deepin.dde.Application1.Manager.xml
                      impl/application_manager.h
@@ -66,7 +62,6 @@ target_link_libraries(${BIN_NAME}
     PkgConfig::GIO
     PkgConfig::GLib
     PkgConfig::QGSettings
-    PkgConfig::JEMALLOC
     ${DtkWidget_LIBRARIES}
 )
 

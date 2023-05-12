@@ -2,10 +2,6 @@ set(BIN_NAME dde-application-loader)
 
 pkg_check_modules(LIBCAP REQUIRED IMPORTED_TARGET libcap)
 
-#TODO: use jemalloc to temporary circumvention of crash issues, 
-#find the root cause and remove jemalloc
-pkg_check_modules(JEMALLOC REQUIRED IMPORTED_TARGET jemalloc)
-
 set(SRCS
     ./main.cpp
     ../modules/tools/desktop_deconstruction.hpp
@@ -40,7 +36,6 @@ add_executable(${BIN_NAME} ${SRCS})
 target_link_libraries(${BIN_NAME}
     pthread
     PkgConfig::LIBCAP
-    PkgConfig::JEMALLOC
     stdc++fs
     Qt5::Core
 )

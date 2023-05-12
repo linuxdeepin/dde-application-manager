@@ -7,7 +7,6 @@ Build-Depends:
  debhelper-compat (= 11),
  pkg-config,
  libcap-dev,
- libjemalloc-dev,
  qt5-qmake,
  qtbase5-dev,
  qttools5-dev,
