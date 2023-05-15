@@ -61,12 +61,13 @@ void Entries::remove(Entry *entry)
     for (auto iter = m_items.begin(); iter != m_items.end();) {
         if ((*iter)->getId() == entry->getId()) {
             iter = m_items.erase(iter);
-            removeCb(entry);
-            delete entry;
         } else {
             iter++;
         }
     }
+
+    removeCb(entry);
+    delete entry;
 }
 
 void Entries::move(int oldIndex, int newIndex)
