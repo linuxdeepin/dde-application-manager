@@ -38,23 +38,10 @@ StartManager::StartManager(QObject *parent)
     , m_autostartFiles(getAutostartList())
     , m_isDBusCalled(false)
 {
-    waitForDeadChild();
     loadSysMemLimitConfig();
     getDesktopToAutostartMap();
     listenAutostartFileEvents();
     startAutostartProgram();
-}
-
-static void sig_child(int signo)
-{
-    int stat;
-    int pid;
-    while((pid = waitpid(-1, &stat, WNOHANG)) > 0);
-}
-
-void StartManager::waitForDeadChild()
-{
-    signal(SIGCHLD, sig_child);
 }
 
 bool StartManager::addAutostart(const QString &desktop)
@@ -381,8 +368,12 @@ bool StartManager::doLaunchAppWithOptions(QString desktopFile, uint32_t timestam
     return true;
 }
 
-bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files)
+void StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files)
 {
+    // NOTE(black_desk): this function do not return the result. If this feature
+    // needed someday, we should use pipe to let that double forked child
+    // process to report the return value of execvpe.
+
     QProcess process; // NOTE(black_desk): this QProcess not used to start, we
                       // have to manually fork and exec to set
                       // GIO_LAUNCHED_DESKTOP_FILE_PID.
@@ -431,7 +422,7 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     if (ret != 0) {
         qCritical() << "wordexp failed, error code:" << ret;
         wordfree(&words);
-        return false;
+        return;
     }
 
     for (int i = 0; i < (int)words.we_wordc; i++) {
@@ -467,38 +458,54 @@ bool StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
     envs.insert("GIO_LAUNCHED_DESKTOP_FILE", QString::fromStdString(info->getDesktopFile()->getFilePath()));
 
     qint64 pid = fork();
-    if (pid == 0) {
-        envs.insert("GIO_LAUNCHED_DESKTOP_FILE_PID", QByteArray::number(getpid()).constData());
-        auto argList = process.arguments();
-        char const * args[argList.length() + 2];
-        std::transform(argList.constBegin(), argList.constEnd(), args + 1, [](const QString& str){
+    if (pid == -1){
+        qCritical() << "failed to fork, errno" << errno;
+        return;
+    } else if (pid == 0) {
+        // process to exit after vfork exec success.
+        qint64 doubleForkPID = fork();
+        if (doubleForkPID == -1) {
+            qCritical() << "failed to fork, errno" << errno;
+            exit(-1);
+        } else if (doubleForkPID == 0) {
+            // App process
+            envs.insert("GIO_LAUNCHED_DESKTOP_FILE_PID", QByteArray::number(getpid()).constData());
+            auto argList = process.arguments();
+            char const * args[argList.length() + 2];
+            std::transform(argList.constBegin(), argList.constEnd(), args + 1, [](const QString& str){
                 auto byte = new QByteArray;
                 *byte = str.toUtf8();
                 auto tmp_buf = byte->data();
                 return tmp_buf;
-        });
-        auto arg0 = process.program().toLocal8Bit();
-        args[0] = arg0.constData();
-        args[process.arguments().length() + 1] = 0;
-        auto envStringList = envs.toStringList();
-        char const * envs[envStringList.length() + 1];
-        std::transform(envStringList.constBegin(), envStringList.constEnd(), envs, [](const QString& str){
+            });
+            auto arg0 = process.program().toLocal8Bit();
+            args[0] = arg0.constData();
+            args[process.arguments().length() + 1] = 0;
+            auto envStringList = envs.toStringList();
+            char const * envs[envStringList.length() + 1];
+            std::transform(envStringList.constBegin(), envStringList.constEnd(), envs, [](const QString& str){
                 auto byte = new QByteArray;
                 *byte = str.toUtf8();
                 auto tmp_buf = byte->data();
                 return tmp_buf;
-        });
-        envs[envStringList.length()] = 0;
-        execvpe(arg0.constData(), (char**)args, (char**)envs);
-        exit(-1);
+            });
+            envs[envStringList.length()] = 0;
+            ::execvpe(arg0.constData(), (char**)args, (char**)envs);
+            qCritical() <<"failed to execve app, errno" << errno;
+            _exit(-1);
+        }
+        qDebug() << "double fork pid:" << doubleForkPID;
+        _exit(0);
     } else {
+        qDebug() << "pid:" << pid;
+        waitpid(pid, nullptr, 0);
         if (useProxy) {
             qDebug() << "Launch the process[" << pid << "] by app proxy.";
             dbusHandler->addProxyProc(pid);
         }
-        return true;
+        return;
     }
-    return false;
+    return;
 }
 
 bool StartManager::doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options)

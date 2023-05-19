@@ -40,11 +40,10 @@ public Q_SLOTS:
     void onAutoStartupPathChange(const QString &dirPath);
 
 private:
-    void waitForDeadChild();
     bool setAutostart(const QString &fileName, const bool value);
     bool doLaunchAppWithOptions(const QString &desktopFile);
     bool doLaunchAppWithOptions(QString desktopFile, uint32_t timestamp, QStringList files, QVariantMap options);
-    bool launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
+    void launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp, QStringList files);
     bool doRunCommandWithOptions(QString exe, QStringList args, QVariantMap options);
     void waitCmd(DesktopInfo *info, QProcess *process, QString cmdName);
     bool shouldUseProxy(QString appId);
