@@ -1,9 +1,0 @@
-[Unit]
-Description=DDE Application Loader is managing %I
-
-[Service]
-Type=simple
-Environment="DAM_TASK_HASH=%I"
-Environment="DAM_TASK_TYPE=freedesktop"
-ExecStart=/usr/bin/dde-application-loader
-Slice=app.slice
