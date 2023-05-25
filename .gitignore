@@ -1,6 +1,0 @@
-CMakeLists.txt.user
-build/
-
-# translations files
-*.qm
-.vscode/

@@ -1,8 +1,0 @@
-<interface name='org.deepin.dde.Application1.Instance'>
-    <method name='Exit'>
-    </method>
-    <method name='Kill'>
-    </method>
-    <property access='read' type='t(116)' name='startuptime' />
-    <property access='read' type='o' name='id' />
-</interface>
