@@ -1,5 +1,7 @@
 # DDE Application Manager
 
+当前分支用于完全重构。
+
 DDE Application Manager 是深度桌面环境的应用程序管理器。
 
 ### 依赖
