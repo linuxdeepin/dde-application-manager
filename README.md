@@ -1,5 +1,7 @@
 # DDE Application Manager
 
+This branch is used to totally refactor.
+
 DDE Application Manager is the app manager of Deepin Desktop Environment.
 
 ### Dependencies
@@ -15,7 +17,6 @@ You can also check the "Build-Depends" provided in the `debian/control` file.
 ### Build from source code
 
 1. Make sure you have installed all dependencies.
-
 
 2. Build:
 ```shell
