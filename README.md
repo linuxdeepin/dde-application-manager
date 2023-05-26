@@ -1,6 +1,12 @@
 # DDE Application Manager
 
-This branch is used to totally refactor.
+## WORK IN PROGRESS
+
+**This branch is used to totally refactor.**
+
+[Refactor plan](./docs/TODO.md).
+
+---
 
 DDE Application Manager is the app manager of Deepin Desktop Environment.
 
