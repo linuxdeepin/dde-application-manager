@@ -1,0 +1,46 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "https://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.desktopspec.JobManager1.Job">
+        <property name="Status" type="s" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Value of `Status` is one of
+                       `pending`, `working`, `done`,
+                       `pasuing`, `paused`, `resuming`,
+                       `canceled` and `failed`."
+            />
+        </property>
+
+        <method name="Cancel">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Success call to this method will
+                       change the Status of this Job to `canceled`.
+                       Then after some time this method call return,
+                       this Job will be removed.
+                       Then the signal JobRemoved of org.desktopspec.JobManager1
+                       will be emitted."
+            />
+        </method>
+        <method name="Pause">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Success call to this method will
+                       change the Status of this Job to `pausing`.
+                       Then after some time this method call return,
+                       Status will change to `paused`."
+            />
+        </method>
+
+        <method name="Resume">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Success call to this method will
+                       change the Status of this Job to `resuming`.
+                       Resuming Jobs will be queued along with pending Jobs.
+                       Then after some time this method call return,
+                       Status will change to `working`."
+            />
+        </method>
+    </interface>
+</node>

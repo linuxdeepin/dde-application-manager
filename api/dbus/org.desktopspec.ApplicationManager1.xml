@@ -1,0 +1,49 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "https://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.desktopspec.ApplicationManager1">
+        <property type="ao" access="read" name="List" />
+
+        <method name="Application">
+            <arg type="s" name="id" direction="in" />
+            <arg type="o" name="application" direction="out" />
+        </method>
+
+        <method name="Identify">
+            <arg type="h" name="pidfd" direction="in" />
+
+            <arg type="s" name="id" direction="out" />
+            <arg type="o" name="application" direction="out" />
+            <arg type="o" name="application_instance" direction="out" />
+
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Given a pidfd,
+                       this method return a destkop file id,
+                       an application instance object path,
+                       as well as an application object path.
+
+                       NOTE:
+                       1. You should use pidfd_open(2) to get a pidfd."
+            />
+        </method>
+
+        <method name="Launch">
+            <arg type="s" name="id" direction="in" />
+            <arg type="s" name="action" direction="in" />
+            <arg type="as" name="fields" direction="in" />
+            <arg type="a{sv}" name="options" direction="in" />
+
+            <arg type="o" name="job" direction="out" />
+
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Given a desktop file id,
+                       this method will launch a desktop application.
+
+                       Check description of the `Launch` method in
+                       `org.desktopspec.ApplicationManager1.Application`
+                       interface for futher infomation."
+            />
+        </method>
+    </interface>
+</node>
