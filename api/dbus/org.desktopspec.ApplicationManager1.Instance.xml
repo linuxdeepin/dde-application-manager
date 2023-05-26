@@ -1,0 +1,26 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "https://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.desktopspec.ApplicationManager1.Instance">
+        <property name="Application" type="o" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Object path of the Application.
+                       That DBus object will impelement
+                       org.desktopspec.ApplicationManager1.Application."
+            />
+        </property>
+
+        <property name="SystemdUnitPath" type="o" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The systemd unit object path of this instance
+                       under systemd user daemon.
+                       Some other DE compoments can use this path to
+                       use the cgroup interface provided by systemd.
+                       NOTE:
+                       This property MIGHT be empty
+                       if this instance is not managed by systemd."
+            />
+        </property>
+    </interface>
+</node>
