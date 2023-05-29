@@ -544,11 +544,14 @@ void Launcher::onCheckDesktopFile(const QString &filePath, int type)
                 emitItemChanged(&newItem, appStatusDeleted);
             }
         } else if (shouldShow) {
-            if (info.isExecutableOk()) {
-                // add item
-                addItem(newItem);
-                emitItemChanged(&newItem, appStatusCreated);
-            }
+            // quickFix: 1000ms delay, waiting for the debian trigger link to complete.
+            QTimer::singleShot(1000, this, [this, info , newItem]() mutable -> void {
+                if (info.isExecutableOk()) {
+                    // add item
+                    addItem(newItem);
+                    emitItemChanged(&newItem, appStatusCreated);
+                }
+            });
         }
     } else {
         if (m_desktopAndItemMap.find(filePath) != m_desktopAndItemMap.end()) {
