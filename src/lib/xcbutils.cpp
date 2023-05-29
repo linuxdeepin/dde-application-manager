@@ -441,8 +441,10 @@ WMIcon XCBUtils::getWMIcon(XWindow xid)
 
     if (ret) {
         auto fcn = [](xcb_ewmh_wm_icon_iterator_t it) {
-            // 根据宽高获取每个位置的数据，每行前有两个位置offset
-            const auto size = 2 + it.width * it.height;
+            // https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html#idm45582154990752
+            // The first two cardinals are width, height. Data is in rows, left to right and top to bottom
+            // Two cardinals means width and heighr, not offset.
+            const auto size = it.width * it.height;
             std::vector<uint32_t> ret(size);
             // data数据是按行从左至右，从上至下排列
             uint32_t *data = it.data;
