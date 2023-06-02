@@ -75,6 +75,8 @@ public:
             return "fashion";
         case DisplayMode::Efficient:
             return "efficient";
+        default:
+            return "fashion";
         }
     }
 
@@ -115,6 +117,8 @@ public:
         case PositionMode::Left:
             return "left";
         case PositionMode::Bottom:
+            return "bottom";
+        default:
             return "bottom";
         }
     }
@@ -160,6 +164,8 @@ public:
             return "disabled";
         case ForceQuitAppMode::Deactivated:
             return "deactivated";
+        default:
+            return "enabled";
         }
     }
 

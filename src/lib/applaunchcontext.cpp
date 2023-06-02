@@ -14,7 +14,7 @@ AppLaunchContext::AppLaunchContext()
 // TODO
 std::string AppLaunchContext::getStartupNotifyId(const DesktopInfo *info, std::vector<std::string> files)
 {
-
+    return 0;
 }
 
 // TODO
