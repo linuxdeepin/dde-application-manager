@@ -288,7 +288,7 @@ void Launcher::requestUninstall(const QString &desktop)
     process.waitForReadyRead();
     QString result = QString::fromUtf8(process.readAllStandardOutput());
     process.close();
-    if (result != launcherExe) {
+    if (!result.endsWith(QStringLiteral("dde-launcher"))) {
         qWarning() << result << " has no right to uninstall " << appDesktopPath;
         return;
     }
