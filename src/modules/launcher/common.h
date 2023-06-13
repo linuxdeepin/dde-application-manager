@@ -36,7 +36,4 @@ const QString appStatusDeleted  = "deleted";
 
 // flatpak应用
 const QString flatpakBin = "flatpak";
-
-// 启动器执行程序
-const QString launcherExe = "/usr/bin/dde-launcher";
 #endif // COMMON_H
