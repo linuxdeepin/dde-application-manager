@@ -465,7 +465,7 @@ void StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
         // process to exit after vfork exec success.
         qint64 doubleForkPID = fork();
         if (doubleForkPID == -1) {
-            qCritical() << "failed to fork, errno" << errno;
+            // qCritical() << "failed to fork, errno" << errno;
             exit(-1);
         } else if (doubleForkPID == 0) {
             // App process
@@ -491,10 +491,10 @@ void StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
             });
             envs[envStringList.length()] = 0;
             ::execvpe(arg0.constData(), (char**)args, (char**)envs);
-            qCritical() <<"failed to execve app, errno" << errno;
+            // qCritical() <<"failed to execve app, errno" << errno;
             _exit(-1);
         }
-        qDebug() << "double fork pid:" << doubleForkPID;
+        // qDebug() << "double fork pid:" << doubleForkPID;
         _exit(0);
     } else {
         qDebug() << "pid:" << pid;
