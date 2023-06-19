@@ -1,3 +1,20 @@
+dde-application-manager (1.0.17) unstable; urgency=medium
+
+  * fix: icon is not displayed after package installed (#57)
+    Thanks to kamiyadm
+  * fix: heap buffer overflow (#58)
+    Thanks to kamiyadm
+  * fix: void register signal handler for SIG_CHILD (#54)
+    Thanks to black-desk
+  * fix: don't check full path for launcher (#60)
+    Thanks to Gary Wang
+  * fix: missing return statements #
+    Thanks to hillwoodroc
+  * fix: do not log in child process after fork
+    Thanks to black-desk
+
+ -- Deepin Packages Builder <packages@deepin.org>  Mon, 19 Jun 2023 16:00:04 +0800
+
 dde-application-manager (1.0.16) unstable; urgency=medium
 
   * fix: AM crash when undock, also failed to do so.
