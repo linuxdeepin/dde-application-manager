@@ -152,8 +152,10 @@ bool Dock::dockEntry(Entry *entry, bool moveToEnd)
                 QString scriptContent = entry->getExec(false);
                 QString scriptFile = scratchDir + appId + ".sh";
                 file.setFileName(scriptFile);
-                if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+
+                if (file.open(QIODevice::Truncate | QIODevice::WriteOnly | QIODevice::Text)) {
                     file.write(scriptContent.toStdString().c_str(), scriptContent.size());
+                    file.setPermissions(file.permissions() | QFileDevice::ExeOwner);
                     file.close();
                 }
 
@@ -162,7 +164,7 @@ bool Dock::dockEntry(Entry *entry, bool moveToEnd)
                 QString fileNmae = scratchDir + appId + ".desktop";
                 QString desktopContent = QString(dockedItemTemplate).arg(title).arg(cmd).arg(icon);
                 file.setFileName(fileNmae);
-                if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                if (file.open(QIODevice::Truncate | QIODevice::WriteOnly | QIODevice::Text)) {
                     file.write(desktopContent.toStdString().c_str(), desktopContent.size());
                     file.close();
                     newDesktopFile = fileNmae;
@@ -214,9 +216,12 @@ void Dock::undockEntry(Entry *entry, bool moveToEnd)
 
     // 移除scratchDir目录下相关文件
     QString desktopFile = entry->getFileName();
-    QString filebase(desktopFile.data(), desktopFile.size() - 9);
+    auto tmpList = desktopFile.split('.');
+    QString filebase;
+    for (std::size_t i = 0; i < tmpList.size() - 1; ++i)
+        filebase += (tmpList[i] + ".");
     if (desktopFile.contains(scratchDir)) {
-        QStringList suffixs {".desktop", ".sh", ".png"};
+        QStringList suffixs {"desktop", "sh", "png"};
         for (auto &ext : suffixs) {
             QString fileName = filebase + ext;
             QFile file(fileName);
