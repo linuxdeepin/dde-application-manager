@@ -27,7 +27,7 @@ bool shouldShowEntry(Entry *entry)
 {
     auto app = entry->getApp();
     if (app && app->isValidApp()) {
-        QString path = entry->getApp()->getFileName();
+        QString path = app->getFileName();
         DesktopInfo desktopInfo(path.toStdString());
         return desktopInfo.shouldShow();
     }
@@ -1410,12 +1410,13 @@ QVector<QString> Dock::getWinIconPreferredApps()
  */
 void Dock::handleLauncherItemDeleted(QString itemPath)
 {
-    for (auto entry : m_entries->filterDockedEntries()) {
-        if (entry->getFileName() == itemPath) {
-            undockEntry(entry);
-            break;
-        }
+    auto allEntries = m_entries->unDockedEntries();
+    allEntries.append(m_entries->filterDockedEntries().toList());
+    for (auto entry : allEntries) {
+        if (!QFile::exists(entry->getFileName())) removeAppEntry(entry);
     }
+
+    updateRecentApps();
 }
 
 /**
