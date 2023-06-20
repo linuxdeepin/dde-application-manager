@@ -224,7 +224,7 @@ bool Launcher::requestRemoveFromDesktop(QString appId)
     QString filePath(QDir::homePath() + "/Desktop/" + appId + ".desktop");
     QFileInfo info(filePath);
     if (!info.exists())
-        return true;
+        return false;
 
     QFile file(filePath);
     return file.remove();
