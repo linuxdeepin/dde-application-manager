@@ -556,7 +556,7 @@ void Launcher::onCheckDesktopFile(const QString &filePath, int type)
     } else {
         if (m_desktopAndItemMap.find(filePath) != m_desktopAndItemMap.end()) {
             // remove item
-            const Item &item = itemsMap[filePath];
+            const Item &item = m_desktopAndItemMap[filePath];
             removeDesktop(filePath);
 
             emitItemChanged(&item, appStatusDeleted);
