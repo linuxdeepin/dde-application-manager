@@ -31,11 +31,11 @@
 <context>
     <name>Launcher</name>
     <message>
-        <source>Removed successfully</source>
+        <source>Failed to remove the app</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Failed to remove the app</source>
+        <source>%1 removed successfully</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
