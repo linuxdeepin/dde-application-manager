@@ -1,3 +1,10 @@
+dde-application-manager (1.0.18) unstable; urgency=medium
+
+  * fix(launcher): onCheckDesktopFile应该使用正确map去查找对应的Item
+  * fix: fix custom shellscript can't be executed
+
+-- dengbo <dengbo@deepin.org>  Wed, 05 July 2023 10:12:15 +0800
+
 dde-application-manager (1.0.17) unstable; urgency=medium
 
   * fix: icon is not displayed after package installed (#57)
