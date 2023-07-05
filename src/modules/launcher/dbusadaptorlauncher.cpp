@@ -8,6 +8,10 @@ DBusAdaptorLauncher::DBusAdaptorLauncher(QObject *parent)
     : QDBusAbstractAdaptor(parent)
 {
     setAutoRelaySignals(true);
+    if (QMetaType::type("LauncherItemInfo") == QMetaType::UnknownType)
+        registerLauncherItemInfoMetaType();
+    if (QMetaType::type("LauncherItemInfoList") == QMetaType::UnknownType)
+        registerLauncherItemInfoListMetaType();
 
     Launcher *launcher = static_cast<Launcher *>(QObject::parent());
     if (launcher) {

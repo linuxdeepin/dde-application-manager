@@ -14,7 +14,6 @@
 #include "dsysinfo.h"
 #include "../modules/apps/appmanager.h"
 #include "../modules/launcher/launchermanager.h"
-#include "../modules/dock/dockmanager.h"
 #include "../modules/startmanager/startmanager.h"
 #include "../modules/mimeapp/mime_app.h"
 
@@ -105,7 +104,6 @@ int main(int argc, char *argv[])
 
     new AppManager(ApplicationManager::instance());
     new LauncherManager(ApplicationManager::instance());
-    new DockManager(ApplicationManager::instance());
     new ManagerAdaptor(ApplicationManager::instance());
 
     QDBusConnection connection = QDBusConnection::sessionBus();
