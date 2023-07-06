@@ -14,7 +14,7 @@
             <arg type="o" name="job" direction="out" />
 
             <arg type="a{sv}" name="options" direction="in"/>
-
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="Given an action identifier,
