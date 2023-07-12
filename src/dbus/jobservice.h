@@ -6,6 +6,8 @@
 #define JOBSERVICE_H
 
 #include <QObject>
+#include <QFuture>
+#include <QVariant>
 
 class JobService : public QObject
 {
@@ -22,6 +24,9 @@ public Q_SLOTS:
     void Cancel();
     void Pause();
     void Resume();
+
+private:
+    QFuture<QVariant> job;
 };
 
 #endif

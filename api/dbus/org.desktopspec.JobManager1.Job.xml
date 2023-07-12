@@ -5,8 +5,8 @@
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="Value of `Status` is one of
-                       `pending`, `working`, `done`,
-                       `pasuing`, `paused`, `resuming`,
+                       `started`, `running`, `finished`,
+                       `suspending`, `suspend`,
                        `canceled` and `failed`."
             />
         </property>
