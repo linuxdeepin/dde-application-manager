@@ -13,21 +13,32 @@ JobService::~JobService() {}
 
 QString JobService::status() const
 {
-    // TODO: impl
-    return {};
+    if (job.isFinished())
+        return "finished";
+    if (job.isCanceled())
+        return "canceled";
+    if (job.isSuspended())
+        return "suspended";
+    if (job.isSuspending())
+        return "suspending";
+    if (job.isStarted())
+        return "started";
+    if (job.isRunning())
+        return "running";
+    return "failed";
 }
 
 void JobService::Cancel()
 {
-    // TODO: impl
+    job.cancel();
 }
 
 void JobService::Pause()
 {
-    // TODO: impl
+    job.suspend();
 }
 
 void JobService::Resume()
 {
-    // TODO: impl
+    job.resume();
 }
