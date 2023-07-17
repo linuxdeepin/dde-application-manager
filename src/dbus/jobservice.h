@@ -13,10 +13,8 @@ class JobService : public QObject
 {
     Q_OBJECT
 public:
-    explicit JobService(QObject *parent = nullptr);
-    virtual ~JobService();
+    ~JobService() override;
 
-public:
     Q_PROPERTY(QString Status READ status)
     QString status() const;
 
@@ -26,7 +24,8 @@ public Q_SLOTS:
     void Resume();
 
 private:
-    QFuture<QVariant> job;
+    explicit JobService(const QFuture<QVariant>& job);
+    QFuture<QVariant> m_job;
 };
 
 #endif

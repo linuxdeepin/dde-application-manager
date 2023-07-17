@@ -12,15 +12,23 @@ class InstanceService : public QObject
 {
     Q_OBJECT
 public:
-    explicit InstanceService(QObject *parent = nullptr);
-    virtual ~InstanceService();
+    ~InstanceService() override;
+    InstanceService(const InstanceService &) = delete;
+    InstanceService(InstanceService &&) = delete;
+    InstanceService &operator=(const InstanceService &) = delete;
+    InstanceService &operator=(InstanceService&&) = delete;
 
-public:
-    Q_PROPERTY(QDBusObjectPath Application READ application)
+    Q_PROPERTY(QDBusObjectPath Application READ application CONSTANT)
     QDBusObjectPath application() const;
 
-    Q_PROPERTY(QDBusObjectPath SystemdUnitPath READ systemdUnitPath)
+    Q_PROPERTY(QDBusObjectPath SystemdUnitPath READ systemdUnitPath CONSTANT)
     QDBusObjectPath systemdUnitPath() const;
+
+private:
+    friend class ApplicationService;
+    InstanceService(QString application, QString systemdUnitPath);
+    const QDBusObjectPath m_Application;
+    const QDBusObjectPath m_SystemdUnitPath;
 };
 
 #endif

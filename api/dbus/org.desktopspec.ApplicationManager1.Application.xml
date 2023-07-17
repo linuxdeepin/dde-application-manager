@@ -8,6 +8,60 @@
                        Missing fields will be added later."
         />
 
+        <property name="Actions" type="as" access="read">
+           <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Names of all action identifiers of this application.
+                       Check https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#extra-actions
+                       for futher information."
+            />
+        </property>
+
+        <property name="AutoStart" type="b" access="readwrite"/>
+
+        <property name="Instances" type="ao" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="All instances of this application."
+            />
+        </property>
+
+        <property name="ID" type="s" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The desktop file id of this application.
+                       Check https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id
+                       for futher infomation."
+            />
+        </property>
+
+        <property name="Icons" type="a{sa{ua{sh}}}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The type of this property is
+                       map[action(string)]map[size(uint)]map[format(string)]fd.
+
+                       Format can be `png`, `svg`, `xpm`, `dci` or `icon`
+                       refering to the png/svg/xpm/dci format of icon files,
+                       as well as the `.icon` file contain the extra icon-data.
+
+                       NOTE:
+                       1. `action` is an action identifier
+                          which is the id of
+                          additional applications actions key.
+                          When `action` is emtpy,
+                          this method return icon of the main desktop entry.
+                          Check https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s11.html#extra-actions-identifier
+                          for futher infomation.
+                       2. `.icon` is a text file with some metadata.
+                          Check https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#file_formats
+                          for futher infomation.
+                       3. Check https://github.com/linuxdeepin/deepin-specifications
+                          for futher infomation of dci icon format."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="IconMap"/>
+        </property>
+
         <method name="Launch">
             <arg type="s" name="action" direction="in" />
             <arg type="as" name="fields" direction="in" />
@@ -32,41 +86,6 @@
             />
         </method>
 
-        <property type="a{sa{ua{sh}}}" name="Icons" access="read">
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="The type of this property is
-                       map[action(string)]map[size(uint)]map[format(string)]fd.
-
-                       Format can be `png`, `svg`, `xpm`, `dci` or `icon`
-                       refering to the png/svg/xpm/dci format of icon files,
-                       as well as the `.icon` file contain the extra icon-data.
-
-                       NOTE:
-                       1. `action` is an action identifier
-                          which is the id of
-                          additional applications actions key.
-                          When `action` is emtpy,
-                          this method return icon of the main desktop entry.
-                          Check https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s11.html#extra-actions-identifier
-                          for futher infomation.
-                       2. `.icon` is a text file with some metadata.
-                          Check https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#file_formats
-                          for futher infomation.
-                       3. Check https://github.com/linuxdeepin/deepin-specifications
-                          for futher infomation of dci icon format."
-            />
-        </method>
-
-        <property name="Actions" type="as" access="read">
-           <annotation
-                name="org.freedesktop.DBus.Description"
-                value="Names of all action identifiers of this application.
-                       Check https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#extra-actions
-                       for futher information."
-            />
-        </property>
-
         <method name="GetActionName">
             <arg name="identifier" type="s" direction="in"/>
             <arg name="env" type="as" direction="in"/> 
@@ -81,24 +100,5 @@
                        this method will use the locale config of that user."
             />
         </method>
-
-
-        <property name="AutoStart" type="b" access="readwrite"/>
-
-        <property name="Instances" type="ao" access="read">
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="All instances of this application."
-            />
-        </property>
-
-        <property name="ID" type="s" access="read">
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="The desktop file id of this application.
-                       Check https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id
-                       for futher infomation."
-            />
-        </property>
     </interface>
 </node>
