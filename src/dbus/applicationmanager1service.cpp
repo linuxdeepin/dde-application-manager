@@ -1,21 +1,23 @@
 // SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
-
 #include "applicationmanager1service.h"
+#include "applicationmanager1adaptor.h"
+#include "applicationadaptor.h"
+#include "global.h"
 
-ApplicationManager1Service::ApplicationManager1Service(QObject *parent)
-    : QObject(parent)
+ApplicationManager1Service::~ApplicationManager1Service() = default;
+
+ApplicationManager1Service::ApplicationManager1Service() = default;
+
+QList<QDBusObjectPath> ApplicationManager1Service::list() const { return m_applicationList.keys(); }
+
+bool ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
 {
+    return m_applicationList.remove(application) != 0;
 }
 
-ApplicationManager1Service::~ApplicationManager1Service() {}
-
-QList<QDBusObjectPath> ApplicationManager1Service::list() const
-{
-    // TODO: impl
-    return {};
-}
+void ApplicationManager1Service::removeAllApplication() { m_applicationList.clear(); }
 
 QDBusObjectPath ApplicationManager1Service::Application(const QString &id)
 {
@@ -32,10 +34,22 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 }
 
 QDBusObjectPath ApplicationManager1Service::Launch(const QString &id,
-                                                   const QString &action,
+                                                   const QString &actions,
                                                    const QStringList &fields,
                                                    const QVariantMap &options)
 {
-    // TODO: impl
+    // TODO: impl reset of Launch
+    QString objectPath;
+    if (id.contains('.')) {
+        objectPath = id.split('.').first();
+    }
+    objectPath.prepend(DDEApplicationManager1ApplicationObjectPath);
+    QSharedPointer<ApplicationService> app{new ApplicationService{id}};
+    auto *ptr = app.data();
+    if (registerObjectToDbus<decltype(ptr), ApplicationAdaptor>(ptr, objectPath, getDBusInterface<ApplicationAdaptor>())) {
+        QDBusObjectPath path{objectPath};
+        m_applicationList.insert(path, app);
+        return path;
+    }
     return {};
 }

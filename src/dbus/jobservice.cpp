@@ -4,41 +4,47 @@
 
 #include "jobservice.h"
 
-JobService::JobService(QObject *parent)
-    : QObject(parent)
+JobService::JobService(const QFuture<QVariant>& job)
+    : m_job(job)
 {
 }
 
-JobService::~JobService() {}
+JobService::~JobService() = default;
 
 QString JobService::status() const
 {
-    if (job.isFinished())
+    if (m_job.isFinished()) {
         return "finished";
-    if (job.isCanceled())
+    }
+    if (m_job.isCanceled()) {
         return "canceled";
-    if (job.isSuspended())
+    }
+    if (m_job.isSuspended()) {
         return "suspended";
-    if (job.isSuspending())
+    }
+    if (m_job.isSuspending()) {
         return "suspending";
-    if (job.isStarted())
+    }
+    if (m_job.isStarted()) {
         return "started";
-    if (job.isRunning())
+    }
+    if (m_job.isRunning()) {
         return "running";
+    }
     return "failed";
 }
 
 void JobService::Cancel()
 {
-    job.cancel();
+    m_job.cancel();
 }
 
 void JobService::Pause()
 {
-    job.suspend();
+    m_job.suspend();
 }
 
 void JobService::Resume()
 {
-    job.resume();
+    m_job.resume();
 }

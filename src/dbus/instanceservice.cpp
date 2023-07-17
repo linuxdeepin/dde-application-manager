@@ -4,21 +4,13 @@
 
 #include "instanceservice.h"
 
-InstanceService::InstanceService(QObject *parent)
-    : QObject(parent)
+InstanceService::InstanceService(QString application, QString systemdUnitPath)
+    : m_Application(std::move(application)), m_SystemdUnitPath(std::move(systemdUnitPath))
 {
 }
 
-InstanceService::~InstanceService() {}
+InstanceService::~InstanceService() = default;
 
-QDBusObjectPath InstanceService::application() const
-{
-    // TODO: impl
-    return {};
-}
+QDBusObjectPath InstanceService::application() const { return m_Application; }
 
-QDBusObjectPath InstanceService::systemdUnitPath() const
-{
-    // TODO: impl
-    return {};
-}
+QDBusObjectPath InstanceService::systemdUnitPath() const { return m_SystemdUnitPath; }
