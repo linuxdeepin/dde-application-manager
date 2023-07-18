@@ -13,7 +13,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
 find_package(Threads REQUIRED)
 
 add_subdirectory(src)

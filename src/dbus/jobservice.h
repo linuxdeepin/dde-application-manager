@@ -14,18 +14,23 @@ class JobService : public QObject
     Q_OBJECT
 public:
     ~JobService() override;
+    JobService(const JobService &) = delete;
+    JobService(JobService &&) = delete;
+    JobService &operator=(const JobService &) = delete;
+    JobService &operator=(JobService &&) = delete;
 
     Q_PROPERTY(QString Status READ status)
     QString status() const;
 
 public Q_SLOTS:
     void Cancel();
-    void Pause();
+    void Suspend();
     void Resume();
 
 private:
-    explicit JobService(const QFuture<QVariant>& job);
-    QFuture<QVariant> m_job;
+    friend class JobManager1Service;
+    explicit JobService(const QFuture<QVariantList>& job);
+    QFuture<QVariantList> m_job;
 };
 
 #endif

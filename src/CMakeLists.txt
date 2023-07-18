@@ -24,6 +24,7 @@ target_include_directories(${BIN_NAME} PRIVATE
 target_link_libraries(${BIN_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::DBus
+    Qt${QT_VERSION_MAJOR}::Concurrent
     Threads::Threads
 )
 

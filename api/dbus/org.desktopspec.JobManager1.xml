@@ -26,17 +26,16 @@
         <signal name="JobRemoved">
             <arg type="o" name="job" />
             <arg type="s" name="status" />
-            <arg type="s" name="message" />
-            <arg type="v" name="result" />
+            <arg type="av" name="result" />
 
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="This signal report the job remove event.
                        `status` is the `status` porperty of that Job
                        when it got removed.
-                       `message` is the human readable message
-                       for caller to report to user or just simple logging.
-                       `result` is the result this job produce if it success.
+                       `result` is the result which produce by this job,
+                       and user needs to traverse the list to determine 
+                       if the values are valid or not.
                        Method that return an object of Job
                        should always have document
                        about the type and meaning of the `result`."

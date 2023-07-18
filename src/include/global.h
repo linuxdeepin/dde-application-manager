@@ -62,7 +62,7 @@ bool registerObjectToDbus(T parent, const QString &path, const QString &interfac
                   "param type must derive QObject");
     auto &con = ApplicationManager1DBus::instance().CustomBus();
     if (!con.registerObject(path, interface, new U{parent})) {
-        qWarning() << "register object failed:" << path << interface << con.lastError();
+        qCritical() << "register object failed:" << path << interface << con.lastError();
         return false;
     }
     return true;
