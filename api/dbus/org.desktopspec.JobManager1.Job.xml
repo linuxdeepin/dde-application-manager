@@ -7,7 +7,7 @@
                 value="Value of `Status` is one of
                        `started`, `running`, `finished`,
                        `suspending`, `suspend`,
-                       `canceled` and `failed`."
+                       `canceled`."
             />
         </property>
 
@@ -22,13 +22,13 @@
                        will be emitted."
             />
         </method>
-        <method name="Pause">
+        <method name="Suspend">
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="Success call to this method will
-                       change the Status of this Job to `pausing`.
+                       change the Status of this Job to `suspending`.
                        Then after some time this method call return,
-                       Status will change to `paused`."
+                       Status will change to `suspend`."
             />
         </method>
 
@@ -36,8 +36,7 @@
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="Success call to this method will
-                       change the Status of this Job to `resuming`.
-                       Resuming Jobs will be queued along with pending Jobs.
+                       Resumes the asynchronous computation.
                        Then after some time this method call return,
                        Status will change to `working`."
             />

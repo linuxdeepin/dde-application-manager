@@ -4,7 +4,7 @@
 
 #include "jobservice.h"
 
-JobService::JobService(const QFuture<QVariant>& job)
+JobService::JobService(const QFuture<QVariantList>& job)
     : m_job(job)
 {
 }
@@ -31,7 +31,7 @@ QString JobService::status() const
     if (m_job.isRunning()) {
         return "running";
     }
-    return "failed";
+    Q_UNREACHABLE();
 }
 
 void JobService::Cancel()
@@ -39,7 +39,7 @@ void JobService::Cancel()
     m_job.cancel();
 }
 
-void JobService::Pause()
+void JobService::Suspend()
 {
     m_job.suspend();
 }
