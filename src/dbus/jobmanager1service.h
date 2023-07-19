@@ -33,9 +33,9 @@ public:
     {
         static_assert(std::is_invocable_v<F, QVariant>, "param type must be QVariant.");
 
-        QString objectPath{DDEApplicationManager1JobObjectPath + QUuid::createUuid().toString()};
-        QFuture<QVariantList> future = QtConcurrent::mappedReduced(
-            args.begin(), args.end(), func, &QVariantList::insert, QVariantList{}, QtConcurrent::ReduceOption::OrderedReduce);
+        QString objectPath{DDEApplicationManager1JobObjectPath + QUuid::createUuid().toString(QUuid::Id128)};
+        auto future = QtConcurrent::mappedReduced(
+            args.begin(), args.end(), func,qOverload<QVariantList::parameter_type>(&QVariantList::append), QVariantList{}, QtConcurrent::ReduceOption::OrderedReduce);
         QSharedPointer<JobService> job{new JobService{future}};
         auto path = QDBusObjectPath{objectPath};
         {
@@ -43,8 +43,8 @@ public:
             m_jobs.insert(path, job);  // Insertion is always successful
         }
         emit JobNew(path, source);
-        registerObjectToDbus<decltype(job.data()), JobAdaptor>(job.data(), objectPath, getDBusInterface<JobAdaptor>());
-        auto emitRemove = [this, job, path, future] {
+        registerObjectToDbus(new JobAdaptor(job.data()), objectPath, getDBusInterface<JobAdaptor>());
+        auto emitRemove = [this, job, path, future] (QVariantList value) {
             decltype(m_jobs)::size_type removeCount{0};
             {
                 QMutexLocker locker{&m_mutex};
@@ -52,20 +52,21 @@ public:
             }
             // removeCount means m_jobs can't find value which corresponding with path
             // and we shouldn't emit jobRemoved signal because this signal may already has been emit
-            if (removeCount == 0) { 
+            if (removeCount == 0) {
                 qCritical() << "Job already has been removed: " << path.path();
-                return;
+                return value;
             }
             QString result{job->status()};
             for (const auto &val : future.result()) {
-                if (val.canConvert<QDBusError>()) {
+                if (val.template canConvert<QDBusError>()) {
                     result = "failed";
                 }
                 break;
             }
             emit this->JobRemoved(path, result, future.result());
+            return value;
         };
-        future.then(QtFuture::Launch::Sync, emitRemove);
+        future.then(emitRemove);
     }
 
 Q_SIGNALS:

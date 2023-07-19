@@ -1,0 +1,39 @@
+set(BIN_NAME "ut-ddeam")
+
+include(FindGTest)
+find_package(GTest REQUIRED)
+
+add_compile_definitions(DDEAM_UNIT_TESTING)
+
+file(GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE TESTS ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
+
+list(REMOVE_ITEM SRCS "${PROJECT_SOURCE_DIR}/src/main.cpp")
+list(REMOVE_ITEM SRCS "${PROJECT_SOURCE_DIR}/src/utils.cpp")
+
+add_executable(${BIN_NAME} ${SRCS} ${TESTS})
+
+target_include_directories(${BIN_NAME} PRIVATE
+    ${PROJECT_BINARY_DIR}/
+)
+
+target_link_libraries(${BIN_NAME} PRIVATE
+    GTest::gtest
+    ${AdaptorLib}
+)
+
+target_compile_options(${BIN_NAME} PRIVATE
+    -fsanitize=undefined
+    -fsanitize=address
+)
+
+target_link_options(${BIN_NAME} PRIVATE
+    -fsanitize=undefined
+    -fsanitize=address
+)
+
+add_test(
+    NAME UnitTest
+    COMMAND ${BIN_NAME}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "applicationservice.h"
+#include "applicationadaptor.h"
 #include "instanceadaptor.h"
 #include <QUuid>
 
@@ -27,7 +28,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     QString objectPath{m_applicationPath.path() + "/" + QUuid::createUuid().toString()};
     QSharedPointer<InstanceService> ins{new InstanceService{objectPath, ""}};
     auto *ptr = ins.data();
-    if (registerObjectToDbus<decltype(ptr), InstanceAdaptor>(ptr, objectPath, getDBusInterface<InstanceAdaptor>())) {
+    if (registerObjectToDbus(new InstanceAdaptor(ptr), objectPath, getDBusInterface<InstanceAdaptor>())) {
         m_Instances.insert(QDBusObjectPath{objectPath}, ins);
         return QDBusObjectPath{objectPath};
     }

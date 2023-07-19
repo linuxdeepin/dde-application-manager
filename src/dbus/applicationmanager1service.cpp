@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include "applicationmanager1service.h"
-#include "applicationmanager1adaptor.h"
 #include "applicationadaptor.h"
 #include "global.h"
 
@@ -46,7 +45,7 @@ QDBusObjectPath ApplicationManager1Service::Launch(const QString &id,
     objectPath.prepend(DDEApplicationManager1ApplicationObjectPath);
     QSharedPointer<ApplicationService> app{new ApplicationService{id}};
     auto *ptr = app.data();
-    if (registerObjectToDbus<decltype(ptr), ApplicationAdaptor>(ptr, objectPath, getDBusInterface<ApplicationAdaptor>())) {
+    if (registerObjectToDbus(new ApplicationAdaptor(ptr), objectPath, getDBusInterface<ApplicationAdaptor>())) {
         QDBusObjectPath path{objectPath};
         m_applicationList.insert(path, app);
         return path;
