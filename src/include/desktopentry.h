@@ -14,7 +14,6 @@ constexpr static auto defaultKeyStr = "default";
 enum class ParseError {
     NoError,
     NotFound,
-    FilePathEmpty,
     MismatchedFile,
     InvalidLocation,
     OpenFailed,
@@ -37,13 +36,13 @@ public:
         friend QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
 
     private:
-        QString unescape(const QString& str) const noexcept;
+        [[nodiscard]] QString unescape(const QString &str) const noexcept;
     };
 
     DesktopEntry() = default;
     ~DesktopEntry() = default;
-    ParseError parse(QTextStream& stream) noexcept;
-    QMap<QString, Value> group(const QString &key) const noexcept;
+    [[nodiscard]] ParseError parse(QTextStream& stream) noexcept;
+    [[nodiscard]] QMap<QString, Value> group(const QString &key) const noexcept;
 
 private:
     QMap<QString, QMap<QString, Value>> m_entryMap;
@@ -54,13 +53,23 @@ private:
 
 struct DesktopFile
 {
-    const QString filePath;
-    const QString desktopId;
+    DesktopFile(const DesktopFile &) = default;
+    DesktopFile(DesktopFile &&) = default;
+    DesktopFile &operator=(const DesktopFile &) = default;
+    DesktopFile &operator=(DesktopFile &&) = default;
+    ~DesktopFile() = default;
 
+    const QString &filePath() const { return m_filePath; }
+    const QString &desktopId() const { return m_desktopId; }
+    
     static std::optional<DesktopFile> searchDesktopFile(const QString &desktopFilePath, ParseError& err) noexcept;
 
 private:
-    DesktopFile() = default;
+    DesktopFile(QString &&path,QString &&fileId):m_filePath(std::move(path)),m_desktopId(std::move(fileId)){}
+    QString m_filePath;
+    QString m_desktopId;
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value& v);
+
+QDebug operator<<(QDebug debug, const ParseError &v);

@@ -52,21 +52,7 @@ private:
     QString m_busAddress;
 };
 
-template <typename T, typename U>
-bool registerObjectToDbus(T parent, const QString &path, const QString &interface)
-{
-    using service_type = std::remove_const_t<T>;
-    static_assert(std::is_pointer_v<service_type>, "param type must be a pointer");
-    static_assert(std::is_base_of_v<QObject, std::remove_pointer_t<T>> and
-                      std::is_base_of_v<QObject, U>,
-                  "param type must derive QObject");
-    auto &con = ApplicationManager1DBus::instance().CustomBus();
-    if (!con.registerObject(path, interface, new U{parent})) {
-        qCritical() << "register object failed:" << path << interface << con.lastError();
-        return false;
-    }
-    return true;
-}
+bool registerObjectToDbus(QObject* o, const QString &path, const QString &interface);
 
 template <typename T>
 QString getDBusInterface()

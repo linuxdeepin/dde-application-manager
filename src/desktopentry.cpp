@@ -110,18 +110,16 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
     auto components = path.split(QDir::separator()).toList();
     auto it = std::find(components.cbegin(), components.cend(), "applications");
     if (it == components.cend()) {
-        qWarning() << "fatal error: file location invalid";
-        err = ParseError::InvalidLocation;
-        return std::nullopt;
+        qWarning() << "custom location detected, Id wouldn't be generated.";
+    } else {
+        QString FileId;
+        ++it;
+        while (it != components.cend())
+            FileId += (*(it++) + "-");
+        id = FileId.chopped(1);
     }
-    QString FileId;
-    ++it;
-    while (it != components.cend())
-        FileId += (*(it++) + "-");
-    id = FileId.chopped(1);
-
     err = ParseError::NoError;
-    return DesktopFile{path,id};
+    return DesktopFile{std::move(path),std::move(id)};
 }
 
 ParseError DesktopEntry::parse(QTextStream& stream) noexcept
@@ -239,13 +237,16 @@ QString DesktopEntry::Value::toIconString(bool &ok) const noexcept
 
 bool DesktopEntry::Value::toBoolean(bool &ok) const noexcept
 {
-    ok = true;
-    const auto& str = (*this)[defaultKeyStr];
-    if (str.compare("true"))
-        return true;
-    if (str.compare("false"))
-        return false;
     ok = false;
+    const auto& str = (*this)[defaultKeyStr];
+    if (str == "true") {
+        ok = true;
+        return true;
+    }
+    if (str == "false") {
+        ok = true;
+        return false;
+    }
     return false;
 }
 
@@ -260,5 +261,43 @@ QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
 {
     QDebugStateSaver saver{debug};
     debug << static_cast<const QMap<QString,QString>&>(v);
+    return debug;
+}
+
+QDebug operator<<(QDebug debug, const ParseError &v)
+{
+    QDebugStateSaver saver{debug};
+    QString errMsg;
+    switch (v) {
+        case ParseError::NoError:{
+            errMsg = "no error.";
+            break;
+        }
+        case ParseError::NotFound:{
+            errMsg = "file not found.";
+            break;
+        }
+        case ParseError::MismatchedFile:{
+            errMsg = "file type is mismatched.";
+            break;
+        }
+        case ParseError::InvalidLocation:{
+            errMsg = "file location is invalid, please check $XDG_DATA_DIRS.";
+            break;
+        }
+        case ParseError::OpenFailed:{
+            errMsg = "couldn't open the file.";
+            break;
+        }
+        case ParseError::GroupHeaderInvalid:{
+            errMsg = "groupHead syntax is invalid.";
+            break;
+        }
+        case ParseError::EntryKeyInvalid:{
+            errMsg = "key syntax is invalid.";
+            break;
+        }
+    }
+    debug << errMsg;
     return debug;
 }
