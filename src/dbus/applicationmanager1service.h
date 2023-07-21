@@ -21,13 +21,11 @@ public:
     ApplicationManager1Service(const ApplicationManager1Service &) = delete;
     ApplicationManager1Service(ApplicationManager1Service &&) = delete;
     ApplicationManager1Service &operator=(const ApplicationManager1Service &) = delete;
-    ApplicationManager1Service &operator=(ApplicationManager1Service&&) = delete;
+    ApplicationManager1Service &operator=(ApplicationManager1Service &&) = delete;
 
     Q_PROPERTY(QList<QDBusObjectPath> List READ list)
     QList<QDBusObjectPath> list() const;
-    void addApplication(const QString &ID,
-                        const QStringList &actions,
-                        bool AutoStart = false);
+    void addApplication(const QString &ID, const QStringList &actions, bool AutoStart = false);
     bool removeOneApplication(const QDBusObjectPath &application);
     void removeAllApplication();
 
@@ -37,7 +35,7 @@ public Q_SLOTS:
     QDBusObjectPath Launch(const QString &id, const QString &action, const QStringList &fields, const QVariantMap &options);
 
 private:
-    QMap<QDBusObjectPath,QSharedPointer<ApplicationService>> m_applicationList;
+    QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 };
 
 #endif

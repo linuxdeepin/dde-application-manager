@@ -4,7 +4,7 @@
 
 #include "jobservice.h"
 
-JobService::JobService(const QFuture<QVariantList>& job)
+JobService::JobService(const QFuture<QVariantList> &job)
     : m_job(job)
 {
 }

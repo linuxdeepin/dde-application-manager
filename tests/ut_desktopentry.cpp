@@ -18,26 +18,24 @@ public:
         auto curDir = QDir::current();
         QString path{curDir.absolutePath() + "/data/desktopExample.desktop"};
         ParseError err;
-        auto file = DesktopFile::searchDesktopFile(path,err);
+        auto file = DesktopFile::searchDesktopFile(path, err);
         if (!file.has_value()) {
             qWarning() << "search " << path << "failed:" << err;
             return;
         }
         m_file.reset(new DesktopFile{std::move(file).value()});
     }
-    void SetUp() override
-    {
-        
-    }
+    void SetUp() override {}
     void TearDown() override {}
     QSharedPointer<DesktopFile> file() { return m_file; }
+
 private:
     static inline QSharedPointer<DesktopFile> m_file;
 };
 
 TEST_F(TestDesktopEntry, desktopFile)
 {
-    const auto& fileptr = file();
+    const auto &fileptr = file();
     ASSERT_FALSE(fileptr.isNull());
     const auto &exampleFile = file();
     auto curDir = QDir::current();
@@ -49,7 +47,8 @@ TEST_F(TestDesktopEntry, desktopFile)
 TEST_F(TestDesktopEntry, prase)
 {
     const auto &exampleFile = file();
-    ASSERT_FALSE(exampleFile.isNull());;
+    ASSERT_FALSE(exampleFile.isNull());
+    ;
     DesktopEntry entry;
     QFile in{exampleFile->filePath()};
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));

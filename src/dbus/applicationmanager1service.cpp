@@ -9,14 +9,20 @@ ApplicationManager1Service::~ApplicationManager1Service() = default;
 
 ApplicationManager1Service::ApplicationManager1Service() = default;
 
-QList<QDBusObjectPath> ApplicationManager1Service::list() const { return m_applicationList.keys(); }
+QList<QDBusObjectPath> ApplicationManager1Service::list() const
+{
+    return m_applicationList.keys();
+}
 
 bool ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
 {
     return m_applicationList.remove(application) != 0;
 }
 
-void ApplicationManager1Service::removeAllApplication() { m_applicationList.clear(); }
+void ApplicationManager1Service::removeAllApplication()
+{
+    m_applicationList.clear();
+}
 
 QDBusObjectPath ApplicationManager1Service::Application(const QString &id)
 {

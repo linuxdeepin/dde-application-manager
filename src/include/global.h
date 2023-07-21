@@ -28,10 +28,10 @@ public:
     ApplicationManager1DBus(const ApplicationManager1DBus &) = delete;
     ApplicationManager1DBus(ApplicationManager1DBus &&) = delete;
     ApplicationManager1DBus &operator=(const ApplicationManager1DBus &) = delete;
-    ApplicationManager1DBus &operator=(ApplicationManager1DBus&&) =  delete;
+    ApplicationManager1DBus &operator=(ApplicationManager1DBus &&) = delete;
     const QString &BusAddress() { return m_busAddress; }
     void setBusAddress(const QString &address) { m_busAddress = address; }
-    QDBusConnection& CustomBus()
+    QDBusConnection &CustomBus()
     {
         static auto con = QDBusConnection::connectToBus(m_busAddress, "org.deepin.dde.ApplicationManager1");
         if (!con.isConnected()) {
@@ -52,7 +52,7 @@ private:
     QString m_busAddress;
 };
 
-bool registerObjectToDbus(QObject* o, const QString &path, const QString &interface);
+bool registerObjectToDbus(QObject *o, const QString &path, const QString &interface);
 
 template <typename T>
 QString getDBusInterface()

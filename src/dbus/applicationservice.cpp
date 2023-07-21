@@ -35,22 +35,52 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     return {};
 }
 
-QStringList ApplicationService::actions() const noexcept { return m_actions; }
+QStringList ApplicationService::actions() const noexcept
+{
+    return m_actions;
+}
 
-QStringList& ApplicationService::actionsRef() noexcept { return m_actions; }
+QStringList &ApplicationService::actionsRef() noexcept
+{
+    return m_actions;
+}
 
-QString ApplicationService::iD() const noexcept { return m_ID; }
+QString ApplicationService::iD() const noexcept
+{
+    return m_ID;
+}
 
-IconMap ApplicationService::icons() const { return m_Icons; }
+IconMap ApplicationService::icons() const
+{
+    return m_Icons;
+}
 
-IconMap& ApplicationService::iconsRef() { return m_Icons; }
+IconMap &ApplicationService::iconsRef()
+{
+    return m_Icons;
+}
 
-bool ApplicationService::isAutoStart() const noexcept { return m_AutoStart; }
+bool ApplicationService::isAutoStart() const noexcept
+{
+    return m_AutoStart;
+}
 
-void ApplicationService::setAutoStart(bool autostart) noexcept { m_AutoStart = autostart; }
+void ApplicationService::setAutoStart(bool autostart) noexcept
+{
+    m_AutoStart = autostart;
+}
 
-QList<QDBusObjectPath> ApplicationService::instances() const noexcept { return m_Instances.keys(); }
+QList<QDBusObjectPath> ApplicationService::instances() const noexcept
+{
+    return m_Instances.keys();
+}
 
-bool ApplicationService::removeOneInstance(const QDBusObjectPath &instance) { return m_Instances.remove(instance) != 0; }
+bool ApplicationService::removeOneInstance(const QDBusObjectPath &instance)
+{
+    return m_Instances.remove(instance) != 0;
+}
 
-void ApplicationService::removeAllInstance() { m_Instances.clear();}
+void ApplicationService::removeAllInstance()
+{
+    m_Instances.clear();
+}

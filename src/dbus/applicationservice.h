@@ -19,21 +19,21 @@ class ApplicationService : public QObject
     Q_OBJECT
 public:
     ~ApplicationService() override;
-    ApplicationService(const ApplicationService&) = delete;
+    ApplicationService(const ApplicationService &) = delete;
     ApplicationService(ApplicationService &&) = delete;
-    ApplicationService& operator=(const ApplicationService&) = delete;
+    ApplicationService &operator=(const ApplicationService &) = delete;
     ApplicationService &operator=(ApplicationService &&) = delete;
 
     Q_PROPERTY(QStringList Actions READ actions CONSTANT)
     QStringList actions() const noexcept;
-    QStringList& actionsRef() noexcept;
+    QStringList &actionsRef() noexcept;
 
     Q_PROPERTY(QString ID READ iD CONSTANT)
     QString iD() const noexcept;
 
     Q_PROPERTY(IconMap Icons READ icons)
     IconMap icons() const;
-    IconMap& iconsRef();
+    IconMap &iconsRef();
 
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart)
     bool isAutoStart() const noexcept;
@@ -57,7 +57,7 @@ private:
     QString m_ID;
     QDBusObjectPath m_applicationPath;
     QStringList m_actions;
-    QMap<QDBusObjectPath,QSharedPointer<InstanceService>> m_Instances;
+    QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     IconMap m_Icons;
 };
 

@@ -9,7 +9,8 @@
 class TestJobManager : public testing::Test
 {
 public:
-    JobManager1Service& service() { return m_jobManager; }
+    JobManager1Service &service() { return m_jobManager; }
+
 private:
     JobManager1Service m_jobManager;
 };
@@ -33,9 +34,12 @@ TEST_F(TestJobManager, addJob)
                          qDebug() << "job was really removed";
                      });
 
-    manager.addJob(sourcePath, [](auto value) -> QVariant {
-        EXPECT_TRUE(value.toString() == "Application");
-        return QVariant::fromValue(true);
-    }, args);
-    QThread::sleep(1); // force wait
+    manager.addJob(
+        sourcePath,
+        [](auto value) -> QVariant {
+            EXPECT_TRUE(value.toString() == "Application");
+            return QVariant::fromValue(true);
+        },
+        args);
+    QThread::sleep(1);  // force wait
 }
