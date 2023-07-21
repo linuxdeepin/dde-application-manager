@@ -29,7 +29,7 @@ public Q_SLOTS:
 
 private:
     friend class JobManager1Service;
-    explicit JobService(const QFuture<QVariantList>& job);
+    explicit JobService(const QFuture<QVariantList> &job);
     QFuture<QVariantList> m_job;
 };
 

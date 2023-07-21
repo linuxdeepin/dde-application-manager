@@ -22,12 +22,12 @@ auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
     }
 }
 
-ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator& currentGroup) noexcept
+ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
 {
     if (str.startsWith("#"))
         return ParseError::NoError;
     auto splitCharIndex = str.indexOf(']');
-    if(splitCharIndex != -1){
+    if (splitCharIndex != -1) {
         for (; splitCharIndex < str.size(); ++splitCharIndex) {
             if (str.at(splitCharIndex) == '=')
                 break;
@@ -39,11 +39,11 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     auto valueStr = str.sliced(splitCharIndex + 1).trimmed();
     QString key, valueKey{defaultKeyStr};
 
-    constexpr auto MainKey = R"re((?<MainKey>[0-9a-zA-Z-]+))re";// main key. eg.(Name, X-CUSTOM-KEY).
-    constexpr auto Language = R"re((?:[a-z]+))re";// language of locale postfix. eg.(en, zh)
-    constexpr auto Country = R"re((?:_[A-Z]+))re";// country of locale postfix. eg.(US, CN)
-    constexpr auto Encoding = R"re((?:\.[0-9A-Z-]+))re";// encoding of locale postfix. eg.(UFT-8)
-    constexpr auto Modifier = R"re((?:@[a-z=;]+))re";// modifier of locale postfix. eg(euro;collation=traditional)
+    constexpr auto MainKey = R"re((?<MainKey>[0-9a-zA-Z-]+))re";  // main key. eg.(Name, X-CUSTOM-KEY).
+    constexpr auto Language = R"re((?:[a-z]+))re";                // language of locale postfix. eg.(en, zh)
+    constexpr auto Country = R"re((?:_[A-Z]+))re";                // country of locale postfix. eg.(US, CN)
+    constexpr auto Encoding = R"re((?:\.[0-9A-Z-]+))re";          // encoding of locale postfix. eg.(UFT-8)
+    constexpr auto Modifier = R"re((?:@[a-z=;]+))re";             // modifier of locale postfix. eg(euro;collation=traditional)
     const static auto validKey =
         QString("^%1(?:\\[(?<LOCALE>%2%3?%4?%5?)\\])?$").arg(MainKey).arg(Language).arg(Country).arg(Encoding).arg(Modifier);
     // example: https://regex101.com/r/hylOay/1
@@ -58,7 +58,7 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     key = matcher.captured("MainKey");
 
     if (auto locale = matcher.captured("LOCALE"); !locale.isEmpty()) {
-        valueKey = locale ;
+        valueKey = locale;
     }
     qDebug() << valueKey << valueStr;
     if (auto cur = currentGroup->find(key); cur == currentGroup->end()) {
@@ -81,10 +81,10 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
 {
     if (auto tmp = desktopFile.split("."); tmp.last() != "desktop") {
         qWarning() << "file isn't a desktop file";
-        err = ParseError::MismatchedFile; 
+        err = ParseError::MismatchedFile;
         return std::nullopt;
     }
-    QString path,id;
+    QString path, id;
     QFileInfo Fileinfo{desktopFile};
     if (Fileinfo.isAbsolute() and Fileinfo.exists()) {
         path = desktopFile;
@@ -93,8 +93,9 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         qDebug() << "Current Application Dirs:" << XDGDataDirs;
         for (const auto &d : XDGDataDirs) {
             auto dirPath = QDir::cleanPath(d);
-            QDirIterator it{dirPath,{desktopFile},QDir::AllEntries | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories};
-            if (it.hasNext()){
+            QDirIterator it{
+                dirPath, {desktopFile}, QDir::AllEntries | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories};
+            if (it.hasNext()) {
                 path = it.next();
                 break;
             }
@@ -119,10 +120,10 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         id = FileId.chopped(1);
     }
     err = ParseError::NoError;
-    return DesktopFile{std::move(path),std::move(id)};
+    return DesktopFile{std::move(path), std::move(id)};
 }
 
-ParseError DesktopEntry::parse(QTextStream& stream) noexcept
+ParseError DesktopEntry::parse(QTextStream &stream) noexcept
 {
     if (stream.atEnd())
         return ParseError::OpenFailed;
@@ -143,7 +144,7 @@ ParseError DesktopEntry::parse(QTextStream& stream) noexcept
 
         if (auto e = parseEntry(line, currentGroup); e != ParseError::NoError) {
             err = e;
-            qWarning() << "an error occurred,this line will be skipped:"<< line;
+            qWarning() << "an error occurred,this line will be skipped:" << line;
         }
     }
     return err;
@@ -209,15 +210,14 @@ QString DesktopEntry::Value::toString(bool &ok) const noexcept
     auto unescapedStr = unescape(*str);
     constexpr auto controlChars = "\\p{Cc}";
     constexpr auto asciiChars = "[^\x00-\x7f]";
-    if (unescapedStr.contains(QRegularExpression{controlChars}) and
-        unescapedStr.contains(QRegularExpression{asciiChars}))
+    if (unescapedStr.contains(QRegularExpression{controlChars}) and unescapedStr.contains(QRegularExpression{asciiChars}))
         return {};
 
     ok = true;
     return unescapedStr;
 }
 
-QString DesktopEntry::Value::toLocaleString(const QLocale &locale, bool& ok) const noexcept
+QString DesktopEntry::Value::toLocaleString(const QLocale &locale, bool &ok) const noexcept
 {
     ok = false;
     for (auto it = this->constKeyValueBegin(); it != this->constKeyValueEnd(); ++it) {
@@ -238,7 +238,7 @@ QString DesktopEntry::Value::toIconString(bool &ok) const noexcept
 bool DesktopEntry::Value::toBoolean(bool &ok) const noexcept
 {
     ok = false;
-    const auto& str = (*this)[defaultKeyStr];
+    const auto &str = (*this)[defaultKeyStr];
     if (str == "true") {
         ok = true;
         return true;
@@ -252,7 +252,7 @@ bool DesktopEntry::Value::toBoolean(bool &ok) const noexcept
 
 float DesktopEntry::Value::toNumeric(bool &ok) const noexcept
 {
-    const auto& str = (*this)[defaultKeyStr];
+    const auto &str = (*this)[defaultKeyStr];
     QVariant v{str};
     return v.toFloat(&ok);
 }
@@ -260,7 +260,7 @@ float DesktopEntry::Value::toNumeric(bool &ok) const noexcept
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
 {
     QDebugStateSaver saver{debug};
-    debug << static_cast<const QMap<QString,QString>&>(v);
+    debug << static_cast<const QMap<QString, QString> &>(v);
     return debug;
 }
 
@@ -269,31 +269,31 @@ QDebug operator<<(QDebug debug, const ParseError &v)
     QDebugStateSaver saver{debug};
     QString errMsg;
     switch (v) {
-        case ParseError::NoError:{
+        case ParseError::NoError: {
             errMsg = "no error.";
             break;
         }
-        case ParseError::NotFound:{
+        case ParseError::NotFound: {
             errMsg = "file not found.";
             break;
         }
-        case ParseError::MismatchedFile:{
+        case ParseError::MismatchedFile: {
             errMsg = "file type is mismatched.";
             break;
         }
-        case ParseError::InvalidLocation:{
+        case ParseError::InvalidLocation: {
             errMsg = "file location is invalid, please check $XDG_DATA_DIRS.";
             break;
         }
-        case ParseError::OpenFailed:{
+        case ParseError::OpenFailed: {
             errMsg = "couldn't open the file.";
             break;
         }
-        case ParseError::GroupHeaderInvalid:{
+        case ParseError::GroupHeaderInvalid: {
             errMsg = "groupHead syntax is invalid.";
             break;
         }
-        case ParseError::EntryKeyInvalid:{
+        case ParseError::EntryKeyInvalid: {
             errMsg = "key syntax is invalid.";
             break;
         }

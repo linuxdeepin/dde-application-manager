@@ -16,7 +16,7 @@ public:
     InstanceService(const InstanceService &) = delete;
     InstanceService(InstanceService &&) = delete;
     InstanceService &operator=(const InstanceService &) = delete;
-    InstanceService &operator=(InstanceService&&) = delete;
+    InstanceService &operator=(InstanceService &&) = delete;
 
     Q_PROPERTY(QDBusObjectPath Application READ application CONSTANT)
     QDBusObjectPath application() const;

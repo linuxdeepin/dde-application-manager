@@ -19,4 +19,4 @@ int main(int argc, char **argv)
     __sanitizer_set_report_path("asan_am.log");
     QCoreApplication::exec();
     return ret;
-}    
+}

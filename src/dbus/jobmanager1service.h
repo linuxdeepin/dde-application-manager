@@ -23,7 +23,7 @@ class JobManager1Service final : public QObject
 public:
     JobManager1Service();
     JobManager1Service(const JobManager1Service &) = delete;
-    JobManager1Service(JobManager1Service&&) = delete;
+    JobManager1Service(JobManager1Service &&) = delete;
     JobManager1Service &operator=(const JobManager1Service &) = delete;
     JobManager1Service &operator=(JobManager1Service &&) = delete;
 
@@ -34,8 +34,12 @@ public:
         static_assert(std::is_invocable_v<F, QVariant>, "param type must be QVariant.");
 
         QString objectPath{DDEApplicationManager1JobObjectPath + QUuid::createUuid().toString(QUuid::Id128)};
-        auto future = QtConcurrent::mappedReduced(
-            args.begin(), args.end(), func,qOverload<QVariantList::parameter_type>(&QVariantList::append), QVariantList{}, QtConcurrent::ReduceOption::OrderedReduce);
+        auto future = QtConcurrent::mappedReduced(args.begin(),
+                                                  args.end(),
+                                                  func,
+                                                  qOverload<QVariantList::parameter_type>(&QVariantList::append),
+                                                  QVariantList{},
+                                                  QtConcurrent::ReduceOption::OrderedReduce);
         QSharedPointer<JobService> job{new JobService{future}};
         auto path = QDBusObjectPath{objectPath};
         {
@@ -44,7 +48,7 @@ public:
         }
         emit JobNew(path, source);
         registerObjectToDbus(new JobAdaptor(job.data()), objectPath, getDBusInterface<JobAdaptor>());
-        auto emitRemove = [this, job, path, future] (QVariantList value) {
+        auto emitRemove = [this, job, path, future](QVariantList value) {
             decltype(m_jobs)::size_type removeCount{0};
             {
                 QMutexLocker locker{&m_mutex};
