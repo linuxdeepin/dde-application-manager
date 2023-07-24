@@ -23,6 +23,7 @@ target_link_libraries(${BIN_NAME} PRIVATE
 )
 
 target_compile_options(${BIN_NAME} PRIVATE
+    -fno-access-control
     -fsanitize=undefined
     -fsanitize=address
 )

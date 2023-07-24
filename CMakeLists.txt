@@ -44,9 +44,9 @@ foreach(obj IN LISTS AdaptorLib)
 endforeach()
 
 add_subdirectory(src)
-# add_subdirectory(docs)
-# add_subdirectory(plugin)
+add_subdirectory(plugin)
 
+# add_subdirectory(docs)
 include(CTest)
 
 if(BUILD_TESTING)

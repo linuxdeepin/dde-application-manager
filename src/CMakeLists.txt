@@ -19,8 +19,13 @@ target_link_libraries(${LIB_NAME} PUBLIC
 )
 
 add_executable(${BIN_NAME} main.cpp utils.cpp)
+
 target_link_libraries(${BIN_NAME} PRIVATE
     ${LIB_NAME}
+)
+
+target_include_directories(${BIN_NAME} PRIVATE
+    ${PROJECT_BINARY_DIR}
 )
 
 install(TARGETS ${BIN_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})

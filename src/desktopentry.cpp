@@ -24,8 +24,10 @@ auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
 
 ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
 {
-    if (str.startsWith("#"))
+    if (str.startsWith("#")) {
         return ParseError::NoError;
+    }
+
     auto splitCharIndex = str.indexOf(']');
     if (splitCharIndex != -1) {
         for (; splitCharIndex < str.size(); ++splitCharIndex) {
@@ -60,7 +62,6 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     if (auto locale = matcher.captured("LOCALE"); !locale.isEmpty()) {
         valueKey = locale;
     }
-    qDebug() << valueKey << valueStr;
     if (auto cur = currentGroup->find(key); cur == currentGroup->end()) {
         currentGroup->insert(keyStr, {{valueKey, valueStr}});
         return ParseError::NoError;
@@ -93,8 +94,10 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         qDebug() << "Current Application Dirs:" << XDGDataDirs;
         for (const auto &d : XDGDataDirs) {
             auto dirPath = QDir::cleanPath(d);
-            QDirIterator it{
-                dirPath, {desktopFile}, QDir::AllEntries | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDirIterator::Subdirectories};
+            QDirIterator it{dirPath,
+                            {desktopFile},
+                            QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot | QDir::Readable,
+                            QDirIterator::Subdirectories};
             if (it.hasNext()) {
                 path = it.next();
                 break;
@@ -107,8 +110,8 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         err = ParseError::NotFound;
         return std::nullopt;
     }
-
-    auto components = path.split(QDir::separator()).toList();
+    auto tmp = path.chopped(8);  // remove ".desktop"
+    auto components = tmp.split(QDir::separator()).toList();
     auto it = std::find(components.cbegin(), components.cend(), "applications");
     if (it == components.cend()) {
         qWarning() << "custom location detected, Id wouldn't be generated.";
@@ -117,10 +120,22 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         ++it;
         while (it != components.cend())
             FileId += (*(it++) + "-");
-        id = FileId.chopped(1);
+        id = FileId.chopped(1);  // remove extra "-""
     }
     err = ParseError::NoError;
     return DesktopFile{std::move(path), std::move(id)};
+}
+
+ParseError DesktopEntry::parse(const DesktopFile &desktopFile) noexcept
+{
+    auto file = QFile(desktopFile.filePath());
+    if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+        qWarning() << desktopFile.filePath() << "can't open.";
+        return ParseError::OpenFailed;
+    }
+
+    QTextStream in{&file};
+    return parse(in);
 }
 
 ParseError DesktopEntry::parse(QTextStream &stream) noexcept
@@ -134,6 +149,10 @@ ParseError DesktopEntry::parse(QTextStream &stream) noexcept
     ParseError err{ParseError::NoError};
     while (!stream.atEnd()) {
         auto line = stream.readLine().trimmed();
+
+        if (line.isEmpty()) {
+            continue;
+        }
 
         if (line.startsWith("[")) {
             if (!line.endsWith("]"))
@@ -150,11 +169,27 @@ ParseError DesktopEntry::parse(QTextStream &stream) noexcept
     return err;
 }
 
-QMap<QString, DesktopEntry::Value> DesktopEntry::group(const QString &key) const noexcept
+std::optional<QMap<QString, DesktopEntry::Value>> DesktopEntry::group(const QString &key) const noexcept
 {
     if (auto group = m_entryMap.find(key); group != m_entryMap.cend())
         return *group;
-    return {};
+    return std::nullopt;
+}
+
+std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, const QString &valueKey) const noexcept
+{
+    const auto &destGroup = group(groupKey);
+    if (!destGroup) {
+        qWarning() << "group " << groupKey << " can't be found.";
+        return std::nullopt;
+    }
+
+    auto it = destGroup->find(valueKey);
+    if (it == destGroup->cend()) {
+        qWarning() << "value " << valueKey << " can't be found.";
+        return std::nullopt;
+    }
+    return *it;
 }
 
 QString DesktopEntry::Value::unescape(const QString &str) const noexcept

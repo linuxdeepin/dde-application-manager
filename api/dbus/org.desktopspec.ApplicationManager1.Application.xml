@@ -3,9 +3,7 @@
     <interface name="org.desktopspec.ApplicationManager1.Application">
         <annotation
                 name="org.freedesktop.DBus.Description"
-                value="This interface is designed to
-                       provide a dbus interface of desktop file.
-                       Missing fields will be added later."
+                value="This interface is designed to provide a dbus interface of desktop file. Missing fields will be added later."
         />
 
         <property name="Actions" type="as" access="read">

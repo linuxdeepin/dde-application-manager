@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "jobmanager1service.h"
-#include "jobservice.h"
 #include <gtest/gtest.h>
 
 class TestJobManager : public testing::Test
 {
 public:
-    JobManager1Service &service() { return m_jobManager; }
+    static void SetUpTestCase() { m_jobManager = new JobManager1Service(nullptr); }
+
+    static void TearDownTestCase() { delete m_jobManager; }
+    JobManager1Service &service() { return *m_jobManager; }
 
 private:
-    JobManager1Service m_jobManager;
+    static inline JobManager1Service *m_jobManager{nullptr};
 };
 
 TEST_F(TestJobManager, addJob)
@@ -35,7 +37,7 @@ TEST_F(TestJobManager, addJob)
                      });
 
     manager.addJob(
-        sourcePath,
+        sourcePath.path(),
         [](auto value) -> QVariant {
             EXPECT_TRUE(value.toString() == "Application");
             return QVariant::fromValue(true);
