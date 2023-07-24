@@ -2,6 +2,15 @@
 <node>
     <interface name="org.desktopspec.ApplicationManager1">
         <property type="ao" access="read" name="List" />
+        <method name="UpdateApplicationInfo">
+            <arg type="as" name="update_path" direction="in" />
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="This method is used to update the desktop file cache when needed.
+                       You can pass a list of absolute paths to files or directories that you want to update.
+                       Note: Application Manager only supports directory paths in $XDG_DATA_DIRS."
+            />
+        </method>
 
         <method name="Application">
             <arg type="s" name="id" direction="in" />

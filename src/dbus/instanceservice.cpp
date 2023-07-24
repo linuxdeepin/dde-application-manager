@@ -4,8 +4,9 @@
 
 #include "instanceservice.h"
 
-InstanceService::InstanceService(QString application, QString systemdUnitPath)
-    : m_Application(std::move(application))
+InstanceService::InstanceService(QString instanceId, QString application, QString systemdUnitPath)
+    : m_instanceId(std::move(instanceId))
+    , m_Application(std::move(application))
     , m_SystemdUnitPath(std::move(systemdUnitPath))
 {
 }

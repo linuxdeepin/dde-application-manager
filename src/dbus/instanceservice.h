@@ -18,15 +18,18 @@ public:
     InstanceService &operator=(const InstanceService &) = delete;
     InstanceService &operator=(InstanceService &&) = delete;
 
-    Q_PROPERTY(QDBusObjectPath Application READ application CONSTANT)
+    Q_PROPERTY(QDBusObjectPath Application READ application)
     QDBusObjectPath application() const;
 
-    Q_PROPERTY(QDBusObjectPath SystemdUnitPath READ systemdUnitPath CONSTANT)
+    Q_PROPERTY(QDBusObjectPath SystemdUnitPath READ systemdUnitPath)
     QDBusObjectPath systemdUnitPath() const;
+
+    const QString &instanceId() const noexcept { return m_instanceId; }
 
 private:
     friend class ApplicationService;
-    InstanceService(QString application, QString systemdUnitPath);
+    InstanceService(QString instanceId, QString application, QString systemdUnitPath);
+    QString m_instanceId;
     const QDBusObjectPath m_Application;
     const QDBusObjectPath m_SystemdUnitPath;
 };

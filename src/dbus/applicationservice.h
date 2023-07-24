@@ -11,8 +11,14 @@
 #include <QString>
 #include <QDBusUnixFileDescriptor>
 #include <QSharedPointer>
+#include <QUuid>
+#include <QTextStream>
+#include <QFile>
 #include "instanceservice.h"
 #include "global.h"
+#include "desktopentry.h"
+#include "desktopicons.h"
+#include "jobmanager1service.h"
 
 class ApplicationService : public QObject
 {
@@ -26,10 +32,9 @@ public:
 
     Q_PROPERTY(QStringList Actions READ actions CONSTANT)
     QStringList actions() const noexcept;
-    QStringList &actionsRef() noexcept;
 
-    Q_PROPERTY(QString ID READ iD CONSTANT)
-    QString iD() const noexcept;
+    Q_PROPERTY(QString ID READ id CONSTANT)
+    QString id() const noexcept;
 
     Q_PROPERTY(IconMap Icons READ icons)
     IconMap icons() const;
@@ -42,23 +47,93 @@ public:
     Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances)
     QList<QDBusObjectPath> instances() const noexcept;
 
+    QDBusObjectPath findInstance(const QString &instanceId) const;
+
+    const QString &getLauncher() const noexcept { return m_launcher; }
+    void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
+
+    bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath = "/");
     void recoverInstances(const QList<QDBusObjectPath>) noexcept;
-    bool removeOneInstance(const QDBusObjectPath &instance);
+    void removeOneInstance(const QDBusObjectPath &instance);  // TODO: remove instance when app closed
     void removeAllInstance();
 
 public Q_SLOTS:
     QString GetActionName(const QString &identifier, const QStringList &env);
-    QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
+    QDBusObjectPath Launch(QString action, QStringList fields, QVariantMap options);
 
 private:
     friend class ApplicationManager1Service;
-    explicit ApplicationService(QString ID);
-    bool m_AutoStart;
-    QString m_ID;
+    template <typename T>
+    ApplicationService(T &&source, ApplicationManager1Service *parent)
+        : m_parent(parent)
+        , m_desktopSource(std::forward<T>(source))
+    {
+        static_assert(std::is_same_v<T, DesktopFile> or std::is_same_v<T, QString>, "param type must be QString or DesktopFile.");
+        QString objectPath{DDEApplicationManager1ApplicationObjectPath};
+        QTextStream sourceStream;
+        QFile sourceFile;
+        auto dbusAppid = m_desktopSource.m_file.desktopId();
+
+        if constexpr (std::is_same_v<T, DesktopFile>) {
+            m_applicationPath = QDBusObjectPath{objectPath + escapeToObjectPath(dbusAppid)};
+            m_isPersistence = true;
+            sourceFile.setFileName(m_desktopSource.m_file.filePath());
+            if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+                qCritical() << "desktop file can't open:" << m_desktopSource.m_file.filePath() << sourceFile.errorString();
+                return;
+            }
+            sourceStream.setDevice(&sourceFile);
+        } else if (std::is_same_v<T, QString>) {
+            m_applicationPath = QDBusObjectPath{objectPath + QUuid::createUuid().toString(QUuid::Id128)};
+            m_isPersistence = false;
+            sourceStream.setString(&m_desktopSource.m_temp, QTextStream::ReadOnly | QTextStream::Text);
+        }
+        m_entry.reset(new DesktopEntry());
+        if (auto error = m_entry->parse(sourceStream); error != ParseError::NoError) {
+            if (error != ParseError::EntryKeyInvalid) {
+                m_entry.reset(nullptr);
+                return;
+            }
+        }
+        // TODO: icon lookup
+    }
+
+    bool m_AutoStart{false};
+    bool m_isPersistence;
+    ApplicationManager1Service *m_parent{nullptr};
     QDBusObjectPath m_applicationPath;
-    QStringList m_actions;
+    QString m_launcher{ApplicationLauncherBinary};
+    union DesktopSource
+    {
+        template <typename T, std::enable_if_t<std::is_same_v<T, DesktopFile>, bool> = true>
+        DesktopSource(T &&source)
+            : m_file(std::forward<T>(source))
+        {
+        }
+
+        template <typename T, std::enable_if_t<std::is_same_v<T, QString>, bool> = true>
+        DesktopSource(T &&source)
+            : m_temp(std::forward<T>(source))
+        {
+        }
+
+        void destruct(bool isPersistence)
+        {
+            if (isPersistence) {
+                m_file.~DesktopFile();
+            } else {
+                m_temp.~QString();
+            }
+        }
+        ~DesktopSource(){};
+        QString m_temp;
+        DesktopFile m_file;
+    } m_desktopSource;
+    QSharedPointer<DesktopEntry> m_entry{nullptr};
+    QSharedPointer<DesktopIcons> m_Icons{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
-    IconMap m_Icons;
+    QString userNameLookup(uid_t uid);
+    [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
 };
 
 #endif

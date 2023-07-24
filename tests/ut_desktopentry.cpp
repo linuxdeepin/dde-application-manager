@@ -57,10 +57,10 @@ TEST_F(TestDesktopEntry, prase)
     ASSERT_EQ(err, ParseError::NoError);
 
     auto group = entry.group("Desktop Entry");
-    ASSERT_FALSE(group.isEmpty());
+    ASSERT_TRUE(group);
 
-    auto name = group.constFind("Name");
-    ASSERT_NE(name, group.cend());
+    auto name = group->constFind("Name");
+    ASSERT_NE(name, group->cend());
 
     bool ok;
     name->toBoolean(ok);
