@@ -54,22 +54,21 @@
     4. [`org.desktopspec.JobManager1`](../api/dbus/org.desktopspec.JobManager1.xml)
     5. [`org.desktopspec.JobManager1.Job`](../api/dbus/org.desktopspec.JobManager1.Job.xml)
 
-  - [ ] 以上接口设计需要通过评审。
+  - [ ] 以上接口设计需要通过评审。DEADLINE: 23.7.5
 
-  - [ ] 完成AM的主要项目结构搭建；
-
-    框架完成后需要通过评审。
+- [ ] 项目框架搭建 23.7.21
+  - [ ] Job机制的基本实现;
 
 - [ ] 主要功能开发
-  - [ ] 应用列表；
-  - [ ] 启动应用；
-  - [ ] 从PID获取AppID；
-  - [ ] 正在运行的应用列表；
-  - [ ] 崩溃后恢复现场；
+  - [ ] 应用列表；23.7.28
+  - [ ] 启动应用；23.7.28
+  - [ ] 从PID获取AppID；23.7.28
+  - [ ] 正在运行的应用列表；23.8.4
+  - [ ] 崩溃后恢复现场；23.8.4
 
-- [ ] launcher/dock迁移 
+- [ ] launcher/dock/xdg-open迁移 23.8.11
   
-  更改launcher和dock中启动应用部分的代码，使用新dock来实现。
+  更改launcher和dock中启动应用部分的代码，使用新AM来实现。
   并删除老AM中启动应用相关的代码。
 
 - [ ] 测试工作 
@@ -84,13 +83,13 @@
 
   等桌面组件的基础功能测试，bug修复。
 
-- [ ] hook功能开发
+- [ ] hook功能开发\[暂不实现\]
 
   该功能的开发主要是为了防止应用从配置好的cgroup中逃逸。
 
   1. 完成App运行前hook插件体系的实现；
   2. 重要插件实现：
-     - [ ] cgroup锁定插件的实现；(@black-desk) 
+     - [ ] cgroup锁定插件的实现；
 
        <https://github.com/black-desk/djail>
 
