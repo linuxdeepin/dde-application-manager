@@ -54,16 +54,16 @@
     4. [`org.desktopspec.JobManager1`](../api/dbus/org.desktopspec.JobManager1.xml)
     5. [`org.desktopspec.JobManager1.Job`](../api/dbus/org.desktopspec.JobManager1.Job.xml)
 
-  - [ ] 以上接口设计需要通过评审。DEADLINE: 23.7.5
+  - [x] 以上接口设计需要通过评审。DEADLINE: 23.7.5
 
-- [ ] 项目框架搭建 23.7.21
-  - [ ] Job机制的基本实现;
+- [x] 项目框架搭建 23.7.21
+  - [x] Job机制的基本实现;
 
-- [ ] 主要功能开发
-  - [ ] 应用列表；23.7.28
-  - [ ] 启动应用；23.7.28
-  - [ ] 从PID获取AppID；23.7.28
-  - [ ] 正在运行的应用列表；23.8.4
+- [x] 主要功能开发
+  - [x] 应用列表；23.7.28
+  - [x] 启动应用；23.7.28
+  - [x] 从PID获取AppID；23.7.28
+  - [x] 正在运行的应用列表；23.8.4
   - [ ] 崩溃后恢复现场；23.8.4
 
 - [ ] launcher/dock/xdg-open迁移 23.8.11
@@ -89,9 +89,12 @@
 
   1. 完成App运行前hook插件体系的实现；
   2. 重要插件实现：
-     - [ ] cgroup锁定插件的实现；
 
-       <https://github.com/black-desk/djail>
+     - [ ] ~~cgroup锁定插件的实现；(@black-desk) ~~
+
+       ~~<https://github.com/black-desk/djail>~~
+
+       已经没有必要做这个工作了， systemd-v254已经解决了用户级服务无法锁定cgroupfs的问题。
 
      - [ ] dbus代理插件；(@black-desk) 
 
