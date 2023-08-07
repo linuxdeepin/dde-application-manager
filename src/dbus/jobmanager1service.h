@@ -15,7 +15,7 @@
 #include <QFuture>
 #include <QUuid>
 #include "global.h"
-#include "jobadaptor.h"
+#include "dbus/jobadaptor.h"
 
 class ApplicationManager1Service;
 

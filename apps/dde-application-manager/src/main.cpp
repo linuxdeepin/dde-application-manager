@@ -6,7 +6,7 @@
 #include <QDBusConnection>
 #include <QCoreApplication>
 #include <QDir>
-#include "applicationmanager1service.h"
+#include "dbus/applicationmanager1service.h"
 #include "cgroupsidentifier.h"
 #include "global.h"
 

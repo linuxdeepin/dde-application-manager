@@ -19,7 +19,7 @@ target_include_directories(${BIN_NAME} PRIVATE
 
 target_link_libraries(${BIN_NAME} PRIVATE
     GTest::gtest
-    ${AdaptorLib}
+    dde_am_static
 )
 
 target_compile_options(${BIN_NAME} PRIVATE

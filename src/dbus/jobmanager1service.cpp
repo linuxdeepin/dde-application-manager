@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "jobmanager1service.h"
-#include "jobmanager1adaptor.h"
+#include "dbus/jobmanager1service.h"
+#include "dbus/jobmanager1adaptor.h"
 
 LaunchTask::LaunchTask()
 {

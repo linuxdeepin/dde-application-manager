@@ -14,11 +14,11 @@
 #include <QUuid>
 #include <QTextStream>
 #include <QFile>
-#include "instanceservice.h"
+#include "dbus/instanceservice.h"
 #include "global.h"
 #include "desktopentry.h"
 #include "desktopicons.h"
-#include "jobmanager1service.h"
+#include "dbus/jobmanager1service.h"
 
 class ApplicationService : public QObject
 {
@@ -102,7 +102,7 @@ private:
     bool m_isPersistence;
     ApplicationManager1Service *m_parent{nullptr};
     QDBusObjectPath m_applicationPath;
-    QString m_launcher{ApplicationLauncherBinary};
+    QString m_launcher{getApplicationLauncherBinary()};
     union DesktopSource
     {
         template <typename T, std::enable_if_t<std::is_same_v<T, DesktopFile>, bool> = true>

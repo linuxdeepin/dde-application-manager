@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "jobmanager1service.h"
+#include "dbus/jobmanager1service.h"
 #include <gtest/gtest.h>
 
 class TestJobManager : public testing::Test

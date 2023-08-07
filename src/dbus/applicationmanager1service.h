@@ -12,9 +12,9 @@
 #include <QScopedPointer>
 #include <memory>
 #include <QMap>
-#include "jobmanager1service.h"
-#include "applicationservice.h"
-#include "applicationadaptor.h"
+#include "dbus/jobmanager1service.h"
+#include "dbus/applicationservice.h"
+#include "dbus/applicationadaptor.h"
 #include "identifier.h"
 
 class ApplicationManager1Service final : public QObject

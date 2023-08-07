@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
-#include "applicationmanager1service.h"
-#include "applicationmanager1adaptor.h"
+#include "dbus/applicationmanager1service.h"
+#include "dbus/applicationmanager1adaptor.h"
 #include <QFile>
 #include <unistd.h>
 

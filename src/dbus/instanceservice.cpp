@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "instanceservice.h"
+#include "dbus/instanceservice.h"
 
 InstanceService::InstanceService(QString instanceId, QString application, QString systemdUnitPath)
     : m_instanceId(std::move(instanceId))
