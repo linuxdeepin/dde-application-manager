@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "applicationservice.h"
+#include "dbus/applicationservice.h"
 #include "applicationmanager1service.h"
-#include "instanceadaptor.h"
+#include "dbus/instanceadaptor.h"
 #include "pwd.h"
 #include <QUuid>
 #include <QStringList>
@@ -162,7 +162,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             tmp.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
-            process.start(ApplicationLauncherBinary, tmp);
+            process.start(getApplicationLauncherBinary(), tmp);
             process.waitForFinished();
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
@@ -318,6 +318,10 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         }
         case 'u': {
             execList.removeAt(location);
+            if (fields.empty()) {
+                task.command.append(execList);
+                break;
+            }
             if (fields.count() > 1) {
                 qDebug() << R"(fields count is greater than one, %u will only take first element.)";
             }

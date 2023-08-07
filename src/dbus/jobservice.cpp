@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "jobservice.h"
+#include "dbus/jobservice.h"
 
 JobService::JobService(const QFuture<QVariantList> &job)
     : m_job(job)

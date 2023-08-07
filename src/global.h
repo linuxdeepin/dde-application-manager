@@ -19,6 +19,8 @@
 #include <unistd.h>
 #include <optional>
 
+#include "config.h"
+
 using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>;
 
 constexpr auto DDEApplicationManager1ServiceName = u8"org.deepin.dde.ApplicationManager1";
@@ -29,8 +31,16 @@ constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/deepin/dde/A
 constexpr auto DDEApplicationManager1JobObjectPath = u8"/org/deepin/dde/ApplicationManager1/JobManager1/Job/";
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
-constexpr auto ApplicationLauncherBinary =
-    u8"/home/heyuming/workspace/dde-application-manager/build/plugin/appLauncher/am-launcher";
+inline QString getApplicationLauncherBinary()
+{
+    auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
+    if (value.isEmpty()) {
+        return ApplicationLaunchHelperBinary;
+    } else {
+        qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
+        return value;
+    }
+}
 constexpr auto ApplicationManagerDBusName = u8"deepin_application_manager_bus";
 
 enum class DBusType { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom };

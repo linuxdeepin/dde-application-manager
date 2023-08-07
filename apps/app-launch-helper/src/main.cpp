@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include <numeric>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-journal.h>
 #include <string_view>
 #include <vector>
+#include <deque>
 #include <memory>
 #include <iostream>
 #include <string>
@@ -62,7 +64,7 @@ static ExitCode fromString(const char *str)
     std::exit(static_cast<int>(ret));
 }
 
-static int processExecStart(msg_ptr &msg, const std::vector<std::string_view> &execArgs)
+static int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 {
     int ret;
     if (ret = sd_bus_message_append(msg, "s", "ExecStart"); ret < 0) {
@@ -147,17 +149,20 @@ static int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::str
     return 0;
 }
 
-static std::string cmdParse(msg_ptr &msg, const std::vector<std::string_view> cmdLines)
+static std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
 {
     std::string serviceName{"internalError"};
     std::map<std::string_view, std::string_view> props;
-    for (auto str : cmdLines) {  // avoid stl exception
+    while (!cmdLines.empty()) {  // NOTE: avoid stl exception
+        auto str = cmdLines.front();
         if (str.size() < 2) {
             sd_journal_print(LOG_WARNING, "invalid option %s.", str.data());
+            cmdLines.pop_front();
             continue;
         }
         if (str.substr(0, 2) != "--") {
             sd_journal_print(LOG_INFO, "unknown option %s.", str.data());
+            cmdLines.pop_front();
             continue;
         }
 
@@ -166,92 +171,100 @@ static std::string cmdParse(msg_ptr &msg, const std::vector<std::string_view> cm
             auto it = kvStr.cbegin();
             if (it = std::find(it, kvStr.cend(), '='); it == kvStr.cend()) {
                 sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
+                cmdLines.pop_front();
                 continue;
             }
             auto splitIndex = std::distance(kvStr.cbegin(), it);
             if (++it == kvStr.cend()) {
                 sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
+                cmdLines.pop_front();
                 continue;
             }
 
             auto key = kvStr.substr(0, splitIndex);
-            if (key == "Type") {  // type must be exec
+            if (key == "Type") {
+                // NOTE:
+                // Systemd service type must be "exec",
+                // this should not be configured in command line arguments.
+                cmdLines.pop_front();
                 continue;
             }
             props[key] = kvStr.substr(splitIndex + 1);
+            cmdLines.pop_front();
             continue;
         }
 
-        // Processing of the binary file and its parameters that am want to launch
-        auto it = std::find(cmdLines.cbegin(), cmdLines.cend(), str);
-        std::vector execArgs(++it, cmdLines.cend());
-        if (execArgs.empty()) {
-            sd_journal_print(LOG_ERR, "param exec is empty.");
-            serviceName = "invalidInput";
-            return serviceName;
-        }
-        int ret;
-        if (props.find("unitName") == props.cend()) {
-            sd_journal_perror("unitName doesn't exists.");
-            serviceName = "invalidInput";
-            return serviceName;
-        }
-        if (ret = sd_bus_message_append(msg, "s", props["unitName"].data()); ret < 0) {  // unitName
-            sd_journal_perror("append unitName failed.");
-            return serviceName;
-        } else {
-            serviceName = props["unitName"];
-            props.erase("unitName");
-        }
-
-        if (ret = sd_bus_message_append(msg, "s", "replace"); ret < 0) {  // start mode
-            sd_journal_perror("append startMode failed.");
-            return serviceName;
-        }
-
-        // process properties: a(sv)
-        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sv)"); ret < 0) {
-            sd_journal_perror("open array failed.");
-            return serviceName;
-        }
-
-        if (ret = sd_bus_message_append(msg, "(sv)", "Type", "s", "exec"); ret < 0) {
-            sd_journal_perror("append type failed.");
-            return serviceName;
-        }
-
-        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
-            sd_journal_perror("open struct failed.");
-            return serviceName;
-        }
-
-        if (ret = processKVPair(msg, props); ret < 0) {  // process props
-            serviceName = "invalidInput";
-            return serviceName;
-        }
-
-        if (ret = processExecStart(msg, execArgs); ret < 0) {
-            serviceName = "invalidInput";
-            return serviceName;
-        }
-
-        if (ret = sd_bus_message_close_container(msg); ret < 0) {
-            sd_journal_perror("close struct failed.");
-            return serviceName;
-        }
-        if (ret = sd_bus_message_close_container(msg); ret < 0) {
-            sd_journal_perror("close array failed.");
-            return serviceName;
-        }
-
-        // append aux, it's unused for now
-        if (ret = sd_bus_message_append(msg, "a(sa(sv))", 0); ret < 0) {
-            sd_journal_perror("append aux failed.");
-            return serviceName;
-        }
-
+        cmdLines.pop_front();  // NOTE: skip "--"
         break;
     }
+
+    // Processing of the binary file and its parameters that am want to launch
+    auto &execArgs = cmdLines;
+    if (execArgs.empty()) {
+        sd_journal_print(LOG_ERR, "param exec is empty.");
+        serviceName = "invalidInput";
+        return serviceName;
+    }
+    int ret;
+    if (props.find("unitName") == props.cend()) {
+        sd_journal_perror("unitName doesn't exists.");
+        serviceName = "invalidInput";
+        return serviceName;
+    }
+    if (ret = sd_bus_message_append(msg, "s", props["unitName"].data()); ret < 0) {  // unitName
+        sd_journal_perror("append unitName failed.");
+        return serviceName;
+    } else {
+        serviceName = props["unitName"];
+        props.erase("unitName");
+    }
+
+    if (ret = sd_bus_message_append(msg, "s", "replace"); ret < 0) {  // start mode
+        sd_journal_perror("append startMode failed.");
+        return serviceName;
+    }
+
+    // process properties: a(sv)
+    if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sv)"); ret < 0) {
+        sd_journal_perror("open array failed.");
+        return serviceName;
+    }
+
+    if (ret = sd_bus_message_append(msg, "(sv)", "Type", "s", "exec"); ret < 0) {
+        sd_journal_perror("append type failed.");
+        return serviceName;
+    }
+
+    if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
+        sd_journal_perror("open struct failed.");
+        return serviceName;
+    }
+
+    if (ret = processKVPair(msg, props); ret < 0) {  // process props
+        serviceName = "invalidInput";
+        return serviceName;
+    }
+
+    if (ret = processExecStart(msg, execArgs); ret < 0) {
+        serviceName = "invalidInput";
+        return serviceName;
+    }
+
+    if (ret = sd_bus_message_close_container(msg); ret < 0) {
+        sd_journal_perror("close struct failed.");
+        return serviceName;
+    }
+    if (ret = sd_bus_message_close_container(msg); ret < 0) {
+        sd_journal_perror("close array failed.");
+        return serviceName;
+    }
+
+    // append aux, it's unused for now
+    if (ret = sd_bus_message_append(msg, "a(sa(sv))", 0); ret < 0) {
+        sd_journal_perror("append aux failed.");
+        return serviceName;
+    }
+
     return serviceName;
 }
 
@@ -322,12 +335,12 @@ int main(int argc, const char *argv[])
         releaseRes(error, msg, bus, ExitCode::InternalError);
     }
 
-    std::vector<std::string_view> args;
-    for (std::size_t i = 1; i < argc; ++i) {
+    std::deque<std::string_view> args;
+    for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);
     }
 
-    serviceId = cmdParse(msg, args);
+    serviceId = cmdParse(msg, std::move(args));
     if (serviceId == "internalError") {
         releaseRes(error, msg, bus, ExitCode::InternalError);
     } else if (serviceId == "invalidInput") {
@@ -349,6 +362,8 @@ int main(int argc, const char *argv[])
         sd_bus_error_get_errno(&error);
         sd_journal_print(LOG_ERR, "launch failed: [%s,%s]", error.name, error.message);
         releaseRes(error, msg, bus, ExitCode::InternalError);
+    } else {
+        sd_journal_print(LOG_INFO, "launch %s success.", serviceId.c_str());
     }
 
     if (ret = sd_bus_message_read(reply, "o", &path); ret < 0) {
