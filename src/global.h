@@ -18,19 +18,11 @@
 #include <QDBusObjectPath>
 #include <unistd.h>
 #include <optional>
-
+#include "constant.h"
 #include "config.h"
 
 using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>;
 
-constexpr auto DDEApplicationManager1ServiceName = u8"org.deepin.dde.ApplicationManager1";
-constexpr auto DDEApplicationManager1ObjectPath = u8"/org/deepin/dde/ApplicationManager1";
-constexpr auto DDEApplicationManager1ApplicationObjectPath = u8"/org/deepin/dde/ApplicationManager1/Application/";
-constexpr auto DDEApplicationManager1InstanceObjectPath = u8"/org/deepin/dde/ApplicationManager1/Instance/";
-constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/deepin/dde/ApplicationManager1/JobManager1";
-constexpr auto DDEApplicationManager1JobObjectPath = u8"/org/deepin/dde/ApplicationManager1/JobManager1/Job/";
-constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
-constexpr auto DesktopFileActionKey = u8"Desktop Action ";
 inline QString getApplicationLauncherBinary()
 {
     auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
@@ -41,7 +33,6 @@ inline QString getApplicationLauncherBinary()
         return value;
     }
 }
-constexpr auto ApplicationManagerDBusName = u8"deepin_application_manager_bus";
 
 enum class DBusType { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom };
 
@@ -52,52 +43,53 @@ public:
     ApplicationManager1DBus(ApplicationManager1DBus &&) = delete;
     ApplicationManager1DBus &operator=(const ApplicationManager1DBus &) = delete;
     ApplicationManager1DBus &operator=(ApplicationManager1DBus &&) = delete;
-    const QString &BusAddress() { return m_busAddress; }
-    void init(DBusType type, const QString &busAddress = "")
+    const QString &globalDestBusAddress() const { return m_destBusAddress; }
+    const QString &globalServerBusAddress() const { return m_serverBusAddress; }
+    void initGlobalServerBus(DBusType type, const QString &busAddress = "")
     {
         if (m_initFlag) {
             return;
         }
 
-        m_busAddress = busAddress;
-        m_type = type;
+        m_serverBusAddress = busAddress;
+        m_serverType = type;
         m_initFlag = true;
         return;
     }
 
-    QDBusConnection &globalBus()
+    QDBusConnection &globalServerBus()
     {
-        if (m_connection.has_value()) {
-            return m_connection.value();
+        if (m_serverConnection.has_value()) {
+            return m_serverConnection.value();
         }
 
         if (!m_initFlag) {
             qFatal() << "invoke init at first.";
         }
 
-        switch (m_type) {
+        switch (m_serverType) {
             case DBusType::Session:
                 [[fallthrough]];
             case DBusType::System: {
-                m_connection.emplace(
-                    QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_type), ApplicationManagerDBusName));
-                if (!m_connection->isConnected()) {
-                    qFatal() << m_connection->lastError();
+                m_serverConnection.emplace(QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_serverType),
+                                                                         ApplicationManagerServerDBusName));
+                if (!m_serverConnection->isConnected()) {
+                    qFatal() << m_serverConnection->lastError();
                 }
-                return m_connection.value();
+                return m_serverConnection.value();
             }
             case DBusType::Custom: {
-                if (m_busAddress.isEmpty()) {
+                if (m_serverBusAddress.isEmpty()) {
                     qFatal() << "connect to custom dbus must init this object by custom dbus address";
                 }
-                m_connection.emplace(
-                    QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_type), ApplicationManagerDBusName));
-                if (!m_connection->isConnected()) {
-                    qFatal() << m_connection->lastError();
+                m_serverConnection.emplace(QDBusConnection::connectToBus(m_serverBusAddress, ApplicationManagerServerDBusName));
+                if (!m_serverConnection->isConnected()) {
+                    qFatal() << m_serverConnection->lastError();
                 }
-                return m_connection.value();
+                return m_serverConnection.value();
             }
         }
+
         Q_UNREACHABLE();
     }
     static ApplicationManager1DBus &instance()
@@ -106,13 +98,52 @@ public:
         return dbus;
     }
 
+    QDBusConnection &globalDestBus()
+    {
+        if (!m_destConnection) {
+            qFatal() << "please set which bus should application manager to use to invoke other D-Bus service's method.";
+        }
+        return m_destConnection.value();
+    }
+
+    void setDestBus(const QString &destAddress)
+    {
+        if (m_destConnection) {
+            m_destConnection->disconnectFromBus(ApplicationManagerDestDBusName);
+        }
+
+        m_destBusAddress = destAddress;
+
+        if (m_destBusAddress.isEmpty()) {
+            m_destConnection.emplace(
+                QDBusConnection::connectToBus(QDBusConnection::BusType::SessionBus, ApplicationManagerDestDBusName));
+            if (!m_destConnection->isConnected()) {
+                qFatal() << m_destConnection->lastError();
+            }
+            return;
+        } else {
+            if (m_destBusAddress.isEmpty()) {
+                qFatal() << "connect to custom dbus must init this object by custom dbus address";
+            }
+            m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
+            if (!m_destConnection->isConnected()) {
+                qFatal() << m_destConnection->lastError();
+            }
+            return;
+        }
+
+        Q_UNREACHABLE();
+    }
+
 private:
     ApplicationManager1DBus() = default;
     ~ApplicationManager1DBus() = default;
     bool m_initFlag;
-    DBusType m_type;
-    QString m_busAddress;
-    std::optional<QDBusConnection> m_connection{std::nullopt};
+    DBusType m_serverType;
+    QString m_serverBusAddress;
+    QString m_destBusAddress;
+    std::optional<QDBusConnection> m_destConnection{std::nullopt};
+    std::optional<QDBusConnection> m_serverConnection{std::nullopt};
 };
 
 bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface);

@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <map>
 #include <thread>
+#include "constant.h"
 
 enum class ExitCode { SystemdError = -3, InvalidInput = -2, InternalError = -1, Done = 0, Waiting = 1 };
 
@@ -24,10 +25,6 @@ struct JobRemoveResult
     int removedFlag{0};
     ExitCode result{ExitCode::Waiting};
 };
-
-constexpr static auto SystemdService = "org.freedesktop.systemd1";
-constexpr static auto SystemdObjectPath = "/org/freedesktop/systemd1";
-constexpr static auto SystemdInterfaceName = "org.freedesktop.systemd1.Manager";
 
 using msg_ptr = sd_bus_message *;
 using bus_ptr = sd_bus *;

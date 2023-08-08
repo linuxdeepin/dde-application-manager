@@ -19,6 +19,16 @@ ApplicationService::~ApplicationService()
     m_desktopSource.destruct(m_isPersistence);
 }
 
+qsizetype ApplicationService::applicationCheck(const QString &serviceName)
+{
+    const auto &ApplicationId = id();
+    if (!serviceName.startsWith(ApplicationId)) [[likely]] {
+        return 0;
+    }
+
+    return ApplicationId.size();
+}
+
 QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env)
 {
     const auto &supportedActions = actions();
@@ -130,16 +140,16 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             auto resourceFile = variantValue.toString();
             if (resourceFile.isEmpty()) {
                 auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
-                commands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(
+                commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     this->id(), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
                 process.start(m_launcher, commands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
                     qWarning() << "Launch Application Failed. exitCode:" << code;
-                    return false;
+                    return QString{""};
                 }
-                return addOneInstance(instanceRandomUUID, m_applicationPath.path());  // TODO: pass correct Systemd Unit Path
+                return DDEApplicationManager1InstanceObjectPath + instanceRandomUUID;
             }
 
             int location{0};
@@ -167,8 +177,9 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
                 qWarning() << "Launch Application Failed:" << binary << tmp;
+                return QString{""};
             }
-            return addOneInstance(instanceRandomUUID, m_applicationPath.path());
+            return DDEApplicationManager1InstanceObjectPath + instanceRandomUUID;
         },
         std::move(res));
 }
@@ -254,8 +265,8 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
 
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance)
 {
-    m_Instances.remove(instance);
     unregisterObjectFromDBus(instance.path());
+    m_Instances.remove(instance);
 }
 
 void ApplicationService::removeAllInstance()

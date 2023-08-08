@@ -22,6 +22,105 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     m_jobManager.reset(new JobManager1Service(this));
+
+    auto &dispatcher = SystemdSignalDispatcher::instance();
+
+    connect(&dispatcher,
+            &SystemdSignalDispatcher::SystemdUnitNew,
+            this,
+            [this](QString serviceName, QDBusObjectPath systemdUnitPath) {
+                auto [appId, instanceId] = processServiceName(serviceName);
+                if (appId.isEmpty()) {
+                    return;
+                }
+
+                for (const auto &app : m_applicationList) {
+                    if (app->id() == appId) [[unlikely]] {
+                        const auto &applicationPath = app->m_applicationPath.path();
+                        if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) {
+                            qWarning() << "add Instance failed:" << applicationPath << serviceName << systemdUnitPath.path();
+                        }
+                        return;
+                    }
+                }
+
+                qWarning() << "couldn't find application:" << serviceName << "in application manager.";
+            });
+
+    connect(&dispatcher,
+            &SystemdSignalDispatcher::SystemdUnitRemoved,
+            this,
+            [this](QString serviceName, QDBusObjectPath systemdUnitPath) {
+                auto pair = processServiceName(serviceName);
+                auto appId = pair.first, instanceId = pair.second;
+                if (appId.isEmpty()) {
+                    return;
+                }
+
+                auto appIt = std::find_if(m_applicationList.cbegin(),
+                                          m_applicationList.cend(),
+                                          [&appId](const QSharedPointer<ApplicationService> &app) {
+                                              if (app->id() == appId) {
+                                                  return true;
+                                              }
+                                              return false;
+                                          });
+
+                if (appIt == m_applicationList.cend()) [[unlikely]] {
+                    qWarning() << "couldn't find app" << appId << "in application manager.";
+                    return;
+                }
+
+                const auto &appRef = *appIt;
+
+                auto instanceIt = std::find_if(appRef->m_Instances.cbegin(),
+                                               appRef->m_Instances.cend(),
+                                               [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
+                                                   if (value->systemdUnitPath() == systemdUnitPath) {
+                                                       return true;
+                                                   }
+                                                   return false;
+                                               });
+
+                if (instanceIt != appRef->m_Instances.cend()) [[likely]] {
+                    appRef->removeOneInstance(instanceIt.key());
+                }
+            });
+}
+
+QPair<QString, QString> ApplicationManager1Service::processServiceName(const QString &serviceName)
+{
+    QString instanceId;
+    QString applicationId;
+
+    if (serviceName.endsWith(".service")) {
+        auto lastDotIndex = serviceName.lastIndexOf('.');
+        auto app = serviceName.sliced(0, lastDotIndex - 1);  // remove suffix
+
+        if (app.contains('@')) {
+            auto atIndex = app.indexOf('@');
+            instanceId = app.sliced(atIndex + 1);
+            app.remove(atIndex, instanceId.length() + 1);
+        }
+
+        applicationId = app.split('-').last();  // drop launcher if it exists.
+    } else if (serviceName.endsWith(".scope")) {
+        auto lastDotIndex = serviceName.lastIndexOf('.');
+        auto app = serviceName.sliced(0, lastDotIndex - 1);
+
+        auto components = app.split('-');
+        instanceId = components.takeLast();
+        applicationId = components.takeLast();
+    } else {
+        qDebug() << "it's not service or slice or scope.";
+        return {};
+    }
+
+    if (instanceId.isEmpty()) {
+        instanceId = QUuid::createUuid().toString(QUuid::Id128);
+    }
+
+    return qMakePair(std::move(applicationId), std::move(instanceId));
 }
 
 QList<QDBusObjectPath> ApplicationManager1Service::list() const
