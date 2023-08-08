@@ -18,6 +18,7 @@
 #include "global.h"
 #include "desktopentry.h"
 #include "desktopicons.h"
+#include "systemdsignaldispatcher.h"
 #include "dbus/jobmanager1service.h"
 
 class ApplicationService : public QObject
@@ -52,9 +53,9 @@ public:
     const QString &getLauncher() const noexcept { return m_launcher; }
     void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
 
-    bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath = "/");
+    bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath);
     void recoverInstances(const QList<QDBusObjectPath>) noexcept;
-    void removeOneInstance(const QDBusObjectPath &instance);  // TODO: remove instance when app closed
+    void removeOneInstance(const QDBusObjectPath &instance);
     void removeAllInstance();
 
 public Q_SLOTS:
@@ -133,6 +134,7 @@ private:
     QSharedPointer<DesktopIcons> m_Icons{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     QString userNameLookup(uid_t uid);
+    qsizetype applicationCheck(const QString &serviceName);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
 };
 

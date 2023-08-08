@@ -60,6 +60,8 @@ private:
     std::unique_ptr<Identifier> m_identifier;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
+
+    QPair<QString, QString> processServiceName(const QString &serviceName);
 };
 
 #endif

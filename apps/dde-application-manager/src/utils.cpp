@@ -6,7 +6,7 @@
 
 bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface)
 {
-    auto &con = ApplicationManager1DBus::instance().globalBus();
+    auto &con = ApplicationManager1DBus::instance().globalServerBus();
     if (!con.registerObject(path, interface, o, QDBusConnection::RegisterOption::ExportAllContents)) {
         qFatal() << "register object failed:" << path << interface << con.lastError();
     } else {
@@ -17,6 +17,7 @@ bool registerObjectToDBus(QObject *o, const QString &path, const QString &interf
 
 void unregisterObjectFromDBus(const QString &path)
 {
-    auto &con = ApplicationManager1DBus::instance().globalBus();
+    auto &con = ApplicationManager1DBus::instance().globalServerBus();
     con.unregisterObject(path);
+    qInfo() << "unregister object:" << path;
 }

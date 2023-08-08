@@ -21,17 +21,19 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app{argc, argv};
     auto &bus = ApplicationManager1DBus::instance();
-    bus.init(DBusType::Session);
-    auto &AMBus = bus.globalBus();
+    bus.initGlobalServerBus(DBusType::Session);
+    bus.setDestBus("");
+    auto &AMBus = bus.globalServerBus();
 
     registerComplexDbusType();
     ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus};
     QList<DesktopFile> fileList{};
-    auto pathEnv = qgetenv("XDG_DATA_DIRS");
-    if (pathEnv.isEmpty()) {
-        qFatal() << "environment variable $XDG_DATA_DIRS is empty.";
+    QByteArray XDGDataDirs;
+    XDGDataDirs = qgetenv("XDG_DATA_DIRS");
+    if (XDGDataDirs.isEmpty()) {
+        XDGDataDirs.append("/usr/local/share/:/usr/share/");
     }
-    auto desktopFileDirs = pathEnv.split(':');
+    auto desktopFileDirs = XDGDataDirs.split(':');
 
     for (const auto &dir : desktopFileDirs) {
         auto dirPath = QDir{QDir::cleanPath(dir) + "/applications"};

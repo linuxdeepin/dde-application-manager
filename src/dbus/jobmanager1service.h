@@ -12,6 +12,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QtConcurrent>
+#include <QDBusError>
 #include <QFuture>
 #include <QUuid>
 #include "global.h"
@@ -76,7 +77,7 @@ public:
 
             QString result{job->status()};
             for (const auto &val : future.result()) {
-                if (val.canConvert<QDBusError>()) {
+                if (val.metaType().id() == QMetaType::fromType<QDBusError>().id()) {
                     result = "failed";
                 }
                 break;
