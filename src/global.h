@@ -14,10 +14,10 @@
 #include <QMetaType>
 #include <QMetaClassInfo>
 #include <QLocale>
+#include <QDir>
 #include <QRegularExpression>
 #include <QDBusObjectPath>
 #include <unistd.h>
-#include <optional>
 #include "constant.h"
 #include "config.h"
 
@@ -25,16 +25,56 @@ using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>
 
 inline QString getApplicationLauncherBinary()
 {
+    static bool logFlag{true};
     auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
     if (value.isEmpty()) {
         return ApplicationLaunchHelperBinary;
-    } else {
-        qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
-        return value;
     }
+
+    if (logFlag) {
+        qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
+        logFlag = false;
+    }
+    return value;
 }
 
 enum class DBusType { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom };
+
+template <typename T>
+using remove_cvr_t = std::remove_reference_t<std::remove_cv_t<T>>;
+
+template <typename T>
+void applyIteratively(QList<QDir> &&dirs, T &&func)
+{
+    static_assert(std::is_invocable_v<T, const QFileInfo &>, "apply function should only accept one QFileInfo");
+    static_assert(std::is_same_v<decltype(func(QFileInfo{})), bool>,
+                  "apply function should return a boolean to indicate when should return");
+    QList<QDir> dirList{std::move(dirs)};
+
+    while (!dirList.isEmpty()) {
+        const auto dir = dirList.takeFirst();
+
+        if (!dir.exists()) {
+            qWarning() << "apply function to an non-existent directory:" << dir.absolutePath() << ", skip.";
+            continue;
+        }
+
+        const auto &infoList =
+            dir.entryInfoList({"*.desktop"},
+                              QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot,
+                              QDir::Name | QDir::DirsLast);
+
+        for (const auto &info : infoList) {
+            if (info.isFile() and func(info)) {
+                return;
+            }
+
+            if (info.isDir()) {
+                dirList.append(info.absoluteFilePath());
+            }
+        }
+    }
+}
 
 class ApplicationManager1DBus
 {
@@ -43,8 +83,8 @@ public:
     ApplicationManager1DBus(ApplicationManager1DBus &&) = delete;
     ApplicationManager1DBus &operator=(const ApplicationManager1DBus &) = delete;
     ApplicationManager1DBus &operator=(ApplicationManager1DBus &&) = delete;
-    const QString &globalDestBusAddress() const { return m_destBusAddress; }
-    const QString &globalServerBusAddress() const { return m_serverBusAddress; }
+    [[nodiscard]] const QString &globalDestBusAddress() const { return m_destBusAddress; }
+    [[nodiscard]] const QString &globalServerBusAddress() const { return m_serverBusAddress; }
     void initGlobalServerBus(DBusType type, const QString &busAddress = "")
     {
         if (m_initFlag) {
@@ -54,7 +94,6 @@ public:
         m_serverBusAddress = busAddress;
         m_serverType = type;
         m_initFlag = true;
-        return;
     }
 
     QDBusConnection &globalServerBus()
@@ -121,25 +160,23 @@ public:
                 qFatal() << m_destConnection->lastError();
             }
             return;
-        } else {
-            if (m_destBusAddress.isEmpty()) {
-                qFatal() << "connect to custom dbus must init this object by custom dbus address";
-            }
-            m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
-            if (!m_destConnection->isConnected()) {
-                qFatal() << m_destConnection->lastError();
-            }
-            return;
         }
 
-        Q_UNREACHABLE();
+        if (m_destBusAddress.isEmpty()) {
+            qFatal() << "connect to custom dbus must init this object by custom dbus address";
+        }
+
+        m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
+        if (!m_destConnection->isConnected()) {
+            qFatal() << m_destConnection->lastError();
+        }
     }
 
 private:
     ApplicationManager1DBus() = default;
     ~ApplicationManager1DBus() = default;
-    bool m_initFlag;
-    DBusType m_serverType;
+    bool m_initFlag{false};
+    DBusType m_serverType{};
     QString m_serverBusAddress;
     QString m_destBusAddress;
     std::optional<QDBusConnection> m_destConnection{std::nullopt};
@@ -222,6 +259,17 @@ inline QString unescapeFromObjectPath(const QString &str)
         }
     }
     return ret;
+}
+
+inline QString getRelativePathFromAppId(const QString &id)
+{
+    QString path;
+    auto components = id.split('-', Qt::SkipEmptyParts);
+    for (qsizetype i = 0; i < components.size() - 1; ++i) {
+        path += QString{"/%1"}.arg(components[i]);
+    }
+    path += QString{R"(-%1.desktop)"}.arg(components.last());
+    return path;
 }
 
 #endif

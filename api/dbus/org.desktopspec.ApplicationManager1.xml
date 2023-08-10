@@ -3,7 +3,7 @@
     <interface name="org.desktopspec.ApplicationManager1">
         <property type="ao" access="read" name="List" />
         <method name="UpdateApplicationInfo">
-            <arg type="as" name="update_path" direction="in" />
+            <arg type="as" name="app_id" direction="in" />
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="This method is used to update the desktop file cache when needed.

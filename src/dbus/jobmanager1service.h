@@ -46,7 +46,7 @@ public:
 
     ~JobManager1Service() override;
     template <typename F>
-    QDBusObjectPath addJob(QString source, F func, QVariantList args)
+    QDBusObjectPath addJob(const QString &source, F func, QVariantList args)
     {
         static_assert(std::is_invocable_v<F, QVariant>, "param type must be QVariant.");
 
@@ -66,7 +66,7 @@ public:
         auto path = QDBusObjectPath{objectPath};
         {
             QMutexLocker locker{&m_mutex};
-            m_jobs.insert(path, std::move(job));  // Insertion is always successful
+            m_jobs.insert(path, job);  // Insertion is always successful
         }
         emit JobNew(path, QDBusObjectPath{source});
 
@@ -97,7 +97,7 @@ Q_SIGNALS:
 private:
     bool removeOneJob(const QDBusObjectPath &path);
     friend class ApplicationManager1Service;
-    JobManager1Service(ApplicationManager1Service *parent);
+    explicit JobManager1Service(ApplicationManager1Service *parent);
     QMutex m_mutex;
     QMap<QDBusObjectPath, QSharedPointer<JobService>> m_jobs;
     ApplicationManager1Service *m_parent{nullptr};

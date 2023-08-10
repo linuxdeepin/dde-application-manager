@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include "dbus/applicationmanager1service.h"
 #include "dbus/applicationmanager1adaptor.h"
+#include "systemdsignaldispatcher.h"
 #include <QFile>
 #include <unistd.h>
 
@@ -28,7 +29,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitNew,
             this,
-            [this](QString serviceName, QDBusObjectPath systemdUnitPath) {
+            [this](const QString &serviceName, const QDBusObjectPath &systemdUnitPath) {
                 auto [appId, instanceId] = processServiceName(serviceName);
                 if (appId.isEmpty()) {
                     return;
@@ -50,21 +51,17 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
             this,
-            [this](QString serviceName, QDBusObjectPath systemdUnitPath) {
+            [this](const QString &serviceName, QDBusObjectPath systemdUnitPath) {
                 auto pair = processServiceName(serviceName);
-                auto appId = pair.first, instanceId = pair.second;
+                auto appId = pair.first;
+                auto instanceId = pair.second;
                 if (appId.isEmpty()) {
                     return;
                 }
 
                 auto appIt = std::find_if(m_applicationList.cbegin(),
                                           m_applicationList.cend(),
-                                          [&appId](const QSharedPointer<ApplicationService> &app) {
-                                              if (app->id() == appId) {
-                                                  return true;
-                                              }
-                                              return false;
-                                          });
+                                          [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
 
                 if (appIt == m_applicationList.cend()) [[unlikely]] {
                     qWarning() << "couldn't find app" << appId << "in application manager.";
@@ -76,10 +73,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
                 auto instanceIt = std::find_if(appRef->m_Instances.cbegin(),
                                                appRef->m_Instances.cend(),
                                                [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
-                                                   if (value->systemdUnitPath() == systemdUnitPath) {
-                                                       return true;
-                                                   }
-                                                   return false;
+                                                   return value->systemdUnitPath() == systemdUnitPath;
                                                });
 
                 if (instanceIt != appRef->m_Instances.cend()) [[likely]] {
@@ -88,7 +82,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             });
 }
 
-QPair<QString, QString> ApplicationManager1Service::processServiceName(const QString &serviceName)
+QPair<QString, QString> ApplicationManager1Service::processServiceName(const QString &serviceName) noexcept
 {
     QString instanceId;
     QString applicationId;
@@ -128,23 +122,23 @@ QList<QDBusObjectPath> ApplicationManager1Service::list() const
     return m_applicationList.keys();
 }
 
-bool ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
+void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
 {
-    return m_applicationList.remove(application) != 0;
+    unregisterObjectFromDBus(application.path());
+    m_applicationList.remove(application);
 }
 
 void ApplicationManager1Service::removeAllApplication()
 {
-    m_applicationList.clear();
+    for (const auto &app : m_applicationList.keys()) {
+        removeOneApplication(app);
+    }
 }
 
 QDBusObjectPath ApplicationManager1Service::Application(const QString &id) const
 {
     auto ret = std::find_if(m_applicationList.cbegin(), m_applicationList.cend(), [&id](const auto &app) {
-        if (app->id() == id) {
-            return true;
-        }
-        return false;
+        return static_cast<bool>(app->id() == id);
     });
 
     if (ret != m_applicationList.cend()) {
@@ -219,4 +213,80 @@ QDBusObjectPath ApplicationManager1Service::Launch(const QString &id,
     return value->Launch(actions, fields, options);
 }
 
-void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &update_path) {}
+void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &app_id)
+{
+    auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
+    std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
+        if (!str.endsWith(QDir::separator())) {
+            str.append(QDir::separator());
+        }
+        str.append("applications");
+    });
+
+    for (auto id : app_id) {
+        auto destApp = std::find_if(m_applicationList.begin(),
+                                    m_applicationList.end(),
+                                    [&id](const QSharedPointer<ApplicationService> &value) { return value->id() == id; });
+
+        if (destApp == m_applicationList.end()) {  // new app
+            qInfo() << "add a new application:" << id;
+            do {
+                for (const auto &suffix : XDGDataDirs) {
+                    QFileInfo info{suffix + id};
+                    if (info.exists()) {
+                        ParseError err;
+                        auto file = DesktopFile::searchDesktopFile(info.absoluteFilePath(), err);
+
+                        if (!file.has_value()) {
+                            continue;
+                        }
+
+                        if (!addApplication(std::move(file).value())) {
+                            id.clear();
+                            break;
+                        }
+                    }
+                }
+
+                if (id.isEmpty()) {
+                    break;
+                }
+
+                auto hyphenIndex = id.indexOf('-');
+                if (hyphenIndex == -1) {
+                    break;
+                }
+
+                id[hyphenIndex] = QDir::separator();
+            } while (true);
+        } else {  // remove or update
+            if (!(*destApp)->m_isPersistence) [[unlikely]] {
+                continue;
+            }
+
+            auto filePath = (*destApp)->m_desktopSource.m_file.filePath();
+            if (QFileInfo::exists(filePath)) {  // update
+                qInfo() << "update application:" << id;
+                struct stat buf;
+                if (auto ret = stat(filePath.toLatin1().data(), &buf); ret == -1) {
+                    qWarning() << "get file" << filePath << "state failed:" << std::strerror(errno) << ", skip...";
+                    continue;
+                }
+
+                if ((*destApp)->m_desktopSource.m_file.modified(
+                        static_cast<std::size_t>(buf.st_mtim.tv_sec * 1e9 + buf.st_mtim.tv_nsec))) {
+                    auto newEntry = new DesktopEntry{};
+                    auto err = newEntry->parse((*destApp)->m_desktopSource.m_file);
+                    if (err != ParseError::NoError and err != ParseError::EntryKeyInvalid) {
+                        qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
+                        continue;
+                    }
+                    (*destApp)->m_entry.reset(newEntry);
+                }
+            } else {  // remove
+                qInfo() << "remove application:" << id;
+                removeOneApplication((*destApp)->m_applicationPath);
+            }
+        }
+    }
+}

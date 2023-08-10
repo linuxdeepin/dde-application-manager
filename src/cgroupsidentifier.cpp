@@ -26,7 +26,7 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
     return {appInstanceComponent.first(), appInstanceComponent.last()};
 }
 
-QString CGroupsIdentifier::parseCGroupsPath(QString CGP) const noexcept
+QString CGroupsIdentifier::parseCGroupsPath(const QString &CGP) noexcept
 {
     if (CGP.isEmpty()) {
         qWarning() << "CGroupPath is empty.";
@@ -34,7 +34,6 @@ QString CGroupsIdentifier::parseCGroupsPath(QString CGP) const noexcept
     }
     auto unescapedCGP = unescapeString(CGP);
     auto CGPSlices = unescapedCGP.split('/');
-    auto curUID = getCurrentUID();
 
     if (CGPSlices.first() != "user.slice") {
         qWarning() << "unrecognized process.";

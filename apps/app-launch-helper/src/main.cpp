@@ -33,13 +33,20 @@ static ExitCode fromString(const std::string &str)
 {
     if (str == "done") {
         return ExitCode::Done;
-    } else if (str == "canceled" or str == "timeout" or str == "failed" or str == "dependency" or str == "skipped") {
+    }
+
+    if (str == "canceled" or str == "timeout" or str == "failed" or str == "dependency" or str == "skipped") {
         return ExitCode::SystemdError;
-    } else if (str == "internalError") {
+    }
+
+    if (str == "internalError") {
         return ExitCode::InternalError;
-    } else if (str == "invalidInput") {
+    }
+
+    if (str == "invalidInput") {
         return ExitCode::InvalidInput;
     }
+
     __builtin_unreachable();
 }
 
@@ -71,8 +78,9 @@ static int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &ex
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_VARIANT, "a(sasb)"); ret < 0) {
         sd_journal_perror("open variant of execStart failed.");
-        if (auto tmp = sd_bus_message_close_container(msg))
+        if (auto tmp = sd_bus_message_close_container(msg)) {
             return ret;
+        }
     }
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sasb)"); ret < 0) {
@@ -94,8 +102,9 @@ static int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &ex
         sd_journal_perror("open array of execStart variant failed.");
         return ret;
     }
-    for (std::size_t i = 0; i < execArgs.size(); ++i) {
-        if (ret = sd_bus_message_append(msg, "s", execArgs[i].data()); ret < 0) {
+
+    for (auto execArg : execArgs) {
+        if (ret = sd_bus_message_append(msg, "s", execArg.data()); ret < 0) {
             sd_journal_perror("append args of execStart failed.");
             return ret;
         }
@@ -211,10 +220,10 @@ static std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLine
     if (ret = sd_bus_message_append(msg, "s", props["unitName"].data()); ret < 0) {  // unitName
         sd_journal_perror("append unitName failed.");
         return serviceName;
-    } else {
-        serviceName = props["unitName"];
-        props.erase("unitName");
     }
+
+    serviceName = props["unitName"];
+    props.erase("unitName");
 
     if (ret = sd_bus_message_append(msg, "s", "replace"); ret < 0) {  // start mode
         sd_journal_perror("append startMode failed.");
@@ -271,11 +280,12 @@ int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
     if (ret = sd_bus_error_is_set(ret_error); ret != 0) {
         sd_journal_print(LOG_ERR, "JobRemoved error: [%s,%s]", ret_error->name, ret_error->message);
     } else {
-        const char *serviceId{nullptr}, *jobResult{nullptr};
+        const char *serviceId{nullptr};
+        const char *jobResult{nullptr};
         if (ret = sd_bus_message_read(m, "uoss", nullptr, nullptr, &serviceId, &jobResult); ret < 0) {
             sd_journal_perror("read from JobRemoved failed.");
         } else {
-            auto ptr = reinterpret_cast<JobRemoveResult *>(userdata);
+            auto *ptr = reinterpret_cast<JobRemoveResult *>(userdata);
             if (ptr->id == serviceId) {
                 ptr->removedFlag = 1;
                 ptr->result = fromString(jobResult);

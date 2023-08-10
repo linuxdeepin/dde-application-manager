@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "desktopentry.h"
+#include "global.h"
 #include <QFileInfo>
 #include <QDir>
 #include <algorithm>
@@ -15,11 +16,11 @@
 auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
 {
     auto groupHeader = str.sliced(1, str.size() - 2);
-    if (auto it = m_entryMap.find(groupHeader); it == m_entryMap.cend()) {
+    auto it = m_entryMap.find(groupHeader);
+    if (it == m_entryMap.cend()) {
         return m_entryMap.insert(groupHeader, {});
-    } else {
-        return it;
     }
+    return it;
 }
 
 ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
@@ -31,15 +32,17 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     auto splitCharIndex = str.indexOf(']');
     if (splitCharIndex != -1) {
         for (; splitCharIndex < str.size(); ++splitCharIndex) {
-            if (str.at(splitCharIndex) == '=')
+            if (str.at(splitCharIndex) == '=') {
                 break;
+            }
         }
     } else {
         splitCharIndex = str.indexOf('=');
     }
     auto keyStr = str.first(splitCharIndex).trimmed();
     auto valueStr = str.sliced(splitCharIndex + 1).trimmed();
-    QString key, valueKey{defaultKeyStr};
+    QString key;
+    QString valueKey{defaultKeyStr};
 
     constexpr auto MainKey = R"re((?<MainKey>[0-9a-zA-Z-]+))re";  // main key. eg.(Name, X-CUSTOM-KEY).
     constexpr auto Language = R"re((?:[a-z]+))re";                // language of locale postfix. eg.(en, zh)
@@ -62,19 +65,23 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     if (auto locale = matcher.captured("LOCALE"); !locale.isEmpty()) {
         valueKey = locale;
     }
-    if (auto cur = currentGroup->find(key); cur == currentGroup->end()) {
+
+    auto cur = currentGroup->find(key);
+    if (cur == currentGroup->end()) {
         currentGroup->insert(keyStr, {{valueKey, valueStr}});
         return ParseError::NoError;
-    } else {
-        if (auto v = cur->find(valueKey); v == cur->end()) {
-            cur->insert(valueKey, valueStr);
-            return ParseError::NoError;
-        } else {
-            qWarning() << "duplicated postfix and this line will be aborted, maybe format is invalid.\n"
-                       << "exist: " << v.key() << "[" << v.value() << "]"
-                       << "current: " << str;
-        }
     }
+
+    auto value = cur->find(valueKey);
+    if (value == cur->end()) {
+        cur->insert(valueKey, valueStr);
+        return ParseError::NoError;
+    }
+
+    qWarning() << "duplicated postfix and this line will be aborted, maybe format is invalid.\n"
+               << "exist: " << value.key() << "[" << value.value() << "]"
+               << "current: " << str;
+
     return ParseError::NoError;
 }
 
@@ -85,24 +92,27 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
         err = ParseError::MismatchedFile;
         return std::nullopt;
     }
-    QString path, id;
+
+    QString path;
+    QString id;
+
     QFileInfo Fileinfo{desktopFile};
     if (Fileinfo.isAbsolute() and Fileinfo.exists()) {
         path = desktopFile;
     } else {
-        auto XDGDataDirs = qgetenv("XDG_DATA_DIRS").split(':');
-        qDebug() << "Current Application Dirs:" << XDGDataDirs;
-        for (const auto &d : XDGDataDirs) {
-            auto dirPath = QDir::cleanPath(d);
-            QDirIterator it{dirPath,
-                            {desktopFile},
-                            QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot | QDir::Readable,
-                            QDirIterator::Subdirectories};
-            if (it.hasNext()) {
-                path = it.next();
-                break;
+        auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
+        std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
+            str = QDir::cleanPath(str) + QDir::separator() + "applications";
+        });
+        auto fileName = Fileinfo.fileName();
+
+        applyIteratively(QList<QDir>{XDGDataDirs.begin(), XDGDataDirs.end()}, [&fileName, &path](const QFileInfo &file) -> bool {
+            if (file.fileName() == fileName) {
+                path = file.absoluteFilePath();
+                return true;
             }
-        }
+            return false;
+        });
     }
 
     if (path.isEmpty()) {
@@ -122,8 +132,23 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktop
             FileId += (*(it++) + "-");
         id = FileId.chopped(1);  // remove extra "-""
     }
+
+    struct stat buf;
+    if (auto ret = stat(path.toLatin1().data(), &buf); ret == -1) {
+        err = ParseError::OpenFailed;
+        qWarning() << "get file" << path << "state failed:" << std::strerror(errno);
+        return std::nullopt;
+    }
+
     err = ParseError::NoError;
-    return DesktopFile{std::move(path), std::move(id)};
+    constexpr std::size_t nanoToSec = 1e9;
+
+    return DesktopFile{std::move(path), std::move(id), buf.st_mtim.tv_sec * nanoToSec + buf.st_mtim.tv_nsec};
+}
+
+bool DesktopFile::modified(std::size_t time) const noexcept
+{
+    return time != m_mtime;
 }
 
 ParseError DesktopEntry::parse(const DesktopFile &desktopFile) noexcept
@@ -140,8 +165,9 @@ ParseError DesktopEntry::parse(const DesktopFile &desktopFile) noexcept
 
 ParseError DesktopEntry::parse(QTextStream &stream) noexcept
 {
-    if (stream.atEnd())
+    if (stream.atEnd()) {
         return ParseError::OpenFailed;
+    }
 
     stream.setEncoding(QStringConverter::Utf8);
     decltype(m_entryMap)::iterator currentGroup;
@@ -155,14 +181,15 @@ ParseError DesktopEntry::parse(QTextStream &stream) noexcept
         }
 
         if (line.startsWith("[")) {
-            if (!line.endsWith("]"))
+            if (!line.endsWith("]")) {
                 return ParseError::GroupHeaderInvalid;
+            }
             currentGroup = parserGroupHeader(line);
             continue;
         }
 
-        if (auto e = parseEntry(line, currentGroup); e != ParseError::NoError) {
-            err = e;
+        if (auto error = parseEntry(line, currentGroup); error != ParseError::NoError) {
+            err = error;
             qWarning() << "an error occurred,this line will be skipped:" << line;
         }
     }
@@ -171,8 +198,9 @@ ParseError DesktopEntry::parse(QTextStream &stream) noexcept
 
 std::optional<QMap<QString, DesktopEntry::Value>> DesktopEntry::group(const QString &key) const noexcept
 {
-    if (auto group = m_entryMap.find(key); group != m_entryMap.cend())
+    if (auto group = m_entryMap.find(key); group != m_entryMap.cend()) {
         return *group;
+    }
     return std::nullopt;
 }
 
@@ -192,7 +220,7 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
     return *it;
 }
 
-QString DesktopEntry::Value::unescape(const QString &str) const noexcept
+QString DesktopEntry::Value::unescape(const QString &str) noexcept
 {
     QString unescapedStr;
     for (qsizetype i = 0; i < str.size(); ++i) {
@@ -240,13 +268,15 @@ QString DesktopEntry::Value::toString(bool &ok) const noexcept
 {
     ok = false;
     auto str = this->find(defaultKeyStr);
-    if (str == this->end())
+    if (str == this->end()) {
         return {};
+    }
     auto unescapedStr = unescape(*str);
     constexpr auto controlChars = "\\p{Cc}";
     constexpr auto asciiChars = "[^\x00-\x7f]";
-    if (unescapedStr.contains(QRegularExpression{controlChars}) and unescapedStr.contains(QRegularExpression{asciiChars}))
+    if (unescapedStr.contains(QRegularExpression{controlChars}) and unescapedStr.contains(QRegularExpression{asciiChars})) {
         return {};
+    }
 
     ok = true;
     return unescapedStr;

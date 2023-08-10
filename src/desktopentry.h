@@ -8,6 +8,7 @@
 #include <QLocale>
 #include <QTextStream>
 #include <optional>
+#include <sys/stat.h>
 
 constexpr static auto defaultKeyStr = "default";
 
@@ -21,17 +22,21 @@ struct DesktopFile
     DesktopFile &operator=(DesktopFile &&) = default;
     ~DesktopFile() = default;
 
-    const QString &filePath() const { return m_filePath; }
-    const QString &desktopId() const { return m_desktopId; }
+    [[nodiscard]] const QString &filePath() const { return m_filePath; }
+    [[nodiscard]] const QString &desktopId() const { return m_desktopId; }
 
     static std::optional<DesktopFile> searchDesktopFile(const QString &desktopFilePath, ParseError &err) noexcept;
+    [[nodiscard]] bool modified(std::size_t time) const noexcept;
 
 private:
-    DesktopFile(QString &&path, QString &&fileId)
-        : m_filePath(std::move(path))
+    DesktopFile(QString &&path, QString &&fileId, std::size_t mtime)
+        : m_mtime(mtime)
+        , m_filePath(std::move(path))
         , m_desktopId(std::move(fileId))
     {
     }
+
+    std::size_t m_mtime;
     QString m_filePath{""};
     QString m_desktopId{""};
 };
@@ -51,10 +56,15 @@ public:
         friend QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
 
     private:
-        [[nodiscard]] QString unescape(const QString &str) const noexcept;
+        [[nodiscard]] static QString unescape(const QString &str) noexcept;
     };
 
     DesktopEntry() = default;
+    DesktopEntry(const DesktopEntry &) = default;
+    DesktopEntry(DesktopEntry &&) = default;
+    DesktopEntry &operator=(const DesktopEntry &) = default;
+    DesktopEntry &operator=(DesktopEntry &&) = default;
+
     ~DesktopEntry() = default;
     [[nodiscard]] ParseError parse(const DesktopFile &file) noexcept;
     [[nodiscard]] ParseError parse(QTextStream &stream) noexcept;
@@ -64,7 +74,7 @@ public:
 private:
     QMap<QString, QMap<QString, Value>> m_entryMap;
     auto parserGroupHeader(const QString &str) noexcept;
-    ParseError parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
+    static ParseError parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);

@@ -13,7 +13,7 @@ public:
     IdentifyRet Identify(pid_t pid) override;
 
 private:
-    [[nodiscard]] QString parseCGroupsPath(QString path) const noexcept;
+    [[nodiscard]] static QString parseCGroupsPath(const QString &CGP) noexcept;
 };
 
 #endif
