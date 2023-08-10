@@ -11,7 +11,7 @@ class SystemdSignalDispatcher : public QObject
 {
     Q_OBJECT
 public:
-    ~SystemdSignalDispatcher() = default;
+    ~SystemdSignalDispatcher() override = default;
     static SystemdSignalDispatcher &instance()
     {
         static SystemdSignalDispatcher dispatcher;

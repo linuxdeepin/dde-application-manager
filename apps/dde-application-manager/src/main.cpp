@@ -8,7 +8,6 @@
 #include <QDir>
 #include "dbus/applicationmanager1service.h"
 #include "cgroupsidentifier.h"
-#include "global.h"
 
 static void registerComplexDbusType()
 {
@@ -20,6 +19,7 @@ static void registerComplexDbusType()
 int main(int argc, char *argv[])
 {
     QCoreApplication app{argc, argv};
+
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
     bus.setDestBus("");
@@ -32,30 +32,24 @@ int main(int argc, char *argv[])
     XDGDataDirs = qgetenv("XDG_DATA_DIRS");
     if (XDGDataDirs.isEmpty()) {
         XDGDataDirs.append("/usr/local/share/:/usr/share/");
+        qputenv("XDG_DATA_DIRS", XDGDataDirs);
     }
-    auto desktopFileDirs = XDGDataDirs.split(':');
+    auto desktopFileDirs = QString::fromLocal8Bit(XDGDataDirs).split(':', Qt::SkipEmptyParts);
 
-    for (const auto &dir : desktopFileDirs) {
-        auto dirPath = QDir{QDir::cleanPath(dir) + "/applications"};
-        if (!dirPath.exists()) {
-            continue;
+    std::for_each(desktopFileDirs.begin(), desktopFileDirs.end(), [](QString &str) {
+        str = QDir::cleanPath(str) + QDir::separator() + "applications";
+    });
+
+    applyIteratively(QList<QDir>(desktopFileDirs.begin(), desktopFileDirs.end()), [&AMService](const QFileInfo &info) -> bool {
+        ParseError err{ParseError::NoError};
+        auto ret = DesktopFile::searchDesktopFile(info.absoluteFilePath(), err);
+        if (!ret.has_value()) {
+            qWarning() << "failed to search File:" << err;
+            return false;
         }
-        QDirIterator it{dirPath.absolutePath(),
-                        {"*.desktop"},
-                        QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot | QDir::Readable,
-                        QDirIterator::Subdirectories};
-        while (it.hasNext()) {
-            auto file = it.next();
-            ParseError err;
-            auto ret = DesktopFile::searchDesktopFile(file, err);
-            if (!ret.has_value()) {
-                continue;
-            }
-            if (!AMService.addApplication(std::move(ret).value())) {
-                break;
-            }
-        }
-    }
+        AMService.addApplication(std::move(ret).value());
+        return false;  // means to apply this function to the rest of the files
+    });
 
     return app.exec();
 }

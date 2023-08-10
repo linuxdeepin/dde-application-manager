@@ -17,6 +17,10 @@
 ApplicationService::~ApplicationService()
 {
     m_desktopSource.destruct(m_isPersistence);
+    for (auto &instance : m_Instances.values()) {
+        instance->m_Application = QDBusObjectPath{"/"};
+        instance->setParent(qApp);  // detach all instances to qApp
+    }
 }
 
 qsizetype ApplicationService::applicationCheck(const QString &serviceName)

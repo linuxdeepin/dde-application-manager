@@ -18,7 +18,6 @@
 #include "global.h"
 #include "desktopentry.h"
 #include "desktopicons.h"
-#include "systemdsignaldispatcher.h"
 #include "dbus/jobmanager1service.h"
 
 class ApplicationService : public QObject
@@ -32,25 +31,25 @@ public:
     ApplicationService &operator=(ApplicationService &&) = delete;
 
     Q_PROPERTY(QStringList Actions READ actions CONSTANT)
-    QStringList actions() const noexcept;
+    [[nodiscard]] QStringList actions() const noexcept;
 
     Q_PROPERTY(QString ID READ id CONSTANT)
-    QString id() const noexcept;
+    [[nodiscard]] QString id() const noexcept;
 
     Q_PROPERTY(IconMap Icons READ icons)
-    IconMap icons() const;
+    [[nodiscard]] IconMap icons() const;
     IconMap &iconsRef();
 
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart)
-    bool isAutoStart() const noexcept;
+    [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
 
     Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances)
-    QList<QDBusObjectPath> instances() const noexcept;
+    [[nodiscard]] QList<QDBusObjectPath> instances() const noexcept;
 
-    QDBusObjectPath findInstance(const QString &instanceId) const;
+    [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
-    const QString &getLauncher() const noexcept { return m_launcher; }
+    [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
     void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
 
     bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath);

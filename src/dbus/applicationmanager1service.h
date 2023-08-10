@@ -29,7 +29,7 @@ public:
     ApplicationManager1Service &operator=(ApplicationManager1Service &&) = delete;
 
     Q_PROPERTY(QList<QDBusObjectPath> List READ list)
-    QList<QDBusObjectPath> list() const;
+    [[nodiscard]] QList<QDBusObjectPath> list() const;
     template <typename T>
     bool addApplication(T &&desktopFileSource)
     {
@@ -45,23 +45,23 @@ public:
         m_applicationList.insert(application->m_applicationPath, application);
         return true;
     }
-    bool removeOneApplication(const QDBusObjectPath &application);
+    void removeOneApplication(const QDBusObjectPath &application);
     void removeAllApplication();
 
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 
 public Q_SLOTS:
-    QDBusObjectPath Application(const QString &id) const;
+    [[nodiscard]] QDBusObjectPath Application(const QString &id) const;
     QString Identify(const QDBusUnixFileDescriptor &pidfd, QDBusObjectPath &application, QDBusObjectPath &application_instance);
     QDBusObjectPath Launch(const QString &id, const QString &action, const QStringList &fields, const QVariantMap &options);
-    void UpdateApplicationInfo(const QStringList &update_path);
+    void UpdateApplicationInfo(const QStringList &app_id);
 
 private:
     std::unique_ptr<Identifier> m_identifier;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 
-    QPair<QString, QString> processServiceName(const QString &serviceName);
+    static QPair<QString, QString> processServiceName(const QString &serviceName) noexcept;
 };
 
 #endif
