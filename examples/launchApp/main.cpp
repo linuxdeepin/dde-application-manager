@@ -40,6 +40,7 @@ public:
         }
     }
 
+    // TODO: should be QList<QDBusObjectPath>
     void launchApp(const QString &appId)
     {
         auto msg =

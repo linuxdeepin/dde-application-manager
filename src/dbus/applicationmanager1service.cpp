@@ -29,30 +29,38 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitNew,
             this,
-            [this](const QString &serviceName, const QDBusObjectPath &systemdUnitPath) {
-                auto [appId, instanceId] = processServiceName(serviceName);
+            [this](const QString &unitName, const QDBusObjectPath &systemdUnitPath) {
+                auto pair = processUnitName(unitName);
+                auto appId = pair.first;
+                auto instanceId = pair.second;
                 if (appId.isEmpty()) {
                     return;
                 }
 
-                for (const auto &app : m_applicationList) {
-                    if (app->id() == appId) [[unlikely]] {
-                        const auto &applicationPath = app->m_applicationPath.path();
-                        if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) {
-                            qWarning() << "add Instance failed:" << applicationPath << serviceName << systemdUnitPath.path();
-                        }
-                        return;
-                    }
+                auto appIt = std::find_if(m_applicationList.cbegin(),
+                                          m_applicationList.cend(),
+                                          [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+
+                if (appIt == m_applicationList.cend()) [[unlikely]] {
+                    qWarning() << "couldn't find app" << appId << "in application manager.";
+                    return;
                 }
 
-                qWarning() << "couldn't find application:" << serviceName << "in application manager.";
+                const auto &appRef = *appIt;
+                const auto &applicationPath = appRef->m_applicationPath.path();
+
+                if (!appRef->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) [[likely]] {
+                    qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
+                }
+
+                return;
             });
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
             this,
             [this](const QString &serviceName, QDBusObjectPath systemdUnitPath) {
-                auto pair = processServiceName(serviceName);
+                auto pair = processUnitName(serviceName);
                 auto appId = pair.first;
                 auto instanceId = pair.second;
                 if (appId.isEmpty()) {
@@ -82,14 +90,14 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             });
 }
 
-QPair<QString, QString> ApplicationManager1Service::processServiceName(const QString &serviceName) noexcept
+QPair<QString, QString> ApplicationManager1Service::processUnitName(const QString &unitName) noexcept
 {
     QString instanceId;
     QString applicationId;
 
-    if (serviceName.endsWith(".service")) {
-        auto lastDotIndex = serviceName.lastIndexOf('.');
-        auto app = serviceName.sliced(0, lastDotIndex - 1);  // remove suffix
+    if (unitName.endsWith(".service")) {
+        auto lastDotIndex = unitName.lastIndexOf('.');
+        auto app = unitName.sliced(0, lastDotIndex - 1);  // remove suffix
 
         if (app.contains('@')) {
             auto atIndex = app.indexOf('@');
@@ -98,15 +106,15 @@ QPair<QString, QString> ApplicationManager1Service::processServiceName(const QSt
         }
 
         applicationId = app.split('-').last();  // drop launcher if it exists.
-    } else if (serviceName.endsWith(".scope")) {
-        auto lastDotIndex = serviceName.lastIndexOf('.');
-        auto app = serviceName.sliced(0, lastDotIndex - 1);
+    } else if (unitName.endsWith(".scope")) {
+        auto lastDotIndex = unitName.lastIndexOf('.');
+        auto app = unitName.sliced(0, lastDotIndex - 1);
 
         auto components = app.split('-');
         instanceId = components.takeLast();
         applicationId = components.takeLast();
     } else {
-        qDebug() << "it's not service or scope:" << serviceName << "ignore.";
+        qDebug() << "it's not service or scope:" << unitName << "ignore.";
         return {};
     }
 

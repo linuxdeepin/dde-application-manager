@@ -18,12 +18,12 @@ public:
         return dispatcher;
     }
 Q_SIGNALS:
-    void SystemdUnitNew(QString serviceName, QDBusObjectPath systemdUnitPath);
-    void SystemdUnitRemoved(QString serviceName, QDBusObjectPath systemdUnitPath);
+    void SystemdUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
+    void SystemdUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
 
 private Q_SLOTS:
-    void onUnitNew(QString serviceName, QDBusObjectPath systemdUnitPath);
-    void onUnitRemoved(QString serviceName, QDBusObjectPath systemdUnitPath);
+    void onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
+    void onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
 
 private:
     explicit SystemdSignalDispatcher(QObject *parent = nullptr)
