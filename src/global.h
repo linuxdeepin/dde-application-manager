@@ -25,13 +25,13 @@ using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>
 
 inline QString getApplicationLauncherBinary()
 {
-    static const QString bin = []() -> QString {
+    static const QString bin = []() {
         auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
         if (value.isEmpty()) {
-            return ApplicationLaunchHelperBinary;
+            return QString::fromLocal8Bit(ApplicationLaunchHelperBinary);
         }
         qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
-        return value;
+        return QString::fromLocal8Bit(value);
     }();
     return bin;
 }
@@ -301,6 +301,31 @@ inline QString getRelativePathFromAppId(const QString &id)
     }
     path += QString{R"(-%1.desktop)"}.arg(components.last());
     return path;
+}
+
+inline QStringList getXDGDataDirs()
+{
+    const static auto XDGDataDirs = []() {
+        auto env = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
+
+        if (env.isEmpty()) {
+            env.append(QString{qgetenv("HOME")} + QDir::separator() + ".local/share");
+            env.append("/usr/local/share");
+            env.append("/usr/share");
+            qputenv("XDG_DATA_DIRS", env.join(':').toLocal8Bit());
+        }
+
+        std::for_each(env.begin(), env.end(), [](QString &str) {
+            if (!str.endsWith(QDir::separator())) {
+                str.append(QDir::separator());
+            }
+            str.append("applications");
+        });
+
+        return env;
+    }();
+
+    return XDGDataDirs;
 }
 
 #endif

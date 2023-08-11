@@ -28,21 +28,11 @@ int main(int argc, char *argv[])
     registerComplexDbusType();
     ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus};
     QList<DesktopFile> fileList{};
-    QByteArray XDGDataDirs;
-    XDGDataDirs = qgetenv("XDG_DATA_DIRS");
-    if (XDGDataDirs.isEmpty()) {
-        XDGDataDirs.append("/usr/local/share/:/usr/share/");
-        qputenv("XDG_DATA_DIRS", XDGDataDirs);
-    }
-    auto desktopFileDirs = QString::fromLocal8Bit(XDGDataDirs).split(':', Qt::SkipEmptyParts);
-
-    std::for_each(desktopFileDirs.begin(), desktopFileDirs.end(), [](QString &str) {
-        str = QDir::cleanPath(str) + QDir::separator() + "applications";
-    });
+    auto desktopFileDirs = getXDGDataDirs();
 
     applyIteratively(QList<QDir>(desktopFileDirs.begin(), desktopFileDirs.end()), [&AMService](const QFileInfo &info) -> bool {
-        ParseError err{ParseError::NoError};
-        auto ret = DesktopFile::searchDesktopFile(info.absoluteFilePath(), err);
+        DesktopErrorCode err{DesktopErrorCode::NoError};
+        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
         if (!ret.has_value()) {
             qWarning() << "failed to search File:" << err;
             return false;

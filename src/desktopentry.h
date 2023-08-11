@@ -12,7 +12,15 @@
 
 constexpr static auto defaultKeyStr = "default";
 
-enum class ParseError { NoError, NotFound, MismatchedFile, InvalidLocation, OpenFailed, GroupHeaderInvalid, EntryKeyInvalid };
+enum class DesktopErrorCode {
+    NoError,
+    NotFound,
+    MismatchedFile,
+    InvalidLocation,
+    OpenFailed,
+    GroupHeaderInvalid,
+    EntryKeyInvalid
+};
 
 struct DesktopFile
 {
@@ -25,7 +33,8 @@ struct DesktopFile
     [[nodiscard]] const QString &filePath() const { return m_filePath; }
     [[nodiscard]] const QString &desktopId() const { return m_desktopId; }
 
-    static std::optional<DesktopFile> searchDesktopFile(const QString &desktopFilePath, ParseError &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
     [[nodiscard]] bool modified(std::size_t time) const noexcept;
 
 private:
@@ -66,17 +75,17 @@ public:
     DesktopEntry &operator=(DesktopEntry &&) = default;
 
     ~DesktopEntry() = default;
-    [[nodiscard]] ParseError parse(const DesktopFile &file) noexcept;
-    [[nodiscard]] ParseError parse(QTextStream &stream) noexcept;
+    [[nodiscard]] DesktopErrorCode parse(const DesktopFile &file) noexcept;
+    [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
 
 private:
     QMap<QString, QMap<QString, Value>> m_entryMap;
     auto parserGroupHeader(const QString &str) noexcept;
-    static ParseError parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
+    static DesktopErrorCode parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
 
-QDebug operator<<(QDebug debug, const ParseError &v);
+QDebug operator<<(QDebug debug, const DesktopErrorCode &v);

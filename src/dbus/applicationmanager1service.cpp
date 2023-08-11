@@ -132,8 +132,10 @@ QList<QDBusObjectPath> ApplicationManager1Service::list() const
 
 void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
 {
-    unregisterObjectFromDBus(application.path());
-    m_applicationList.remove(application);
+    if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
+        unregisterObjectFromDBus(application.path());
+        m_applicationList.remove(application);
+    }
 }
 
 void ApplicationManager1Service::removeAllApplication()
@@ -221,80 +223,48 @@ QDBusObjectPath ApplicationManager1Service::Launch(const QString &id,
     return value->Launch(actions, fields, options);
 }
 
-void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &app_id)
+void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,
+                                                   const DesktopFile &desktopFile) noexcept
 {
-    auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
-    std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
-        if (!str.endsWith(QDir::separator())) {
-            str.append(QDir::separator());
+    struct stat buf;
+    const auto *filePath = desktopFile.filePath().toLocal8Bit().data();
+    if (auto ret = stat(filePath, &buf); ret == -1) {
+        qWarning() << "get file" << filePath << "state failed:" << std::strerror(errno);
+        return;
+    }
+
+    constexpr std::size_t secToNano = 1e9;
+
+    if (destApp->m_desktopSource.m_file.modified(buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec)) {
+        auto newEntry = new DesktopEntry{};
+        auto err = newEntry->parse(destApp->m_desktopSource.m_file);
+        if (err != DesktopErrorCode::NoError and err != DesktopErrorCode::EntryKeyInvalid) {
+            qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
+            return;
         }
-        str.append("applications");
-    });
+        destApp->m_entry.reset(newEntry);
+    }
+}
 
-    for (auto id : app_id) {
-        auto destApp = std::find_if(m_applicationList.begin(),
-                                    m_applicationList.end(),
-                                    [&id](const QSharedPointer<ApplicationService> &value) { return value->id() == id; });
+void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &appIdList)
+{
+    for (const auto &appId : appIdList) {
+        DesktopErrorCode err{DesktopErrorCode::NotFound};
+        auto file = DesktopFile::searchDesktopFileById(appId, err);
+        auto destApp = std::find_if(m_applicationList.cbegin(),
+                                    m_applicationList.cend(),
+                                    [&appId](const QSharedPointer<ApplicationService> &app) { return appId == app->id(); });
 
-        if (destApp == m_applicationList.end()) {  // new app
-            qInfo() << "add a new application:" << id;
-            do {
-                for (const auto &suffix : XDGDataDirs) {
-                    QFileInfo info{suffix + id};
-                    if (info.exists()) {
-                        ParseError err;
-                        auto file = DesktopFile::searchDesktopFile(info.absoluteFilePath(), err);
-
-                        if (!file.has_value()) {
-                            continue;
-                        }
-
-                        if (!addApplication(std::move(file).value())) {
-                            id.clear();
-                            break;
-                        }
-                    }
-                }
-
-                if (id.isEmpty()) {
-                    break;
-                }
-
-                auto hyphenIndex = id.indexOf('-');
-                if (hyphenIndex == -1) {
-                    break;
-                }
-
-                id[hyphenIndex] = QDir::separator();
-            } while (true);
-        } else {  // remove or update
-            if (!(*destApp)->m_isPersistence) [[unlikely]] {
-                continue;
-            }
-
-            auto filePath = (*destApp)->m_desktopSource.m_file.filePath();
-            if (QFileInfo::exists(filePath)) {  // update
-                qInfo() << "update application:" << id;
-                struct stat buf;
-                if (auto ret = stat(filePath.toLatin1().data(), &buf); ret == -1) {
-                    qWarning() << "get file" << filePath << "state failed:" << std::strerror(errno) << ", skip...";
-                    continue;
-                }
-
-                if ((*destApp)->m_desktopSource.m_file.modified(
-                        static_cast<std::size_t>(buf.st_mtim.tv_sec * 1e9 + buf.st_mtim.tv_nsec))) {
-                    auto newEntry = new DesktopEntry{};
-                    auto err = newEntry->parse((*destApp)->m_desktopSource.m_file);
-                    if (err != ParseError::NoError and err != ParseError::EntryKeyInvalid) {
-                        qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
-                        continue;
-                    }
-                    (*destApp)->m_entry.reset(newEntry);
-                }
-            } else {  // remove
-                qInfo() << "remove application:" << id;
-                removeOneApplication((*destApp)->m_applicationPath);
-            }
+        if (err == DesktopErrorCode::NotFound) {
+            removeOneApplication(destApp.key());
+            continue;
         }
+
+        if (destApp != m_applicationList.cend()) {
+            updateApplication(destApp.value(), file.value());
+            continue;
+        }
+
+        addApplication(std::move(file).value());
     }
 }

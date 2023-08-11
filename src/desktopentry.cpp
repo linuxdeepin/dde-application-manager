@@ -23,10 +23,10 @@ auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
     return it;
 }
 
-ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
+DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
 {
     if (str.startsWith("#")) {
-        return ParseError::NoError;
+        return DesktopErrorCode::NoError;
     }
 
     auto splitCharIndex = str.indexOf(']');
@@ -57,7 +57,7 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     auto matcher = re.match(keyStr);
     if (!matcher.hasMatch()) {
         qWarning() << "invalid key: " << keyStr;
-        return ParseError::EntryKeyInvalid;
+        return DesktopErrorCode::EntryKeyInvalid;
     }
 
     key = matcher.captured("MainKey");
@@ -69,81 +69,93 @@ ParseError DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::it
     auto cur = currentGroup->find(key);
     if (cur == currentGroup->end()) {
         currentGroup->insert(keyStr, {{valueKey, valueStr}});
-        return ParseError::NoError;
+        return DesktopErrorCode::NoError;
     }
 
     auto value = cur->find(valueKey);
     if (value == cur->end()) {
         cur->insert(valueKey, valueStr);
-        return ParseError::NoError;
+        return DesktopErrorCode::NoError;
     }
 
     qWarning() << "duplicated postfix and this line will be aborted, maybe format is invalid.\n"
                << "exist: " << value.key() << "[" << value.value() << "]"
                << "current: " << str;
 
-    return ParseError::NoError;
+    return DesktopErrorCode::NoError;
 }
 
-std::optional<DesktopFile> DesktopFile::searchDesktopFile(const QString &desktopFile, ParseError &err) noexcept
+std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, DesktopErrorCode &err) noexcept
 {
-    if (auto tmp = desktopFile.split("."); tmp.last() != "desktop") {
-        qWarning() << "file isn't a desktop file";
-        err = ParseError::MismatchedFile;
+    constexpr decltype(auto) desktopPostfix = ".desktop";
+
+    if (!desktopFile.endsWith(desktopPostfix)) {
+        qWarning() << "file isn't a desktop file:" << desktopFile;
+        err = DesktopErrorCode::MismatchedFile;
         return std::nullopt;
     }
 
-    QString path;
+    QFileInfo fileinfo{desktopFile};
+    if (!fileinfo.isAbsolute() or !fileinfo.exists()) {
+        qWarning() << "desktop file not found.";
+        err = DesktopErrorCode::NotFound;
+        return std::nullopt;
+    }
+
+    QString path{desktopFile};
     QString id;
 
-    QFileInfo Fileinfo{desktopFile};
-    if (Fileinfo.isAbsolute() and Fileinfo.exists()) {
-        path = desktopFile;
-    } else {
-        auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
-        std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
-            str = QDir::cleanPath(str) + QDir::separator() + "applications";
-        });
-        auto fileName = Fileinfo.fileName();
+    const auto &XDGDataDirs = getXDGDataDirs();
+    auto idGen = std::any_of(XDGDataDirs.cbegin(), XDGDataDirs.cend(), [&desktopFile](const QString &suffixPath) {
+        return desktopFile.startsWith(suffixPath);
+    });
 
-        applyIteratively(QList<QDir>{XDGDataDirs.begin(), XDGDataDirs.end()}, [&fileName, &path](const QFileInfo &file) -> bool {
-            if (file.fileName() == fileName) {
-                path = file.absoluteFilePath();
-                return true;
-            }
-            return false;
-        });
-    }
-
-    if (path.isEmpty()) {
-        qWarning() << "desktop file not found.";
-        err = ParseError::NotFound;
-        return std::nullopt;
-    }
-    auto tmp = path.chopped(8);  // remove ".desktop"
-    auto components = tmp.split(QDir::separator()).toList();
-    auto it = std::find(components.cbegin(), components.cend(), "applications");
-    if (it == components.cend()) {
-        qWarning() << "custom location detected, Id wouldn't be generated.";
-    } else {
+    if (idGen) {
+        auto tmp = path.chopped(sizeof(desktopPostfix) - 1);
+        auto components = tmp.split(QDir::separator()).toList();
+        auto it = std::find(components.cbegin(), components.cend(), "applications");
         QString FileId;
         ++it;
-        while (it != components.cend())
+        while (it != components.cend()) {
             FileId += (*(it++) + "-");
+        }
         id = FileId.chopped(1);  // remove extra "-""
     }
 
     struct stat buf;
     if (auto ret = stat(path.toLatin1().data(), &buf); ret == -1) {
-        err = ParseError::OpenFailed;
+        err = DesktopErrorCode::OpenFailed;
         qWarning() << "get file" << path << "state failed:" << std::strerror(errno);
         return std::nullopt;
     }
 
-    err = ParseError::NoError;
+    err = DesktopErrorCode::NoError;
     constexpr std::size_t nanoToSec = 1e9;
 
     return DesktopFile{std::move(path), std::move(id), buf.st_mtim.tv_sec * nanoToSec + buf.st_mtim.tv_nsec};
+}
+
+std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
+{
+    auto XDGDataDirs = getXDGDataDirs();
+
+    for (const auto &dir : XDGDataDirs) {
+        auto app = QFileInfo{dir + QDir::separator() + appId};
+        while (!app.exists()) {
+            auto filePath = app.absoluteFilePath();
+            auto hyphenIndex = filePath.indexOf('-');
+            if (hyphenIndex == -1) {
+                break;
+            }
+            filePath.replace(hyphenIndex, 1, QDir::separator());
+            app.setFile(filePath);
+        }
+
+        if (app.exists()) {
+            return searchDesktopFileByPath(app.absoluteFilePath(), err);
+        }
+    }
+    return std::nullopt;
 }
 
 bool DesktopFile::modified(std::size_t time) const noexcept
@@ -151,28 +163,28 @@ bool DesktopFile::modified(std::size_t time) const noexcept
     return time != m_mtime;
 }
 
-ParseError DesktopEntry::parse(const DesktopFile &desktopFile) noexcept
+DesktopErrorCode DesktopEntry::parse(const DesktopFile &appId) noexcept
 {
-    auto file = QFile(desktopFile.filePath());
+    auto file = QFile(appId.filePath());
     if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        qWarning() << desktopFile.filePath() << "can't open.";
-        return ParseError::OpenFailed;
+        qWarning() << appId.filePath() << "can't open.";
+        return DesktopErrorCode::OpenFailed;
     }
 
     QTextStream in{&file};
     return parse(in);
 }
 
-ParseError DesktopEntry::parse(QTextStream &stream) noexcept
+DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
 {
     if (stream.atEnd()) {
-        return ParseError::OpenFailed;
+        return DesktopErrorCode::OpenFailed;
     }
 
     stream.setEncoding(QStringConverter::Utf8);
     decltype(m_entryMap)::iterator currentGroup;
 
-    ParseError err{ParseError::NoError};
+    DesktopErrorCode err{DesktopErrorCode::NoError};
     while (!stream.atEnd()) {
         auto line = stream.readLine().trimmed();
 
@@ -182,13 +194,13 @@ ParseError DesktopEntry::parse(QTextStream &stream) noexcept
 
         if (line.startsWith("[")) {
             if (!line.endsWith("]")) {
-                return ParseError::GroupHeaderInvalid;
+                return DesktopErrorCode::GroupHeaderInvalid;
             }
             currentGroup = parserGroupHeader(line);
             continue;
         }
 
-        if (auto error = parseEntry(line, currentGroup); error != ParseError::NoError) {
+        if (auto error = parseEntry(line, currentGroup); error != DesktopErrorCode::NoError) {
             err = error;
             qWarning() << "an error occurred,this line will be skipped:" << line;
         }
@@ -329,36 +341,36 @@ QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
     return debug;
 }
 
-QDebug operator<<(QDebug debug, const ParseError &v)
+QDebug operator<<(QDebug debug, const DesktopErrorCode &v)
 {
     QDebugStateSaver saver{debug};
     QString errMsg;
     switch (v) {
-        case ParseError::NoError: {
+        case DesktopErrorCode::NoError: {
             errMsg = "no error.";
             break;
         }
-        case ParseError::NotFound: {
+        case DesktopErrorCode::NotFound: {
             errMsg = "file not found.";
             break;
         }
-        case ParseError::MismatchedFile: {
+        case DesktopErrorCode::MismatchedFile: {
             errMsg = "file type is mismatched.";
             break;
         }
-        case ParseError::InvalidLocation: {
+        case DesktopErrorCode::InvalidLocation: {
             errMsg = "file location is invalid, please check $XDG_DATA_DIRS.";
             break;
         }
-        case ParseError::OpenFailed: {
+        case DesktopErrorCode::OpenFailed: {
             errMsg = "couldn't open the file.";
             break;
         }
-        case ParseError::GroupHeaderInvalid: {
+        case DesktopErrorCode::GroupHeaderInvalid: {
             errMsg = "groupHead syntax is invalid.";
             break;
         }
-        case ParseError::EntryKeyInvalid: {
+        case DesktopErrorCode::EntryKeyInvalid: {
             errMsg = "key syntax is invalid.";
             break;
         }
