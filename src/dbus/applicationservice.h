@@ -30,7 +30,7 @@ public:
     ApplicationService &operator=(const ApplicationService &) = delete;
     ApplicationService &operator=(ApplicationService &&) = delete;
 
-    Q_PROPERTY(QStringList Actions READ actions CONSTANT)
+    Q_PROPERTY(QStringList Actions READ actions)
     [[nodiscard]] QStringList actions() const noexcept;
 
     Q_PROPERTY(QString ID READ id CONSTANT)
@@ -89,8 +89,8 @@ private:
             sourceStream.setString(&m_desktopSource.m_temp, QTextStream::ReadOnly | QTextStream::Text);
         }
         m_entry.reset(new DesktopEntry());
-        if (auto error = m_entry->parse(sourceStream); error != ParseError::NoError) {
-            if (error != ParseError::EntryKeyInvalid) {
+        if (auto error = m_entry->parse(sourceStream); error != DesktopErrorCode::NoError) {
+            if (error != DesktopErrorCode::EntryKeyInvalid) {
                 m_entry.reset(nullptr);
                 return;
             }

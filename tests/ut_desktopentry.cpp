@@ -17,8 +17,8 @@ public:
     {
         auto curDir = QDir::current();
         QString path{curDir.absolutePath() + "/data/desktopExample.desktop"};
-        ParseError err;
-        auto file = DesktopFile::searchDesktopFile(path, err);
+        DesktopErrorCode err;
+        auto file = DesktopFile::searchDesktopFileByPath(path, err);
         if (!file.has_value()) {
             qWarning() << "search " << path << "failed:" << err;
             return;
@@ -54,7 +54,7 @@ TEST_F(TestDesktopEntry, prase)
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));
     QTextStream fs{&in};
     auto err = entry.parse(fs);
-    ASSERT_EQ(err, ParseError::NoError);
+    ASSERT_EQ(err, DesktopErrorCode::NoError);
 
     auto group = entry.group("Desktop Entry");
     ASSERT_TRUE(group);

@@ -48,13 +48,15 @@ public:
     void removeOneApplication(const QDBusObjectPath &application);
     void removeAllApplication();
 
+    void updateApplication(const QSharedPointer<ApplicationService> &deskApp, const DesktopFile &desktopFile) noexcept;
+
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 
 public Q_SLOTS:
     [[nodiscard]] QDBusObjectPath Application(const QString &id) const;
     QString Identify(const QDBusUnixFileDescriptor &pidfd, QDBusObjectPath &application, QDBusObjectPath &application_instance);
     QDBusObjectPath Launch(const QString &id, const QString &action, const QStringList &fields, const QVariantMap &options);
-    void UpdateApplicationInfo(const QStringList &app_id);
+    void UpdateApplicationInfo(const QStringList &appIdList);
 
 private:
     std::unique_ptr<Identifier> m_identifier;
