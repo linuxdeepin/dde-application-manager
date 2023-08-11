@@ -22,7 +22,7 @@ class ApplicationManager1Service;
 
 struct LaunchTask
 {
-    LaunchTask();
+    LaunchTask() = default;
     ~LaunchTask() = default;
     LaunchTask(const LaunchTask &) = default;
     LaunchTask(LaunchTask &&) = default;
@@ -57,7 +57,10 @@ public:
                                                                    QVariantList{},
                                                                    QtConcurrent::ReduceOption::OrderedReduce);
         QSharedPointer<JobService> job{new JobService{future}};
-        if (!registerObjectToDBus(new JobAdaptor(job.data()), objectPath, getDBusInterface<JobAdaptor>())) {
+
+        auto *ptr = job.data();
+        new JobAdaptor(ptr);
+        if (!registerObjectToDBus(ptr, objectPath, getDBusInterface<JobAdaptor>())) {
             qCritical() << "can't register job to dbus.";
             future.cancel();
             return {};

@@ -5,18 +5,14 @@
 #include "dbus/jobmanager1service.h"
 #include "dbus/jobmanager1adaptor.h"
 
-LaunchTask::LaunchTask()
-{
-    qRegisterMetaType<LaunchTask>();
-}
-
 JobManager1Service::JobManager1Service(ApplicationManager1Service *parent)
     : m_parent(parent)
 {
-    if (!registerObjectToDBus(
-            new JobManager1Adaptor{this}, DDEApplicationManager1JobManagerObjectPath, getDBusInterface<JobManager1Adaptor>())) {
+    new JobManager1Adaptor{this};
+    if (!registerObjectToDBus(this, DDEApplicationManager1JobManagerObjectPath, getDBusInterface<JobManager1Adaptor>())) {
         std::terminate();
     }
+    qRegisterMetaType<LaunchTask>();
 }
 
 JobManager1Service::~JobManager1Service() = default;
