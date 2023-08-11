@@ -254,8 +254,41 @@ inline QString unescapeFromObjectPath(const QString &str)
     for (qsizetype i = 0; i < str.size(); ++i) {
         if (str[i] == '_' and i + 2 < str.size()) {
             auto hexStr = str.sliced(i + 1, 2);
-            ret.replace(hexStr, QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
+            ret.replace(QString{"_%1"}.arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
             i += 2;
+        }
+    }
+    return ret;
+}
+
+inline QString escapeApplicationId(const QString &id)
+{
+    if (id.isEmpty()) {
+        return id;
+    }
+
+    auto ret = id;
+    QRegularExpression re{R"([^a-zA-Z0-9])"};
+    auto matcher = re.globalMatch(ret);
+    while (matcher.hasNext()) {
+        auto replaceList = matcher.next().capturedTexts();
+        replaceList.removeDuplicates();
+        for (const auto &c : replaceList) {
+            auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
+            ret.replace(c, QString{R"(\x%1)"}.arg(hexStr));
+        }
+    }
+    return ret;
+}
+
+inline QString unescapeApplicationId(const QString &id)
+{
+    auto ret = id;
+    for (qsizetype i = 0; i < id.size(); ++i) {
+        if (id[i] == '\\' and i + 3 < id.size()) {
+            auto hexStr = id.sliced(i + 2, 2);
+            ret.replace(QString{R"(\x%1)"}.arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
+            i += 3;
         }
     }
     return ret;

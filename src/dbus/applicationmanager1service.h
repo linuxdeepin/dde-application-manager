@@ -37,9 +37,9 @@ public:
         if (!application) {
             return false;
         }
-        if (!registerObjectToDBus(new ApplicationAdaptor{application.data()},
-                                  application->m_applicationPath.path(),
-                                  getDBusInterface<ApplicationAdaptor>())) {
+        auto *ptr = application.data();
+        new ApplicationAdaptor{ptr};
+        if (!registerObjectToDBus(ptr, application->m_applicationPath.path(), getDBusInterface<ApplicationAdaptor>())) {
             return false;
         }
         m_applicationList.insert(application->m_applicationPath, application);

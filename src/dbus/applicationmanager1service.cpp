@@ -16,9 +16,9 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
         qFatal() << connection.lastError();
     }
 
-    if (!registerObjectToDBus(new ApplicationManager1Adaptor{this},
-                              DDEApplicationManager1ObjectPath,
-                              getDBusInterface<ApplicationManager1Adaptor>())) {
+    new ApplicationManager1Adaptor{this};
+
+    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, getDBusInterface<ApplicationManager1Adaptor>())) {
         std::terminate();
     }
 
@@ -106,7 +106,7 @@ QPair<QString, QString> ApplicationManager1Service::processServiceName(const QSt
         instanceId = components.takeLast();
         applicationId = components.takeLast();
     } else {
-        qDebug() << "it's not service or slice or scope.";
+        qDebug() << "it's not service or scope:" << serviceName << "ignore.";
         return {};
     }
 
@@ -114,7 +114,7 @@ QPair<QString, QString> ApplicationManager1Service::processServiceName(const QSt
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
-    return qMakePair(std::move(applicationId), std::move(instanceId));
+    return qMakePair(unescapeApplicationId(applicationId), std::move(instanceId));
 }
 
 QList<QDBusObjectPath> ApplicationManager1Service::list() const

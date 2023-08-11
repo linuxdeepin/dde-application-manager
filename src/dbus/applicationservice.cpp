@@ -145,7 +145,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             if (resourceFile.isEmpty()) {
                 auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
                 commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
-                    this->id(), instanceRandomUUID));  // launcher should use this instanceId
+                    escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
                 process.start(m_launcher, commands);
                 process.waitForFinished();
@@ -255,7 +255,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
     auto adaptor = new InstanceAdaptor(service);
     QString objectPath{DDEApplicationManager1InstanceObjectPath + instanceId};
 
-    if (registerObjectToDBus(adaptor, objectPath, getDBusInterface<InstanceAdaptor>())) {
+    if (registerObjectToDBus(service, objectPath, getDBusInterface<InstanceAdaptor>())) {
         m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
         service->moveToThread(this->thread());
         adaptor->moveToThread(this->thread());

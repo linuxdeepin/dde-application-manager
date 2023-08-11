@@ -13,6 +13,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
+set(BUILD_EXAMPLES ON CACHE BOOL "Whether to build examples or not.")
+
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
 find_package(Threads REQUIRED)
 
@@ -22,10 +24,13 @@ add_subdirectory(src)
 add_subdirectory(plugins)
 add_subdirectory(apps)
 
-# add_subdirectory(docs)
 include(CTest)
 
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
