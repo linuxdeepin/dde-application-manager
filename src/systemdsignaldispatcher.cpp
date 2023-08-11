@@ -31,20 +31,20 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
     return true;
 }
 
-void SystemdSignalDispatcher::onUnitNew(QString serviceName, QDBusObjectPath systemdUnitPath)
+void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    if (!serviceName.startsWith("app-")) {
+    if (!unitName.startsWith("app-")) {
         return;
     }
 
-    emit SystemdUnitNew(serviceName.sliced(4), systemdUnitPath);  // remove "app-"
+    emit SystemdUnitNew(unitName.sliced(sizeof("app-") - 1), systemdUnitPath);
 }
 
-void SystemdSignalDispatcher::onUnitRemoved(QString serviceName, QDBusObjectPath systemdUnitPath)
+void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    if (!serviceName.startsWith("app-")) {
+    if (!unitName.startsWith("app-")) {
         return;
     }
 
-    emit SystemdUnitRemoved(serviceName.sliced(4), systemdUnitPath);
+    emit SystemdUnitRemoved(unitName.sliced(sizeof("app-") - 1), systemdUnitPath);
 }

@@ -23,16 +23,6 @@ ApplicationService::~ApplicationService()
     }
 }
 
-qsizetype ApplicationService::applicationCheck(const QString &serviceName)
-{
-    const auto &ApplicationId = id();
-    if (!serviceName.startsWith(ApplicationId)) [[likely]] {
-        return 0;
-    }
-
-    return ApplicationId.size();
-}
-
 QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env)
 {
     const auto &supportedActions = actions();

@@ -133,7 +133,6 @@ private:
     QSharedPointer<DesktopIcons> m_Icons{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     QString userNameLookup(uid_t uid);
-    qsizetype applicationCheck(const QString &serviceName);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
 };
 

@@ -25,17 +25,15 @@ using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>
 
 inline QString getApplicationLauncherBinary()
 {
-    static bool logFlag{true};
-    auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
-    if (value.isEmpty()) {
-        return ApplicationLaunchHelperBinary;
-    }
-
-    if (logFlag) {
+    static const QString bin = []() -> QString {
+        auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
+        if (value.isEmpty()) {
+            return ApplicationLaunchHelperBinary;
+        }
         qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
-        logFlag = false;
-    }
-    return value;
+        return value;
+    }();
+    return bin;
 }
 
 enum class DBusType { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom };
