@@ -306,23 +306,28 @@ inline QString getRelativePathFromAppId(const QString &id)
 inline QStringList getXDGDataDirs()
 {
     const static auto XDGDataDirs = []() {
-        auto env = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
+        auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
 
-        if (env.isEmpty()) {
-            env.append(QString{qgetenv("HOME")} + QDir::separator() + ".local/share");
-            env.append("/usr/local/share");
-            env.append("/usr/share");
-            qputenv("XDG_DATA_DIRS", env.join(':').toLocal8Bit());
+        if (XDGDataDirs.isEmpty()) {
+            XDGDataDirs.append("/usr/local/share");
+            XDGDataDirs.append("/usr/share");
         }
 
-        std::for_each(env.begin(), env.end(), [](QString &str) {
+        auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
+        if (XDGDataHome.isEmpty()) {
+            XDGDataHome = QString{qgetenv("HOME")} + QDir::separator() + ".local" + QDir::separator() + "share";
+        }
+
+        XDGDataDirs.push_front(XDGDataHome);
+
+        std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
             if (!str.endsWith(QDir::separator())) {
                 str.append(QDir::separator());
             }
             str.append("applications");
         });
 
-        return env;
+        return XDGDataDirs;
     }();
 
     return XDGDataDirs;
