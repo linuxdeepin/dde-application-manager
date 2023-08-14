@@ -87,9 +87,9 @@ DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMa
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, DesktopErrorCode &err) noexcept
 {
-    constexpr decltype(auto) desktopPostfix = ".desktop";
+    constexpr decltype(auto) desktopSuffix = ".desktop";
 
-    if (!desktopFile.endsWith(desktopPostfix)) {
+    if (!desktopFile.endsWith(desktopSuffix)) {
         qWarning() << "file isn't a desktop file:" << desktopFile;
         err = DesktopErrorCode::MismatchedFile;
         return std::nullopt;
@@ -111,7 +111,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     });
 
     if (idGen) {
-        auto tmp = path.chopped(sizeof(desktopPostfix) - 1);
+        auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
         auto components = tmp.split(QDir::separator()).toList();
         auto it = std::find(components.cbegin(), components.cend(), "applications");
         QString FileId;
@@ -138,9 +138,10 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
 {
     auto XDGDataDirs = getXDGDataDirs();
+    constexpr auto desktopSuffix = u8".desktop";
 
     for (const auto &dir : XDGDataDirs) {
-        auto app = QFileInfo{dir + QDir::separator() + appId};
+        auto app = QFileInfo{dir + QDir::separator() + appId + desktopSuffix};
         while (!app.exists()) {
             auto filePath = app.absoluteFilePath();
             auto hyphenIndex = filePath.indexOf('-');
@@ -155,6 +156,8 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &app
             return searchDesktopFileByPath(app.absoluteFilePath(), err);
         }
     }
+
+    err = DesktopErrorCode::NotFound;
     return std::nullopt;
 }
 
