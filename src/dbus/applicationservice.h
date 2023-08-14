@@ -75,7 +75,12 @@ private:
         auto dbusAppid = m_desktopSource.m_file.desktopId();
 
         if constexpr (std::is_same_v<T, DesktopFile>) {
-            m_applicationPath = QDBusObjectPath{objectPath + escapeToObjectPath(dbusAppid)};
+            m_applicationPath =
+#ifdef QT_DEBUG
+                QDBusObjectPath{objectPath + escapeToObjectPath(dbusAppid)};
+#else
+                QDBusObjectPath{objectPath + QUuid::createUuid().toString(QUuid::Id128)};
+#endif
             m_isPersistence = true;
             sourceFile.setFileName(m_desktopSource.m_file.filePath());
             if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
