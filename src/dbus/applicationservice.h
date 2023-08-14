@@ -76,7 +76,7 @@ private:
 
         if constexpr (std::is_same_v<T, DesktopFile>) {
             m_applicationPath =
-#ifdef QT_DEBUG
+#ifdef DEBUG_MODE
                 QDBusObjectPath{objectPath + escapeToObjectPath(dbusAppid)};
 #else
                 QDBusObjectPath{objectPath + QUuid::createUuid().toString(QUuid::Id128)};

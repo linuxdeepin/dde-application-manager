@@ -8,7 +8,7 @@ set(LIB_NAME dde_am_static)
 
 file(GLOB SRCS ${CMAKE_CURRENT_LIST_DIR}/*.cpp ${CMAKE_CURRENT_LIST_DIR}/*.h)
 
-add_library(${LIB_NAME} ${SRCS})
+add_library(${LIB_NAME} STATIC ${SRCS})
 
 target_include_directories(${LIB_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

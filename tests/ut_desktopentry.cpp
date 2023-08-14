@@ -15,22 +15,28 @@ class TestDesktopEntry : public testing::Test
 public:
     static void SetUpTestCase()
     {
+        env = qgetenv("XDG_DATA_DIRS");
         auto curDir = QDir::current();
-        QString path{curDir.absolutePath() + "/data/desktopExample.desktop"};
+        QByteArray fakeXDG = (curDir.absolutePath() + QDir::separator() + "data").toLocal8Bit();
+        qputenv("XDG_DATA_DIRS", fakeXDG);
         DesktopErrorCode err;
-        auto file = DesktopFile::searchDesktopFileByPath(path, err);
+        auto file = DesktopFile::searchDesktopFileById("deepin-editor", err);
         if (!file.has_value()) {
-            qWarning() << "search " << path << "failed:" << err;
+            qWarning() << "search failed:" << err;
             return;
         }
         m_file.reset(new DesktopFile{std::move(file).value()});
     }
+
+    static void TearDownTestCase() { qputenv("XDG_DATA_DIRS", env); }
+
     void SetUp() override {}
     void TearDown() override {}
     QSharedPointer<DesktopFile> file() { return m_file; }
 
 private:
     static inline QSharedPointer<DesktopFile> m_file;
+    static inline QByteArray env;
 };
 
 TEST_F(TestDesktopEntry, desktopFile)
@@ -39,16 +45,16 @@ TEST_F(TestDesktopEntry, desktopFile)
     ASSERT_FALSE(fileptr.isNull());
     const auto &exampleFile = file();
     auto curDir = QDir::current();
-    QString path{curDir.absolutePath() + "/data/desktopExample.desktop"};
+    QString path{curDir.absolutePath() + QDir::separator() + "data" + QDir::separator() + "applications" + QDir::separator() +
+                 "deepin-editor.desktop"};
     EXPECT_EQ(exampleFile->filePath().toStdString(), path.toStdString());
-    EXPECT_EQ(exampleFile->desktopId().toStdString(), "");
+    EXPECT_EQ(exampleFile->desktopId().toStdString(), "deepin-editor");
 }
 
 TEST_F(TestDesktopEntry, prase)
 {
     const auto &exampleFile = file();
     ASSERT_FALSE(exampleFile.isNull());
-    ;
     DesktopEntry entry;
     QFile in{exampleFile->filePath()};
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));
