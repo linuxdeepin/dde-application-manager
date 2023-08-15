@@ -3,6 +3,11 @@ Section: devel
 Priority: optional
 Maintainer: Chen Linxuan <chenlinxuan@uniontech.com>
 Build-Depends:
+ cmake,
+ libsystemd-dev,
+ qt6-base-dev,
+ libgtest-dev,
+ pkg-config
 Standards-Version: 4.1.3
 Homepage: https://github.com/linuxdeepin/dde-application-manager
 Package: dde-application-manager-reborn

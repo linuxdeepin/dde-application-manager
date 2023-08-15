@@ -16,14 +16,13 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
         qWarning() << "open " << AppCgroupPath << "failed: " << AppCgroupFile.errorString();
         return {};
     }
-    auto appInstance = parseCGroupsPath(
-        AppCgroupFile.readAll().split(':').last().trimmed());  // FIXME: support CGroup version detection and multi-line parsing
-    auto appInstanceComponent = appInstance.split('@');
-    if (appInstanceComponent.count() != 2) {
-        qWarning() << "Application Instance format is invalid." << appInstanceComponent;
-        return {};
-    }
-    return {appInstanceComponent.first(), appInstanceComponent.last()};
+    auto UnitStr = parseCGroupsPath(QString::fromLocal8Bit(AppCgroupFile.readAll())
+                                        .split(':', Qt::SkipEmptyParts)
+                                        .last()
+                                        .trimmed());  // FIXME: support CGroup version detection and multi-line parsing
+
+    auto [appId, InstanceId] = processUnitName(UnitStr);
+    return {std::move(appId), std::move(InstanceId)};
 }
 
 QString CGroupsIdentifier::parseCGroupsPath(const QString &CGP) noexcept
@@ -32,8 +31,7 @@ QString CGroupsIdentifier::parseCGroupsPath(const QString &CGP) noexcept
         qWarning() << "CGroupPath is empty.";
         return {};
     }
-    auto unescapedCGP = unescapeString(CGP);
-    auto CGPSlices = unescapedCGP.split('/');
+    auto CGPSlices = CGP.split('/', Qt::SkipEmptyParts);
 
     if (CGPSlices.first() != "user.slice") {
         qWarning() << "unrecognized process.";
@@ -51,7 +49,7 @@ QString CGroupsIdentifier::parseCGroupsPath(const QString &CGP) noexcept
         return {};
     }
 
-    auto appInstance = CGPSlices.last().split('.').first();
+    auto appInstance = CGPSlices.last();
     if (appInstance.isEmpty()) {
         qWarning() << "get AppId failed.";
         return {};

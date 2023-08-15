@@ -17,6 +17,8 @@
 #include <thread>
 #include "constant.h"
 
+namespace {
+
 enum class ExitCode { SystemdError = -3, InvalidInput = -2, InternalError = -1, Done = 0, Waiting = 1 };
 
 struct JobRemoveResult
@@ -29,7 +31,7 @@ struct JobRemoveResult
 using msg_ptr = sd_bus_message *;
 using bus_ptr = sd_bus *;
 
-static ExitCode fromString(const std::string &str)
+ExitCode fromString(const std::string &str)
 {
     if (str == "done") {
         return ExitCode::Done;
@@ -50,7 +52,7 @@ static ExitCode fromString(const std::string &str)
     __builtin_unreachable();
 }
 
-static ExitCode fromString(const char *str)
+ExitCode fromString(const char *str)
 {
     if (!str) {
         return ExitCode::Waiting;
@@ -59,7 +61,7 @@ static ExitCode fromString(const char *str)
     return fromString(tmp);
 }
 
-[[noreturn]] static void releaseRes(sd_bus_error &error, msg_ptr &msg, bus_ptr &bus, ExitCode ret)
+[[noreturn]] void releaseRes(sd_bus_error &error, msg_ptr &msg, bus_ptr &bus, ExitCode ret)
 {
     sd_bus_error_free(&error);
     sd_bus_message_unref(msg);
@@ -68,7 +70,7 @@ static ExitCode fromString(const char *str)
     std::exit(static_cast<int>(ret));
 }
 
-static int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
+int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 {
     int ret;
     if (ret = sd_bus_message_append(msg, "s", "ExecStart"); ret < 0) {
@@ -139,7 +141,7 @@ static int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &ex
     return 0;
 }
 
-static int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_view> &props)
+int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_view> &props)
 {
     int ret;
     if (!props.empty()) {
@@ -155,7 +157,7 @@ static int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::str
     return 0;
 }
 
-static std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
+std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
 {
     std::string serviceName{"internalError"};
     std::map<std::string_view, std::string_view> props;
@@ -241,6 +243,11 @@ static std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLine
         return serviceName;
     }
 
+    if (ret = sd_bus_message_append(msg, "(sv)", "Slice", "s", "app.slice"); ret < 0) {
+        sd_journal_perror("append application slice failed.");
+        return serviceName;
+    }
+
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
         sd_journal_perror("open struct failed.");
         return serviceName;
@@ -300,7 +307,7 @@ int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
     return ret;
 }
 
-static int process_dbus_message(sd_bus *bus)
+int process_dbus_message(sd_bus *bus)
 {
     int ret;
     ret = sd_bus_process(bus, nullptr);
@@ -321,6 +328,8 @@ static int process_dbus_message(sd_bus *bus)
 
     return ret;
 }
+
+}  // namespace
 
 int main(int argc, const char *argv[])
 {

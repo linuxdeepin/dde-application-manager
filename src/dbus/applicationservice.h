@@ -64,7 +64,7 @@ public Q_SLOTS:
 private:
     friend class ApplicationManager1Service;
     template <typename T>
-    ApplicationService(T &&source, ApplicationManager1Service *parent)
+    explicit ApplicationService(T &&source, ApplicationManager1Service *parent = nullptr)
         : m_parent(parent)
         , m_desktopSource(std::forward<T>(source))
     {
@@ -84,7 +84,9 @@ private:
             m_isPersistence = true;
             sourceFile.setFileName(m_desktopSource.m_file.filePath());
             if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+#ifndef DEBUG_MODE
                 qCritical() << "desktop file can't open:" << m_desktopSource.m_file.filePath() << sourceFile.errorString();
+#endif
                 return;
             }
             sourceStream.setDevice(&sourceFile);

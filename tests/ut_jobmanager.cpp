@@ -43,5 +43,5 @@ TEST_F(TestJobManager, addJob)
             return QVariant::fromValue(true);
         },
         args);
-    QThread::sleep(1);  // force wait
+    QThreadPool::globalInstance()->waitForDone();
 }

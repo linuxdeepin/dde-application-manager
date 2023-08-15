@@ -30,8 +30,6 @@ public:
 
     static void TearDownTestCase() { qputenv("XDG_DATA_DIRS", env); }
 
-    void SetUp() override {}
-    void TearDown() override {}
     QSharedPointer<DesktopFile> file() { return m_file; }
 
 private:

@@ -90,41 +90,6 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             });
 }
 
-QPair<QString, QString> ApplicationManager1Service::processUnitName(const QString &unitName) noexcept
-{
-    QString instanceId;
-    QString applicationId;
-
-    if (unitName.endsWith(".service")) {
-        auto lastDotIndex = unitName.lastIndexOf('.');
-        auto app = unitName.sliced(0, lastDotIndex - 1);  // remove suffix
-
-        if (app.contains('@')) {
-            auto atIndex = app.indexOf('@');
-            instanceId = app.sliced(atIndex + 1);
-            app.remove(atIndex, instanceId.length() + 1);
-        }
-
-        applicationId = app.split('-').last();  // drop launcher if it exists.
-    } else if (unitName.endsWith(".scope")) {
-        auto lastDotIndex = unitName.lastIndexOf('.');
-        auto app = unitName.sliced(0, lastDotIndex - 1);
-
-        auto components = app.split('-');
-        instanceId = components.takeLast();
-        applicationId = components.takeLast();
-    } else {
-        qDebug() << "it's not service or scope:" << unitName << "ignore.";
-        return {};
-    }
-
-    if (instanceId.isEmpty()) {
-        instanceId = QUuid::createUuid().toString(QUuid::Id128);
-    }
-
-    return qMakePair(unescapeApplicationId(applicationId), std::move(instanceId));
-}
-
 QList<QDBusObjectPath> ApplicationManager1Service::list() const
 {
     return m_applicationList.keys();

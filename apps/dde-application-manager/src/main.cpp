@@ -9,12 +9,14 @@
 #include "dbus/applicationmanager1service.h"
 #include "cgroupsidentifier.h"
 
-static void registerComplexDbusType()
+namespace {
+void registerComplexDbusType()
 {
     qDBusRegisterMetaType<QMap<QString, QDBusUnixFileDescriptor>>();
     qDBusRegisterMetaType<QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>();
     qDBusRegisterMetaType<IconMap>();
 }
+}  // namespace
 
 int main(int argc, char *argv[])
 {
@@ -22,7 +24,7 @@ int main(int argc, char *argv[])
 
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
-    bus.setDestBus("");
+    bus.setDestBus();
     auto &AMBus = bus.globalServerBus();
 
     registerComplexDbusType();

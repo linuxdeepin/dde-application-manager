@@ -18,7 +18,16 @@ target_link_libraries(${BIN_NAME} PRIVATE
     dde_am_static
 )
 
-target_compile_options(${BIN_NAME} PRIVATE "-fno-access-control")
+target_compile_options(${BIN_NAME} PRIVATE
+    -fno-access-control
+    -fsanitize=undefined
+    -fsanitize=address
+)
+
+target_link_options(${BIN_NAME} PRIVATE
+    -fsanitize=undefined
+    -fsanitize=address
+)
 
 add_test(
     NAME UnitTest
