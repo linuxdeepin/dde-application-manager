@@ -62,8 +62,6 @@ private:
     std::unique_ptr<Identifier> m_identifier;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
-
-    static QPair<QString, QString> processUnitName(const QString &serviceName) noexcept;
 };
 
 #endif

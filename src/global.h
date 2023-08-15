@@ -18,6 +18,7 @@
 #include <QRegularExpression>
 #include <QDBusObjectPath>
 #include <unistd.h>
+#include <QUuid>
 #include "constant.h"
 #include "config.h"
 
@@ -143,7 +144,7 @@ public:
         return m_destConnection.value();
     }
 
-    void setDestBus(const QString &destAddress)
+    void setDestBus(const QString &destAddress = "")
     {
         if (m_destConnection) {
             m_destConnection->disconnectFromBus(ApplicationManagerDestDBusName);
@@ -204,26 +205,6 @@ inline uid_t getCurrentUID()
 inline QLocale getUserLocale()
 {
     return QLocale::system();  // current use env
-}
-
-inline QString unescapeString(const QString &input)
-{
-    QRegularExpression regex("\\\\x([0-9A-Fa-f]{2})");
-    QRegularExpressionMatchIterator it = regex.globalMatch(input);
-    QString output{input};
-
-    while (it.hasNext()) {
-        QRegularExpressionMatch match = it.next();
-        bool ok;
-        // Get the hexadecimal value from the match and convert it to a number.
-        int asciiValue = match.captured(1).toInt(&ok, 16);
-        if (ok) {
-            // Convert the ASCII value to a QChar and perform the replacement.
-            output.replace(match.capturedStart(), match.capturedLength(), QChar(asciiValue));
-        }
-    }
-
-    return output;
 }
 
 inline QString escapeToObjectPath(const QString &str)
@@ -331,6 +312,41 @@ inline QStringList getXDGDataDirs()
     }();
 
     return XDGDataDirs;
+}
+
+inline QPair<QString, QString> processUnitName(const QString &unitName)
+{
+    QString instanceId;
+    QString applicationId;
+
+    if (unitName.endsWith(".service")) {
+        auto lastDotIndex = unitName.lastIndexOf('.');
+        auto app = unitName.sliced(0, lastDotIndex);  // remove suffix
+
+        if (app.contains('@')) {
+            auto atIndex = app.indexOf('@');
+            instanceId = app.sliced(atIndex + 1);
+            app.remove(atIndex, instanceId.length() + 1);
+        }
+
+        applicationId = app.split('-').last();  // drop launcher if it exists.
+    } else if (unitName.endsWith(".scope")) {
+        auto lastDotIndex = unitName.lastIndexOf('.');
+        auto app = unitName.sliced(0, lastDotIndex);
+
+        auto components = app.split('-');
+        instanceId = components.takeLast();
+        applicationId = components.takeLast();
+    } else {
+        qDebug() << "it's not service or scope:" << unitName << "ignore.";
+        return {};
+    }
+
+    if (instanceId.isEmpty()) {
+        instanceId = QUuid::createUuid().toString(QUuid::Id128);
+    }
+
+    return qMakePair(unescapeApplicationId(applicationId), std::move(instanceId));
 }
 
 #endif

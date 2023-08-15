@@ -4,7 +4,7 @@ Upstream-Contact: UnionTech Software Technology Co., Ltd. <>
 Source: https://github.com/linuxdeepin/dde-application-manager
 
 # README & DOC
-Files: README.md README.zh_CN.md docs/*
+Files: README.md README.zh_CN.md docs/* examples/launchApp/README.md
 Copyright: UnionTech Software Technology Co., Ltd.
 License: CC-BY-4.0
 
