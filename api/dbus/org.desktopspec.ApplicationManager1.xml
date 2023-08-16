@@ -12,11 +12,6 @@
             />
         </method>
 
-        <method name="Application">
-            <arg type="s" name="id" direction="in" />
-            <arg type="o" name="application" direction="out" />
-        </method>
-
         <method name="Identify">
             <arg type="h" name="pidfd" direction="in" />
 
@@ -36,22 +31,5 @@
             />
         </method>
 
-        <method name="Launch">
-            <arg type="s" name="id" direction="in" />
-            <arg type="s" name="action" direction="in" />
-            <arg type="as" name="fields" direction="in" />
-            <arg type="a{sv}" name="options" direction="in" />
-            <arg type="o" name="job" direction="out" />
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In3" value="QVariantMap"/>
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="Given a desktop file id,
-                       this method will launch a desktop application.
-
-                       Check description of the `Launch` method in
-                       `org.desktopspec.ApplicationManager1.Application`
-                       interface for futher infomation."
-            />
-        </method>
     </interface>
 </node>

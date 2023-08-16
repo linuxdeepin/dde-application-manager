@@ -110,18 +110,6 @@ void ApplicationManager1Service::removeAllApplication()
     }
 }
 
-QDBusObjectPath ApplicationManager1Service::Application(const QString &id) const
-{
-    auto ret = std::find_if(m_applicationList.cbegin(), m_applicationList.cend(), [&id](const auto &app) {
-        return static_cast<bool>(app->id() == id);
-    });
-
-    if (ret != m_applicationList.cend()) {
-        return ret.key();
-    }
-    return {};
-}
-
 QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidfd,
                                              QDBusObjectPath &application,
                                              QDBusObjectPath &application_instance)
@@ -172,20 +160,6 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     application = m_applicationList.key(*app);
     application_instance = (*app)->findInstance(ret.InstanceId);
     return ret.ApplicationId;
-}
-
-QDBusObjectPath ApplicationManager1Service::Launch(const QString &id,
-                                                   const QString &actions,
-                                                   const QStringList &fields,
-                                                   const QVariantMap &options)
-{
-    auto app = Application(id);
-    if (app.path().isEmpty()) {
-        qWarning() << "No such application.";
-        return {};
-    }
-    const auto &value = m_applicationList.value(app);
-    return value->Launch(actions, fields, options);
 }
 
 void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,

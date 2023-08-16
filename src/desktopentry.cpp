@@ -56,7 +56,9 @@ DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMa
     re.optimize();
     auto matcher = re.match(keyStr);
     if (!matcher.hasMatch()) {
+#ifdef DEBUG_MODE
         qWarning() << "invalid key: " << keyStr;
+#endif
         return DesktopErrorCode::EntryKeyInvalid;
     }
 
@@ -205,7 +207,9 @@ DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
 
         if (auto error = parseEntry(line, currentGroup); error != DesktopErrorCode::NoError) {
             err = error;
+#ifdef DEBUG_MODE
             qWarning() << "an error occurred,this line will be skipped:" << line;
+#endif
         }
     }
     return err;
@@ -223,13 +227,17 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
 {
     const auto &destGroup = group(groupKey);
     if (!destGroup) {
+#ifdef DEBUG_MODE
         qWarning() << "group " << groupKey << " can't be found.";
+#endif
         return std::nullopt;
     }
 
     auto it = destGroup->find(valueKey);
     if (it == destGroup->cend()) {
+#ifdef DEBUG_MODE
         qWarning() << "value " << valueKey << " can't be found.";
+#endif
         return std::nullopt;
     }
     return *it;

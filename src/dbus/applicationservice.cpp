@@ -19,7 +19,9 @@ ApplicationService::~ApplicationService()
     m_desktopSource.destruct(m_isPersistence);
     for (auto &instance : m_Instances.values()) {
         instance->m_Application = QDBusObjectPath{"/"};
-        instance->setParent(qApp);  // detach all instances to qApp
+        auto *ptr = instance.get();
+        instance.reset(nullptr);
+        ptr->setParent(qApp);  // detach all instances to qApp
     }
 }
 
@@ -132,8 +134,10 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
         m_applicationPath.path(),
         [this, binary = std::move(bin), commands = std::move(cmds)](QVariant variantValue) mutable -> QVariant {
             auto resourceFile = variantValue.toString();
+            auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
+            auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
+
             if (resourceFile.isEmpty()) {
-                auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
                 commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
@@ -143,7 +147,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
                     qWarning() << "Launch Application Failed. exitCode:" << code;
                     return QString{""};
                 }
-                return DDEApplicationManager1InstanceObjectPath + instanceRandomUUID;
+                return objectPath;
             }
 
             int location{0};
@@ -163,7 +167,6 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             // resourceFile must be available in the following contexts
             auto tmp = commands;
             tmp.insert(location, resourceFile);
-            auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             tmp.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
             process.start(getApplicationLauncherBinary(), tmp);
@@ -173,7 +176,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
                 qWarning() << "Launch Application Failed:" << binary << tmp;
                 return QString{""};
             }
-            return DDEApplicationManager1InstanceObjectPath + instanceRandomUUID;
+            return objectPath;
         },
         std::move(res));
 }
@@ -239,11 +242,55 @@ QList<QDBusObjectPath> ApplicationService::instances() const noexcept
     return m_Instances.keys();
 }
 
+QString ApplicationService::iconName() const noexcept
+{
+    if (m_entry.isNull()) {
+        qWarning() << "desktop entry is empty, isPersistence:" << m_isPersistence;
+        return {};
+    }
+
+    const auto &actions = m_entry->value(DesktopFileEntryKey, "Icon");
+    if (!actions) {
+        return {};
+    }
+
+    bool ok{false};
+    const auto &icon = actions->toIconString(ok);
+    if (!ok) {
+        qWarning() << "Icon convert to String failed.";
+        return {};
+    }
+
+    return icon;
+}
+
+QString ApplicationService::displayName() const noexcept
+{
+    if (m_entry.isNull()) {
+        qWarning() << "desktop entry is empty, isPersistence:" << m_isPersistence;
+        return {};
+    }
+
+    const auto &actions = m_entry->value(DesktopFileEntryKey, "Name");
+    if (!actions) {
+        return {};
+    }
+
+    bool ok{false};
+    const auto &name = actions->toString(ok);
+    if (!ok) {
+        qWarning() << "Icon convert to String failed.";
+        return {};
+    }
+
+    return name;
+}
+
 bool ApplicationService::addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath)
 {
     auto service = new InstanceService{instanceId, application, systemdUnitPath};
     auto adaptor = new InstanceAdaptor(service);
-    QString objectPath{DDEApplicationManager1InstanceObjectPath + instanceId};
+    QString objectPath{m_applicationPath.path() + "/" + instanceId};
 
     if (registerObjectToDBus(service, objectPath, getDBusInterface<InstanceAdaptor>())) {
         m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});

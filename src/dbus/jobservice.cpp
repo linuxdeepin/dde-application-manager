@@ -11,7 +11,7 @@ JobService::JobService(const QFuture<QVariantList> &job)
 
 JobService::~JobService() = default;
 
-QString JobService::status() const
+QString JobService::status() const  // FIXME: job status aren't mutually exclusive
 {
     if (m_job.isFinished()) {
         return "finished";
