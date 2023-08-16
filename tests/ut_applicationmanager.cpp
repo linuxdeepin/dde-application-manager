@@ -44,22 +44,10 @@ public:
     static void TearDownTestCase() { m_am->deleteLater(); }
 
     static inline ApplicationManager1Service *m_am{nullptr};
-    const static inline QDBusObjectPath ApplicationPath{DDEApplicationManager1ApplicationObjectPath +
+    const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/" +
                                                         QUuid::createUuid().toString(QUuid::Id128)};
-    const static inline QDBusObjectPath InstancePath{DDEApplicationManager1InstanceObjectPath +
-                                                     QUuid::createUuid().toString(QUuid::Id128)};
+    const static inline QDBusObjectPath InstancePath{ApplicationPath.path() + "/" + QUuid::createUuid().toString(QUuid::Id128)};
 };
-
-TEST_F(TestApplicationManager, list)
-{
-    auto lists = m_am->list();
-    EXPECT_EQ(lists.first(), ApplicationPath);
-}
-
-TEST_F(TestApplicationManager, application)
-{
-    EXPECT_EQ(m_am->Application("test-Application"), ApplicationPath);
-}
 
 TEST_F(TestApplicationManager, identifyService)
 {

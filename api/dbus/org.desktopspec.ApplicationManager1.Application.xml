@@ -17,6 +17,10 @@
 
         <property name="AutoStart" type="b" access="readwrite"/>
 
+        <property name="IconName" type="s" access="read"/>
+
+        <property name="DisplayName" type="s" access="read"/>
+
         <property name="Instances" type="ao" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"

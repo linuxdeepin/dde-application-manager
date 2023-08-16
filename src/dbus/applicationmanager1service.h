@@ -30,15 +30,18 @@ public:
 
     Q_PROPERTY(QList<QDBusObjectPath> List READ list)
     [[nodiscard]] QList<QDBusObjectPath> list() const;
+
     template <typename T>
     bool addApplication(T &&desktopFileSource)
     {
-        QSharedPointer<ApplicationService> application{new ApplicationService{std::forward<T>(desktopFileSource), this}};
+        QSharedPointer<ApplicationService> application = makeApplication(std::forward<T>(desktopFileSource), this);
         if (!application) {
             return false;
         }
+
         auto *ptr = application.data();
         new ApplicationAdaptor{ptr};
+
         if (!registerObjectToDBus(ptr, application->m_applicationPath.path(), getDBusInterface<ApplicationAdaptor>())) {
             return false;
         }
@@ -53,9 +56,7 @@ public:
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 
 public Q_SLOTS:
-    [[nodiscard]] QDBusObjectPath Application(const QString &id) const;
     QString Identify(const QDBusUnixFileDescriptor &pidfd, QDBusObjectPath &application, QDBusObjectPath &application_instance);
-    QDBusObjectPath Launch(const QString &id, const QString &action, const QStringList &fields, const QVariantMap &options);
     void UpdateApplicationInfo(const QStringList &appIdList);
 
 private:
