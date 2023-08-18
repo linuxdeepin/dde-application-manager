@@ -206,6 +206,18 @@ QStringList ApplicationService::actions() const noexcept
     return actionList;
 }
 
+ObjectMap ApplicationService::GetManagedObjects() const
+{
+    ObjectMap objs;
+
+    for (const auto &[key, value] : m_Instances.asKeyValueRange()) {
+        auto interfaces = getInterfacesListFromObject(value.data());
+        objs.insert(key, interfaces);
+    }
+
+    return objs;
+}
+
 QString ApplicationService::id() const noexcept
 {
     if (m_isPersistence) {
@@ -292,10 +304,11 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
     auto adaptor = new InstanceAdaptor(service);
     QString objectPath{m_applicationPath.path() + "/" + instanceId};
 
-    if (registerObjectToDBus(service, objectPath, getDBusInterface<InstanceAdaptor>())) {
+    if (registerObjectToDBus(service, objectPath, getDBusInterface(QMetaType::fromType<InstanceAdaptor>()))) {
         m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
         service->moveToThread(this->thread());
         adaptor->moveToThread(this->thread());
+        emit InterfacesAdded(QDBusObjectPath{objectPath}, getInterfacesListFromObject(service));
         return true;
     }
 
@@ -306,8 +319,11 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
 
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance)
 {
-    unregisterObjectFromDBus(instance.path());
-    m_Instances.remove(instance);
+    if (auto it = m_Instances.find(instance); it != m_Instances.cend()) {
+        emit InterfacesRemoved(instance, getInterfacesListFromObject(it->data()));
+        unregisterObjectFromDBus(instance.path());
+        m_Instances.remove(instance);
+    }
 }
 
 void ApplicationService::removeAllInstance()

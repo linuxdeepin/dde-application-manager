@@ -30,6 +30,5 @@
                        1. You should use pidfd_open(2) to get a pidfd."
             />
         </method>
-
     </interface>
 </node>

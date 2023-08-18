@@ -23,6 +23,7 @@
 #include "config.h"
 
 using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>;
+using ObjectMap = QMap<QDBusObjectPath, QStringList>;
 
 inline QString getApplicationLauncherBinary()
 {
@@ -185,16 +186,27 @@ private:
 bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface);
 void unregisterObjectFromDBus(const QString &path);
 
-template <typename T>
-QString getDBusInterface()
+inline QString getDBusInterface(const QMetaType &meta)
 {
-    auto meta = QMetaType::fromType<T>();
-    auto infoObject = meta.metaObject();
+    const auto *infoObject = meta.metaObject();
     if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
         return infoObject->classInfo(infoIndex).value();
     }
     qWarning() << "no interface found.";
     return {};
+}
+
+inline QStringList getInterfacesListFromObject(QObject *o)
+{
+    auto childs = o->children();
+    QStringList interfaces;
+    std::for_each(childs.cbegin(), childs.cend(), [&interfaces](QObject *app) {
+        if (app->inherits("QDBusAbstractAdaptor")) {
+            interfaces.emplace_back(getDBusInterface(app->metaObject()->metaType()));
+        }
+    });
+
+    return interfaces;
 }
 
 inline uid_t getCurrentUID()
