@@ -25,7 +25,7 @@ ApplicationService::~ApplicationService()
     }
 }
 
-QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env)
+QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env) const
 {
     const auto &supportedActions = actions();
     if (supportedActions.isEmpty()) {
@@ -66,6 +66,67 @@ QString ApplicationService::GetActionName(const QString &identifier, const QStri
         return {};
     }
     return name;
+}
+
+QString ApplicationService::GetDisplayName(const QStringList &env) const
+{
+    const auto &displayName = m_entry->value(DesktopFileEntryKey, "Name");
+    if (!displayName) {
+        return {};
+    }
+
+    QString locale{""};
+    bool ok;
+    if (!env.isEmpty()) {
+        QString lcStr;
+        for (const auto &lc : env) {
+            if (lc.startsWith("LANG")) {
+                locale = lc.split('=').last();
+            }
+
+            if (lc.startsWith("LC_ALL")) {
+                locale = lc.split('=').last();
+                break;
+            }
+        }
+    }
+
+    QLocale lc = locale.isEmpty() ? getUserLocale() : QLocale{locale};
+
+    const auto &name = displayName->toLocaleString(lc, ok);
+    if (!ok) {
+        qWarning() << "convert to locale string failed, dest locale:" << lc;
+        return {};
+    }
+    return name;
+}
+
+QString ApplicationService::GetIconName(const QString &action) const
+{
+    std::optional<DesktopEntry::Value> iconName{std::nullopt};
+
+    if (action.isEmpty()) {
+        iconName = m_entry->value(DesktopFileEntryKey, "Icon");
+
+    } else {
+        const auto &supportedActions = actions();
+
+        if (auto index = supportedActions.indexOf(action); index == -1) {
+            qWarning() << "can't find " << action << " in supported actions List.";
+            return {};
+        }
+
+        const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
+        iconName = m_entry->value(actionHeader, "Icon");
+    }
+
+    if (!iconName) {
+        return {};
+    }
+
+    bool ok{false};
+    const auto &name = iconName->toIconString(ok);
+    return ok ? name : "";
 }
 
 QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, QVariantMap options)
@@ -208,14 +269,7 @@ QStringList ApplicationService::actions() const noexcept
 
 ObjectMap ApplicationService::GetManagedObjects() const
 {
-    ObjectMap objs;
-
-    for (const auto &[key, value] : m_Instances.asKeyValueRange()) {
-        auto interfaces = getInterfacesListFromObject(value.data());
-        objs.insert(key, interfaces);
-    }
-
-    return objs;
+    return dumpDBusObject(m_Instances);
 }
 
 QString ApplicationService::id() const noexcept
@@ -252,50 +306,6 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
 QList<QDBusObjectPath> ApplicationService::instances() const noexcept
 {
     return m_Instances.keys();
-}
-
-QString ApplicationService::iconName() const noexcept
-{
-    if (m_entry.isNull()) {
-        qWarning() << "desktop entry is empty, isPersistence:" << m_isPersistence;
-        return {};
-    }
-
-    const auto &actions = m_entry->value(DesktopFileEntryKey, "Icon");
-    if (!actions) {
-        return {};
-    }
-
-    bool ok{false};
-    const auto &icon = actions->toIconString(ok);
-    if (!ok) {
-        qWarning() << "Icon convert to String failed.";
-        return {};
-    }
-
-    return icon;
-}
-
-QString ApplicationService::displayName() const noexcept
-{
-    if (m_entry.isNull()) {
-        qWarning() << "desktop entry is empty, isPersistence:" << m_isPersistence;
-        return {};
-    }
-
-    const auto &actions = m_entry->value(DesktopFileEntryKey, "Name");
-    if (!actions) {
-        return {};
-    }
-
-    bool ok{false};
-    const auto &name = actions->toString(ok);
-    if (!ok) {
-        qWarning() << "Icon convert to String failed.";
-        return {};
-    }
-
-    return name;
 }
 
 bool ApplicationService::addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath)

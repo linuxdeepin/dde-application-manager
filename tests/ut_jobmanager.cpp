@@ -10,7 +10,7 @@ class TestJobManager : public testing::Test
 public:
     static void SetUpTestCase() { m_jobManager = new JobManager1Service(nullptr); }
 
-    static void TearDownTestCase() { delete m_jobManager; }
+    static void TearDownTestCase() { m_jobManager->deleteLater(); }
     JobManager1Service &service() { return *m_jobManager; }
 
 private:

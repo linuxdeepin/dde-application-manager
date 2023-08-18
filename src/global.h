@@ -361,4 +361,17 @@ inline QPair<QString, QString> processUnitName(const QString &unitName)
     return qMakePair(unescapeApplicationId(applicationId), std::move(instanceId));
 }
 
+template <typename T>
+ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
+{
+    ObjectMap objs;
+
+    for (const auto &[key, value] : map.asKeyValueRange()) {
+        auto interfaces = getInterfacesListFromObject(value.data());
+        objs.insert(key, interfaces);
+    }
+
+    return objs;
+}
+
 #endif

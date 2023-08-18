@@ -218,12 +218,5 @@ void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &appIdL
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
 {
-    ObjectMap objs;
-
-    for (const auto &[key, value] : m_applicationList.asKeyValueRange()) {
-        auto interfaces = getInterfacesListFromObject(value.data());
-        objs.insert(key, interfaces);
-    }
-
-    return objs;
+    return dumpDBusObject(m_applicationList);
 }

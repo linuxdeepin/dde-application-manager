@@ -11,27 +11,29 @@ JobService::JobService(const QFuture<QVariantList> &job)
 
 JobService::~JobService() = default;
 
-QString JobService::status() const  // FIXME: job status aren't mutually exclusive
+QString JobService::status() const
 {
-    if (m_job.isFinished()) {
-        return "finished";
-    }
-    if (m_job.isCanceled()) {
-        return "canceled";
-    }
-    if (m_job.isSuspended()) {
-        return "suspended";
-    }
-    if (m_job.isSuspending()) {
-        return "suspending";
-    }
     if (m_job.isStarted()) {
-        return "started";
+        if (m_job.isRunning()) {
+            if (m_job.isSuspending()) {
+                return "suspending";
+            }
+            if (m_job.isSuspended()) {
+                return "suspended";
+            }
+            return "running";
+        }
+
+        if (m_job.isCanceled()) {
+            return "canceled";
+        }
+
+        if (m_job.isFinished()) {
+            return "finished";
+        }
     }
-    if (m_job.isRunning()) {
-        return "running";
-    }
-    Q_UNREACHABLE();
+
+    return "pending";
 }
 
 void JobService::Cancel()
