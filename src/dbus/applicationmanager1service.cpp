@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
-#include "dbus/applicationmanager1service.h"
+
 #include "dbus/applicationmanager1adaptor.h"
+#include "dbus/AMobjectmanager1adaptor.h"
 #include "systemdsignaldispatcher.h"
 #include <QFile>
 #include <unistd.h>
@@ -17,8 +18,14 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     new ApplicationManager1Adaptor{this};
+    auto *tmp = new AMObjectManagerAdaptor{this};
 
-    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, getDBusInterface<ApplicationManager1Adaptor>())) {
+    if (tmp == nullptr) {
+        std::terminate();
+    }
+
+    if (!registerObjectToDBus(
+            this, DDEApplicationManager1ObjectPath, getDBusInterface(QMetaType::fromType<ApplicationManager1Adaptor>()))) {
         std::terminate();
     }
 
@@ -98,6 +105,7 @@ QList<QDBusObjectPath> ApplicationManager1Service::list() const
 void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application)
 {
     if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
+        emit InterfacesRemoved(application, getInterfacesListFromObject(it->data()));
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
     }
@@ -206,4 +214,16 @@ void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &appIdL
 
         addApplication(std::move(file).value());
     }
+}
+
+ObjectMap ApplicationManager1Service::GetManagedObjects() const
+{
+    ObjectMap objs;
+
+    for (const auto &[key, value] : m_applicationList.asKeyValueRange()) {
+        auto interfaces = getInterfacesListFromObject(value.data());
+        objs.insert(key, interfaces);
+    }
+
+    return objs;
 }

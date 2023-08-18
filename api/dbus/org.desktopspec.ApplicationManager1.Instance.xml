@@ -4,9 +4,12 @@
         <property name="Application" type="o" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
-                value="Object path of the Application.
+                value="Object path of the Application. 
                        That DBus object will impelement
-                       org.desktopspec.ApplicationManager1.Application."
+                       org.desktopspec.ApplicationManager1.Application.
+                       NOTE:
+                       If the application is uninstalled, this object path
+                       will be set to `/`."
             />
         </property>
 
