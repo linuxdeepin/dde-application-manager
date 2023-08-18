@@ -17,10 +17,6 @@
 
         <property name="AutoStart" type="b" access="readwrite"/>
 
-        <property name="IconName" type="s" access="read"/>
-
-        <property name="DisplayName" type="s" access="read"/>
-
         <property name="Instances" type="ao" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
@@ -100,6 +96,24 @@
                        that action.
                        If env is not passed,
                        this method will use the locale config of that user."
+            />
+        </method>
+
+        <method name="GetIconName">
+            <arg name="action" type="s" direction="in"/>
+            <arg name="name" type="s" direction="out"/>
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The meaning of arg `env` is same as which in GetActionName."
+            />
+        </method> 
+
+        <method name="GetDisplayName">
+            <arg name="env" type="as" direction="in"/>
+            <arg name="name" type="s" direction="out"/>
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The meaning of arg `env` is same as which in GetActionName."
             />
         </method>
     </interface>

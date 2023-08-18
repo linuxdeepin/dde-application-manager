@@ -48,12 +48,6 @@ public:
     Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances)
     [[nodiscard]] QList<QDBusObjectPath> instances() const noexcept;
 
-    Q_PROPERTY(QString IconName READ iconName CONSTANT)
-    [[nodiscard]] QString iconName() const noexcept;
-
-    Q_PROPERTY(QString DisplayName READ displayName CONSTANT)
-    [[nodiscard]] QString displayName() const noexcept;
-
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
@@ -65,8 +59,10 @@ public:
     void removeAllInstance();
 
 public Q_SLOTS:
-    QString GetActionName(const QString &identifier, const QStringList &env);
+    [[nodiscard]] QString GetActionName(const QString &identifier, const QStringList &env) const;
     QDBusObjectPath Launch(QString action, QStringList fields, QVariantMap options);
+    [[nodiscard]] QString GetIconName(const QString &action) const;
+    [[nodiscard]] QString GetDisplayName(const QStringList &env) const;
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:

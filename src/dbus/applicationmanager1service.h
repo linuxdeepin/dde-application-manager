@@ -83,7 +83,8 @@ private:
 };
 
 template <typename T>
-QSharedPointer<ApplicationService> makeApplication(T &&source, ApplicationManager1Service *parent)
+QSharedPointer<ApplicationService> makeApplication(T &&source,
+                                                   ApplicationManager1Service *parent)  // NOTE: maybe we should refactor
 {
     static_assert(std::is_same_v<T, DesktopFile> or std::is_same_v<T, QString>, "param type must be QString or DesktopFile.");
     QString objectPath;
