@@ -13,16 +13,71 @@
 #include <QRegularExpression>
 #include <QProcess>
 #include <algorithm>
+#include <new>
+
+ApplicationService::ApplicationService(DesktopFile source, ApplicationManager1Service *parent)
+    : QObject(parent)
+    , m_desktopSource(std::move(source))
+{
+}
 
 ApplicationService::~ApplicationService()
 {
-    m_desktopSource.destruct(m_isPersistence);
     for (auto &instance : m_Instances.values()) {
         instance->m_Application = QDBusObjectPath{"/"};
         auto *ptr = instance.get();
         instance.reset(nullptr);
         ptr->setParent(qApp);  // detach all instances to qApp
     }
+}
+
+QSharedPointer<ApplicationService> ApplicationService::createApplicationService(DesktopFile source,
+                                                                                ApplicationManager1Service *parent) noexcept
+{
+    QString objectPath;
+    QTextStream sourceStream;
+    QFile sourceFile;
+    QString tempSource;
+    QSharedPointer<ApplicationService> app{nullptr};
+
+    if (source.persistence()) {
+        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(source.desktopId());
+        sourceFile.setFileName(source.fileSource());
+        if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+            qCritical() << "desktop file can't open:" << source.fileSource() << sourceFile.errorString();
+            return nullptr;
+        }
+
+        app.reset(new (std::nothrow) ApplicationService{std::move(source), parent});
+        sourceStream.setDevice(&sourceFile);
+    } else {
+        tempSource = source.fileSource();
+        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
+        app.reset(new (std::nothrow) ApplicationService{std::move(source), parent});
+        sourceStream.setString(&tempSource, QTextStream::ReadOnly | QTextStream::Text);
+    }
+    std::unique_ptr<DesktopEntry> entry{std::make_unique<DesktopEntry>()};
+    auto error = entry->parse(sourceStream);
+
+    if (error != DesktopErrorCode::NoError) {
+        if (error != DesktopErrorCode::EntryKeyInvalid) {
+            return nullptr;
+        }
+    }
+
+    if (auto val = entry->value(DesktopFileEntryKey, "Hidden"); val.has_value()) {
+        bool ok{false};
+        if (auto hidden = val.value().toBoolean(ok); ok and hidden) {
+            return nullptr;
+        }
+    }
+
+    app->m_entry.reset(entry.release());
+    app->m_applicationPath = QDBusObjectPath{std::move(objectPath)};
+
+    // TODO: icon lookup
+    new (std::nothrow) APPObjectManagerAdaptor{app.data()};
+    return app;
 }
 
 QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env) const
@@ -129,7 +184,7 @@ QString ApplicationService::GetIconName(const QString &action) const
     return ok ? name : "";
 }
 
-QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, QVariantMap options)
+QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
 {
     QString execStr;
     bool ok;
@@ -189,7 +244,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
 
     cmds.prepend("--");
 
-    auto &jobManager = m_parent->jobManager();
+    auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
 
     return jobManager.addJob(
         m_applicationPath.path(),
@@ -197,6 +252,10 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
             auto resourceFile = variantValue.toString();
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
+
+            if (m_desktopSource.persistence()) {
+                commands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.fileSource()));
+            }
 
             if (resourceFile.isEmpty()) {
                 commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
@@ -211,7 +270,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
                 return objectPath;
             }
 
-            int location{0};
+            qsizetype location{0};
             location = commands.indexOf(R"(%f)");
             if (location != -1) {  // due to std::move, there only remove once
                 commands.remove(location);
@@ -225,16 +284,15 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
                 }
             }
 
-            // resourceFile must be available in the following contexts
-            auto tmp = commands;
-            tmp.insert(location, resourceFile);
-            tmp.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
+            // NOTE: resourceFile must be available in the following contexts
+            commands.insert(location, resourceFile);
+            commands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
-            process.start(getApplicationLauncherBinary(), tmp);
+            process.start(getApplicationLauncherBinary(), commands);
             process.waitForFinished();
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
-                qWarning() << "Launch Application Failed:" << binary << tmp;
+                qWarning() << "Launch Application Failed:" << binary << commands;
                 return QString{""};
             }
             return objectPath;
@@ -245,7 +303,7 @@ QDBusObjectPath ApplicationService::Launch(QString action, QStringList fields, Q
 QStringList ApplicationService::actions() const noexcept
 {
     if (m_entry.isNull()) {
-        qWarning() << "desktop entry is empty, isPersistence:" << m_isPersistence;
+        qWarning() << "desktop entry is empty, isPersistence:" << m_desktopSource.persistence();
         return {};
     }
 
@@ -274,8 +332,8 @@ ObjectMap ApplicationService::GetManagedObjects() const
 
 QString ApplicationService::id() const noexcept
 {
-    if (m_isPersistence) {
-        return m_desktopSource.m_file.desktopId();
+    if (m_desktopSource.persistence()) {
+        return m_desktopSource.desktopId();
     }
     return {};
 }
@@ -310,8 +368,8 @@ QList<QDBusObjectPath> ApplicationService::instances() const noexcept
 
 bool ApplicationService::addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath)
 {
-    auto service = new InstanceService{instanceId, application, systemdUnitPath};
-    auto adaptor = new InstanceAdaptor(service);
+    auto *service = new InstanceService{instanceId, application, systemdUnitPath};
+    auto *adaptor = new InstanceAdaptor(service);
     QString objectPath{m_applicationPath.path() + "/" + instanceId};
 
     if (registerObjectToDBus(service, objectPath, getDBusInterface(QMetaType::fromType<InstanceAdaptor>()))) {
@@ -327,7 +385,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
     return false;
 }
 
-void ApplicationService::removeOneInstance(const QDBusObjectPath &instance)
+void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noexcept
 {
     if (auto it = m_Instances.find(instance); it != m_Instances.cend()) {
         emit InterfacesRemoved(instance, getInterfacesListFromObject(it->data()));
@@ -336,7 +394,7 @@ void ApplicationService::removeOneInstance(const QDBusObjectPath &instance)
     }
 }
 
-void ApplicationService::removeAllInstance()
+void ApplicationService::removeAllInstance() noexcept
 {
     for (const auto &instance : m_Instances.keys()) {
         removeOneInstance(instance);
@@ -353,9 +411,14 @@ QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) cons
     return {};
 }
 
+void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
+{
+    m_entry.reset(newEntry);
+}
+
 QString ApplicationService::userNameLookup(uid_t uid)
 {
-    auto pws = getpwuid(uid);
+    auto *pws = getpwuid(uid);
     return pws->pw_name;
 }
 

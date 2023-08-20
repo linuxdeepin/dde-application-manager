@@ -30,33 +30,44 @@ struct DesktopFile
     DesktopFile &operator=(DesktopFile &&) = default;
     ~DesktopFile() = default;
 
-    [[nodiscard]] const QString &filePath() const { return m_filePath; }
-    [[nodiscard]] const QString &desktopId() const { return m_desktopId; }
+    [[nodiscard]] const QString &fileSource() const noexcept { return m_fileSource; }
+    [[nodiscard]] const QString &desktopId() const noexcept { return m_desktopId; }
+    [[nodiscard]] bool persistence() const noexcept { return m_isPersistence; }
+    [[nodiscard]] bool modified(std::size_t time) const noexcept;
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
-    [[nodiscard]] bool modified(std::size_t time) const noexcept;
+    static std::optional<DesktopFile> createTemporaryDesktopFile(QString content) noexcept;
 
 private:
-    DesktopFile(QString &&path, QString &&fileId, std::size_t mtime)
-        : m_mtime(mtime)
-        , m_filePath(std::move(path))
+    DesktopFile(bool persistence, QString &&source, QString &&fileId, std::size_t mtime)
+        : m_isPersistence(persistence)
+        , m_mtime(mtime)
+        , m_fileSource(std::move(source))
         , m_desktopId(std::move(fileId))
     {
     }
 
+    bool m_isPersistence;
     std::size_t m_mtime;
-    QString m_filePath{""};
+    QString m_fileSource{""};
     QString m_desktopId{""};
 };
 
 class DesktopEntry
 {
 public:
-    class Value : public QMap<QString, QString>
+    class Value final : private QMap<QString, QString>
     {
     public:
         using QMap<QString, QString>::QMap;
+        using QMap<QString, QString>::find;
+        using QMap<QString, QString>::insert;
+        using QMap<QString, QString>::cbegin;
+        using QMap<QString, QString>::cend;
+        using QMap<QString, QString>::begin;
+        using QMap<QString, QString>::end;
+
         QString toString(bool &ok) const noexcept;
         bool toBoolean(bool &ok) const noexcept;
         QString toIconString(bool &ok) const noexcept;

@@ -44,5 +44,5 @@ int main(int argc, char *argv[])
         return false;  // means to apply this function to the rest of the files
     });
 
-    return app.exec();
+    return QCoreApplication::exec();
 }
