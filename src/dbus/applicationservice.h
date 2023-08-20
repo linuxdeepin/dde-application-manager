@@ -15,6 +15,7 @@
 #include <QTextStream>
 #include <QFile>
 #include <memory>
+#include <utility>
 #include "dbus/instanceservice.h"
 #include "global.h"
 #include "desktopentry.h"
@@ -54,13 +55,20 @@ public:
     void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
 
     bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath);
-    void recoverInstances(const QList<QDBusObjectPath>) noexcept;
-    void removeOneInstance(const QDBusObjectPath &instance);
-    void removeAllInstance();
+    void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
+    void removeOneInstance(const QDBusObjectPath &instance) noexcept;
+    void removeAllInstance() noexcept;
+    [[nodiscard]] const QDBusObjectPath &applicationPath() const noexcept { return m_applicationPath; }
+    [[nodiscard]] const DesktopFile &desktopFileSource() const noexcept { return m_desktopSource; }
+    [[nodiscard]] const QMap<QDBusObjectPath, QSharedPointer<InstanceService>> &applicationInstances() const noexcept
+    {
+        return m_Instances;
+    }
+    void resetEntry(DesktopEntry *newEntry) noexcept;
 
 public Q_SLOTS:
     [[nodiscard]] QString GetActionName(const QString &identifier, const QStringList &env) const;
-    QDBusObjectPath Launch(QString action, QStringList fields, QVariantMap options);
+    QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
     [[nodiscard]] QString GetIconName(const QString &action) const;
     [[nodiscard]] QString GetDisplayName(const QStringList &env) const;
     [[nodiscard]] ObjectMap GetManagedObjects() const;
@@ -71,51 +79,17 @@ Q_SIGNALS:
 
 private:
     friend class ApplicationManager1Service;
-    template <typename T>
-    friend QSharedPointer<ApplicationService> makeApplication(T &&source, ApplicationManager1Service *parent);
-
-    template <typename T>
-    explicit ApplicationService(T &&source)
-        : m_isPersistence(static_cast<bool>(std::is_same_v<T, DesktopFile>))
-        , m_desktopSource(std::forward<T>(source))
-    {
-    }
-
+    explicit ApplicationService(DesktopFile source, ApplicationManager1Service *parent);
+    static QSharedPointer<ApplicationService> createApplicationService(DesktopFile source,
+                                                                       ApplicationManager1Service *parent) noexcept;
     bool m_AutoStart{false};
-    bool m_isPersistence;
-    ApplicationManager1Service *m_parent{nullptr};
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
-    union DesktopSource
-    {
-        template <typename T, std::enable_if_t<std::is_same_v<T, DesktopFile>, bool> = true>
-        DesktopSource(T &&source)
-            : m_file(std::forward<T>(source))
-        {
-        }
-
-        template <typename T, std::enable_if_t<std::is_same_v<T, QString>, bool> = true>
-        DesktopSource(T &&source)
-            : m_temp(std::forward<T>(source))
-        {
-        }
-
-        void destruct(bool isPersistence)
-        {
-            if (isPersistence) {
-                m_file.~DesktopFile();
-            } else {
-                m_temp.~QString();
-            }
-        }
-        ~DesktopSource(){};
-        QString m_temp;
-        DesktopFile m_file;
-    } m_desktopSource;
+    DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QSharedPointer<DesktopIcons> m_Icons{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
-    QString userNameLookup(uid_t uid);
+    static QString userNameLookup(uid_t uid);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
 };
 

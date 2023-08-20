@@ -6,6 +6,7 @@
 #include <systemd/sd-bus.h>
 #include <systemd/sd-journal.h>
 #include <string_view>
+#include <string>
 #include <vector>
 #include <deque>
 #include <memory>
@@ -73,6 +74,12 @@ ExitCode fromString(const char *str)
 int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 {
     int ret;
+
+    if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
+        sd_journal_perror("open struct of ExecStart failed.");
+        return ret;
+    }
+
     if (ret = sd_bus_message_append(msg, "s", "ExecStart"); ret < 0) {
         sd_journal_perror("append ExecStart failed.");
         return ret;
@@ -138,6 +145,11 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
         return ret;
     }
 
+    if (ret = sd_bus_message_close_container(msg); ret < 0) {
+        sd_journal_perror("close struct of execStart failed.");
+        return ret;
+    }
+
     return 0;
 }
 
@@ -146,18 +158,19 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_vie
     int ret;
     if (!props.empty()) {
         for (auto [key, value] : props) {
-            // NOTE: append if necessary
-            // usage:
-            // sd_bus_message_append(msg,"s",key.data());
-            // sd_bus_message_open_container(msg,SD_BUS_TYPE_VARIANT,"[corresponding type]");
-            // append content....
-            // sd_bus_message_close_container(msg);
+            std::string keyStr{key};
+            std::string valueStr{value};
+            ret = sd_bus_message_append(msg, "(sv)", keyStr.data(), "s", valueStr.data());
+
+            if (ret < 0) {
+                return ret;
+            }
         }
     }
     return 0;
 }
 
-std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
+std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
 {
     std::string serviceName{"internalError"};
     std::map<std::string_view, std::string_view> props;
@@ -176,7 +189,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
 
         auto kvStr = str.substr(2);
         if (!kvStr.empty()) [[likely]] {
-            auto it = kvStr.cbegin();
+            const auto *it = kvStr.cbegin();
             if (it = std::find(it, kvStr.cend(), '='); it == kvStr.cend()) {
                 sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
                 cmdLines.pop_front();
@@ -248,11 +261,6 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
         return serviceName;
     }
 
-    if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
-        sd_journal_perror("open struct failed.");
-        return serviceName;
-    }
-
     if (ret = processKVPair(msg, props); ret < 0) {  // process props
         serviceName = "invalidInput";
         return serviceName;
@@ -263,10 +271,6 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> &&cmdLines)
         return serviceName;
     }
 
-    if (ret = sd_bus_message_close_container(msg); ret < 0) {
-        sd_journal_perror("close struct failed.");
-        return serviceName;
-    }
     if (ret = sd_bus_message_close_container(msg); ret < 0) {
         sd_journal_perror("close array failed.");
         return serviceName;
