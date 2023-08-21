@@ -59,7 +59,7 @@ public:
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;
     void removeAllInstance() noexcept;
     [[nodiscard]] const QDBusObjectPath &applicationPath() const noexcept { return m_applicationPath; }
-    [[nodiscard]] const DesktopFile &desktopFileSource() const noexcept { return m_desktopSource; }
+    [[nodiscard]] DesktopFile &desktopFileSource() noexcept { return m_desktopSource; }
     [[nodiscard]] const QMap<QDBusObjectPath, QSharedPointer<InstanceService>> &applicationInstances() const noexcept
     {
         return m_Instances;

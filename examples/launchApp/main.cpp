@@ -27,7 +27,7 @@ public:
                          u8"JobNew",
                          this,
                          SLOT(jobNewForward(QDBusObjectPath, QDBusObjectPath)))) {
-            qFatal() << "connect JobNew failed.";
+            qFatal("connect JobNew failed.");
         }
 
         if (!con.connect(JobManager.service(),
@@ -36,7 +36,7 @@ public:
                          u8"JobRemoved",
                          this,
                          SLOT(jobRemovedForward(QDBusObjectPath, QString, QVariantList)))) {
-            qFatal() << "connect JobNew failed.";
+            qFatal("connect JobNew failed.");
         }
 
         connect(this, &Demo::applicationLaunched, [](QList<QString> apps) {

@@ -32,8 +32,8 @@ public:
         bus.setDestBus();
 
         m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), bus.globalServerBus()};
-
-        DesktopFile file{true, "/usr/share/applications/test-Application.desktop", "test-Application", 0};
+        auto ptr = std::make_unique<QFile>(QString{"/usr/share/applications/test-Application.desktop"});
+        DesktopFile file{std::move(ptr), "test-Application", 0};
         QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr);
         QSharedPointer<InstanceService> instance =
             QSharedPointer<InstanceService>::create(InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"});

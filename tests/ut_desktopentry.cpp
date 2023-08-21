@@ -45,7 +45,7 @@ TEST_F(TestDesktopEntry, desktopFile)
     auto curDir = QDir::current();
     QString path{curDir.absolutePath() + QDir::separator() + "data" + QDir::separator() + "applications" + QDir::separator() +
                  "deepin-editor.desktop"};
-    EXPECT_EQ(exampleFile->fileSource().toStdString(), path.toStdString());
+    EXPECT_EQ(exampleFile->sourcePath(), path);
     EXPECT_EQ(exampleFile->desktopId().toStdString(), "deepin-editor");
 }
 
@@ -54,7 +54,7 @@ TEST_F(TestDesktopEntry, prase)
     const auto &exampleFile = file();
     ASSERT_FALSE(exampleFile.isNull());
     DesktopEntry entry;
-    QFile in{exampleFile->fileSource()};
+    QFile in{exampleFile->sourcePath()};
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));
     QTextStream fs{&in};
     auto err = entry.parse(fs);

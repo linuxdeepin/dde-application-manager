@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#ifndef DESKTOPENTRY_H
+#define DESKTOPENTRY_H
+
 #include <QString>
 #include <QMap>
 #include <QDebug>
 #include <QLocale>
 #include <QTextStream>
 #include <optional>
-#include <sys/stat.h>
+#include <QFile>
 
 constexpr static auto defaultKeyStr = "default";
 
@@ -22,36 +25,66 @@ enum class DesktopErrorCode {
     EntryKeyInvalid
 };
 
+struct DesktopFileGuard;
+
 struct DesktopFile
 {
-    DesktopFile(const DesktopFile &) = default;
+    friend struct DesktopFileGuard;
+    DesktopFile(const DesktopFile &) = delete;
     DesktopFile(DesktopFile &&) = default;
-    DesktopFile &operator=(const DesktopFile &) = default;
+    DesktopFile &operator=(const DesktopFile &) = delete;
     DesktopFile &operator=(DesktopFile &&) = default;
     ~DesktopFile() = default;
 
-    [[nodiscard]] const QString &fileSource() const noexcept { return m_fileSource; }
+    [[nodiscard]] QString sourcePath() const noexcept;
+    // WARNING: This raw pointer's ownership belong to DesktopFile, DO NOT MODIFY!
+    [[nodiscard]] QFile *sourceFile() const noexcept { return &sourceFileRef(); };
+    [[nodiscard]] QFile &sourceFileRef() const noexcept { return *m_fileSource; };
     [[nodiscard]] const QString &desktopId() const noexcept { return m_desktopId; }
-    [[nodiscard]] bool persistence() const noexcept { return m_isPersistence; }
     [[nodiscard]] bool modified(std::size_t time) const noexcept;
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
-    static std::optional<DesktopFile> createTemporaryDesktopFile(QString content) noexcept;
+    static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
 private:
-    DesktopFile(bool persistence, QString &&source, QString &&fileId, std::size_t mtime)
-        : m_isPersistence(persistence)
-        , m_mtime(mtime)
+    DesktopFile(std::unique_ptr<QFile> source, QString fileId, std::size_t mtime)
+        : m_mtime(mtime)
         , m_fileSource(std::move(source))
         , m_desktopId(std::move(fileId))
     {
     }
 
-    bool m_isPersistence;
     std::size_t m_mtime;
-    QString m_fileSource{""};
+    std::unique_ptr<QFile> m_fileSource{nullptr};
     QString m_desktopId{""};
+};
+
+struct DesktopFileGuard
+{
+    DesktopFileGuard(const DesktopFileGuard &) = delete;
+    DesktopFileGuard(DesktopFileGuard &&other) noexcept
+        : fileRef(other.fileRef)
+    {
+    }
+    DesktopFileGuard &operator=(const DesktopFileGuard &) = delete;
+    DesktopFileGuard &operator=(DesktopFileGuard &&) = delete;
+
+    explicit DesktopFileGuard(DesktopFile &file)
+        : fileRef(file)
+    {
+    }
+
+    bool try_open() { return fileRef.m_fileSource->open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text); }
+    ~DesktopFileGuard()
+    {
+        if (fileRef.m_fileSource->isOpen()) {
+            fileRef.m_fileSource->close();
+        }
+    }
+
+private:
+    DesktopFile &fileRef;
 };
 
 class DesktopEntry
@@ -86,7 +119,7 @@ public:
     DesktopEntry &operator=(DesktopEntry &&) = default;
 
     ~DesktopEntry() = default;
-    [[nodiscard]] DesktopErrorCode parse(const DesktopFile &file) noexcept;
+    [[nodiscard]] DesktopErrorCode parse(DesktopFile &file) noexcept;
     [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
@@ -100,3 +133,5 @@ private:
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
 
 QDebug operator<<(QDebug debug, const DesktopErrorCode &v);
+
+#endif
