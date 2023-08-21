@@ -256,6 +256,11 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
         return serviceName;
     }
 
+    if (ret = sd_bus_message_append(msg, "(sv)", "ExitType", "s", "cgroup"); ret < 0) {
+        sd_journal_perror("append exit type failed.");
+        return serviceName;
+    }
+
     if (ret = sd_bus_message_append(msg, "(sv)", "Slice", "s", "app.slice"); ret < 0) {
         sd_journal_perror("append application slice failed.");
         return serviceName;
