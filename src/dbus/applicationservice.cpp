@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "dbus/applicationservice.h"
+#include "APPobjectmanager1adaptor.h"
 #include "applicationmanager1service.h"
 #include "dbus/instanceadaptor.h"
 #include "pwd.h"
@@ -34,28 +35,24 @@ ApplicationService::~ApplicationService()
 QSharedPointer<ApplicationService> ApplicationService::createApplicationService(DesktopFile source,
                                                                                 ApplicationManager1Service *parent) noexcept
 {
+    QSharedPointer<ApplicationService> app{new (std::nothrow) ApplicationService{std::move(source), parent}};
+    if (!app) {
+        qCritical() << "new application service failed.";
+        return nullptr;
+    }
+
     QString objectPath;
     QTextStream sourceStream;
-    QFile sourceFile;
-    QString tempSource;
-    QSharedPointer<ApplicationService> app{nullptr};
 
-    if (source.persistence()) {
-        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(source.desktopId());
-        sourceFile.setFileName(source.fileSource());
-        if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-            qCritical() << "desktop file can't open:" << source.fileSource() << sourceFile.errorString();
-            return nullptr;
-        }
+    auto appId = app->desktopFileSource().desktopId();
 
-        app.reset(new (std::nothrow) ApplicationService{std::move(source), parent});
-        sourceStream.setDevice(&sourceFile);
+    if (!appId.isEmpty()) {
+        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(appId);
     } else {
-        tempSource = source.fileSource();
         objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
-        app.reset(new (std::nothrow) ApplicationService{std::move(source), parent});
-        sourceStream.setString(&tempSource, QTextStream::ReadOnly | QTextStream::Text);
     }
+
+    sourceStream.setDevice(app->desktopFileSource().sourceFile());
     std::unique_ptr<DesktopEntry> entry{std::make_unique<DesktopEntry>()};
     auto error = entry->parse(sourceStream);
 
@@ -76,7 +73,11 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     app->m_applicationPath = QDBusObjectPath{std::move(objectPath)};
 
     // TODO: icon lookup
-    new (std::nothrow) APPObjectManagerAdaptor{app.data()};
+    if (auto *ptr = new (std::nothrow) APPObjectManagerAdaptor{app.data()}; ptr == nullptr) {
+        qCritical() << "new Object Manager of Application failed.";
+        return nullptr;
+    }
+
     return app;
 }
 
@@ -252,10 +253,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             auto resourceFile = variantValue.toString();
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
-
-            if (m_desktopSource.persistence()) {
-                commands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.fileSource()));
-            }
+            commands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
 
             if (resourceFile.isEmpty()) {
                 commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
@@ -303,7 +301,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 QStringList ApplicationService::actions() const noexcept
 {
     if (m_entry.isNull()) {
-        qWarning() << "desktop entry is empty, isPersistence:" << m_desktopSource.persistence();
+        qWarning() << "desktop entry is empty, source file:" << m_desktopSource.sourcePath();
         return {};
     }
 
@@ -332,10 +330,7 @@ ObjectMap ApplicationService::GetManagedObjects() const
 
 QString ApplicationService::id() const noexcept
 {
-    if (m_desktopSource.persistence()) {
-        return m_desktopSource.desktopId();
-    }
-    return {};
+    return m_desktopSource.desktopId();
 }
 
 IconMap ApplicationService::icons() const

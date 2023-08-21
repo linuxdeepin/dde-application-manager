@@ -24,7 +24,11 @@ auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
     return it;
 }
 
-void functest(QMap<QString, QString> p) {}
+QString DesktopFile::sourcePath() const noexcept
+{
+    QFileInfo info(*m_fileSource);
+    return info.absoluteFilePath();
+}
 
 DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
 {
@@ -90,11 +94,14 @@ DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMa
     return DesktopErrorCode::NoError;
 }
 
-std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(QString content) noexcept
+std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept
 {
-    auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
-    auto nano = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
-    return DesktopFile{false, std::move(content), "", static_cast<size_t>(nano.count())};
+    auto mtime = getFileModifiedTime(*temporaryFile);
+    if (mtime == 0) {
+        qWarning() << "create temporary file failed.";
+        return std::nullopt;
+    }
+    return DesktopFile{std::move(temporaryFile), "", mtime};
 }
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, DesktopErrorCode &err) noexcept
@@ -134,17 +141,17 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
         id = FileId.chopped(1);  // remove extra "-""
     }
 
-    struct stat buf;
-    if (auto ret = stat(path.toLatin1().data(), &buf); ret == -1) {
+    auto filePtr = std::make_unique<QFile>(std::move(path));
+
+    auto mtime = getFileModifiedTime(*filePtr);
+
+    if (mtime == 0) {
         err = DesktopErrorCode::OpenFailed;
-        qWarning() << "get file" << path << "state failed:" << std::strerror(errno);
         return std::nullopt;
     }
 
     err = DesktopErrorCode::NoError;
-    constexpr std::size_t secToNano = 1e9;
-
-    return DesktopFile{true, std::move(path), std::move(id), buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec};
+    return DesktopFile{std::move(filePtr), std::move(id), mtime};
 }
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
@@ -178,21 +185,18 @@ bool DesktopFile::modified(std::size_t time) const noexcept
     return time != m_mtime;
 }
 
-DesktopErrorCode DesktopEntry::parse(const DesktopFile &file) noexcept
+DesktopErrorCode DesktopEntry::parse(DesktopFile &file) noexcept
 {
-    QTextStream in;
-    if (file.persistence()) {
-        auto sourceFile = QFile(file.fileSource());
-        if (!sourceFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-            qWarning() << file.fileSource() << "can't open.";
-            return DesktopErrorCode::OpenFailed;
-        }
-        in.setDevice(&sourceFile);
-    } else {
-        in.setString(const_cast<QString *>(&file.fileSource()));
+    DesktopFileGuard guard{file};
+
+    if (!guard.try_open()) {
+        qWarning() << file.sourcePath() << "can't open.";
+        return DesktopErrorCode::OpenFailed;
     }
 
-    return parse(in);
+    QTextStream stream;
+    stream.setDevice(file.sourceFile());
+    return parse(stream);
 }
 
 DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept

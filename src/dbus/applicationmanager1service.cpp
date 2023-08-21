@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
-
+#include "applicationadaptor.h"
 #include "dbus/applicationmanager1adaptor.h"
+#include "applicationservice.h"
 #include "dbus/AMobjectmanager1adaptor.h"
 #include "systemdsignaldispatcher.h"
 #include <QFile>
@@ -10,17 +11,20 @@
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
-ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection)
+ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection) noexcept
     : m_identifier(std::move(ptr))
 {
     if (!connection.registerService(DDEApplicationManager1ServiceName)) {
-        qFatal() << connection.lastError();
+        qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
 
-    new ApplicationManager1Adaptor{this};
-    auto *tmp = new AMObjectManagerAdaptor{this};
+    if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
+        qCritical() << "new Application Manager Adaptor failed.";
+        std::terminate();
+    }
 
-    if (tmp == nullptr) {
+    if (auto *tmp = new (std::nothrow) AMObjectManagerAdaptor{this}; tmp == nullptr) {
+        qCritical() << "new Object Manager of Application Manager Adaptor failed.";
         std::terminate();
     }
 
@@ -29,7 +33,12 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
         std::terminate();
     }
 
-    m_jobManager.reset(new JobManager1Service(this));
+    m_jobManager.reset(new (std::nothrow) JobManager1Service(this));
+
+    if (!m_jobManager) {
+        qCritical() << "new JobManager failed.";
+        std::terminate();
+    }
 
     auto &dispatcher = SystemdSignalDispatcher::instance();
 
@@ -109,11 +118,8 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
     }
 
     if (m_applicationList.constFind(application->applicationPath()) != m_applicationList.cend()) {
-        auto info = qInfo();
-        info << "this application already exists.";
-        if (application->desktopFileSource().persistence()) {
-            info << "desktop source:" << application->desktopFileSource().fileSource();
-        }
+        qInfo() << "this application already exists."
+                << "desktop source:" << application->desktopFileSource().sourcePath();
         return false;
     }
 
@@ -209,16 +215,9 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         return;
     }
 
-    struct stat buf;
-    const auto *filePath = desktopFile.fileSource().toLocal8Bit().data();
-    if (auto ret = stat(filePath, &buf); ret == -1) {
-        qWarning() << "get file" << filePath << "state failed:" << std::strerror(errno);
-        return;
-    }
+    auto mtime = getFileModifiedTime(desktopFile.sourceFileRef());
 
-    constexpr std::size_t secToNano = 1e9;
-
-    if (destApp->desktopFileSource().modified(buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec)) {
+    if (destApp->desktopFileSource().modified(mtime)) {
         auto *newEntry = new (std::nothrow) DesktopEntry{};
         if (newEntry == nullptr) {
             qCritical() << "new DesktopEntry failed.";

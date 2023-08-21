@@ -13,15 +13,16 @@
 #include <memory>
 #include <QMap>
 #include "dbus/jobmanager1service.h"
-#include "dbus/APPobjectmanager1adaptor.h"
-#include "dbus/applicationadaptor.h"
+#include "desktopentry.h"
 #include "identifier.h"
+
+class ApplicationService;
 
 class ApplicationManager1Service final : public QObject
 {
     Q_OBJECT
 public:
-    explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection);
+    explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection) noexcept;
     ~ApplicationManager1Service() override;
     ApplicationManager1Service(const ApplicationManager1Service &) = delete;
     ApplicationManager1Service(ApplicationManager1Service &&) = delete;

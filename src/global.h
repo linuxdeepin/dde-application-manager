@@ -19,6 +19,7 @@
 #include <QDBusObjectPath>
 #include <unistd.h>
 #include <QUuid>
+#include <sys/stat.h>
 #include "constant.h"
 #include "config.h"
 
@@ -103,7 +104,7 @@ public:
         }
 
         if (!m_initFlag) {
-            qFatal() << "invoke init at first.";
+            qFatal("invoke init at first.");
         }
 
         switch (m_serverType) {
@@ -113,17 +114,17 @@ public:
                 m_serverConnection.emplace(QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_serverType),
                                                                          ApplicationManagerServerDBusName));
                 if (!m_serverConnection->isConnected()) {
-                    qFatal() << m_serverConnection->lastError();
+                    qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
                 }
                 return m_serverConnection.value();
             }
             case DBusType::Custom: {
                 if (m_serverBusAddress.isEmpty()) {
-                    qFatal() << "connect to custom dbus must init this object by custom dbus address";
+                    qFatal("connect to custom dbus must init this object by custom dbus address");
                 }
                 m_serverConnection.emplace(QDBusConnection::connectToBus(m_serverBusAddress, ApplicationManagerServerDBusName));
                 if (!m_serverConnection->isConnected()) {
-                    qFatal() << m_serverConnection->lastError();
+                    qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
                 }
                 return m_serverConnection.value();
             }
@@ -140,7 +141,7 @@ public:
     QDBusConnection &globalDestBus()
     {
         if (!m_destConnection) {
-            qFatal() << "please set which bus should application manager to use to invoke other D-Bus service's method.";
+            qFatal("please set which bus should application manager to use to invoke other D-Bus service's method.");
         }
         return m_destConnection.value();
     }
@@ -157,18 +158,18 @@ public:
             m_destConnection.emplace(
                 QDBusConnection::connectToBus(QDBusConnection::BusType::SessionBus, ApplicationManagerDestDBusName));
             if (!m_destConnection->isConnected()) {
-                qFatal() << m_destConnection->lastError();
+                qFatal("%s", m_destConnection->lastError().message().toLocal8Bit().data());
             }
             return;
         }
 
         if (m_destBusAddress.isEmpty()) {
-            qFatal() << "connect to custom dbus must init this object by custom dbus address";
+            qFatal("connect to custom dbus must init this object by custom dbus address");
         }
 
         m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
         if (!m_destConnection->isConnected()) {
-            qFatal() << m_destConnection->lastError();
+            qFatal("%s", m_destConnection->lastError().message().toLocal8Bit().data());
         }
     }
 
@@ -372,6 +373,27 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     }
 
     return objs;
+}
+
+inline std::size_t getFileModifiedTime(QFile &file)
+{
+    struct stat buf;
+    QFileInfo info{file};
+
+    if (!file.isOpen()) {
+        if (auto ret = file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text); !ret) {
+            qWarning() << "open file" << info.absoluteFilePath() << "failed.";
+            return 0;
+        }
+    }
+
+    if (auto ret = stat(info.absoluteFilePath().toLocal8Bit().data(), &buf); ret == -1) {
+        qWarning() << "get file" << info.absoluteFilePath() << "state failed:" << std::strerror(errno);
+        return 0;
+    }
+
+    constexpr std::size_t secToNano = 1e9;
+    return buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec;
 }
 
 #endif
