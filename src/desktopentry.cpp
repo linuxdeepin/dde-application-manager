@@ -59,8 +59,12 @@ DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMa
     const static auto validKey =
         QString("^%1(?:\\[(?<LOCALE>%2%3?%4?%5?)\\])?$").arg(MainKey).arg(Language).arg(Country).arg(Encoding).arg(Modifier);
     // example: https://regex101.com/r/hylOay/1
-    QRegularExpression re{validKey};
-    re.optimize();
+    static QRegularExpression re = []() -> QRegularExpression {
+        QRegularExpression tmp{validKey};
+        tmp.optimize();
+        return tmp;
+    }();
+
     auto matcher = re.match(keyStr);
     if (!matcher.hasMatch()) {
 #ifdef DEBUG_MODE
@@ -216,8 +220,8 @@ DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
             continue;
         }
 
-        if (line.startsWith("[")) {
-            if (!line.endsWith("]")) {
+        if (line[0] == '[') {
+            if (!(line[line.size() - 1] == ']')) {
                 return DesktopErrorCode::GroupHeaderInvalid;
             }
             currentGroup = parserGroupHeader(line);

@@ -19,9 +19,12 @@
 #include <QDBusObjectPath>
 #include <unistd.h>
 #include <QUuid>
+#include <QLoggingCategory>
 #include <sys/stat.h>
 #include "constant.h"
 #include "config.h"
+
+Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 
 using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>;
 using ObjectMap = QMap<QDBusObjectPath, QStringList>;

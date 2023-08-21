@@ -15,6 +15,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 set(BUILD_EXAMPLES ON CACHE BOOL "Whether to build examples or not.")
 set(DEBUG_MODE ON CACHE BOOL "start a dde-applicatiom-manager service for debug")
+set(PROFILING_MODE OFF CACHE BOOL "run a valgrind performance profiling.")
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
 find_package(Threads REQUIRED)
@@ -23,6 +24,10 @@ set(APP_LAUNCH_HELPER_BIN app-launch-helper)
 
 if(DEBUG_MODE)
     add_compile_definitions(-DDEBUG_MODE)
+endif()
+
+if(PROFILING_MODE)
+    add_compile_definitions(-DDPROFILING_MODE)
 endif()
 
 add_subdirectory(src)

@@ -21,4 +21,4 @@ cmake --build "$BUILD_DIR" -j$(nproc)
 
 cmake --build "$BUILD_DIR" -j$(nproc) -t test
 
-gcovr -f "src/*" --html-details "$BUILD_DIR"/coverage.html
+gcovr -f "src/*" --html-details "$HTML_DIR"/coverage.html
