@@ -45,6 +45,7 @@ struct DesktopFile
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
+    static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
 private:
@@ -75,7 +76,20 @@ struct DesktopFileGuard
     {
     }
 
-    bool try_open() { return fileRef.m_fileSource->open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text); }
+    bool try_open()
+    {
+        if (fileRef.m_fileSource->isOpen()) {
+            return true;
+        }
+
+        auto ret = fileRef.m_fileSource->open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text);
+        if (!ret) {
+            qWarning() << "open desktop file failed:" << fileRef.m_fileSource->errorString();
+        }
+
+        return ret;
+    }
+
     ~DesktopFileGuard()
     {
         if (fileRef.m_fileSource->isOpen()) {
@@ -100,6 +114,7 @@ public:
         using QMap<QString, QString>::cend;
         using QMap<QString, QString>::begin;
         using QMap<QString, QString>::end;
+        using QMap<QString, QString>::asKeyValueRange;
 
         QString toString(bool &ok) const noexcept;
         bool toBoolean(bool &ok) const noexcept;

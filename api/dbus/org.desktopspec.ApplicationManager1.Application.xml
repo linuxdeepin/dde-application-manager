@@ -16,6 +16,7 @@
         </property>
 
         <property name="AutoStart" type="b" access="readwrite"/>
+        <property name="LastLaunchedTime" type="t" access="read"/>
 
         <property name="Instances" type="ao" access="read">
             <annotation

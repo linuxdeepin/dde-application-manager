@@ -52,12 +52,19 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
         objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
     }
 
+    DesktopFileGuard guard{app->desktopFileSource()};
+
+    if (!guard.try_open()) {
+        return nullptr;
+    }
+
     sourceStream.setDevice(app->desktopFileSource().sourceFile());
     std::unique_ptr<DesktopEntry> entry{std::make_unique<DesktopEntry>()};
     auto error = entry->parse(sourceStream);
 
     if (error != DesktopErrorCode::NoError) {
         if (error != DesktopErrorCode::EntryKeyInvalid) {
+            qWarning() << "parse failed:" << error;
             return nullptr;
         }
     }
@@ -65,6 +72,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     if (auto val = entry->value(DesktopFileEntryKey, "Hidden"); val.has_value()) {
         bool ok{false};
         if (auto hidden = val.value().toBoolean(ok); ok and hidden) {
+            qWarning() << "invalid hidden value:" << *val.value().find(defaultKeyStr);
             return nullptr;
         }
     }
@@ -331,6 +339,11 @@ ObjectMap ApplicationService::GetManagedObjects() const
 QString ApplicationService::id() const noexcept
 {
     return m_desktopSource.desktopId();
+}
+
+qulonglong ApplicationService::lastLaunchedTime() const noexcept
+{
+    return m_lastLaunch;
 }
 
 IconMap ApplicationService::icons() const

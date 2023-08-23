@@ -13,6 +13,7 @@
 #include <QSharedPointer>
 #include <QUuid>
 #include <QTextStream>
+#include <QDBusContext>
 #include <QFile>
 #include <memory>
 #include <utility>
@@ -22,7 +23,7 @@
 #include "desktopicons.h"
 #include "dbus/jobmanager1service.h"
 
-class ApplicationService : public QObject
+class ApplicationService : public QObject, public QDBusContext
 {
     Q_OBJECT
 public:
@@ -37,6 +38,9 @@ public:
 
     Q_PROPERTY(QString ID READ id CONSTANT)
     [[nodiscard]] QString id() const noexcept;
+
+    Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime)
+    [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
 
     Q_PROPERTY(IconMap Icons READ icons)
     [[nodiscard]] IconMap icons() const;
@@ -83,6 +87,7 @@ private:
     static QSharedPointer<ApplicationService> createApplicationService(DesktopFile source,
                                                                        ApplicationManager1Service *parent) noexcept;
     bool m_AutoStart{false};
+    qlonglong m_lastLaunch{0};
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
     DesktopFile m_desktopSource;

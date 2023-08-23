@@ -25,7 +25,9 @@ void registerComplexDbusType()
 
 int main(int argc, char *argv[])
 {
+#ifdef PROFILING_MODE
     auto start = std::chrono::high_resolution_clock::now();
+#endif
     QCoreApplication app{argc, argv};
 
     auto &bus = ApplicationManager1DBus::instance();
@@ -36,24 +38,25 @@ int main(int argc, char *argv[])
     registerComplexDbusType();
     ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus};
     QList<DesktopFile> fileList{};
-    auto desktopFileDirs = getXDGDataDirs();
+    const auto &desktopFileDirs = getDesktopFileDirs();
 
-    applyIteratively(QList<QDir>(desktopFileDirs.begin(), desktopFileDirs.end()), [&AMService](const QFileInfo &info) -> bool {
+    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [&AMService](const QFileInfo &info) -> bool {
         DesktopErrorCode err{DesktopErrorCode::NoError};
         auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
         if (!ret.has_value()) {
             qWarning() << "failed to search File:" << err;
             return false;
         }
-        AMService.addApplication(std::move(ret).value());
+        if (!AMService.addApplication(std::move(ret).value())) {
+            qWarning() << "add Application failed:" << ret->sourcePath() << "skip...";
+        }
         return false;  // means to apply this function to the rest of the files
     });
+#ifdef PROFILING_MODE
     auto end = std::chrono::high_resolution_clock::now();
     qCInfo(DDEAMProf) << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms";
-    return
-#ifdef PROFILING_MODE
-        QCoreApplication::exec();
+    return 0;
 #else
-        0;
+    return QCoreApplication::exec();
 #endif
 }
