@@ -13,6 +13,7 @@
 #include <QVariant>
 #include <iostream>
 #include <chrono>
+#include <cstdio>
 
 auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
 {
@@ -108,9 +109,33 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_p
     return DesktopFile{std::move(temporaryFile), "", mtime};
 }
 
+std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString &temporaryFile) noexcept
+{
+    const static QString userTmp = QString{"/run/user/%1/"}.arg(getCurrentUID());
+    auto tempFile = std::make_unique<QFile>(QString{userTmp + QUuid::createUuid().toString(QUuid::Id128) + ".desktop"});
+
+    if (!tempFile->open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
+        qWarning() << "failed to create temporary desktop file:" << QFileInfo{*tempFile}.absoluteFilePath()
+                   << tempFile->errorString();
+        return std::nullopt;
+    }
+
+    auto content = temporaryFile.toLocal8Bit();
+    auto writeByte = tempFile->write(content);
+
+    if (writeByte == -1 || writeByte != content.length()) {
+        qWarning() << "write to temporary file failed:" << tempFile->errorString();
+        return std::nullopt;
+    }
+
+    tempFile->close();
+
+    return createTemporaryDesktopFile(std::move(tempFile));
+}
+
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, DesktopErrorCode &err) noexcept
 {
-    constexpr decltype(auto) desktopSuffix = ".desktop";
+    decltype(auto) desktopSuffix = ".desktop";
 
     if (!desktopFile.endsWith(desktopSuffix)) {
         qWarning() << "file isn't a desktop file:" << desktopFile;
@@ -128,7 +153,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     QString path{desktopFile};
     QString id;
 
-    const auto &XDGDataDirs = getXDGDataDirs();
+    const auto &XDGDataDirs = getDesktopFileDirs();
     auto idGen = std::any_of(XDGDataDirs.cbegin(), XDGDataDirs.cend(), [&desktopFile](const QString &suffixPath) {
         return desktopFile.startsWith(suffixPath);
     });
@@ -160,7 +185,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
 {
-    auto XDGDataDirs = getXDGDataDirs();
+    auto XDGDataDirs = getDesktopFileDirs();
     constexpr auto desktopSuffix = u8".desktop";
 
     for (const auto &dir : XDGDataDirs) {

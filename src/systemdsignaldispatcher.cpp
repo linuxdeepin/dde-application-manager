@@ -33,7 +33,7 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
 
 void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    constexpr decltype(auto) appPrefix = u8"app-";
+    decltype(auto) appPrefix = u8"app-";
     if (!unitName.startsWith(appPrefix)) {
         return;
     }
@@ -43,7 +43,7 @@ void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath system
 
 void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    constexpr decltype(auto) appPrefix = u8"app-";
+    decltype(auto) appPrefix = u8"app-";
     if (!unitName.startsWith(appPrefix)) {
         return;
     }

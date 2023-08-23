@@ -48,7 +48,7 @@ template <typename T>
 using remove_cvr_t = std::remove_reference_t<std::remove_cv_t<T>>;
 
 template <typename T>
-void applyIteratively(QList<QDir> &&dirs, T &&func)
+void applyIteratively(QList<QDir> dirs, T &&func)
 {
     static_assert(std::is_invocable_v<T, const QFileInfo &>, "apply function should only accept one QFileInfo");
     static_assert(std::is_same_v<decltype(func(QFileInfo{})), bool>,
@@ -300,7 +300,7 @@ inline QString getRelativePathFromAppId(const QString &id)
     return path;
 }
 
-inline QStringList getXDGDataDirs()
+inline QStringList getDesktopFileDirs()
 {
     const static auto XDGDataDirs = []() {
         auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
@@ -312,10 +312,10 @@ inline QStringList getXDGDataDirs()
 
         auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
         if (XDGDataHome.isEmpty()) {
-            XDGDataHome = QString{qgetenv("HOME")} + QDir::separator() + ".local" + QDir::separator() + "share";
+            XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
         }
 
-        XDGDataDirs.push_front(XDGDataHome);
+        XDGDataDirs.push_front(std::move(XDGDataHome));
 
         std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
             if (!str.endsWith(QDir::separator())) {
@@ -328,6 +328,34 @@ inline QStringList getXDGDataDirs()
     }();
 
     return XDGDataDirs;
+}
+
+inline QStringList getAutoStartDirs()
+{
+    const static auto XDGConfigDirs = []() {
+        auto XDGConfigDirs = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_DIRS")).split(':', Qt::SkipEmptyParts);
+        if (XDGConfigDirs.isEmpty()) {
+            XDGConfigDirs.append("/etc/xdg");
+        }
+
+        auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
+        if (XDGConfigHome.isEmpty()) {
+            XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
+        }
+
+        XDGConfigDirs.push_front(std::move(XDGConfigHome));
+
+        std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
+            if (!str.endsWith(QDir::separator())) {
+                str.append(QDir::separator());
+            }
+            str.append("autostart");
+        });
+
+        return XDGConfigDirs;
+    }();
+
+    return XDGConfigDirs;
 }
 
 inline QPair<QString, QString> processUnitName(const QString &unitName)
