@@ -75,7 +75,7 @@
                 value="The type of IconName is a Map, where the key represents the action and the value is the corresponding content."
             />
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
-        </property> 
+        </property>
 
         <property name="DisplayName" type="a{ss}" access="read">
             <annotation
