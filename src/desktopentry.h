@@ -15,7 +15,17 @@
 
 constexpr static auto defaultKeyStr = "default";
 
-enum class DesktopErrorCode { NoError, NotFound, MismatchedFile, InvalidLocation, InvalidFormat, OpenFailed, MissingInfo };
+enum class DesktopErrorCode {
+    NoError,
+    NotFound,
+    MismatchedFile,
+    InvalidLocation,
+    InvalidFormat,
+    OpenFailed,
+    MissingInfo,
+    Parsed,
+    InternalError,
+};
 
 enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
@@ -124,18 +134,11 @@ public:
     [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
-    static bool isInvalidLocaleString(const QString &str) noexcept;
 
 private:
-    EntryContext m_context{EntryContext::EntryOuter};
-    QMap<QString, QMap<QString, Value>> m_entryMap;
-
-    auto parseGroupHeader(const QString &str) noexcept;
     [[nodiscard]] bool checkMainEntryValidation() const noexcept;
-    static bool skipCheck(const QString &line) noexcept;
-    static DesktopErrorCode parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
-    static QPair<QString, QString> processEntry(const QString &str) noexcept;
-    static std::optional<QPair<QString, QString>> processEntryKey(const QString &keyStr) noexcept;
+    QMap<QString, QMap<QString, Value>> m_entryMap;
+    bool m_parsed{false};
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);

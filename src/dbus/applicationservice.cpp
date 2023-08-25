@@ -395,92 +395,92 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     auto location = execList.indexOf(codeStr);
 
     switch (filesCode) {
-        case 'f': {  // Defer to async job
-            task.command.append(std::move(execList));
-            for (auto &field : fields) {
-                task.Resources.emplace_back(std::move(field));
-            }
-            break;
+    case 'f': {  // Defer to async job
+        task.command.append(std::move(execList));
+        for (auto &field : fields) {
+            task.Resources.emplace_back(std::move(field));
         }
-        case 'u': {
-            execList.removeAt(location);
-            if (fields.empty()) {
-                task.command.append(execList);
-                break;
-            }
-            if (fields.count() > 1) {
-                qDebug() << R"(fields count is greater than one, %u will only take first element.)";
-            }
-            execList.insert(location, fields.first());
+        break;
+    }
+    case 'u': {
+        execList.removeAt(location);
+        if (fields.empty()) {
             task.command.append(execList);
             break;
         }
-        case 'F':
-            [[fallthrough]];
-        case 'U': {
-            execList.removeAt(location);
-            auto it = execList.begin() + location;
-            for (const auto &field : fields) {
-                it = execList.insert(it, field);
-            }
-            task.command.append(std::move(execList));
-            break;
+        if (fields.count() > 1) {
+            qDebug() << R"(fields count is greater than one, %u will only take first element.)";
         }
-        case 'i': {
-            execList.removeAt(location);
-            auto val = m_entry->value(DesktopFileEntryKey, "Icon");
-            if (!val) {
-                qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
-                task.command.append(std::move(execList));
-                return task;
-            }
-            bool ok;
-            auto iconStr = val->toIconString(ok);
-            if (!ok) {
-                qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
-                task.command.append(std::move(execList));
-                return task;
-            }
-            auto it = execList.insert(location, iconStr);
-            execList.insert(it, "--icon");
-            task.command.append(std::move(execList));
-            break;
+        execList.insert(location, fields.first());
+        task.command.append(execList);
+        break;
+    }
+    case 'F':
+        [[fallthrough]];
+    case 'U': {
+        execList.removeAt(location);
+        auto it = execList.begin() + location;
+        for (const auto &field : fields) {
+            it = execList.insert(it, field);
         }
-        case 'c': {
-            execList.removeAt(location);
-            auto val = m_entry->value(DesktopFileEntryKey, "Name");
-            if (!val) {
-                qDebug() << R"(Application Name can't be found. %c will be ignored.)";
-                task.command.append(std::move(execList));
-                return task;
-            }
-            bool ok;
-            auto NameStr = val->toLocaleString(getUserLocale(), ok);
-            if (!ok) {
-                qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
-                task.command.append(std::move(execList));
-                return task;
-            }
-            execList.insert(location, NameStr);
+        task.command.append(std::move(execList));
+        break;
+    }
+    case 'i': {
+        execList.removeAt(location);
+        auto val = m_entry->value(DesktopFileEntryKey, "Icon");
+        if (!val) {
+            qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
             task.command.append(std::move(execList));
-            break;
+            return task;
         }
-        case 'k': {  // ignore all desktop file location for now.
-            execList.removeAt(location);
+        bool ok;
+        auto iconStr = val->toIconString(ok);
+        if (!ok) {
+            qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
             task.command.append(std::move(execList));
-            break;
+            return task;
         }
-        case 'd':
-        case 'D':
-        case 'n':
-        case 'N':
-        case 'v':
-            [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
-        case 'm': {
-            execList.removeAt(location);
+        auto it = execList.insert(location, iconStr);
+        execList.insert(it, "--icon");
+        task.command.append(std::move(execList));
+        break;
+    }
+    case 'c': {
+        execList.removeAt(location);
+        auto val = m_entry->value(DesktopFileEntryKey, "Name");
+        if (!val) {
+            qDebug() << R"(Application Name can't be found. %c will be ignored.)";
             task.command.append(std::move(execList));
-            break;
+            return task;
         }
+        bool ok;
+        auto NameStr = val->toLocaleString(getUserLocale(), ok);
+        if (!ok) {
+            qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
+            task.command.append(std::move(execList));
+            return task;
+        }
+        execList.insert(location, NameStr);
+        task.command.append(std::move(execList));
+        break;
+    }
+    case 'k': {  // ignore all desktop file location for now.
+        execList.removeAt(location);
+        task.command.append(std::move(execList));
+        break;
+    }
+    case 'd':
+    case 'D':
+    case 'n':
+    case 'N':
+    case 'v':
+        [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
+    case 'm': {
+        execList.removeAt(location);
+        task.command.append(std::move(execList));
+        break;
+    }
     }
 
     if (task.Resources.isEmpty()) {
