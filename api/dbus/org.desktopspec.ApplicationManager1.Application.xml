@@ -61,6 +61,30 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="IconMap"/>
         </property>
 
+        <property name="ActionName" type="a{ss}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The type of ActionName is a Map, where the key represents the locale and the value is the corresponding content."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+        </property>
+
+        <property name="IconName" type="a{ss}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The type of IconName is a Map, where the key represents the action and the value is the corresponding content."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+        </property> 
+
+        <property name="DisplayName" type="a{ss}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The meaning of this property's type is same as which in ActionName."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+        </property>
+
         <method name="Launch">
             <arg type="s" name="action" direction="in" />
             <arg type="as" name="fields" direction="in" />
@@ -82,39 +106,6 @@
                        1. `uid` (type u):
                           The user id as who is that application will be run.
                           This option might request a polikit authentication."
-            />
-        </method>
-
-        <method name="GetActionName">
-            <arg name="identifier" type="s" direction="in"/>
-            <arg name="env" type="as" direction="in"/> 
-            <arg name="name" type="s" direction="out"/>
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="Given an action identifier
-                       and optional locale-releate environments,
-                       this method return the localized value of Name of
-                       that action.
-                       If env is not passed,
-                       this method will use the locale config of that user."
-            />
-        </method>
-
-        <method name="GetIconName">
-            <arg name="action" type="s" direction="in"/>
-            <arg name="name" type="s" direction="out"/>
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="The meaning of arg `env` is same as which in GetActionName."
-            />
-        </method> 
-
-        <method name="GetDisplayName">
-            <arg name="env" type="as" direction="in"/>
-            <arg name="name" type="s" direction="out"/>
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="The meaning of arg `env` is same as which in GetActionName."
             />
         </method>
     </interface>

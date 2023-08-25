@@ -15,15 +15,9 @@
 
 constexpr static auto defaultKeyStr = "default";
 
-enum class DesktopErrorCode {
-    NoError,
-    NotFound,
-    MismatchedFile,
-    InvalidLocation,
-    OpenFailed,
-    GroupHeaderInvalid,
-    EntryKeyInvalid
-};
+enum class DesktopErrorCode { NoError, NotFound, MismatchedFile, InvalidLocation, InvalidFormat, OpenFailed, MissingInfo };
+
+enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
 struct DesktopFileGuard;
 
@@ -104,18 +98,10 @@ private:
 class DesktopEntry
 {
 public:
-    class Value final : private QMap<QString, QString>
+    class Value final : public QMap<QString, QString>
     {
     public:
         using QMap<QString, QString>::QMap;
-        using QMap<QString, QString>::find;
-        using QMap<QString, QString>::insert;
-        using QMap<QString, QString>::cbegin;
-        using QMap<QString, QString>::cend;
-        using QMap<QString, QString>::begin;
-        using QMap<QString, QString>::end;
-        using QMap<QString, QString>::asKeyValueRange;
-
         QString toString(bool &ok) const noexcept;
         bool toBoolean(bool &ok) const noexcept;
         QString toIconString(bool &ok) const noexcept;
@@ -138,11 +124,18 @@ public:
     [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
+    static bool isInvalidLocaleString(const QString &str) noexcept;
 
 private:
+    EntryContext m_context{EntryContext::EntryOuter};
     QMap<QString, QMap<QString, Value>> m_entryMap;
+
     auto parserGroupHeader(const QString &str) noexcept;
+    [[nodiscard]] bool checkMainEntryValidation() const noexcept;
+    static bool skipCheck(const QString &line) noexcept;
     static DesktopErrorCode parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
+    static QPair<QString, QString> processEntry(const QString &str) noexcept;
+    static std::optional<QPair<QString, QString>> processEntryKey(const QString &keyStr) noexcept;
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);

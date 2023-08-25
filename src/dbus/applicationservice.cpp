@@ -63,10 +63,8 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     auto error = entry->parse(sourceStream);
 
     if (error != DesktopErrorCode::NoError) {
-        if (error != DesktopErrorCode::EntryKeyInvalid) {
-            qWarning() << "parse failed:" << error;
-            return nullptr;
-        }
+        qWarning() << "parse failed:" << error << app->desktopFileSource().sourcePath();
+        return nullptr;
     }
 
     if (auto val = entry->value(DesktopFileEntryKey, "Hidden"); val.has_value()) {
@@ -87,110 +85,6 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     }
 
     return app;
-}
-
-QString ApplicationService::GetActionName(const QString &identifier, const QStringList &env) const
-{
-    const auto &supportedActions = actions();
-    if (supportedActions.isEmpty()) {
-        return {};
-    }
-    if (auto index = supportedActions.indexOf(identifier); index == -1) {
-        qWarning() << "can't find " << identifier << " in supported actions List.";
-        return {};
-    }
-
-    const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, identifier);
-    const auto &actionName = m_entry->value(actionHeader, "Name");
-    if (!actionName) {
-        return {};
-    }
-
-    QString locale{""};
-    bool ok;
-    if (!env.isEmpty()) {
-        QString lcStr;
-        for (const auto &lc : env) {
-            if (lc.startsWith("LANG")) {
-                locale = lc.split('=').last();
-            }
-
-            if (lc.startsWith("LC_ALL")) {
-                locale = lc.split('=').last();
-                break;
-            }
-        }
-    }
-
-    QLocale lc = locale.isEmpty() ? getUserLocale() : QLocale{locale};
-
-    const auto &name = actionName->toLocaleString(lc, ok);
-    if (!ok) {
-        qWarning() << "convert to locale string failed, dest locale:" << lc;
-        return {};
-    }
-    return name;
-}
-
-QString ApplicationService::GetDisplayName(const QStringList &env) const
-{
-    const auto &displayName = m_entry->value(DesktopFileEntryKey, "Name");
-    if (!displayName) {
-        return {};
-    }
-
-    QString locale{""};
-    bool ok;
-    if (!env.isEmpty()) {
-        QString lcStr;
-        for (const auto &lc : env) {
-            if (lc.startsWith("LANG")) {
-                locale = lc.split('=').last();
-            }
-
-            if (lc.startsWith("LC_ALL")) {
-                locale = lc.split('=').last();
-                break;
-            }
-        }
-    }
-
-    QLocale lc = locale.isEmpty() ? getUserLocale() : QLocale{locale};
-
-    const auto &name = displayName->toLocaleString(lc, ok);
-    if (!ok) {
-        qWarning() << "convert to locale string failed, dest locale:" << lc;
-        return {};
-    }
-    return name;
-}
-
-QString ApplicationService::GetIconName(const QString &action) const
-{
-    std::optional<DesktopEntry::Value> iconName{std::nullopt};
-
-    if (action.isEmpty()) {
-        iconName = m_entry->value(DesktopFileEntryKey, "Icon");
-
-    } else {
-        const auto &supportedActions = actions();
-
-        if (auto index = supportedActions.indexOf(action); index == -1) {
-            qWarning() << "can't find " << action << " in supported actions List.";
-            return {};
-        }
-
-        const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
-        iconName = m_entry->value(actionHeader, "Icon");
-    }
-
-    if (!iconName) {
-        return {};
-    }
-
-    bool ok{false};
-    const auto &name = iconName->toIconString(ok);
-    return ok ? name : "";
 }
 
 QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
@@ -325,10 +219,53 @@ QStringList ApplicationService::actions() const noexcept
         return {};
     }
 
-    auto actionList = str.split(";");
-    actionList.removeAll("");
-
+    auto actionList = str.split(";", Qt::SkipEmptyParts);
     return actionList;
+}
+
+PropMap ApplicationService::actionName() const noexcept
+{
+    PropMap ret;
+    auto actionList = actions();
+
+    for (auto &action : actionList) {
+        action.prepend(DesktopFileActionKey);
+        auto value = m_entry->value(action, "Name");
+        if (!value.has_value()) {
+            continue;
+        }
+        ret.insert(action, {std::move(value).value()});
+    }
+
+    return ret;
+}
+
+PropMap ApplicationService::displayName() const noexcept
+{
+    PropMap ret;
+    auto value = std::move(m_entry->value(DesktopFileEntryKey, "Name")).value();
+    ret.insert(QString{"Name"}, {std::move(value)});
+    return ret;
+}
+
+PropMap ApplicationService::iconName() const noexcept
+{
+    PropMap ret;
+    auto actionList = actions();
+    for (const auto &action : actionList) {
+        auto value = m_entry->value(QString{action}.prepend(DesktopFileActionKey), "Icon");
+        if (!value.has_value()) {
+            continue;
+        }
+        ret.insert(action, {std::move(value).value()});
+    }
+
+    auto mainIcon = m_entry->value(DesktopFileEntryKey, "Icon");
+    if (mainIcon.has_value()) {
+        ret.insert(defaultKeyStr, {std::move(mainIcon).value()});
+    }
+
+    return ret;
 }
 
 ObjectMap ApplicationService::GetManagedObjects() const
@@ -384,7 +321,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
         m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
         service->moveToThread(this->thread());
         adaptor->moveToThread(this->thread());
-        emit InterfacesAdded(QDBusObjectPath{objectPath}, getInterfacesListFromObject(service));
+        emit InterfacesAdded(QDBusObjectPath{objectPath}, getChildInterfacesAndPropertiesFromObject(service));
         return true;
     }
 
@@ -396,7 +333,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noexcept
 {
     if (auto it = m_Instances.find(instance); it != m_Instances.cend()) {
-        emit InterfacesRemoved(instance, getInterfacesListFromObject(it->data()));
+        emit InterfacesRemoved(instance, getChildInterfacesFromObject(it->data()));
         unregisterObjectFromDBus(instance.path());
         m_Instances.remove(instance);
     }

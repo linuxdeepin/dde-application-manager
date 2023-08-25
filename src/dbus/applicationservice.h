@@ -36,8 +36,17 @@ public:
     Q_PROPERTY(QStringList Actions READ actions)
     [[nodiscard]] QStringList actions() const noexcept;
 
+    Q_PROPERTY(PropMap ActionName READ actionName)
+    [[nodiscard]] PropMap actionName() const noexcept;
+
     Q_PROPERTY(QString ID READ id CONSTANT)
     [[nodiscard]] QString id() const noexcept;
+
+    Q_PROPERTY(PropMap DisplayName READ displayName)
+    [[nodiscard]] PropMap displayName() const noexcept;
+
+    Q_PROPERTY(PropMap IconName READ iconName)
+    [[nodiscard]] PropMap iconName() const noexcept;
 
     Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime)
     [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
@@ -71,14 +80,11 @@ public:
     void resetEntry(DesktopEntry *newEntry) noexcept;
 
 public Q_SLOTS:
-    [[nodiscard]] QString GetActionName(const QString &identifier, const QStringList &env) const;
     QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
-    [[nodiscard]] QString GetIconName(const QString &action) const;
-    [[nodiscard]] QString GetDisplayName(const QStringList &env) const;
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:
-    void InterfacesAdded(const QDBusObjectPath &object_path, const QStringList &interfaces);
+    void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
 
 private:

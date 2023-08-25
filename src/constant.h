@@ -16,6 +16,7 @@ constexpr auto DDEApplicationManager1ServiceName =
 #endif
 
 constexpr auto DDEApplicationManager1ObjectPath = u8"/org/deepin/dde/ApplicationManager1";
+constexpr auto DDEAutoStartManager1ObjectPath = u8"/org/deepin/dde/AutoStartManager1";
 constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/deepin/dde/ApplicationManager1/JobManager1";
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
