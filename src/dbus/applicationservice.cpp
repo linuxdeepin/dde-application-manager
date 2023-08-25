@@ -377,6 +377,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     auto matcher = re.match(str);
     if (!matcher.hasMatch()) {
         task.command.append(std::move(execList));
+        task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
         return task;
     }
 

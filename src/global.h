@@ -69,10 +69,8 @@ void applyIteratively(QList<QDir> dirs, T &&func)
             continue;
         }
 
-        const auto &infoList =
-            dir.entryInfoList({"*.desktop"},
-                              QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot,
-                              QDir::Name | QDir::DirsLast);
+        const auto &infoList = dir.entryInfoList(
+            {"*.desktop"}, QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::DirsLast);
 
         for (const auto &info : infoList) {
             if (info.isFile() and func(info)) {
