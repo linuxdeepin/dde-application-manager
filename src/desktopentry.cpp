@@ -82,9 +82,15 @@ std::optional<QPair<QString, QString>> DesktopEntry::processEntryKey(const QStri
 {
     QString key;
     QString localeStr;
+    // NOTE:
+    // We are process "localized keys" here, for usage check:
+    // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#localized-keys
     if (auto index = keyStr.indexOf('['); index != -1) {
         key = keyStr.sliced(0, index);
         localeStr = keyStr.sliced(index + 1, keyStr.length() - 1 - index - 1);  // strip '[' and ']'
+        if (!isInvalidLocaleString(localeStr)) {
+            qWarning().noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
+        }
     } else {
         key = keyStr;
     }
