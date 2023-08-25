@@ -15,6 +15,29 @@
 #include <chrono>
 #include <cstdio>
 
+namespace {
+bool hasNonAsciiAndControlCharacters(const QString &str) noexcept
+{
+    static const QRegularExpression _matchControlChars = []() {
+        QRegularExpression tmp{R"(\p{Cc})"};
+        tmp.optimize();
+        return tmp;
+    }();
+    thread_local const auto matchControlChars = _matchControlChars;
+    static const QRegularExpression _matchNonAsciiChars = []() {
+        QRegularExpression tmp{R"([^\x00-\x7f])"};
+        tmp.optimize();
+        return tmp;
+    }();
+    thread_local const auto matchNonAsciiChars = _matchNonAsciiChars;
+    if (str.contains(matchControlChars) and str.contains(matchNonAsciiChars)) {
+        return true;
+    }
+
+    return false;
+}
+}  // namespace
+
 auto DesktopEntry::parseGroupHeader(const QString &str) noexcept
 {
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#group-header
@@ -22,14 +45,7 @@ auto DesktopEntry::parseGroupHeader(const QString &str) noexcept
     auto groupHeader = str.sliced(1, str.size() - 2).trimmed();
     decltype(m_entryMap)::iterator it{m_entryMap.end()};
 
-    // NOTE:
-    // This regex match '[', ']', control characters
-    // and all non-ascii characters.
-    // They are invalid in group header.
-    // https://regex101.com/r/bZhHZo/1
-    QRegularExpression re{R"([^\x20-\x5a\x5e-\x7e\x5c])"};
-    auto matcher = re.match(groupHeader);
-    if (matcher.hasMatch()) {
+    if (groupHeader.contains('[') || groupHeader.contains(']') || hasNonAsciiAndControlCharacters(groupHeader)) {
         qWarning() << "group header invalid:" << str;
         return it;
     }
@@ -61,11 +77,12 @@ bool DesktopEntry::isInvalidLocaleString(const QString &str) noexcept
     constexpr auto Modifier = R"((?:@[a-z=;]+))";     // modifier of locale postfix. eg.(euro;collation=traditional)
     const static auto validKey = QString(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier);
     // example: https://regex101.com/r/hylOay/2
-    static QRegularExpression re = []() -> QRegularExpression {
+    static const QRegularExpression _re = []() -> QRegularExpression {
         QRegularExpression tmp{validKey};
         tmp.optimize();
         return tmp;
     }();
+    thread_local const auto re = _re;
 
     return re.match(str).hasMatch();
 }
@@ -104,7 +121,13 @@ std::optional<QPair<QString, QString>> DesktopEntry::processEntryKey(const QStri
         key = keyStr;
     }
 
-    QRegularExpression re{"R([^A-Za-z0-9-])"};
+    static const QRegularExpression _re = []() {
+        QRegularExpression tmp{"R([^A-Za-z0-9-])"};
+        tmp.optimize();
+        return tmp;
+    }();
+    // NOTE: https://stackoverflow.com/a/25583104
+    thread_local const QRegularExpression re = _re;
     if (re.match(key).hasMatch()) {
         qWarning() << "keyName's format is invalid.";
         return std::nullopt;
@@ -477,10 +500,9 @@ QString DesktopEntry::Value::toString(bool &ok) const noexcept
     if (str == this->end()) {
         return {};
     }
+
     auto unescapedStr = unescape(*str);
-    constexpr auto controlChars = "\\p{Cc}";
-    constexpr auto asciiChars = "[^\x00-\x7f]";
-    if (unescapedStr.contains(QRegularExpression{controlChars}) and unescapedStr.contains(QRegularExpression{asciiChars})) {
+    if (hasNonAsciiAndControlCharacters(unescapedStr)) {
         return {};
     }
 
