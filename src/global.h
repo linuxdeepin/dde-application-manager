@@ -117,26 +117,26 @@ public:
         }
 
         switch (m_serverType) {
-            case DBusType::Session:
-                [[fallthrough]];
-            case DBusType::System: {
-                m_serverConnection.emplace(QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_serverType),
-                                                                         ApplicationManagerServerDBusName));
-                if (!m_serverConnection->isConnected()) {
-                    qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
-                }
-                return m_serverConnection.value();
+        case DBusType::Session:
+            [[fallthrough]];
+        case DBusType::System: {
+            m_serverConnection.emplace(QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_serverType),
+                                                                     ApplicationManagerServerDBusName));
+            if (!m_serverConnection->isConnected()) {
+                qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
             }
-            case DBusType::Custom: {
-                if (m_serverBusAddress.isEmpty()) {
-                    qFatal("connect to custom dbus must init this object by custom dbus address");
-                }
-                m_serverConnection.emplace(QDBusConnection::connectToBus(m_serverBusAddress, ApplicationManagerServerDBusName));
-                if (!m_serverConnection->isConnected()) {
-                    qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
-                }
-                return m_serverConnection.value();
+            return m_serverConnection.value();
+        }
+        case DBusType::Custom: {
+            if (m_serverBusAddress.isEmpty()) {
+                qFatal("connect to custom dbus must init this object by custom dbus address");
             }
+            m_serverConnection.emplace(QDBusConnection::connectToBus(m_serverBusAddress, ApplicationManagerServerDBusName));
+            if (!m_serverConnection->isConnected()) {
+                qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
+            }
+            return m_serverConnection.value();
+        }
         }
 
         Q_UNREACHABLE();

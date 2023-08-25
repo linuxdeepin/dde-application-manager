@@ -123,7 +123,7 @@ IncludeCategories:
   - Regex: '.*'
     Priority: 1
 # 缩进case标签
-IndentCaseLabels: true
+IndentCaseLabels: false
 
 #IndentPPDirectives:  AfterHash
 # 缩进宽度
