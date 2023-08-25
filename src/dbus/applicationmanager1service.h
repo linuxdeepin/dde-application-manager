@@ -46,7 +46,7 @@ public Q_SLOTS:
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:
-    void InterfacesAdded(const QDBusObjectPath &object_path, const QStringList &interfaces);
+    void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
 
 private:

@@ -135,7 +135,7 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
         return false;
     }
     m_applicationList.insert(application->applicationPath(), application);
-    emit InterfacesAdded(application->applicationPath(), getInterfacesListFromObject(ptr));
+    emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
 
     return true;
 }
@@ -143,7 +143,7 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
 void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application) noexcept
 {
     if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
-        emit InterfacesRemoved(application, getInterfacesListFromObject(it->data()));
+        emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
     }
@@ -225,7 +225,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         }
 
         auto err = newEntry->parse(destApp->desktopFileSource());
-        if (err != DesktopErrorCode::NoError and err != DesktopErrorCode::EntryKeyInvalid) {
+        if (err != DesktopErrorCode::NoError) {
             qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
             return;
         }

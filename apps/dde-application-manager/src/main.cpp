@@ -19,7 +19,13 @@ void registerComplexDbusType()
     qDBusRegisterMetaType<QMap<QString, QDBusUnixFileDescriptor>>();
     qDBusRegisterMetaType<QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>();
     qDBusRegisterMetaType<IconMap>();
+    qRegisterMetaType<ObjectInterfaceMap>();
+    qDBusRegisterMetaType<ObjectInterfaceMap>();
+    qRegisterMetaType<ObjectMap>();
     qDBusRegisterMetaType<ObjectMap>();
+    qDBusRegisterMetaType<QMap<QString, QString>>();
+    qRegisterMetaType<PropMap>();
+    qDBusRegisterMetaType<PropMap>();
 }
 }  // namespace
 
@@ -48,7 +54,7 @@ int main(int argc, char *argv[])
             return false;
         }
         if (!AMService.addApplication(std::move(ret).value())) {
-            qWarning() << "add Application failed:" << ret->sourcePath() << "skip...";
+            qWarning() << "add Application failed, skip...";
         }
         return false;  // means to apply this function to the rest of the files
     });

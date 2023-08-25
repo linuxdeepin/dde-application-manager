@@ -27,7 +27,13 @@
 Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 
 using IconMap = QMap<QString, QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>;
-using ObjectMap = QMap<QDBusObjectPath, QStringList>;
+using ObjectInterfaceMap = QMap<QString, QVariantMap>;
+using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
+using PropMap = QMap<QString, QMap<QString, QString>>;
+
+Q_DECLARE_METATYPE(ObjectInterfaceMap)
+Q_DECLARE_METATYPE(ObjectMap)
+Q_DECLARE_METATYPE(PropMap)
 
 inline QString getApplicationLauncherBinary()
 {
@@ -200,17 +206,39 @@ inline QString getDBusInterface(const QMetaType &meta)
     return {};
 }
 
-inline QStringList getInterfacesListFromObject(QObject *o)
+inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(QObject *o)
 {
     auto childs = o->children();
-    QStringList interfaces;
-    std::for_each(childs.cbegin(), childs.cend(), [&interfaces](QObject *app) {
+    ObjectInterfaceMap ret;
+
+    std::for_each(childs.cbegin(), childs.cend(), [&ret](QObject *app) {
         if (app->inherits("QDBusAbstractAdaptor")) {
-            interfaces.emplace_back(getDBusInterface(app->metaObject()->metaType()));
+            auto interface = getDBusInterface(app->metaObject()->metaType());
+            QVariantMap properties;
+            const auto *mo = app->metaObject();
+            for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+                auto prop = mo->property(i);
+                properties.insert(prop.name(), prop.read(app));
+            }
+            ret.insert(interface, properties);
         }
     });
 
-    return interfaces;
+    return ret;
+}
+
+inline QStringList getChildInterfacesFromObject(QObject *o)
+{
+    auto childs = o->children();
+    QStringList ret;
+
+    std::for_each(childs.cbegin(), childs.cend(), [&ret](QObject *app) {
+        if (app->inherits("QDBusAbstractAdaptor")) {
+            ret.append(getDBusInterface(app->metaObject()->metaType()));
+        }
+    });
+
+    return ret;
 }
 
 inline uid_t getCurrentUID()
@@ -399,8 +427,8 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     ObjectMap objs;
 
     for (const auto &[key, value] : map.asKeyValueRange()) {
-        auto interfaces = getInterfacesListFromObject(value.data());
-        objs.insert(key, interfaces);
+        auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
+        objs.insert(key, interAndProps);
     }
 
     return objs;

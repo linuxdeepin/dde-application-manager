@@ -17,26 +17,52 @@
 
 auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
 {
-    auto groupHeader = str.sliced(1, str.size() - 2);
-    auto it = m_entryMap.find(groupHeader);
-    if (it == m_entryMap.cend()) {
-        return m_entryMap.insert(groupHeader, {});
+    auto groupHeader = str.sliced(1, str.size() - 2).trimmed();
+    decltype(m_entryMap)::iterator it{m_entryMap.end()};
+
+    QRegularExpression re{R"([^\x20-\x5a-\x5e-\x7e\x5c])"};
+    auto matcher = re.match(groupHeader);
+    if (matcher.hasMatch()) {
+        return it;
     }
+
+    auto tmp = m_entryMap.find(groupHeader);
+    if (tmp == m_entryMap.end()) {
+        it = m_entryMap.insert(groupHeader, {});
+    }
+
     return it;
 }
 
 QString DesktopFile::sourcePath() const noexcept
 {
+    if (!m_fileSource) {
+        return "";
+    }
+
     QFileInfo info(*m_fileSource);
     return info.absoluteFilePath();
 }
 
-DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
+bool DesktopEntry::isInvalidLocaleString(const QString &str) noexcept
 {
-    if (str.startsWith("#")) {
-        return DesktopErrorCode::NoError;
-    }
+    constexpr auto Language = R"((?:[a-z]+))";        // language of locale postfix. eg.(en, zh)
+    constexpr auto Country = R"((?:_[A-Z]+))";        // country of locale postfix. eg.(US, CN)
+    constexpr auto Encoding = R"((?:\.[0-9A-Z-]+))";  // encoding of locale postfix. eg.(UFT-8)
+    constexpr auto Modifier = R"((?:@[a-z=;]+))";     // modifier of locale postfix. eg.(euro;collation=traditional)
+    const static auto validKey = QString(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier);
+    // example: https://regex101.com/r/hylOay/2
+    static QRegularExpression re = []() -> QRegularExpression {
+        QRegularExpression tmp{validKey};
+        tmp.optimize();
+        return tmp;
+    }();
 
+    return re.match(str).hasMatch();
+}
+
+QPair<QString, QString> DesktopEntry::processEntry(const QString &str) noexcept
+{
     auto splitCharIndex = str.indexOf(']');
     if (splitCharIndex != -1) {
         for (; splitCharIndex < str.size(); ++splitCharIndex) {
@@ -49,54 +75,95 @@ DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMa
     }
     auto keyStr = str.first(splitCharIndex).trimmed();
     auto valueStr = str.sliced(splitCharIndex + 1).trimmed();
+    return qMakePair(std::move(keyStr), std::move(valueStr));
+}
+
+std::optional<QPair<QString, QString>> DesktopEntry::processEntryKey(const QString &keyStr) noexcept
+{
     QString key;
-    QString valueKey{defaultKeyStr};
-
-    constexpr auto MainKey = R"re((?<MainKey>[0-9a-zA-Z-]+))re";  // main key. eg.(Name, X-CUSTOM-KEY).
-    constexpr auto Language = R"re((?:[a-z]+))re";                // language of locale postfix. eg.(en, zh)
-    constexpr auto Country = R"re((?:_[A-Z]+))re";                // country of locale postfix. eg.(US, CN)
-    constexpr auto Encoding = R"re((?:\.[0-9A-Z-]+))re";          // encoding of locale postfix. eg.(UFT-8)
-    constexpr auto Modifier = R"re((?:@[a-z=;]+))re";             // modifier of locale postfix. eg(euro;collation=traditional)
-    const static auto validKey =
-        QString("^%1(?:\\[(?<LOCALE>%2%3?%4?%5?)\\])?$").arg(MainKey).arg(Language).arg(Country).arg(Encoding).arg(Modifier);
-    // example: https://regex101.com/r/hylOay/1
-    static QRegularExpression re = []() -> QRegularExpression {
-        QRegularExpression tmp{validKey};
-        tmp.optimize();
-        return tmp;
-    }();
-
-    auto matcher = re.match(keyStr);
-    if (!matcher.hasMatch()) {
-#ifdef DEBUG_MODE
-        qWarning() << "invalid key: " << keyStr;
-#endif
-        return DesktopErrorCode::EntryKeyInvalid;
+    QString localeStr;
+    if (auto index = keyStr.indexOf('['); index != -1) {
+        key = keyStr.sliced(0, index);
+        localeStr = keyStr.sliced(index + 1, keyStr.length() - 1 - index - 1);  // strip '[' and ']'
+    } else {
+        key = keyStr;
     }
 
-    key = matcher.captured("MainKey");
-
-    if (auto locale = matcher.captured("LOCALE"); !locale.isEmpty()) {
-        valueKey = locale;
+    QRegularExpression re{"R([^A-Za-z0-9-])"};
+    if (re.match(key).hasMatch()) {
+        qWarning() << "keyName's format is invalid.";
+        return std::nullopt;
     }
 
-    auto cur = currentGroup->find(key);
-    if (cur == currentGroup->end()) {
-        currentGroup->insert(keyStr, {{valueKey, valueStr}});
+    return qMakePair(std::move(key), std::move(localeStr));
+}
+
+DesktopErrorCode DesktopEntry::parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept
+{
+    auto [key, value] = processEntry(str);
+    auto keyPair = processEntryKey(key);
+
+    if (!keyPair.has_value()) {
+        return DesktopErrorCode::InvalidFormat;
+    }
+
+    auto [keyName, localeStr] = std::move(keyPair).value();
+    if (localeStr.isEmpty()) {
+        localeStr = defaultKeyStr;
+    }
+
+    auto valueIt = currentGroup->find(keyName);
+    if (valueIt == currentGroup->end()) {
+        currentGroup->insert(keyName, {{localeStr, value}});
         return DesktopErrorCode::NoError;
     }
 
-    auto value = cur->find(valueKey);
-    if (value == cur->end()) {
-        cur->insert(valueKey, valueStr);
+    auto innerIt = valueIt->find(localeStr);
+    if (innerIt == valueIt->end()) {
+        valueIt->insert(localeStr, value);
         return DesktopErrorCode::NoError;
     }
 
     qWarning() << "duplicated postfix and this line will be aborted, maybe format is invalid.\n"
-               << "exist: " << value.key() << "[" << value.value() << "]"
-               << "current: " << str;
+               << "exist: " << innerIt.key() << "[" << innerIt.value() << "]"
+               << "current: " << keyName << "[" << localeStr << "]";
 
     return DesktopErrorCode::NoError;
+}
+
+bool DesktopEntry::checkMainEntryValidation() const noexcept
+{
+    auto it = m_entryMap.find(DesktopFileEntryKey);
+    if (it == m_entryMap.end()) {
+        return false;
+    }
+
+    if (auto name = it->find("Name"); name == it->end()) {
+        qWarning() << "No Name.";
+        return false;
+    }
+
+    auto type = it->find("Type");
+    if (type == it->end()) {
+        qWarning() << "No Type.";
+        for (const auto &[k, v] : it->asKeyValueRange()) {
+            qInfo() << "keyName:" << k;
+            for (const auto &[key, value] : v.asKeyValueRange()) {
+                qInfo() << key << value;
+            }
+        }
+        return false;
+    }
+
+    const auto &typeStr = *type->find(defaultKeyStr);
+
+    if (typeStr == "Link") {
+        if (it->find("URL") == it->end()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept
@@ -228,9 +295,17 @@ DesktopErrorCode DesktopEntry::parse(DesktopFile &file) noexcept
     return parse(stream);
 }
 
+bool DesktopEntry::skipCheck(const QString &line) noexcept
+{
+    return line.startsWith('#') or line.isEmpty();
+}
+
 DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
 {
     if (stream.atEnd()) {
+        if (m_context == EntryContext::Done) {
+            return DesktopErrorCode::NoError;
+        }
         return DesktopErrorCode::OpenFailed;
     }
 
@@ -238,28 +313,74 @@ DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
     decltype(m_entryMap)::iterator currentGroup;
 
     DesktopErrorCode err{DesktopErrorCode::NoError};
+    bool mainEntryParsed{false};
+    QString line;
+
     while (!stream.atEnd()) {
-        auto line = stream.readLine().trimmed();
+        switch (m_context) {
+            case EntryContext::Unknown: {
+                qWarning() << "entry context is unknown,abort.";
+                err = DesktopErrorCode::InvalidFormat;
+                return err;
+            } break;
+            case EntryContext::EntryOuter: {
+                if (skipCheck(line)) {
+                    line = stream.readLine().trimmed();
+                    continue;
+                }
 
-        if (line.isEmpty()) {
-            continue;
-        }
+                if (line.startsWith('[')) {
+                    auto group = parserGroupHeader(line);
 
-        if (line[0] == '[') {
-            if (!(line[line.size() - 1] == ']')) {
-                return DesktopErrorCode::GroupHeaderInvalid;
-            }
-            currentGroup = parserGroupHeader(line);
-            continue;
-        }
+                    if (group == m_entryMap.end()) {
+                        qWarning() << "groupName format error or already exists:" << line;
+                        return DesktopErrorCode::InvalidFormat;
+                    }
+                    currentGroup = group;
+                    bool isMainEntry = (currentGroup.key() == DesktopFileEntryKey);
 
-        if (auto error = parseEntry(line, currentGroup); error != DesktopErrorCode::NoError) {
-            err = error;
-#ifdef DEBUG_MODE
-            qWarning() << "an error occurred,this line will be skipped:" << line;
-#endif
+                    if ((!mainEntryParsed and isMainEntry) or (mainEntryParsed and !isMainEntry)) {
+                        m_context = EntryContext::Entry;
+                        continue;
+                    }
+                }
+                qWarning() << "groupName format error:" << line;
+                err = DesktopErrorCode::InvalidFormat;
+                return err;
+            } break;
+            case EntryContext::Entry: {
+                line = stream.readLine().trimmed();
+
+                if (skipCheck(line)) {
+                    continue;
+                }
+
+                if (line.startsWith('[')) {
+                    m_context = EntryContext::EntryOuter;
+
+                    if (currentGroup.key() == DesktopFileEntryKey) {
+                        mainEntryParsed = true;
+                    }
+                    continue;
+                }
+
+                err = parseEntry(line, currentGroup);
+                if (err != DesktopErrorCode::NoError) {
+                    qWarning() << "Entry format error:" << line;
+                    return err;
+                }
+            } break;
+            case EntryContext::Done:
+                break;
         }
     }
+
+    m_context = EntryContext::Done;
+    if (!checkMainEntryValidation()) {
+        qWarning() << "invalid MainEntry, abort.";
+        err = DesktopErrorCode::MissingInfo;
+    }
+
     return err;
 }
 
@@ -425,12 +546,12 @@ QDebug operator<<(QDebug debug, const DesktopErrorCode &v)
             errMsg = "couldn't open the file.";
             break;
         }
-        case DesktopErrorCode::GroupHeaderInvalid: {
-            errMsg = "groupHead syntax is invalid.";
+        case DesktopErrorCode::InvalidFormat: {
+            errMsg = "the format of desktopEntry file is invalid.";
             break;
         }
-        case DesktopErrorCode::EntryKeyInvalid: {
-            errMsg = "key syntax is invalid.";
+        case DesktopErrorCode::MissingInfo: {
+            errMsg = "missing required infomation.";
             break;
         }
     }
