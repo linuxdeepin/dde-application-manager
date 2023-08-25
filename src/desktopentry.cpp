@@ -21,7 +21,7 @@ bool isInvalidLocaleString(const QString &str) noexcept
     constexpr auto Language = R"((?:[a-z]+))";        // language of locale postfix. eg.(en, zh)
     constexpr auto Country = R"((?:_[A-Z]+))";        // country of locale postfix. eg.(US, CN)
     constexpr auto Encoding = R"((?:\.[0-9A-Z-]+))";  // encoding of locale postfix. eg.(UFT-8)
-    constexpr auto Modifier = R"((?:@[a-z=;]+))";     // modifier of locale postfix. eg.(euro;collation=traditional)
+    constexpr auto Modifier = R"((?:@[a-zA-Z=;]+))";  // modifier of locale postfix. eg.(euro;collation=traditional)
     const static auto validKey = QString(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier);
     // example: https://regex101.com/r/hylOay/2
     static const QRegularExpression _re = []() -> QRegularExpression {
@@ -75,7 +75,7 @@ private:
 void Parser::skip() noexcept
 {
     while (!m_stream.atEnd() and (m_line.startsWith('#') or m_line.isEmpty())) {
-        m_line = m_stream.readLine();
+        m_line = m_stream.readLine().trimmed();
     }
 }
 
@@ -137,6 +137,9 @@ DesktopErrorCode Parser::addGroup(Groups &ret) noexcept
     m_line.clear();
     while (!m_stream.atEnd() && !m_line.startsWith('[')) {
         skip();
+        if (m_line.startsWith('[')) {
+            break;
+        }
         auto err = addEntry(group);
         if (err != DesktopErrorCode::NoError) {
             return err;
@@ -198,7 +201,12 @@ DesktopErrorCode Parser::addEntry(Groups::iterator &group) noexcept
         return DesktopErrorCode::NoError;
     }
 
-    group->insert(key, {{localeStr, valueStr}});
+    if (keyIt == group->end()) {
+        group->insert(key, {{localeStr, valueStr}});
+        return DesktopErrorCode::NoError;
+    }
+
+    keyIt->insert(localeStr, valueStr);
     return DesktopErrorCode::NoError;
 }
 
@@ -482,7 +490,9 @@ QString DesktopEntry::Value::toString(bool &ok) const noexcept
 {
     ok = false;
     auto str = this->find(defaultKeyStr);
+
     if (str == this->end()) {
+        qWarning() << "value not found.";
         return {};
     }
 
