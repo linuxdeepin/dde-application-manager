@@ -15,14 +15,22 @@
 #include <chrono>
 #include <cstdio>
 
-auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
+auto DesktopEntry::parseGroupHeader(const QString &str) noexcept
 {
+    // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#group-header
+
     auto groupHeader = str.sliced(1, str.size() - 2).trimmed();
     decltype(m_entryMap)::iterator it{m_entryMap.end()};
 
-    QRegularExpression re{R"([^\x20-\x5a-\x5e-\x7e\x5c])"};
+    // NOTE:
+    // This regex match '[', ']', control characters
+    // and all non-ascii characters.
+    // They are invalid in group header.
+    // https://regex101.com/r/bZhHZo/1
+    QRegularExpression re{R"([^\x20-\x5a\x5e-\x7e\x5c])"};
     auto matcher = re.match(groupHeader);
     if (matcher.hasMatch()) {
+        qWarning() << "group header invalid:" << str;
         return it;
     }
 
@@ -31,6 +39,7 @@ auto DesktopEntry::parserGroupHeader(const QString &str) noexcept
         it = m_entryMap.insert(groupHeader, {});
     }
 
+    qWarning() << "group header already exists:" << str;
     return it;
 }
 
@@ -336,10 +345,9 @@ DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
                 }
 
                 if (line.startsWith('[')) {
-                    auto group = parserGroupHeader(line);
+                    auto group = parseGroupHeader(line);
 
                     if (group == m_entryMap.end()) {
-                        qWarning() << "groupName format error or already exists:" << line;
                         return DesktopErrorCode::InvalidFormat;
                     }
                     currentGroup = group;

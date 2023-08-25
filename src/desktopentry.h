@@ -130,7 +130,7 @@ private:
     EntryContext m_context{EntryContext::EntryOuter};
     QMap<QString, QMap<QString, Value>> m_entryMap;
 
-    auto parserGroupHeader(const QString &str) noexcept;
+    auto parseGroupHeader(const QString &str) noexcept;
     [[nodiscard]] bool checkMainEntryValidation() const noexcept;
     static bool skipCheck(const QString &line) noexcept;
     static DesktopErrorCode parseEntry(const QString &str, decltype(m_entryMap)::iterator &currentGroup) noexcept;
