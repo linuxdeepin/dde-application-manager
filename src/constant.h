@@ -35,4 +35,11 @@ constexpr auto ApplicationManagerDestDBusName =
     u8"deepin_application_manager_dest_bus";
 #endif
 
+constexpr auto ObjectManagerInterface = "org.desktopspec.DBus.ObjectManager";
+constexpr auto JobManagerInterface = "org.desktopspec.JobManager1";
+constexpr auto JobInterface = "org.desktopspec.JobManager1.Job";
+constexpr auto ApplicationManagerInterface = "org.desktopspec.ApplicationManager1";
+constexpr auto InstanceInterface = "org.desktopspec.ApplicationManager1.Instance";
+constexpr auto ApplicationInterface = "org.desktopspec.ApplicationManager1.Application";
+
 #endif
