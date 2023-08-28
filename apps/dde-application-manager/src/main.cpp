@@ -26,6 +26,7 @@ void registerComplexDbusType()
     qDBusRegisterMetaType<QMap<QString, QString>>();
     qRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<PropMap>();
+    qDBusRegisterMetaType<QDBusObjectPath>();
 }
 }  // namespace
 

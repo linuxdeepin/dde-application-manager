@@ -28,8 +28,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
         std::terminate();
     }
 
-    if (!registerObjectToDBus(
-            this, DDEApplicationManager1ObjectPath, getDBusInterface(QMetaType::fromType<ApplicationManager1Adaptor>()))) {
+    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, ApplicationManagerInterface)) {
         std::terminate();
     }
 
@@ -130,8 +129,7 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
         return false;
     }
 
-    if (!registerObjectToDBus(
-            ptr, application->applicationPath().path(), getDBusInterface(QMetaType::fromType<ApplicationAdaptor>()))) {
+    if (!registerObjectToDBus(ptr, application->applicationPath().path(), ApplicationInterface)) {
         return false;
     }
     m_applicationList.insert(application->applicationPath(), application);
