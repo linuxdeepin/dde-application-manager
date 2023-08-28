@@ -9,8 +9,7 @@ JobManager1Service::JobManager1Service(ApplicationManager1Service *parent)
     : m_parent(parent)
 {
     new JobManager1Adaptor{this};
-    if (!registerObjectToDBus(
-            this, DDEApplicationManager1JobManagerObjectPath, getDBusInterface(QMetaType::fromType<JobManager1Adaptor>()))) {
+    if (!registerObjectToDBus(this, DDEApplicationManager1JobManagerObjectPath, JobManagerInterface)) {
         std::terminate();
     }
     qRegisterMetaType<LaunchTask>();
