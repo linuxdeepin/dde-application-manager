@@ -6,6 +6,7 @@
 #define SYSTEMDSIGNALDISPATCHER_H
 
 #include "global.h"
+#include <QDBusMessage>
 
 class SystemdSignalDispatcher : public QObject
 {
@@ -29,6 +30,11 @@ private:
     explicit SystemdSignalDispatcher(QObject *parent = nullptr)
         : QObject(parent)
     {
+        auto &con = ApplicationManager1DBus::instance().globalDestBus();
+        auto ret = con.call(QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "Subscribe"));
+        if (ret.type() == QDBusMessage::ErrorMessage) {
+            qFatal("%s", ret.errorMessage().toLocal8Bit().data());
+        }
         if (!connectToSignals()) {
             std::terminate();
         }
