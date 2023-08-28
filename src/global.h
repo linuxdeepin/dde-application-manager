@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QRegularExpression>
 #include <QDBusObjectPath>
+#include <QDBusArgument>
 #include <unistd.h>
 #include <QUuid>
 #include <QLoggingCategory>
@@ -34,6 +35,30 @@ using PropMap = QMap<QString, QMap<QString, QString>>;
 Q_DECLARE_METATYPE(ObjectInterfaceMap)
 Q_DECLARE_METATYPE(ObjectMap)
 Q_DECLARE_METATYPE(PropMap)
+
+struct SystemdUnitDBusMessage
+{
+    QString name;
+    QDBusObjectPath objectPath;
+};
+
+inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<SystemdUnitDBusMessage> &units)
+{
+    argument.beginArray();
+    while (!argument.atEnd()) {
+        argument.beginStructure();
+        QString _str;
+        uint32_t _uint;
+        QDBusObjectPath _path;
+        SystemdUnitDBusMessage unit;
+        argument >> unit.name >> _str >> _str >> _str >> _str >> _str >> unit.objectPath >> _uint >> _str >> _path;
+        units.push_back(unit);
+        argument.endStructure();
+    }
+    argument.endArray();
+
+    return argument;
+}
 
 inline QString getApplicationLauncherBinary()
 {
@@ -398,6 +423,7 @@ inline QStringList getAutoStartDirs()
 
 inline QPair<QString, QString> processUnitName(const QString &unitName)
 {
+    // FIXME: rewrite, using regexp.
     QString instanceId;
     QString applicationId;
 
@@ -417,10 +443,14 @@ inline QPair<QString, QString> processUnitName(const QString &unitName)
         auto app = unitName.sliced(0, lastDotIndex);
 
         auto components = app.split('-');
+        if (components.size() < 3) {
+            qDebug() << unitName << "is not a xdg application ignore";
+            return {};
+        }
         instanceId = components.takeLast();
         applicationId = components.takeLast();
     } else {
-        qDebug() << "it's not service or scope:" << unitName << "ignore.";
+        qDebug() << "it's not service or scope:" << unitName << "ignore";
         return {};
     }
 

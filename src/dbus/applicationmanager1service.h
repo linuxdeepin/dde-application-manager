@@ -53,6 +53,11 @@ private:
     std::unique_ptr<Identifier> m_identifier;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
+
+    void scanApplications() noexcept;
+    void scanInstances() noexcept;
+    void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
 };
 
 #endif
