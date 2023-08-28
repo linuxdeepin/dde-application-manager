@@ -7,6 +7,7 @@
 #include "dbus/AMobjectmanager1adaptor.h"
 #include "systemdsignaldispatcher.h"
 #include <QFile>
+#include <QDBusMessage>
 #include <unistd.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -41,66 +42,112 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
     auto &dispatcher = SystemdSignalDispatcher::instance();
 
-    connect(&dispatcher,
-            &SystemdSignalDispatcher::SystemdUnitNew,
-            this,
-            [this](const QString &unitName, const QDBusObjectPath &systemdUnitPath) {
-                auto pair = processUnitName(unitName);
-                auto appId = pair.first;
-                auto instanceId = pair.second;
-                if (appId.isEmpty()) {
-                    return;
-                }
-
-                auto appIt = std::find_if(m_applicationList.cbegin(),
-                                          m_applicationList.cend(),
-                                          [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
-
-                if (appIt == m_applicationList.cend()) [[unlikely]] {
-                    qWarning() << "couldn't find app" << appId << "in application manager.";
-                    return;
-                }
-
-                const auto &applicationPath = (*appIt)->applicationPath().path();
-
-                if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) [[likely]] {
-                    qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
-                }
-
-                return;
-            });
+    connect(&dispatcher, &SystemdSignalDispatcher::SystemdUnitNew, this, &ApplicationManager1Service::addInstanceToApplication);
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
             this,
-            [this](const QString &serviceName, QDBusObjectPath systemdUnitPath) {
-                auto pair = processUnitName(serviceName);
-                auto appId = pair.first;
-                auto instanceId = pair.second;
-                if (appId.isEmpty()) {
-                    return;
-                }
+            &ApplicationManager1Service::removeInstanceFromApplication);
 
-                auto appIt = std::find_if(m_applicationList.cbegin(),
-                                          m_applicationList.cend(),
-                                          [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+    this->scanApplications();
+    this->scanInstances();
 
-                if (appIt == m_applicationList.cend()) [[unlikely]] {
-                    qWarning() << "couldn't find app" << appId << "in application manager.";
-                    return;
-                }
+    // TODO: send custom event;
+}
 
-                const auto &appIns = (*appIt)->applicationInstances();
+void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
+{
+    auto pair = processUnitName(unitName);
+    auto appId = pair.first;
+    auto instanceId = pair.second;
+    if (appId.isEmpty()) {
+        return;
+    }
 
-                auto instanceIt = std::find_if(
-                    appIns.cbegin(), appIns.cend(), [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
-                        return value->systemdUnitPath() == systemdUnitPath;
-                    });
+    auto appIt = std::find_if(m_applicationList.cbegin(),
+                              m_applicationList.cend(),
+                              [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
 
-                if (instanceIt != appIns.cend()) [[likely]] {
-                    (*appIt)->removeOneInstance(instanceIt.key());
-                }
-            });
+    if (appIt == m_applicationList.cend()) [[unlikely]] {
+        qWarning() << "couldn't find app" << appId << "in application manager.";
+        return;
+    }
+
+    const auto &applicationPath = (*appIt)->applicationPath().path();
+
+    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) [[likely]] {
+        qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
+    }
+
+    return;
+}
+
+void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
+{
+    auto pair = processUnitName(unitName);
+    auto appId = pair.first;
+    auto instanceId = pair.second;
+    if (appId.isEmpty()) {
+        return;
+    }
+
+    auto appIt = std::find_if(m_applicationList.cbegin(),
+                              m_applicationList.cend(),
+                              [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+
+    if (appIt == m_applicationList.cend()) [[unlikely]] {
+        qWarning() << "couldn't find app" << appId << "in application manager.";
+        return;
+    }
+
+    const auto &appIns = (*appIt)->applicationInstances();
+
+    auto instanceIt =
+        std::find_if(appIns.cbegin(), appIns.cend(), [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
+            return value->systemdUnitPath() == systemdUnitPath;
+        });
+
+    if (instanceIt != appIns.cend()) [[likely]] {
+        (*appIt)->removeOneInstance(instanceIt.key());
+    }
+}
+
+void ApplicationManager1Service::scanApplications() noexcept
+{
+    QList<DesktopFile> fileList{};
+    const auto &desktopFileDirs = getDesktopFileDirs();
+
+    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this](const QFileInfo &info) -> bool {
+        DesktopErrorCode err{DesktopErrorCode::NoError};
+        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
+        if (!ret.has_value()) {
+            qWarning() << "failed to search File:" << err;
+            return false;
+        }
+        if (!this->addApplication(std::move(ret).value())) {
+            qWarning() << "add Application failed, skip...";
+        }
+        return false;  // means to apply this function to the rest of the files
+    });
+}
+
+void ApplicationManager1Service::scanInstances() noexcept
+{
+    auto &conn = ApplicationManager1DBus::instance().globalDestBus();
+    auto call_message = QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "ListUnits");
+    auto result = conn.call(call_message);
+    if (result.type() == QDBusMessage::ErrorMessage) {
+        qCritical() << "failed to scan existing instances: call to ListUnits failed:" << result.errorMessage();
+        return;
+    }
+
+    auto v = result.arguments().first();
+    QList<SystemdUnitDBusMessage> units;
+    v.value<QDBusArgument>() >> units;
+    for (const auto &unit : units) {
+        // FIXME(black_desk): Should check this unit is active or not.
+        this->addInstanceToApplication(unit.name, unit.objectPath);
+    }
 }
 
 QList<QDBusObjectPath> ApplicationManager1Service::list() const

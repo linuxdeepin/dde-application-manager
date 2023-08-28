@@ -44,21 +44,7 @@ int main(int argc, char *argv[])
 
     registerComplexDbusType();
     ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus};
-    QList<DesktopFile> fileList{};
-    const auto &desktopFileDirs = getDesktopFileDirs();
 
-    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [&AMService](const QFileInfo &info) -> bool {
-        DesktopErrorCode err{DesktopErrorCode::NoError};
-        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-        if (!ret.has_value()) {
-            qWarning() << "failed to search File:" << err;
-            return false;
-        }
-        if (!AMService.addApplication(std::move(ret).value())) {
-            qWarning() << "add Application failed, skip...";
-        }
-        return false;  // means to apply this function to the rest of the files
-    });
 #ifdef PROFILING_MODE
     auto end = std::chrono::high_resolution_clock::now();
     qCInfo(DDEAMProf) << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms";
