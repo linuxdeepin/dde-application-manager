@@ -317,7 +317,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId, const QString
     auto *adaptor = new InstanceAdaptor(service);
     QString objectPath{m_applicationPath.path() + "/" + instanceId};
 
-    if (registerObjectToDBus(service, objectPath, getDBusInterface(QMetaType::fromType<InstanceAdaptor>()))) {
+    if (registerObjectToDBus(service, objectPath, InstanceInterface)) {
         m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
         service->moveToThread(this->thread());
         adaptor->moveToThread(this->thread());
