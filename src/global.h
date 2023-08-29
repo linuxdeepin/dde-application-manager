@@ -39,6 +39,7 @@ Q_DECLARE_METATYPE(PropMap)
 struct SystemdUnitDBusMessage
 {
     QString name;
+    QString subState;
     QDBusObjectPath objectPath;
 };
 
@@ -51,7 +52,7 @@ inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<Syst
         uint32_t _uint;
         QDBusObjectPath _path;
         SystemdUnitDBusMessage unit;
-        argument >> unit.name >> _str >> _str >> _str >> _str >> _str >> unit.objectPath >> _uint >> _str >> _path;
+        argument >> unit.name >> _str >> _str >> _str >> unit.subState >> _str >> unit.objectPath >> _uint >> _str >> _path;
         units.push_back(unit);
         argument.endStructure();
     }
@@ -421,9 +422,13 @@ inline QStringList getAutoStartDirs()
     return XDGConfigDirs;
 }
 
+inline bool isApplication(const QDBusObjectPath &path)
+{
+    return path.path().split('/').last().startsWith("app");
+}
+
 inline QPair<QString, QString> processUnitName(const QString &unitName)
 {
-    // FIXME: rewrite, using regexp.
     QString instanceId;
     QString applicationId;
 
@@ -443,10 +448,6 @@ inline QPair<QString, QString> processUnitName(const QString &unitName)
         auto app = unitName.sliced(0, lastDotIndex);
 
         auto components = app.split('-');
-        if (components.size() < 2) {
-            qDebug() << unitName << "is not a xdg application ignore";
-            return {};
-        }
         instanceId = components.takeLast();
         applicationId = components.takeLast();
     } else {

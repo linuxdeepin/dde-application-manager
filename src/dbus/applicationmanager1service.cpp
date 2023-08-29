@@ -57,6 +57,10 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
+    if (!isApplication(systemdUnitPath)) {
+        return;
+    }
+
     auto pair = processUnitName(unitName);
     auto appId = pair.first;
     auto instanceId = pair.second;
@@ -78,12 +82,14 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
     if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) [[likely]] {
         qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
     }
-
-    return;
 }
 
 void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
+    if (!isApplication(systemdUnitPath)) {
+        return;
+    }
+
     auto pair = processUnitName(unitName);
     auto appId = pair.first;
     auto instanceId = pair.second;
@@ -145,8 +151,12 @@ void ApplicationManager1Service::scanInstances() noexcept
     QList<SystemdUnitDBusMessage> units;
     v.value<QDBusArgument>() >> units;
     for (const auto &unit : units) {
-        // FIXME(black_desk): Should check this unit is active or not.
-        this->addInstanceToApplication(unit.name, unit.objectPath);
+        if (!isApplication(unit.objectPath)) {
+            continue;
+        }
+        if (unit.subState == "running") {
+            this->addInstanceToApplication(unit.name, unit.objectPath);
+        }
     }
 }
 
