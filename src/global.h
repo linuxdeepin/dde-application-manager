@@ -443,7 +443,7 @@ inline QPair<QString, QString> processUnitName(const QString &unitName)
         auto app = unitName.sliced(0, lastDotIndex);
 
         auto components = app.split('-');
-        if (components.size() < 3) {
+        if (components.size() < 2) {
             qDebug() << unitName << "is not a xdg application ignore";
             return {};
         }
