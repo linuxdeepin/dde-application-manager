@@ -5,7 +5,6 @@
 #include <QCoreApplication>
 #include <gtest/gtest.h>
 #include <QTimer>
-#include <sanitizer/asan_interface.h>
 
 int main(int argc, char **argv)
 {
@@ -16,7 +15,6 @@ int main(int argc, char **argv)
         ret = RUN_ALL_TESTS();
         QCoreApplication::quit();
     });
-    __sanitizer_set_report_path("asan_am.log");
     QCoreApplication::exec();
     return ret;
 }
