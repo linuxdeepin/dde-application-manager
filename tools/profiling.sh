@@ -10,7 +10,7 @@ BUILD_DIR=${BUILD_DIR:="build-prof"}
 
 cmake -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DDEBUG_MODE=OFF \
+    -DDDE_DEBUG_MODE=OFF \
     -DPROFILING_MODE=ON
 
 cmake --build "$BUILD_DIR" -j$(nproc)
