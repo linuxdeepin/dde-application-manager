@@ -196,24 +196,12 @@ void unregisterObjectFromDBus(const QString &path);
 
 inline QString getDBusInterface(const QMetaType &meta)
 {
-    auto name = QString{meta.name()};
-    if (name == "ApplicationAdaptor") {
-        return ApplicationInterface;
+    const auto *infoObject = meta.metaObject();
+    if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
+        return infoObject->classInfo(infoIndex).value();
     }
-
-    if (name == "InstanceAdaptor") {
-        return InstanceInterface;
-    }
-
-    if (name == "APPObjectManagerAdaptor" or name == "AMObjectManagerAdaptor") {
-        return ObjectManagerInterface;
-    }
-    // const auto *infoObject = meta.metaObject();
-    // if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
-    //     return infoObject->classInfo(infoIndex).value();
-    // }
-    qWarning() << "couldn't found interface:" << name;
-    return "";
+    qWarning() << "no interface found.";
+    return {};
 }
 
 inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(QObject *o)

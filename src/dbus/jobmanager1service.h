@@ -61,7 +61,7 @@ public:
 
         auto *ptr = job.data();
         new JobAdaptor(ptr);
-        if (!registerObjectToDBus(ptr, objectPath, JobInterface)) {
+        if (!registerObjectToDBus(ptr, objectPath, getDBusInterface(QMetaType::fromType<JobAdaptor>()))) {
             qCritical() << "can't register job to dbus.";
             future.cancel();
             return {};
