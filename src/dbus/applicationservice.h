@@ -20,7 +20,6 @@
 #include "dbus/instanceservice.h"
 #include "global.h"
 #include "desktopentry.h"
-#include "desktopicons.h"
 #include "dbus/jobmanager1service.h"
 
 class ApplicationService : public QObject, public QDBusContext
@@ -45,15 +44,11 @@ public:
     Q_PROPERTY(PropMap DisplayName READ displayName)
     [[nodiscard]] PropMap displayName() const noexcept;
 
-    Q_PROPERTY(PropMap IconName READ iconName)
-    [[nodiscard]] PropMap iconName() const noexcept;
+    Q_PROPERTY(PropMap Icons READ icons)
+    [[nodiscard]] PropMap icons() const noexcept;
 
     Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime)
     [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
-
-    Q_PROPERTY(IconMap Icons READ icons)
-    [[nodiscard]] IconMap icons() const;
-    IconMap &iconsRef();
 
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart)
     [[nodiscard]] bool isAutoStart() const noexcept;
@@ -98,7 +93,6 @@ private:
     QString m_launcher{getApplicationLauncherBinary()};
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
-    QSharedPointer<DesktopIcons> m_Icons{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     static QString userNameLookup(uid_t uid);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
