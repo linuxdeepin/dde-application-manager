@@ -248,7 +248,7 @@ PropMap ApplicationService::displayName() const noexcept
     return ret;
 }
 
-PropMap ApplicationService::iconName() const noexcept
+PropMap ApplicationService::icons() const noexcept
 {
     PropMap ret;
     auto actionList = actions();
@@ -281,19 +281,6 @@ QString ApplicationService::id() const noexcept
 qulonglong ApplicationService::lastLaunchedTime() const noexcept
 {
     return m_lastLaunch;
-}
-
-IconMap ApplicationService::icons() const
-{
-    if (m_Icons) {
-        return m_Icons->icons();
-    }
-    return {};
-}
-
-IconMap &ApplicationService::iconsRef()
-{
-    return m_Icons->iconsRef();
 }
 
 bool ApplicationService::isAutoStart() const noexcept

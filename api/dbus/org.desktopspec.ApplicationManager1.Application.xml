@@ -34,33 +34,6 @@
             />
         </property>
 
-        <property name="Icons" type="a{sa{ua{sh}}}" access="read">
-            <annotation
-                name="org.freedesktop.DBus.Description"
-                value="The type of this property is
-                       map[action(string)]map[size(uint)]map[format(string)]fd.
-
-                       Format can be `png`, `svg`, `xpm`, `dci` or `icon`
-                       refering to the png/svg/xpm/dci format of icon files,
-                       as well as the `.icon` file contain the extra icon-data.
-
-                       NOTE:
-                       1. `action` is an action identifier
-                          which is the id of
-                          additional applications actions key.
-                          When `action` is emtpy,
-                          this method return icon of the main desktop entry.
-                          Check https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s11.html#extra-actions-identifier
-                          for futher infomation.
-                       2. `.icon` is a text file with some metadata.
-                          Check https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#file_formats
-                          for futher infomation.
-                       3. Check https://github.com/linuxdeepin/deepin-specifications
-                          for futher infomation of dci icon format."
-            />
-            <annotation name="org.qtproject.QtDBus.QtTypeName" value="IconMap"/>
-        </property>
-
         <property name="ActionName" type="a{ss}" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
@@ -69,7 +42,7 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
         </property>
 
-        <property name="IconName" type="a{ss}" access="read">
+        <property name="Icons" type="a{ss}" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="The type of IconName is a Map, where the key represents the action and the value is the corresponding content."
