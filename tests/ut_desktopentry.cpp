@@ -18,7 +18,7 @@ public:
         env = qgetenv("XDG_DATA_DIRS");
         auto curDir = QDir::current();
         QByteArray fakeXDG = (curDir.absolutePath() + QDir::separator() + "data").toLocal8Bit();
-        qputenv("XDG_DATA_DIRS", fakeXDG);
+        ASSERT_TRUE(qputenv("XDG_DATA_DIRS", fakeXDG)) ;
         DesktopErrorCode err;
         auto file = DesktopFile::searchDesktopFileById("deepin-editor", err);
         if (!file.has_value()) {

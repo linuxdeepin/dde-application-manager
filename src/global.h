@@ -366,58 +366,50 @@ inline QString getRelativePathFromAppId(const QString &id)
 
 inline QStringList getDesktopFileDirs()
 {
-    const static auto XDGDataDirs = []() {
-        auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
+    auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
 
-        if (XDGDataDirs.isEmpty()) {
-            XDGDataDirs.append("/usr/local/share");
-            XDGDataDirs.append("/usr/share");
+    if (XDGDataDirs.isEmpty()) {
+        XDGDataDirs.append("/usr/local/share");
+        XDGDataDirs.append("/usr/share");
+    }
+
+    auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
+    if (XDGDataHome.isEmpty()) {
+        XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
+    }
+
+    XDGDataDirs.push_front(std::move(XDGDataHome));
+
+    std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
+        if (!str.endsWith(QDir::separator())) {
+            str.append(QDir::separator());
         }
-
-        auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
-        if (XDGDataHome.isEmpty()) {
-            XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
-        }
-
-        XDGDataDirs.push_front(std::move(XDGDataHome));
-
-        std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
-            if (!str.endsWith(QDir::separator())) {
-                str.append(QDir::separator());
-            }
-            str.append("applications");
-        });
-
-        return XDGDataDirs;
-    }();
+        str.append("applications");
+    });
 
     return XDGDataDirs;
 }
 
 inline QStringList getAutoStartDirs()
 {
-    const static auto XDGConfigDirs = []() {
-        auto XDGConfigDirs = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_DIRS")).split(':', Qt::SkipEmptyParts);
-        if (XDGConfigDirs.isEmpty()) {
-            XDGConfigDirs.append("/etc/xdg");
+    auto XDGConfigDirs = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_DIRS")).split(':', Qt::SkipEmptyParts);
+    if (XDGConfigDirs.isEmpty()) {
+        XDGConfigDirs.append("/etc/xdg");
+    }
+
+    auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
+    if (XDGConfigHome.isEmpty()) {
+        XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
+    }
+
+    XDGConfigDirs.push_front(std::move(XDGConfigHome));
+
+    std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
+        if (!str.endsWith(QDir::separator())) {
+            str.append(QDir::separator());
         }
-
-        auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
-        if (XDGConfigHome.isEmpty()) {
-            XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
-        }
-
-        XDGConfigDirs.push_front(std::move(XDGConfigHome));
-
-        std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
-            if (!str.endsWith(QDir::separator())) {
-                str.append(QDir::separator());
-            }
-            str.append("autostart");
-        });
-
-        return XDGConfigDirs;
-    }();
+        str.append("autostart");
+    });
 
     return XDGConfigDirs;
 }
