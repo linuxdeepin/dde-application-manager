@@ -97,7 +97,6 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
-    static QString userNameLookup(uid_t uid);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
     [[nodiscard]] QVariant findEntryValue(const QString &group,
                                           const QString &valueKey,
