@@ -426,17 +426,13 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
 {
     const auto &destGroup = group(groupKey);
     if (!destGroup) {
-#ifdef DDE_DEBUG_MODE
-        qWarning() << "group " << groupKey << " can't be found.";
-#endif
+        qDebug() << "group " << groupKey << " can't be found.";
         return std::nullopt;
     }
 
     auto it = destGroup->find(valueKey);
     if (it == destGroup->cend()) {
-#ifdef DDE_DEBUG_MODE
-        qWarning() << "value " << valueKey << " can't be found.";
-#endif
+        qDebug() << "value " << valueKey << " can't be found.";
         return std::nullopt;
     }
     return *it;
