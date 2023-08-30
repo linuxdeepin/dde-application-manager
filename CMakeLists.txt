@@ -33,6 +33,7 @@ endif()
 add_subdirectory(src)
 add_subdirectory(plugins)
 add_subdirectory(apps)
+add_subdirectory(misc)
 
 include(CTest)
 

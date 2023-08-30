@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[Unit]
+Description=Deepin Application Manager
+
+[Service]
+Type=dbus
+BusName=org.deepin.dde.ApplicationManager1
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager
+Restart=always
