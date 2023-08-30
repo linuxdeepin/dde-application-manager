@@ -2,10 +2,6 @@
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 export QT_SELECT = qt6
-export DEB_CXXFLAGS_MAINT_APPEND = -O3
 
 %:
 	dh $@ --buildsystem=cmake
-
-override_dh_auto_configure:
-	dh_auto_configure -- -DCMAKE_BUILD_TYPE=Release -DDDE_DEBUG_MODE=OFF -DBUILD_TESTING=ON
