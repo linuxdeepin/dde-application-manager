@@ -5,13 +5,13 @@ include(GNUInstallDirs)
 
 # # systemd service
 configure_file(
-    systemd/user/org.deepin.dde.ApplicationManager.service.in
-    systemd/user/org.deepin.dde.ApplicationManager.service
+    systemd/user/org.deepin.dde.ApplicationManager1.service.in
+    systemd/user/org.deepin.dde.ApplicationManager1.service
     @ONLY
 )
 
 set(SYSTEMD_USER_FILE
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/org.deepin.dde.ApplicationManager.service
+    ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/org.deepin.dde.ApplicationManager1.service
 )
 
 install(FILES ${SYSTEMD_USER_FILE} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user/)
