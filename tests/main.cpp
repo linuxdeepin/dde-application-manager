@@ -5,10 +5,21 @@
 #include <QCoreApplication>
 #include <gtest/gtest.h>
 #include <QTimer>
+#include <QDBusMetaType>
+
+namespace {
+void registerComplexDbusType()
+{
+    qDBusRegisterMetaType<QDBusObjectPath>();
+}
+}  // namespace
 
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+
+    registerComplexDbusType();
+
     ::testing::InitGoogleTest(&argc, argv);
     int ret{0};
     QTimer::singleShot(0, &app, [&ret] {
