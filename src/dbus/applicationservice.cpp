@@ -202,25 +202,25 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
 QStringList ApplicationService::actions() const noexcept
 {
-    if (m_entry.isNull()) {
-        qWarning() << "desktop entry is empty, source file:" << m_desktopSource.sourcePath();
+    auto val = findEntryValue(DesktopFileEntryKey, "Actions", EntryValueType::String);
+
+    if (val.isNull()) {
         return {};
     }
 
-    const auto &actions = m_entry->value(DesktopFileEntryKey, "Actions");
-    if (!actions) {
-        return {};
-    }
-
-    bool ok{false};
-    const auto &str = actions->toString(ok);
-    if (!ok) {
-        qWarning() << "Actions convert to String failed.";
-        return {};
-    }
-
-    auto actionList = str.split(";", Qt::SkipEmptyParts);
+    auto actionList = val.toString().split(";", Qt::SkipEmptyParts);
     return actionList;
+}
+
+QStringList ApplicationService::categories() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "Categories", EntryValueType::String);
+
+    if (val.isNull()) {
+        return {};
+    }
+
+    return val.toString().split(';', Qt::SkipEmptyParts);
 }
 
 PropMap ApplicationService::actionName() const noexcept
@@ -476,4 +476,48 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     }
 
     return task;
+}
+
+QVariant ApplicationService::findEntryValue(const QString &group,
+                                            const QString &valueKey,
+                                            EntryValueType type,
+                                            const QLocale &locale) const noexcept
+{
+    QVariant ret;
+    auto tmp = m_entry->value(group, valueKey);
+    if (!tmp.has_value()) {
+        return ret;
+    }
+
+    auto val = std::move(tmp).value();
+    bool ok{false};
+
+    switch (type) {
+    case EntryValueType::String: {
+        auto valStr = val.toString(ok);
+        if (ok) {
+            ret = QVariant::fromValue(valStr);
+        }
+    } break;
+    case EntryValueType::LocaleString: {
+        auto valStr = val.toLocaleString(locale, ok);
+        if (ok) {
+            ret = QVariant::fromValue(valStr);
+        }
+    } break;
+    case EntryValueType::Boolean: {
+        auto valBool = val.toBoolean(ok);
+        if (ok) {
+            ret = QVariant::fromValue(valBool);
+        }
+    } break;
+    case EntryValueType::IconString: {
+        auto valStr = val.toIconString(ok);
+        if (ok) {
+            ret = QVariant::fromValue(valStr);
+        }
+    } break;
+    }
+
+    return ret;
 }

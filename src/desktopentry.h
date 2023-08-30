@@ -29,6 +29,8 @@ enum class DesktopErrorCode {
 
 enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
+enum class EntryValueType { String, LocaleString, Boolean, IconString };
+
 struct DesktopFileGuard;
 
 struct DesktopFile
