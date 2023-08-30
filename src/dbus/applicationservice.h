@@ -32,6 +32,9 @@ public:
     ApplicationService &operator=(const ApplicationService &) = delete;
     ApplicationService &operator=(ApplicationService &&) = delete;
 
+    Q_PROPERTY(QStringList Categories READ categories)
+    [[nodiscard]] QStringList categories() const noexcept;
+
     Q_PROPERTY(QStringList Actions READ actions)
     [[nodiscard]] QStringList actions() const noexcept;
 
@@ -96,6 +99,10 @@ private:
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     static QString userNameLookup(uid_t uid);
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
+    [[nodiscard]] QVariant findEntryValue(const QString &group,
+                                          const QString &valueKey,
+                                          EntryValueType type,
+                                          const QLocale &locale = getUserLocale()) const noexcept;
 };
 
 #endif

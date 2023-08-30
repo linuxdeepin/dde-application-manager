@@ -5,6 +5,8 @@
                 name="org.freedesktop.DBus.Description"
                 value="This interface is designed to provide a dbus interface of desktop file. Missing fields will be added later."
         />
+        
+        <property name="Categories" type="as" access="read"/>
 
         <property name="Actions" type="as" access="read">
            <annotation
