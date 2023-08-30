@@ -6,7 +6,7 @@
 #include "APPobjectmanager1adaptor.h"
 #include "applicationmanager1service.h"
 #include "dbus/instanceadaptor.h"
-#include "pwd.h"
+#include "launchoptions.h"
 #include <QUuid>
 #include <QStringList>
 #include <QList>
@@ -125,27 +125,13 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         }
     }
 
-    auto [bin, cmds, res] = unescapeExec(execStr, fields);
+    auto cmds = generateCommand(options);
 
-    uid_t uid;
-    auto it = options.find("uid");
-    if (it != options.cend()) {
-        uid = it->toUInt(&ok);
-        if (!ok) {
-            qWarning() << "convert uid string to uint failed: " << *it;
-            return {};
-        }
+    auto [bin, execCmds, res] = unescapeExec(execStr, fields);
 
-        if (uid != getCurrentUID()) {
-            cmds.prepend(userNameLookup(uid));
-            cmds.prepend("--user");
-            cmds.prepend("pkexec");
-        }
-    } else {
-        uid = getCurrentUID();
-    }
+    cmds.append(std::move(execCmds));
 
-    cmds.prepend("--");
+    qDebug() << "run application with:" << cmds;
 
     auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
 
@@ -346,12 +332,6 @@ QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) cons
 void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
 {
     m_entry.reset(newEntry);
-}
-
-QString ApplicationService::userNameLookup(uid_t uid)
-{
-    auto *pws = getpwuid(uid);
-    return pws->pw_name;
 }
 
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)

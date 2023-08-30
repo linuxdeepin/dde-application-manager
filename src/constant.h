@@ -42,4 +42,8 @@ constexpr auto ApplicationManagerInterface = "org.desktopspec.ApplicationManager
 constexpr auto InstanceInterface = "org.desktopspec.ApplicationManager1.Instance";
 constexpr auto ApplicationInterface = "org.desktopspec.ApplicationManager1.Application";
 
+constexpr auto systemdOption = u8"systemd";
+constexpr auto splitOption = u8"split";
+constexpr auto AppExecOption = u8"appExec";
+
 #endif
