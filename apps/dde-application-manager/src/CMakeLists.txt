@@ -1,4 +1,4 @@
-set(BIN_NAME dde-application-manager)
+set(BIN_NAME dde-application-manager-reborn)
 
 add_executable(${BIN_NAME} main.cpp utils.cpp)
 

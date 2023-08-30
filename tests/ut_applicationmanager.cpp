@@ -27,6 +27,9 @@ class TestApplicationManager : public testing::Test
 public:
     static void SetUpTestCase()
     {
+        if (!QDBusConnection::sessionBus().isConnected()) {
+            GTEST_SKIP() << "skip for now.";
+        }
         auto &bus = ApplicationManager1DBus::instance();
         bus.initGlobalServerBus(DBusType::Session);
         bus.setDestBus();
@@ -51,6 +54,9 @@ public:
 
 TEST_F(TestApplicationManager, identifyService)
 {
+    if (m_am == nullptr) {
+        GTEST_SKIP() << "skip for now...";
+    }
     using namespace std::chrono_literals;
     // for service unit
     auto workingDir = QDir::cleanPath(QDir::current().absolutePath() + QDir::separator() + ".." + QDir::separator() + "tools");
@@ -73,7 +79,7 @@ TEST_F(TestApplicationManager, identifyService)
         GTEST_SKIP() << "invoke systemd-run failed.";
     }
 
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(500ms);
 
     auto success = pidFile.open(QFile::ReadOnly | QFile::Text | QFile::ExistingOnly);
     EXPECT_TRUE(success);
@@ -113,7 +119,7 @@ TEST_F(TestApplicationManager, identifyService)
                                          {"Scope"}},
                                         workingDir));
 
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(500ms);
 
     success = pidFile.open(QFile::ReadOnly | QFile::Text | QFile::ExistingOnly);
     EXPECT_TRUE(success);

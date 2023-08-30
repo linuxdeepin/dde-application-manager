@@ -4,5 +4,5 @@
 
 [D-BUS Service]
 Name=org.deepin.dde.ApplicationManager1
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager-reborn
 SystemdService=org.deepin.dde.ApplicationManager1.service
