@@ -259,12 +259,12 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
 
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept
 {
-    auto mtime = getFileModifiedTime(*temporaryFile);
+    auto [ctime, mtime, _] = getFileTimeInfo(*temporaryFile);
     if (mtime == 0) {
         qWarning() << "create temporary file failed.";
         return std::nullopt;
     }
-    return DesktopFile{std::move(temporaryFile), "", mtime};
+    return DesktopFile{std::move(temporaryFile), "", mtime, ctime};
 }
 
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString &temporaryFile) noexcept
@@ -330,7 +330,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
     auto filePtr = std::make_unique<QFile>(std::move(path));
 
-    auto mtime = getFileModifiedTime(*filePtr);
+    auto [ctime, mtime, _] = getFileTimeInfo(*filePtr);
 
     if (mtime == 0) {
         err = DesktopErrorCode::OpenFailed;
@@ -338,7 +338,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     }
 
     err = DesktopErrorCode::NoError;
-    return DesktopFile{std::move(filePtr), std::move(id), mtime};
+    return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};
 }
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
