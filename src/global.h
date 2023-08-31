@@ -88,7 +88,7 @@ void applyIteratively(QList<QDir> dirs, T &&func)
     QList<QDir> dirList{std::move(dirs)};
 
     while (!dirList.isEmpty()) {
-        const auto dir = dirList.takeFirst();
+        const auto &dir = dirList.takeFirst();
 
         if (!dir.exists()) {
             qWarning() << "apply function to an non-existent directory:" << dir.absolutePath() << ", skip.";
@@ -467,20 +467,12 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     return objs;
 }
 
-inline std::tuple<std::size_t, std::size_t, std::size_t> getFileTimeInfo(QFile &file)
+inline std::tuple<std::size_t, std::size_t, std::size_t> getFileTimeInfo(const QFileInfo &file)
 {
     struct stat buf;
-    QFileInfo info{file};
 
-    if (!file.isOpen()) {
-        if (auto ret = file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text); !ret) {
-            qWarning() << "open file" << info.absoluteFilePath() << "failed.";
-            return std::make_tuple(0, 0, 0);
-        }
-    }
-
-    if (auto ret = stat(info.absoluteFilePath().toLocal8Bit().data(), &buf); ret == -1) {
-        qWarning() << "get file" << info.absoluteFilePath() << "state failed:" << std::strerror(errno);
+    if (auto ret = stat(file.absoluteFilePath().toLocal8Bit().constData(), &buf); ret == -1) {
+        qWarning() << "get file" << file.absoluteFilePath() << "state failed:" << std::strerror(errno);
         return std::make_tuple(0, 0, 0);
     }
 
