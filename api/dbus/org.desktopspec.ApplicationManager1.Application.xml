@@ -87,10 +87,9 @@
                        2. `env` (type s):
                           passing some specific environment variables to Launch
                           this application, eg. 'LANG=en_US;PATH=xxx:yyy;'
-
-                        NOTE:
-                        when application try to be launched by other user identity,
-                        all environment variables will be ignored.
+                       NOTE:
+                       When application launched with `uid` option,
+                       `env` option will not take effect at all."
             />
         </method>
     </interface>
