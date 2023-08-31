@@ -259,7 +259,7 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
 
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept
 {
-    auto [ctime, mtime, _] = getFileTimeInfo(*temporaryFile);
+    auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*temporaryFile});
     if (mtime == 0) {
         qWarning() << "create temporary file failed.";
         return std::nullopt;
@@ -330,12 +330,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
     auto filePtr = std::make_unique<QFile>(std::move(path));
 
-    auto [ctime, mtime, _] = getFileTimeInfo(*filePtr);
-
-    if (mtime == 0) {
-        err = DesktopErrorCode::OpenFailed;
-        return std::nullopt;
-    }
+    auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*filePtr});
 
     err = DesktopErrorCode::NoError;
     return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};

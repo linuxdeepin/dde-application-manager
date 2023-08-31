@@ -11,3 +11,5 @@ BusName=org.deepin.dde.ApplicationManager1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager-reborn
 Restart=always
 Environment=QT_LOGGING_RULES="*.debug=false"
+PrivateUsers=false
+# turn off PrivateUser to prevent AM can't access some directory. eg. "/persistent/linglong"

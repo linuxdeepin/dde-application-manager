@@ -270,7 +270,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         return;
     }
 
-    auto mtime = getFileTimeInfo(desktopFile.sourceFileRef());
+    auto mtime = getFileTimeInfo(QFileInfo{desktopFile.sourceFileRef()});
 
     if (destApp->desktopFileSource().modified(std::get<1>(mtime))) {
         auto *newEntry = new (std::nothrow) DesktopEntry{};
