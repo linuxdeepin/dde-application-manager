@@ -99,7 +99,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             break;
         }
 
-        const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileEntryKey, action);
+        const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
         const auto &actionExec = m_entry->value(actionHeader, "Exec");
         if (!actionExec) {
             break;
