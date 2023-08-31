@@ -60,6 +60,15 @@ public:
     Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances)
     [[nodiscard]] QList<QDBusObjectPath> instances() const noexcept;
 
+    Q_PROPERTY(bool X_Flatpak READ x_Flatpak)
+    [[nodiscard]] bool x_Flatpak() const noexcept;
+
+    Q_PROPERTY(bool X_linglong READ x_linglong)
+    [[nodiscard]] bool x_linglong() const noexcept;
+
+    Q_PROPERTY(qulonglong installedTime READ installedTime)
+    [[nodiscard]] qulonglong installedTime() const noexcept;
+
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }

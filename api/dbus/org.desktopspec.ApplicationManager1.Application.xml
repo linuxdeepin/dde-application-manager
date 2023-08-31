@@ -7,6 +7,9 @@
         />
         
         <property name="Categories" type="as" access="read"/>
+        <property name="X_linglong" type="b" access="read"/>
+        <property name="X_Flatpak" type="b" access="read"/>
+        <property name="installedTime" type="t" access="read"/>
 
         <property name="Actions" type="as" access="read">
            <annotation

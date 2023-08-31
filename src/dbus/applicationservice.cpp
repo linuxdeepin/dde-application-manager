@@ -264,6 +264,23 @@ QString ApplicationService::id() const noexcept
     return m_desktopSource.desktopId();
 }
 
+bool ApplicationService::x_Flatpak() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "X-flatpak", EntryValueType::String);
+    return val.isNull();
+}
+
+bool ApplicationService::x_linglong() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "X-linglong", EntryValueType::String);
+    return val.isNull();
+}
+
+qulonglong ApplicationService::installedTime() const noexcept
+{
+    return m_desktopSource.createTime();
+}
+
 qulonglong ApplicationService::lastLaunchedTime() const noexcept
 {
     return m_lastLaunch;

@@ -467,7 +467,7 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     return objs;
 }
 
-inline std::size_t getFileModifiedTime(QFile &file)
+inline std::tuple<std::size_t, std::size_t, std::size_t> getFileTimeInfo(QFile &file)
 {
     struct stat buf;
     QFileInfo info{file};
@@ -475,17 +475,22 @@ inline std::size_t getFileModifiedTime(QFile &file)
     if (!file.isOpen()) {
         if (auto ret = file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text); !ret) {
             qWarning() << "open file" << info.absoluteFilePath() << "failed.";
-            return 0;
+            return std::make_tuple(0, 0, 0);
         }
     }
 
     if (auto ret = stat(info.absoluteFilePath().toLocal8Bit().data(), &buf); ret == -1) {
         qWarning() << "get file" << info.absoluteFilePath() << "state failed:" << std::strerror(errno);
-        return 0;
+        return std::make_tuple(0, 0, 0);
     }
 
     constexpr std::size_t secToNano = 1e9;
-    return buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec;
+
+    auto mtime = buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec;
+    auto ctime = buf.st_ctim.tv_sec * secToNano + buf.st_ctim.tv_nsec;
+    auto atime = buf.st_atim.tv_sec * secToNano + buf.st_atim.tv_nsec;
+
+    return std::make_tuple(ctime, mtime, atime);
 }
 
 #endif

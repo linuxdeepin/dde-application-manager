@@ -270,9 +270,9 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         return;
     }
 
-    auto mtime = getFileModifiedTime(desktopFile.sourceFileRef());
+    auto mtime = getFileTimeInfo(desktopFile.sourceFileRef());
 
-    if (destApp->desktopFileSource().modified(mtime)) {
+    if (destApp->desktopFileSource().modified(std::get<1>(mtime))) {
         auto *newEntry = new (std::nothrow) DesktopEntry{};
         if (newEntry == nullptr) {
             qCritical() << "new DesktopEntry failed.";

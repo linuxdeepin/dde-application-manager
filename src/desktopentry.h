@@ -48,6 +48,7 @@ struct DesktopFile
     [[nodiscard]] QFile &sourceFileRef() const noexcept { return *m_fileSource; };
     [[nodiscard]] const QString &desktopId() const noexcept { return m_desktopId; }
     [[nodiscard]] bool modified(std::size_t time) const noexcept;
+    [[nodiscard]] std::size_t createTime() const noexcept { return m_ctime; }
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
@@ -55,14 +56,16 @@ struct DesktopFile
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
 private:
-    DesktopFile(std::unique_ptr<QFile> source, QString fileId, std::size_t mtime)
+    DesktopFile(std::unique_ptr<QFile> source, QString fileId, std::size_t mtime, std::size_t ctime)
         : m_mtime(mtime)
+        , m_ctime(ctime)
         , m_fileSource(std::move(source))
         , m_desktopId(std::move(fileId))
     {
     }
 
     std::size_t m_mtime;
+    std::size_t m_ctime;
     std::unique_ptr<QFile> m_fileSource{nullptr};
     QString m_desktopId{""};
 };
