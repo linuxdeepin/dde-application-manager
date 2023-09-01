@@ -7,7 +7,7 @@ Description=Deepin Application Manager
 
 [Service]
 Type=dbus
-BusName=org.deepin.dde.ApplicationManager1
+BusName=org.desktopspec.ApplicationManager1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager-reborn
 Restart=always
 Environment=QT_LOGGING_RULES="*.debug=false"

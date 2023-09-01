@@ -5,26 +5,26 @@ include(GNUInstallDirs)
 
 # # systemd service
 configure_file(
-    systemd/user/org.deepin.dde.ApplicationManager1.service.in
-    systemd/user/org.deepin.dde.ApplicationManager1.service
+    systemd/user/org.desktopspec.ApplicationManager1.service.in
+    systemd/user/org.desktopspec.ApplicationManager1.service
     @ONLY
 )
 
 set(SYSTEMD_USER_FILE
-    ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/org.deepin.dde.ApplicationManager1.service
+    ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/org.desktopspec.ApplicationManager1.service
 )
 
 install(FILES ${SYSTEMD_USER_FILE} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user/)
 
 # # dbus activate
 configure_file(
-    dbus/org.deepin.dde.ApplicationManager1.service.in
-    dbus/org.deepin.dde.ApplicationManager1.service
+    dbus/org.desktopspec.ApplicationManager1.service.in
+    dbus/org.desktopspec.ApplicationManager1.service
     @ONLY
 )
 
 set(DBUS_APPLICATION_MANAGER_SERVICE_FILE
-    ${CMAKE_CURRENT_BINARY_DIR}/dbus/org.deepin.dde.ApplicationManager1.service
+    ${CMAKE_CURRENT_BINARY_DIR}/dbus/org.desktopspec.ApplicationManager1.service
 )
 
 # install to session service directory for now
