@@ -10,14 +10,14 @@ constexpr auto SystemdObjectPath = u8"/org/freedesktop/systemd1";
 constexpr auto SystemdInterfaceName = u8"org.freedesktop.systemd1.Manager";
 constexpr auto DDEApplicationManager1ServiceName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
-    u8"org.deepin.dde.debug.ApplicationManager1";
+    u8"org.desktopspec.debug.ApplicationManager1";
 #else
-    u8"org.deepin.dde.ApplicationManager1";
+    u8"org.desktopspec.ApplicationManager1";
 #endif
 
-constexpr auto DDEApplicationManager1ObjectPath = u8"/org/deepin/dde/ApplicationManager1";
-constexpr auto DDEAutoStartManager1ObjectPath = u8"/org/deepin/dde/AutoStartManager1";
-constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/deepin/dde/ApplicationManager1/JobManager1";
+constexpr auto DDEApplicationManager1ObjectPath = u8"/org/desktopspec/ApplicationManager1";
+constexpr auto DDEAutoStartManager1ObjectPath = u8"/org/desktopspec/AutoStartManager1";
+constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/desktopspec/ApplicationManager1/JobManager1";
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
 
