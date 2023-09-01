@@ -298,7 +298,9 @@ void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &appIdL
                                     [&appId](const QSharedPointer<ApplicationService> &app) { return appId == app->id(); });
 
         if (err == DesktopErrorCode::NotFound) {
-            removeOneApplication(destApp.key());
+            if (destApp != m_applicationList.cend()) {
+                removeOneApplication(destApp.key());
+            }
             continue;
         }
 
