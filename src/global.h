@@ -471,6 +471,7 @@ inline std::tuple<std::size_t, std::size_t, std::size_t> getFileTimeInfo(const Q
 {
     struct stat buf;
 
+    // TODO: use QFileInfo get timeInfo, and return a custom time structure.
     if (auto ret = stat(file.absoluteFilePath().toLocal8Bit().constData(), &buf); ret == -1) {
         qWarning() << "get file" << file.absoluteFilePath() << "state failed:" << std::strerror(errno);
         return std::make_tuple(0, 0, 0);
