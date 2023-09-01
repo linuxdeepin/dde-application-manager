@@ -13,6 +13,7 @@
 #include <QUrl>
 #include <QRegularExpression>
 #include <QProcess>
+#include <QStandardPaths>
 #include <algorithm>
 #include <new>
 
@@ -184,6 +185,71 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             return objectPath;
         },
         std::move(res));
+}
+
+bool ApplicationService::SendToDesktop() const noexcept
+{
+    if (isOnDesktop()) {
+        return true;
+    }
+
+    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    if (dir.isEmpty()) {
+        qDebug() << "no desktop directory found.";
+        return false;
+    }
+
+    auto desktopFile = QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop");
+    auto success = m_desktopSource.sourceFileRef().link(desktopFile);
+    if (!success) {
+        qDebug() << "create link failed:" << m_desktopSource.sourceFileRef().errorString() << "path:" << desktopFile;
+    }
+
+    return success;
+}
+
+bool ApplicationService::RemoveFromDesktop() const noexcept
+{
+    if (!isOnDesktop()) {
+        return true;
+    }
+
+    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    if (dir.isEmpty()) {
+        qDebug() << "no desktop directory found.";
+        return false;
+    }
+
+    QFile desktopFile{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
+    auto success = desktopFile.remove();
+
+    if (!success) {
+        qDebug() << "remove desktop file failed:" << desktopFile.errorString();
+    }
+
+    return success;
+}
+
+bool ApplicationService::isOnDesktop() const noexcept
+{
+    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+
+    if (dir.isEmpty()) {
+        qDebug() << "no desktop directory found.";
+        return false;
+    }
+
+    QFileInfo info{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
+
+    if (!info.exists()) {
+        return false;
+    }
+
+    if (!info.isSymbolicLink()) {
+        return false;
+    }
+
+    return info.symLinkTarget() == m_desktopSource.sourcePath();
 }
 
 QStringList ApplicationService::actions() const noexcept

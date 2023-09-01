@@ -92,5 +92,16 @@
                        `env` option will not take effect at all."
             />
         </method>
+
+        <property name="isOnDesktop" type="b" access="read"/>
+
+        <method name="SendToDesktop">
+            <arg type="b" name="success" direction="out"/>
+        </method>
+
+        <method name="RemoveFromDesktop">
+            <arg type="b" name="success" direction="out"/>
+        </method>
+
     </interface>
 </node>

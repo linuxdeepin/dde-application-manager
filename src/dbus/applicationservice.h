@@ -69,6 +69,9 @@ public:
     Q_PROPERTY(qulonglong installedTime READ installedTime)
     [[nodiscard]] qulonglong installedTime() const noexcept;
 
+    Q_PROPERTY(bool isOnDesktop READ isOnDesktop)
+    [[nodiscard]] bool isOnDesktop() const noexcept;
+
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
@@ -89,6 +92,8 @@ public:
 public Q_SLOTS:
     QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
     [[nodiscard]] ObjectMap GetManagedObjects() const;
+    [[nodiscard]] bool SendToDesktop() const noexcept;
+    [[nodiscard]] bool RemoveFromDesktop() const noexcept;
 
 Q_SIGNALS:
     void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
