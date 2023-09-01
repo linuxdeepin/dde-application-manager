@@ -116,12 +116,16 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     if (execStr.isEmpty()) {
         auto Actions = m_entry->value(DesktopFileEntryKey, "Exec");
         if (!Actions) {
-            qWarning() << "application has isn't executable.";
+            QString msg{"application can't be executed."};
+            qWarning() << msg;
+            sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
         execStr = Actions->toString(ok);
         if (!ok) {
-            qWarning() << "default action value to string failed. abort...";
+            QString msg{"maybe entry actions's format is invalid, abort launch."};
+            qWarning() << msg;
+            sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
     }
@@ -151,8 +155,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                 process.start(m_launcher, commands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
-                    qWarning() << "Launch Application Failed. exitCode:" << code;
-                    return QString{""};
+                    auto msg = QString{"Launch Application Failed"};
+                    qWarning() << msg;
+                    sendErrorReply(QDBusError::Failed, msg);
+                    return {};
                 }
                 return objectPath;
             }
@@ -179,8 +185,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             process.waitForFinished();
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
-                qWarning() << "Launch Application Failed:" << binary << commands;
-                return QString{""};
+                auto msg = QString{"Launch Application Failed"};
+                qWarning() << msg;
+                sendErrorReply(QDBusError::Failed, msg);
+                return {};
             }
             return objectPath;
         },
@@ -203,6 +211,7 @@ bool ApplicationService::SendToDesktop() const noexcept
     auto success = m_desktopSource.sourceFileRef().link(desktopFile);
     if (!success) {
         qDebug() << "create link failed:" << m_desktopSource.sourceFileRef().errorString() << "path:" << desktopFile;
+        sendErrorReply(QDBusError::ErrorType::Failed, m_desktopSource.sourceFileRef().errorString());
     }
 
     return success;
@@ -225,6 +234,7 @@ bool ApplicationService::RemoveFromDesktop() const noexcept
 
     if (!success) {
         qDebug() << "remove desktop file failed:" << desktopFile.errorString();
+        sendErrorReply(QDBusError::ErrorType::Failed, desktopFile.errorString());
     }
 
     return success;
