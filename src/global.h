@@ -395,6 +395,8 @@ inline QStringList getAutoStartDirs()
         XDGConfigDirs.append("/etc/xdg");
     }
 
+    // FIXME: What if XDG_CONFIG_HOME already in XDG_CONFIG_DIRS?
+
     auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
     if (XDGConfigHome.isEmpty()) {
         XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";

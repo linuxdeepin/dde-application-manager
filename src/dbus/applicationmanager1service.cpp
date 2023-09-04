@@ -53,23 +53,24 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
     scanInstances();
 
+    // TODO: This is a workaround, we will use database at the end.
     auto runtimePath = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (runtimePath.isEmpty()) {
-        runtimePath = QString{"/run/user/%1"}.arg(getCurrentUID());
+        runtimePath = QString{"/run/user/%1/"}.arg(getCurrentUID());
     }
 
-    bool firstStart{false};
     QDir runtimeDir{runtimePath};
-    if (!runtimeDir.exists("ApplicationManager")) {
-        QFile flag{runtimeDir.filePath("ApplicationManager")};
-        if (!flag.open(QFile::WriteOnly | QFile::NewOnly)) {
-            qWarning() << "create record file failed.";
-        } else {
-            firstStart = true;
-        }
+    auto filename = "deepin-application-manager";
+    if (runtimeDir.exists(filename)) {
+        return;
     }
 
-    scanAutoStart(firstStart);
+    QFile flag{runtimeDir.filePath(filename)};
+    if (!flag.open(QFile::WriteOnly | QFile::NewOnly)) {
+        qWarning() << "create record file failed.";
+    }
+
+    scanAutoStart();
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
@@ -177,12 +178,8 @@ void ApplicationManager1Service::scanInstances() noexcept
     }
 }
 
-void ApplicationManager1Service::scanAutoStart(bool firstStart) noexcept
+void ApplicationManager1Service::scanAutoStart() noexcept
 {
-    if (!firstStart) {
-        return;
-    }
-
     auto autostartDirs = getAutoStartDirs();
     QStringList needToLaunch;
     applyIteratively(QList<QDir>{autostartDirs.cbegin(), autostartDirs.cend()}, [&needToLaunch](const QFileInfo &info) {
