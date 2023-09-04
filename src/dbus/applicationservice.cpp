@@ -372,6 +372,32 @@ bool ApplicationService::isAutoStart() const noexcept
 
 void ApplicationService::setAutoStart(bool autostart) noexcept
 {
+    if (autostart == m_AutoStart) {
+        return;
+    }
+
+    auto path = getAutoStartDirs().first();
+    auto linkName = QDir{path}.filePath(m_desktopSource.desktopId() + ".desktop");
+    auto &file = m_desktopSource.sourceFileRef();
+
+    if (autostart) {
+        if (!file.link(linkName)) {
+            qWarning() << "link to autostart failed:" << file.errorString();
+            return;
+        }
+    } else {
+        QFileInfo info{linkName};
+        if (!info.exists() or !info.isSymbolicLink()) {
+            qWarning() << "same name desktop file exists:" << linkName << "but this may not created by AM.";
+            return;
+        }
+        QFile linkFile{linkName};
+        if (!linkFile.remove()) {
+            qWarning() << "remove link failed:" << linkFile.errorString();
+            return;
+        }
+    }
+
     m_AutoStart = autostart;
 }
 

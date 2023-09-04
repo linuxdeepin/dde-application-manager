@@ -49,10 +49,27 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             this,
             &ApplicationManager1Service::removeInstanceFromApplication);
 
-    this->scanApplications();
-    this->scanInstances();
+    scanApplications();
 
-    // TODO: send custom event;
+    scanInstances();
+
+    auto runtimePath = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimePath.isEmpty()) {
+        runtimePath = QString{"/run/user/%1"}.arg(getCurrentUID());
+    }
+
+    bool firstStart{false};
+    QDir runtimeDir{runtimePath};
+    if (!runtimeDir.exists("ApplicationManager")) {
+        QFile flag{runtimeDir.filePath("ApplicationManager")};
+        if (!flag.open(QFile::WriteOnly | QFile::NewOnly)) {
+            qWarning() << "create record file failed.";
+        } else {
+            firstStart = true;
+        }
+    }
+
+    scanAutoStart(firstStart);
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
@@ -156,6 +173,33 @@ void ApplicationManager1Service::scanInstances() noexcept
         }
         if (unit.subState == "running") {
             this->addInstanceToApplication(unit.name, unit.objectPath);
+        }
+    }
+}
+
+void ApplicationManager1Service::scanAutoStart(bool firstStart) noexcept
+{
+    if (!firstStart) {
+        return;
+    }
+
+    auto autostartDirs = getAutoStartDirs();
+    QStringList needToLaunch;
+    applyIteratively(QList<QDir>{autostartDirs.cbegin(), autostartDirs.cend()}, [&needToLaunch](const QFileInfo &info) {
+        if (info.isSymbolicLink()) {
+            needToLaunch.emplace_back(info.symLinkTarget());
+        }
+        return false;
+    });
+
+    while (!needToLaunch.isEmpty()) {
+        const auto &filePath = needToLaunch.takeFirst();
+        auto appIt =
+            std::find_if(m_applicationList.constKeyValueBegin(),
+                         m_applicationList.constKeyValueEnd(),
+                         [&filePath](const auto &pair) { return pair.second->m_desktopSource.sourcePath() == filePath; });
+        if (appIt != m_applicationList.constKeyValueEnd()) {
+            appIt->second->Launch({}, {}, {});
         }
     }
 }

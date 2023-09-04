@@ -56,6 +56,7 @@ private:
 
     void scanApplications() noexcept;
     void scanInstances() noexcept;
+    void scanAutoStart(bool firstStart) noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
 };
