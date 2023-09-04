@@ -16,6 +16,7 @@
 #include <QStandardPaths>
 #include <algorithm>
 #include <new>
+#include <wordexp.h>
 
 ApplicationService::ApplicationService(DesktopFile source, ApplicationManager1Service *parent)
     : QObject(parent)
@@ -133,13 +134,15 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto cmds = generateCommand(options);
 
     auto [bin, execCmds, res] = unescapeExec(execStr, fields);
+    if (bin.isEmpty()) {
+        qCritical() << "error command is detected, abort.";
+        sendErrorReply(QDBusError::Failed);
+        return {};
+    }
 
     cmds.append(std::move(execCmds));
-
     qDebug() << "run application with:" << cmds;
-
     auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
-
     return jobManager.addJob(
         m_applicationPath.path(),
         [this, binary = std::move(bin), commands = std::move(cmds)](QVariant variantValue) mutable -> QVariant {
@@ -430,7 +433,41 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)
 {
     LaunchTask task;
-    QStringList execList = str.split(' ');
+    auto deleter = [](wordexp_t *word) { wordfree(word); };
+    std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
+
+    if (auto ret = wordexp(str.toLocal8Bit().constData(), words.get(), WRDE_SHOWERR); ret != 0) {
+        if (ret != 0) {
+            QString errMessage;
+            switch (ret) {
+            case WRDE_BADCHAR:
+                errMessage = "BADCHAR";
+                qWarning() << "wordexp error: " << errMessage;
+                return {};
+            case WRDE_BADVAL:
+                errMessage = "BADVAL";
+                break;
+            case WRDE_CMDSUB:
+                errMessage = "CMDSUB";
+                break;
+            case WRDE_NOSPACE:
+                errMessage = "NOSPACE";
+                break;
+            case WRDE_SYNTAX:
+                errMessage = "SYNTAX";
+                break;
+            default:
+                errMessage = "unknown";
+            }
+            qWarning() << "wordexp error: " << errMessage;
+            return {};
+        }
+    }
+
+    QStringList execList;
+    for (int i = 0; i < words->we_wordc; ++i) {
+        execList.emplace_back(words->we_wordv[i]);
+    }
     task.LaunchBin = execList.first();
 
     QRegularExpression re{"%[fFuUickdDnNvm]"};
@@ -458,11 +495,10 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     switch (filesCode) {
     case 'f': {  // Defer to async job
         task.command.append(std::move(execList));
-        for (auto &field : fields) {
-            task.Resources.emplace_back(std::move(field));
+        for (const auto &field : fields) {
+            task.Resources.emplace_back(field);
         }
-        break;
-    }
+    } break;
     case 'u': {
         execList.removeAt(location);
         if (fields.empty()) {
@@ -474,8 +510,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         }
         execList.insert(location, fields.first());
         task.command.append(execList);
-        break;
-    }
+    } break;
     case 'F':
         [[fallthrough]];
     case 'U': {
@@ -485,8 +520,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
             it = execList.insert(it, field);
         }
         task.command.append(std::move(execList));
-        break;
-    }
+    } break;
     case 'i': {
         execList.removeAt(location);
         auto val = m_entry->value(DesktopFileEntryKey, "Icon");
@@ -505,8 +539,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         auto it = execList.insert(location, iconStr);
         execList.insert(it, "--icon");
         task.command.append(std::move(execList));
-        break;
-    }
+    } break;
     case 'c': {
         execList.removeAt(location);
         auto val = m_entry->value(DesktopFileEntryKey, "Name");
@@ -524,13 +557,11 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         }
         execList.insert(location, NameStr);
         task.command.append(std::move(execList));
-        break;
-    }
+    } break;
     case 'k': {  // ignore all desktop file location for now.
         execList.removeAt(location);
         task.command.append(std::move(execList));
-        break;
-    }
+    } break;
     case 'd':
     case 'D':
     case 'n':
@@ -540,7 +571,9 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     case 'm': {
         execList.removeAt(location);
         task.command.append(std::move(execList));
-        break;
+    } break;
+    default: {
+        qDebug() << "unrecognized file code.";
     }
     }
 
