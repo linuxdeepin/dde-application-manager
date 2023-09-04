@@ -18,7 +18,6 @@ void registerComplexDbusType()
 {
     qDBusRegisterMetaType<QMap<QString, QDBusUnixFileDescriptor>>();
     qDBusRegisterMetaType<QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>();
-    qDBusRegisterMetaType<IconMap>();
     qRegisterMetaType<ObjectInterfaceMap>();
     qDBusRegisterMetaType<ObjectInterfaceMap>();
     qRegisterMetaType<ObjectMap>();
