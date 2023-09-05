@@ -4,6 +4,7 @@
 
 #include "dbus/applicationservice.h"
 #include "APPobjectmanager1adaptor.h"
+#include "applicationchecker.h"
 #include "applicationmanager1service.h"
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
@@ -69,12 +70,9 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
         return nullptr;
     }
 
-    if (auto val = entry->value(DesktopFileEntryKey, "Hidden"); val.has_value()) {
-        bool ok{false};
-        if (auto hidden = val.value().toBoolean(ok); ok and hidden) {
-            qWarning() << "invalid hidden value:" << *val.value().find(defaultKeyStr);
-            return nullptr;
-        }
+    if (!shouldBeShown(entry)) {
+        qDebug() << "application shouldn't be shown:" << app->desktopFileSource().sourcePath();
+        return nullptr;
     }
 
     app->m_entry.reset(entry.release());
@@ -87,6 +85,23 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     }
 
     return app;
+}
+
+bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept
+{
+    if (!ApplicationFilter::hiddenCheck(entry)) {
+        return true;
+    }
+
+    if (!ApplicationFilter::tryExecCheck(entry)) {
+        return true;
+    }
+
+    if (!ApplicationFilter::showInCheck(entry)) {
+        return true;
+    }
+
+    return false;
 }
 
 QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)

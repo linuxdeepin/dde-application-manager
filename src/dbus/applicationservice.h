@@ -116,6 +116,7 @@ private:
                                           const QString &valueKey,
                                           EntryValueType type,
                                           const QLocale &locale = getUserLocale()) const noexcept;
+    static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
 };
 
 #endif
