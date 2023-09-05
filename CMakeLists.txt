@@ -21,6 +21,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
 find_package(Threads REQUIRED)
 
 set(APP_LAUNCH_HELPER_BIN app-launch-helper)
+set(APP_UPDATE_NOTIFIER_BIN app-update-notifier)
 
 if(DDE_AM_USE_DEBUG_DBUS_NAME)
     add_compile_definitions(-DDDE_AM_USE_DEBUG_DBUS_NAME)

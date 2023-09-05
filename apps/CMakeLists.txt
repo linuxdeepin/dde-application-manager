@@ -1,3 +1,3 @@
 add_subdirectory(dde-application-manager)
 add_subdirectory(app-launch-helper)
-
+add_subdirectory(app-update-notifier)
