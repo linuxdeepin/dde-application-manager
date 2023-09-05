@@ -173,10 +173,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                 process.start(m_launcher, commands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
-                    auto msg = QString{"Launch Application Failed"};
-                    qWarning() << msg;
-                    sendErrorReply(QDBusError::Failed, msg);
-                    return {};
+                    qWarning() << "Launch Application Failed";
+                    return QDBusError::Failed;
                 }
                 return objectPath;
             }
@@ -203,10 +201,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             process.waitForFinished();
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
-                auto msg = QString{"Launch Application Failed"};
-                qWarning() << msg;
-                sendErrorReply(QDBusError::Failed, msg);
-                return {};
+                qWarning() << "Launch Application Failed";
+                return QDBusError::Failed;
             }
             return objectPath;
         },
