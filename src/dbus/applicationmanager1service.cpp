@@ -49,6 +49,16 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             this,
             &ApplicationManager1Service::removeInstanceFromApplication);
 
+    auto sysBus = QDBusConnection::systemBus();
+    if (!sysBus.connect("org.desktopspec.ApplicationUpdateNotifier1",
+                        "/org/desktopspec/ApplicationUpdateNotifier1",
+                        "org.desktopspec.ApplicationUpdateNotifier1",
+                        "ApplicationUpdated",
+                        this,
+                        SLOT(ReloadApplications()))) {
+        qFatal("connect to ApplicationUpdated failed.");
+    }
+
     scanApplications();
 
     scanInstances();
