@@ -10,4 +10,4 @@ Type=dbus
 User=root
 Group=root
 BusName=org.desktopspec.ApplicationUpdateNotifier1
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/app-update-notifier
+ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/deepin/application-manager/app-update-notifier
