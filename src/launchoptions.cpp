@@ -11,7 +11,8 @@
 QStringList generateCommand(const QVariantMap &props) noexcept
 {
     std::vector<std::unique_ptr<LaunchOption>> options;
-    for (const auto &[key, value] : props.asKeyValueRange()) {
+    for (auto it = props.constKeyValueBegin(); it!= props.constKeyValueEnd(); ++it) {
+        const auto &[key, value] = *it;
         if (key == setUserLaunchOption::key()) {
             options.push_back(std::make_unique<setUserLaunchOption>(value));
         } else if (key == setEnvLaunchOption::key()) {

@@ -459,7 +459,8 @@ void ApplicationService::removeAllInstance() noexcept
 
 QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) const
 {
-    for (const auto &[path, ptr] : m_Instances.asKeyValueRange()) {
+    for (auto it = m_Instances.constKeyValueBegin(); it != m_Instances.constKeyValueEnd(); ++it) {
+        const auto &[path, ptr] = *it;
         if (ptr->instanceId() == instanceId) {
             return path;
         }
