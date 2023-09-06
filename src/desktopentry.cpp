@@ -237,9 +237,11 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
     auto type = it->find("Type");
     if (type == it->end()) {
         qWarning() << "No Type.";
-        for (const auto &[k, v] : it->asKeyValueRange()) {
+        for (auto tmp = it->constKeyValueBegin(); tmp != it->constKeyValueEnd(); ++tmp) {
+            const auto& [k,v] = *tmp;
             qInfo() << "keyName:" << k;
-            for (const auto &[key, value] : v.asKeyValueRange()) {
+            for (auto valIt = v.constKeyValueBegin() ; valIt != v.constKeyValueEnd(); ++valIt) {
+                const auto &[key, value] = *valIt;
                 qInfo() << key << value;
             }
         }

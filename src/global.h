@@ -459,7 +459,8 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
 {
     ObjectMap objs;
 
-    for (const auto &[key, value] : map.asKeyValueRange()) {
+    for (auto it = map.constKeyValueBegin(); it != map.constKeyValueEnd(); ++it) {
+        const auto &[key, value] = *it;
         auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
         objs.insert(key, interAndProps);
     }
