@@ -138,7 +138,6 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
 
 void ApplicationManager1Service::scanApplications() noexcept
 {
-    QList<DesktopFile> fileList{};
     const auto &desktopFileDirs = getDesktopFileDirs();
 
     applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this](const QFileInfo &info) -> bool {
@@ -307,6 +306,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,
                                                    const DesktopFile &desktopFile) noexcept
 {
+    // TODO: add propertyChanged
     if (auto app = m_applicationList.find(destApp->applicationPath()); app == m_applicationList.cend()) {
         return;
     }
@@ -329,29 +329,40 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
     }
 }
 
-void ApplicationManager1Service::UpdateApplicationInfo(const QStringList &appIdList)
+void ApplicationManager1Service::ReloadApplications()
 {
-    for (const auto &appId : appIdList) {
-        DesktopErrorCode err{DesktopErrorCode::NotFound};
-        auto file = DesktopFile::searchDesktopFileById(appId, err);
-        auto destApp = std::find_if(m_applicationList.cbegin(),
-                                    m_applicationList.cend(),
-                                    [&appId](const QSharedPointer<ApplicationService> &app) { return appId == app->id(); });
+    const auto &desktopFileDirs = getDesktopFileDirs();
+
+    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this](const QFileInfo &info) -> bool {
+        DesktopErrorCode err{DesktopErrorCode::NoError};
+        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
+        if (!ret.has_value()) {
+            return false;
+        }
+
+        auto file = std::move(ret).value();
+
+        auto destApp =
+            std::find_if(m_applicationList.cbegin(),
+                         m_applicationList.cend(),
+                         [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
 
         if (err == DesktopErrorCode::NotFound) {
             if (destApp != m_applicationList.cend()) {
                 removeOneApplication(destApp.key());
             }
-            continue;
+            qWarning() << "failed to search File:" << err << "skip.";
+            return false;
         }
 
         if (destApp != m_applicationList.cend()) {
-            updateApplication(destApp.value(), file.value());
-            continue;
+            updateApplication(destApp.value(), file);
+            return false;
         }
 
-        addApplication(std::move(file).value());
-    }
+        addApplication(std::move(file));
+        return false;
+    });
 }
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
