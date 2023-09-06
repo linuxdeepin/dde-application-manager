@@ -343,7 +343,9 @@ void ApplicationManager1Service::ReloadApplications()
 {
     const auto &desktopFileDirs = getDesktopFileDirs();
 
-    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this](const QFileInfo &info) -> bool {
+    auto apps = m_applicationList.keys();
+
+    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this, &apps](const QFileInfo &info) -> bool {
         DesktopErrorCode err{DesktopErrorCode::NoError};
         auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
         if (!ret.has_value()) {
@@ -357,15 +359,13 @@ void ApplicationManager1Service::ReloadApplications()
                          m_applicationList.cend(),
                          [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
 
-        if (err == DesktopErrorCode::NotFound) {
-            if (destApp != m_applicationList.cend()) {
-                removeOneApplication(destApp.key());
-            }
-            qWarning() << "failed to search File:" << err << "skip.";
+        if (err != DesktopErrorCode::NoError) {
+            qWarning() << "error occurred:" << err << " skip this application.";
             return false;
         }
 
         if (destApp != m_applicationList.cend()) {
+            apps.removeOne(destApp.key());
             updateApplication(destApp.value(), file);
             return false;
         }
@@ -373,6 +373,10 @@ void ApplicationManager1Service::ReloadApplications()
         addApplication(std::move(file));
         return false;
     });
+
+    for (const auto &key : apps) {
+        removeOneApplication(key);
+    }
 }
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
