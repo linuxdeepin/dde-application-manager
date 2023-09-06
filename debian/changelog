@@ -1,3 +1,9 @@
+dde-application-manager-reborn (0.2.0) unstable; urgency=medium
+
+  * Release for integration
+
+ -- He YuMing <heyuming@deepin.org>  Wed, 6 Sep 2023 13:59:15 +0800
+
 dde-application-manager-reborn (0.1.0) unstable; urgency=medium
 
   * Initial release.
