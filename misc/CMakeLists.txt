@@ -40,4 +40,4 @@ set(DBUS_APPLICATION_MANAGER_SERVICE_FILE
 
 # install to session service directory for now
 install(FILES ${DBUS_APPLICATION_MANAGER_SERVICE_FILE}
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/service)
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services)
