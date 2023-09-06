@@ -53,6 +53,10 @@ public:
     Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime)
     [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
 
+    // FIXME:
+    // This property should implement with fuse guarded $XDG_CONFIG_HOME/autostart/.
+    // Current implementation has some problems,
+    // such as it will not emit changed signal.
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart)
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
@@ -104,7 +108,6 @@ private:
     explicit ApplicationService(DesktopFile source, ApplicationManager1Service *parent);
     static QSharedPointer<ApplicationService> createApplicationService(DesktopFile source,
                                                                        ApplicationManager1Service *parent) noexcept;
-    bool m_AutoStart{false};
     qlonglong m_lastLaunch{0};
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
@@ -117,6 +120,7 @@ private:
                                           EntryValueType type,
                                           const QLocale &locale = getUserLocale()) const noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
+    static bool autostartCheck(const QString &linkPath) noexcept;
 };
 
 #endif

@@ -376,40 +376,45 @@ qulonglong ApplicationService::lastLaunchedTime() const noexcept
     return m_lastLaunch;
 }
 
+bool ApplicationService::autostartCheck(const QString &linkPath) noexcept
+{
+    QFileInfo info{linkPath};
+
+    if (!info.exists() or !info.isSymbolicLink()) {
+        qWarning() << "same name desktop file exists:" << linkPath << "but this may not created by AM.";
+        return false;
+    }
+
+    return true;
+}
+
 bool ApplicationService::isAutoStart() const noexcept
 {
-    return m_AutoStart;
+    auto path = getAutoStartDirs().first();
+    auto linkName = QDir{path}.filePath(m_desktopSource.desktopId() + ".desktop");
+    return autostartCheck(linkName);
 }
 
 void ApplicationService::setAutoStart(bool autostart) noexcept
 {
-    if (autostart == m_AutoStart) {
-        return;
-    }
-
     auto path = getAutoStartDirs().first();
     auto linkName = QDir{path}.filePath(m_desktopSource.desktopId() + ".desktop");
     auto &file = m_desktopSource.sourceFileRef();
 
     if (autostart) {
-        if (!file.link(linkName)) {
+        if (!autostartCheck(linkName) and !file.link(linkName)) {
             qWarning() << "link to autostart failed:" << file.errorString();
             return;
         }
     } else {
-        QFileInfo info{linkName};
-        if (!info.exists() or !info.isSymbolicLink()) {
-            qWarning() << "same name desktop file exists:" << linkName << "but this may not created by AM.";
-            return;
-        }
-        QFile linkFile{linkName};
-        if (!linkFile.remove()) {
-            qWarning() << "remove link failed:" << linkFile.errorString();
-            return;
+        if (autostartCheck(linkName)) {
+            QFile linkFile{linkName};
+            if (!linkFile.remove()) {
+                qWarning() << "remove link failed:" << linkFile.errorString();
+                return;
+            }
         }
     }
-
-    m_AutoStart = autostart;
 }
 
 QList<QDBusObjectPath> ApplicationService::instances() const noexcept
