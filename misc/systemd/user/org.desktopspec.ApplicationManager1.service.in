@@ -4,12 +4,22 @@
 
 [Unit]
 Description=Deepin Application Manager
+RefuseManualStart=no
+RefuseManualStop=no
+StartLimitBurst=3
+CollectMode=inactive-or-failed
+
+Requisite=dde-session-initialized.target
+PartOf=dde-session-initialized.target
+Before=dde-session-initialized.target
 
 [Service]
 Type=dbus
 BusName=org.desktopspec.ApplicationManager1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager-reborn
-Restart=always
 Environment=QT_LOGGING_RULES="*.debug=false"
-PrivateUsers=false
 # turn off PrivateUser to prevent AM can't access some directory. eg. "/persistent/linglong"
+PrivateUsers=false
+Slice=session.slice
+Restart=always
+RestartSec=500ms
