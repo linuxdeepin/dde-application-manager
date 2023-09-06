@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(dde-application-manager
-    VERSION 0.1.0
+    VERSION 0.2.2
     DESCRIPTION "deepin applicaion manager"
     HOMEPAGE_URL "https://github.com/linuxdeepin/dde-application-manager"
     LANGUAGES C CXX
