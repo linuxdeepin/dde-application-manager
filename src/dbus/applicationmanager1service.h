@@ -42,7 +42,7 @@ public:
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd, QDBusObjectPath &application, QDBusObjectPath &application_instance);
-    void UpdateApplicationInfo(const QStringList &appIdList);
+    void ReloadApplications();
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:
