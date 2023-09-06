@@ -1,7 +1,10 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 
-add_executable(${APP_LAUNCH_HELPER_BIN} main.cpp)
+file(GLOB APP_LAUNCH_HELPER_SOURCE ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
+
+add_executable(${APP_LAUNCH_HELPER_BIN} ${APP_LAUNCH_HELPER_SOURCE})
+
 target_link_libraries(${APP_LAUNCH_HELPER_BIN} PRIVATE
     PkgConfig::SYSTEMD
 )

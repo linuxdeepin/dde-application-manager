@@ -3,34 +3,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include <numeric>
-#include <systemd/sd-bus.h>
-#include <systemd/sd-journal.h>
-#include <string_view>
-#include <string>
+#include <unordered_map>
 #include <vector>
 #include <deque>
 #include <memory>
 #include <iostream>
-#include <string>
 #include <algorithm>
 #include <cstdlib>
 #include <map>
 #include <thread>
 #include "constant.h"
+#include "types.h"
+#include "variantValue.h"
 
 namespace {
-
-enum class ExitCode { SystemdError = -3, InvalidInput = -2, InternalError = -1, Done = 0, Waiting = 1 };
-
-struct JobRemoveResult
-{
-    std::string_view id;
-    int removedFlag{0};
-    ExitCode result{ExitCode::Waiting};
-};
-
-using msg_ptr = sd_bus_message *;
-using bus_ptr = sd_bus *;
 
 ExitCode fromString(const std::string &str)
 {
@@ -153,6 +139,45 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
     return 0;
 }
 
+DBusValueType getPropType(std::string_view key)
+{
+    static std::unordered_map<std::string_view, DBusValueType> map{{"Environment", DBusValueType::ArrayOfString}};
+
+    if (auto it = map.find(key); it != map.cend()) {
+        return it->second;
+    }
+
+    return DBusValueType::Default;
+}
+
+int appendPropValue(msg_ptr &msg, DBusValueType type, std::string_view value)
+{
+    int ret;
+
+    auto handler = creatValueHandler(msg, type);
+    if (handler == nullptr) {
+        sd_journal_perror("unknown type of property's variant.");
+        return -1;
+    }
+
+    if (ret = handler->openVariant(); ret < 0) {
+        sd_journal_perror("open property's variant value failed.");
+        return ret;
+    }
+
+    if (ret = handler->appendValue(std::string{value}); ret < 0) {
+        sd_journal_perror("append property's variant value failed.");
+        return ret;
+    }
+
+    if (ret = handler->closeVariant(); ret < 0) {
+        sd_journal_perror("close property's variant value failed.");
+        return ret;
+    }
+
+    return 0;
+}
+
 int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_view> &props)
 {
     int ret;
@@ -160,9 +185,23 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_vie
         for (auto [key, value] : props) {
             std::string keyStr{key};
             std::string valueStr{value};
-            ret = sd_bus_message_append(msg, "(sv)", keyStr.data(), "s", valueStr.data());
+            if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
+                sd_journal_perror("open struct of properties failed.");
+                return ret;
+            }
 
-            if (ret < 0) {
+            if (ret = sd_bus_message_append(msg, "s", keyStr.data()); ret < 0) {
+                sd_journal_perror("append key of property failed.");
+                return ret;
+            }
+
+            if (ret = appendPropValue(msg, getPropType(key), valueStr); ret < 0) {
+                sd_journal_perror("append value of property failed.");
+                return ret;
+            }
+
+            if (ret = sd_bus_message_close_container(msg); ret < 0) {
+                sd_journal_perror("close struct of properties failed.");
                 return ret;
             }
         }
