@@ -89,19 +89,19 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
 
 bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept
 {
-    if (!ApplicationFilter::hiddenCheck(entry)) {
-        return true;
+    if (ApplicationFilter::hiddenCheck(entry)) {
+        return false;
     }
 
-    if (!ApplicationFilter::tryExecCheck(entry)) {
-        return true;
+    if (ApplicationFilter::tryExecCheck(entry)) {
+        return false;
     }
 
-    if (!ApplicationFilter::showInCheck(entry)) {
-        return true;
+    if (ApplicationFilter::showInCheck(entry)) {
+        return false;
     }
 
-    return false;
+    return true;
 }
 
 QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
