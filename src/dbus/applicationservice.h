@@ -22,6 +22,8 @@
 #include "desktopentry.h"
 #include "dbus/jobmanager1service.h"
 
+QString getDeepinWineScaleFactor(const QString &appId) noexcept;
+
 class ApplicationService : public QObject, public QDBusContext
 {
     Q_OBJECT
