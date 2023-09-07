@@ -44,4 +44,4 @@ install(FILES ${DBUS_APPLICATION_MANAGER_SERVICE_FILE}
 
 # install dpkg hook
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/dpkg/dpkg.cfg.d/am-update-hook
-    DESTINATION /etc/dpkg/dpkg.cfg.d)
+	DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dpkg/dpkg.cfg.d)

@@ -29,4 +29,4 @@ install(FILES ${DBUS_APPLICATION_UPDATE_NOTIFIER_SERVICE_FILE}
     DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/system-services)
 
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/dbus/org.desktopspec.ApplicationUpdateNotifier1.conf
-    DESTINATION /usr/share/dbus-1/system.d)
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/system.d)
