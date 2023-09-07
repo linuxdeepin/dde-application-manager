@@ -276,6 +276,17 @@ bool ApplicationService::isOnDesktop() const noexcept
     return info.symLinkTarget() == m_desktopSource.sourcePath();
 }
 
+bool ApplicationService::noDisplay() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "NoDisplay", EntryValueType::Boolean);
+
+    if (val.isNull()) {
+        return false;
+    }
+
+    return val.toBool();
+}
+
 QStringList ApplicationService::actions() const noexcept
 {
     auto val = findEntryValue(DesktopFileEntryKey, "Actions", EntryValueType::String);

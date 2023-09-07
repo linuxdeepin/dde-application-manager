@@ -76,6 +76,9 @@ public:
     Q_PROPERTY(bool isOnDesktop READ isOnDesktop)
     [[nodiscard]] bool isOnDesktop() const noexcept;
 
+    Q_PROPERTY(bool NoDisplay READ noDisplay)
+    [[nodiscard]] bool noDisplay() const noexcept;
+
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
