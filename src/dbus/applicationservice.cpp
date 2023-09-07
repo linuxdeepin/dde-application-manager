@@ -156,7 +156,6 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }
 
     cmds.append(std::move(execCmds));
-    qDebug() << "run application with:" << cmds;
     auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
@@ -166,10 +165,16 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
             commands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
 
+            auto location = commands.indexOf(R"(%f)");
+            if (location != -1) {  // due to std::move, there only remove once
+                commands.remove(location);
+            }
+
             if (resourceFile.isEmpty()) {
                 commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
+                qDebug() << "run with commands:" << commands;
                 process.start(m_launcher, commands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
@@ -177,12 +182,6 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                     return QDBusError::Failed;
                 }
                 return objectPath;
-            }
-
-            qsizetype location{0};
-            location = commands.indexOf(R"(%f)");
-            if (location != -1) {  // due to std::move, there only remove once
-                commands.remove(location);
             }
 
             auto url = QUrl::fromUserInput(resourceFile);
@@ -197,6 +196,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             commands.insert(location, resourceFile);
             commands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
+            qDebug() << "run with commands:" << commands;
             process.start(getApplicationLauncherBinary(), commands);
             process.waitForFinished();
             auto exitCode = process.exitCode();
