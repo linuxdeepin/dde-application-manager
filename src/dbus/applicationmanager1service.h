@@ -29,7 +29,7 @@ public:
     ApplicationManager1Service &operator=(const ApplicationManager1Service &) = delete;
     ApplicationManager1Service &operator=(ApplicationManager1Service &&) = delete;
 
-    Q_PROPERTY(QList<QDBusObjectPath> List READ list)
+    Q_PROPERTY(QList<QDBusObjectPath> List READ list NOTIFY listChanged)
     [[nodiscard]] QList<QDBusObjectPath> list() const;
 
     bool addApplication(DesktopFile desktopFileSource) noexcept;
@@ -48,6 +48,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
+    void listChanged();
 
 private:
     std::unique_ptr<Identifier> m_identifier;

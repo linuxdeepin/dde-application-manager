@@ -58,8 +58,7 @@ public:
     // FIXME:
     // This property should implement with fuse guarded $XDG_CONFIG_HOME/autostart/.
     // Current implementation has some problems,
-    // such as it will not emit changed signal.
-    Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart)
+    Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart NOTIFY autostartChanged)
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
 
@@ -107,6 +106,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
+    void autostartChanged();
 
 private:
     friend class ApplicationManager1Service;

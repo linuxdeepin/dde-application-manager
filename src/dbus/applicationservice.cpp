@@ -6,6 +6,7 @@
 #include "APPobjectmanager1adaptor.h"
 #include "applicationchecker.h"
 #include "applicationmanager1service.h"
+#include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
 #include <QUuid>
@@ -81,6 +82,11 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     // TODO: icon lookup
     if (auto *ptr = new (std::nothrow) APPObjectManagerAdaptor{app.data()}; ptr == nullptr) {
         qCritical() << "new Object Manager of Application failed.";
+        return nullptr;
+    }
+
+    if (auto *ptr = new (std::nothrow) PropertiesForwarder{app->m_applicationPath.path(), app.data()}; ptr == nullptr) {
+        qCritical() << "new PropertiesForwarder of Application failed.";
         return nullptr;
     }
 
@@ -402,12 +408,14 @@ bool ApplicationService::autostartCheck(const QString &linkPath) noexcept
 {
     QFileInfo info{linkPath};
 
-    if (!info.exists() or !info.isSymbolicLink()) {
+    if (info.exists()) {
+        if (info.isSymbolicLink()) {
+            return true;
+        }
         qWarning() << "same name desktop file exists:" << linkPath << "but this may not created by AM.";
-        return false;
     }
 
-    return true;
+    return false;
 }
 
 bool ApplicationService::isAutoStart() const noexcept
@@ -437,6 +445,8 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
             }
         }
     }
+
+    emit autostartChanged();
 }
 
 QList<QDBusObjectPath> ApplicationService::instances() const noexcept

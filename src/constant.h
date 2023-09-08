@@ -41,6 +41,7 @@ constexpr auto JobInterface = "org.desktopspec.JobManager1.Job";
 constexpr auto ApplicationManagerInterface = "org.desktopspec.ApplicationManager1";
 constexpr auto InstanceInterface = "org.desktopspec.ApplicationManager1.Instance";
 constexpr auto ApplicationInterface = "org.desktopspec.ApplicationManager1.Application";
+constexpr auto PropertiesInterface = u8"org.freedesktop.DBus.Properties";
 
 constexpr auto systemdOption = u8"systemd";
 constexpr auto splitOption = u8"split";
