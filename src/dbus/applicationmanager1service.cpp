@@ -6,6 +6,7 @@
 #include "applicationservice.h"
 #include "dbus/AMobjectmanager1adaptor.h"
 #include "systemdsignaldispatcher.h"
+#include "propertiesForwarder.h"
 #include <QFile>
 #include <QDBusMessage>
 #include <unistd.h>
@@ -81,6 +82,10 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     scanAutoStart();
+
+    if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {
+        qCritical() << "new PropertiesForwarder of Application Manager failed.";
+    }
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
@@ -240,6 +245,7 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
         return false;
     }
     m_applicationList.insert(application->applicationPath(), application);
+    emit listChanged();
     emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
 
     return true;
@@ -251,6 +257,7 @@ void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &app
         emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
+        emit listChanged();
     }
 }
 
