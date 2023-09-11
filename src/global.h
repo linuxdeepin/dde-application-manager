@@ -395,14 +395,15 @@ inline QStringList getAutoStartDirs()
         XDGConfigDirs.append("/etc/xdg");
     }
 
-    // FIXME: What if XDG_CONFIG_HOME already in XDG_CONFIG_DIRS?
-
     auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
     if (XDGConfigHome.isEmpty()) {
         XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
     }
 
-    XDGConfigDirs.push_front(std::move(XDGConfigHome));
+    if (XDGConfigDirs.constFirst() != XDGConfigHome) {
+        XDGConfigDirs.removeAll(XDGConfigHome);
+        XDGConfigDirs.push_front(std::move(XDGConfigHome));  //  guarantee XDG_CONFIG_HOME is first element.
+    }
 
     std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {
