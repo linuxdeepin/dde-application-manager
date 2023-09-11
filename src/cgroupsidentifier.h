@@ -6,6 +6,7 @@
 #define CGROUPSIDENTIFIER_H
 
 #include "identifier.h"
+#include <QFile>
 
 class CGroupsIdentifier : public Identifier
 {
@@ -13,7 +14,7 @@ public:
     IdentifyRet Identify(pid_t pid) override;
 
 private:
-    [[nodiscard]] static QString parseCGroupsPath(const QString &CGP) noexcept;
+    [[nodiscard]] static QString parseCGroupsPath(QFile &file) noexcept;
 };
 
 #endif

@@ -16,21 +16,43 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
         qWarning() << "open " << AppCgroupPath << "failed: " << AppCgroupFile.errorString();
         return {};
     }
-    auto UnitStr = parseCGroupsPath(QString::fromLocal8Bit(AppCgroupFile.readAll())
-                                        .split(':', Qt::SkipEmptyParts)
-                                        .last()
-                                        .trimmed());  // FIXME: support CGroup version detection and multi-line parsing
+
+    auto UnitStr = parseCGroupsPath(AppCgroupFile);
 
     auto [appId, InstanceId] = processUnitName(UnitStr);
     return {std::move(appId), std::move(InstanceId)};
 }
 
-QString CGroupsIdentifier::parseCGroupsPath(const QString &CGP) noexcept
+QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
 {
-    if (CGP.isEmpty()) {
-        qWarning() << "CGroupPath is empty.";
+    QTextStream stream{&cgroupFile};
+
+    if (stream.atEnd()) {
+        qWarning() << "read from cgroup file failed:" << stream.status();
         return {};
     }
+    stream.setEncoding(QStringConverter::Utf8);
+    QString CGP;
+    while (!stream.atEnd()) {
+        auto line = stream.readLine();
+        auto firstColon = line.indexOf(':');
+        auto secondColon = line.indexOf(':', firstColon + 1);
+        auto subSystemd = QStringView(line.constBegin() + firstColon + 1, secondColon - firstColon - 1);
+        if (subSystemd.isEmpty()) {  // cgroup v2
+            CGP = line.last(line.size() - secondColon - 1);
+            break;
+        }
+
+        if (subSystemd == QString{"name=systemd"}) {         // cgroup v1
+            CGP = line.last(line.size() - secondColon - 1);  // shouldn't break, maybe v1 and v2 exists at the same time.
+        }
+    }
+
+    if (CGP.isEmpty()) {
+        qWarning() << "no systemd informations found.";
+        return {};
+    }
+
     auto CGPSlices = CGP.split('/', Qt::SkipEmptyParts);
 
     if (CGPSlices.first() != "user.slice") {
