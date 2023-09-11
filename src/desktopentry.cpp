@@ -238,9 +238,9 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
     if (type == it->end()) {
         qWarning() << "No Type.";
         for (auto tmp = it->constKeyValueBegin(); tmp != it->constKeyValueEnd(); ++tmp) {
-            const auto& [k,v] = *tmp;
+            const auto &[k, v] = *tmp;
             qInfo() << "keyName:" << k;
-            for (auto valIt = v.constKeyValueBegin() ; valIt != v.constKeyValueEnd(); ++valIt) {
+            for (auto valIt = v.constKeyValueBegin(); valIt != v.constKeyValueEnd(); ++valIt) {
                 const auto &[key, value] = *valIt;
                 qInfo() << key << value;
             }
@@ -364,7 +364,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &app
     return std::nullopt;
 }
 
-bool DesktopFile::modified(std::size_t time) const noexcept
+bool DesktopFile::modified(qint64 time) const noexcept
 {
     return time != m_mtime;
 }
