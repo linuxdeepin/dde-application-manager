@@ -42,7 +42,7 @@ void PropertiesForwarder::PropertyChanged()
         return;
     }
 
-    auto sig = mo->property(sigIndex);
+    auto sig = mo->property(sigIndex + 1);
     const auto *propName = sig.name();
     auto value = sig.read(sender);
 
