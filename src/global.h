@@ -468,23 +468,19 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     return objs;
 }
 
-inline std::tuple<std::size_t, std::size_t, std::size_t> getFileTimeInfo(const QFileInfo &file)
+struct FileTimeInfo
 {
-    struct stat buf;
+    qint64 mtime;
+    qint64 ctime;
+    qint64 atime;
+};
 
-    // TODO: use QFileInfo get timeInfo, and return a custom time structure.
-    if (auto ret = stat(file.absoluteFilePath().toLocal8Bit().constData(), &buf); ret == -1) {
-        qWarning() << "get file" << file.absoluteFilePath() << "state failed:" << std::strerror(errno);
-        return std::make_tuple(0, 0, 0);
-    }
-
-    constexpr std::size_t secToNano = 1e9;
-
-    auto mtime = buf.st_mtim.tv_sec * secToNano + buf.st_mtim.tv_nsec;
-    auto ctime = buf.st_ctim.tv_sec * secToNano + buf.st_ctim.tv_nsec;
-    auto atime = buf.st_atim.tv_sec * secToNano + buf.st_atim.tv_nsec;
-
-    return std::make_tuple(ctime, mtime, atime);
+inline FileTimeInfo getFileTimeInfo(const QFileInfo &file)
+{
+    auto mtime = file.lastModified().toMSecsSinceEpoch();
+    auto atime = file.lastRead().toMSecsSinceEpoch();
+    auto ctime = file.birthTime().toMSecsSinceEpoch();
+    return {mtime, ctime, atime};
 }
 
 #endif
