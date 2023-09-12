@@ -47,22 +47,7 @@ void PropertiesForwarder::PropertyChanged()
     auto value = sig.read(sender);
 
     auto childs = sender->children();
-    QString interface;
-    for (const auto &adaptor : childs) {
-        if (adaptor->inherits("QDBusAbstractAdaptor")) {
-            const auto *adaptorMo = adaptor->metaObject();
-            if (adaptorMo->indexOfProperty(propName) != -1) {
-                interface = getDBusInterface(adaptor->metaObject()->metaType());
-                break;
-            }
-        }
-    };
-
-    if (interface.isEmpty()) {
-        return;
-    }
-
-    auto msg = QDBusMessage::createSignal(m_path, interface, "PropertiesChanged");
+    auto msg = QDBusMessage::createSignal(m_path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
     msg << QString{ApplicationInterface};
     msg << QVariantMap{{QString{propName}, value}};
     msg << QStringList{};
