@@ -80,7 +80,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
     auto sessionId = getCurrentSessionId();
     if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
-        auto content = flag.readAll();
+        auto content = flag.read(sessionId.size());
         if (!content.isEmpty() and !sessionId.isEmpty() and content == sessionId) {
             return;
         }
@@ -88,7 +88,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
-        flag.write(sessionId);
+        flag.write(sessionId, sessionId.size());
     }
 
     scanAutoStart();
