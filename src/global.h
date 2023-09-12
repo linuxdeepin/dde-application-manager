@@ -17,6 +17,7 @@
 #include <QRegularExpression>
 #include <QDBusObjectPath>
 #include <QDBusArgument>
+#include <QDBusMessage>
 #include <unistd.h>
 #include <QUuid>
 #include <QLoggingCategory>
@@ -482,6 +483,27 @@ inline FileTimeInfo getFileTimeInfo(const QFileInfo &file)
     auto atime = file.lastRead().toMSecsSinceEpoch();
     auto ctime = file.birthTime().toMSecsSinceEpoch();
     return {mtime, ctime, atime};
+}
+
+inline QByteArray getCurrentSessionId()
+{
+    constexpr auto graphicalTarget = u8"graphical-session.target";
+
+    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1",
+                                              "/org/freedesktop/systemd1/unit/" + escapeToObjectPath(graphicalTarget),
+                                              "org.freedesktop.DBus.Properties",
+                                              "Get");
+    msg << QString{"org.freedesktop.systemd1.Unit"};
+    msg << QString{"InvocationID"};
+    auto bus = QDBusConnection::sessionBus();
+    auto ret = bus.call(msg);
+    if (ret.type() != QDBusMessage::ReplyMessage) {
+        qWarning() << "get graphical session Id failed:" << ret.errorMessage();
+        return {};
+    }
+
+    auto id = ret.arguments().first();
+    return id.value<QDBusVariant>().variant().toByteArray();
 }
 
 #endif
