@@ -64,6 +64,10 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
     scanInstances();
 
+    if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {
+        qCritical() << "new PropertiesForwarder of Application Manager failed.";
+    }
+
     // TODO: This is a workaround, we will use database at the end.
     auto runtimePath = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (runtimePath.isEmpty()) {
@@ -71,21 +75,23 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     QDir runtimeDir{runtimePath};
-    auto filename = "deepin-application-manager";
-    if (runtimeDir.exists(filename)) {
-        return;
+    const auto *filename = u8"deepin-application-manager";
+    QFile flag{runtimeDir.filePath(filename)};
+
+    auto sessionId = getCurrentSessionId();
+    if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
+        auto content = flag.readAll();
+        if (!content.isEmpty() and !sessionId.isEmpty() and content == sessionId) {
+            return;
+        }
+        flag.close();
     }
 
-    QFile flag{runtimeDir.filePath(filename)};
-    if (!flag.open(QFile::WriteOnly | QFile::NewOnly)) {
-        qWarning() << "create record file failed.";
+    if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
+        flag.write(sessionId);
     }
 
     scanAutoStart();
-
-    if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {
-        qCritical() << "new PropertiesForwarder of Application Manager failed.";
-    }
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
