@@ -13,8 +13,11 @@
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
-ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection) noexcept
+ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
+                                                       QDBusConnection &connection,
+                                                       std::weak_ptr<ApplicationManager1Storage> storage) noexcept
     : m_identifier(std::move(ptr))
+    , m_storage(std::move(storage))
 {
     if (!connection.registerService(DDEApplicationManager1ServiceName)) {
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
@@ -114,6 +117,17 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
     if (appIt == m_applicationList.cend()) [[unlikely]] {
         qWarning() << "couldn't find app" << appId << "in application manager.";
         return;
+    }
+
+    if (sender() != nullptr) {  // activate by signal
+        auto timestamp = QDateTime::currentMSecsSinceEpoch();
+
+        if (auto ptr = m_storage.lock(); ptr) {
+            ptr->updateApplicationValue((*appIt)->m_desktopSource.desktopId(),
+                                        ApplicationPropertiesGroup,
+                                        LastLaunchedTime,
+                                        QVariant::fromValue(timestamp));
+        }
     }
 
     const auto &applicationPath = (*appIt)->applicationPath().path();
@@ -229,7 +243,7 @@ QList<QDBusObjectPath> ApplicationManager1Service::list() const
 bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) noexcept
 {
     QSharedPointer<ApplicationService> application =
-        ApplicationService::createApplicationService(std::move(desktopFileSource), this);
+        ApplicationService::createApplicationService(std::move(desktopFileSource), this, m_storage);
     if (!application) {
         return false;
     }
@@ -251,6 +265,18 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
         return false;
     }
     m_applicationList.insert(application->applicationPath(), application);
+
+    if (auto storagePtr = m_storage.lock(); storagePtr) {
+        auto appId = ptr->id();
+        auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
+        if (value.isNull()) {
+            storagePtr->createApplicationValue(
+                appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue<qint64>(0));
+        } else {
+            ptr->m_lastLaunch = value.toInt();
+        }
+    }
+
     emit listChanged();
     emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
 
@@ -261,8 +287,12 @@ void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &app
 {
     if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
         emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
+        if (auto ptr = m_storage.lock(); ptr) {
+            ptr->deleteApplicationValue((*it)->id());
+        }
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
+
         emit listChanged();
     }
 }

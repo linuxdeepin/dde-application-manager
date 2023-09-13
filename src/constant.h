@@ -47,4 +47,8 @@ constexpr auto systemdOption = u8"systemd";
 constexpr auto splitOption = u8"split";
 constexpr auto AppExecOption = u8"appExec";
 
+constexpr auto STORAGE_VERSION = 1;
+constexpr auto ApplicationPropertiesGroup = u8"Application Properties";
+constexpr auto LastLaunchedTime = u8"LastLaunchedTime";
+
 #endif

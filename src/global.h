@@ -363,6 +363,15 @@ inline QString getRelativePathFromAppId(const QString &id)
     return path;
 }
 
+inline QString getXDGDataHome()
+{
+    auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
+    if (XDGDataHome.isEmpty()) {
+        XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
+    }
+    return XDGDataHome;
+}
+
 inline QStringList getDesktopFileDirs()
 {
     auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
@@ -372,12 +381,7 @@ inline QStringList getDesktopFileDirs()
         XDGDataDirs.append("/usr/share");
     }
 
-    auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
-    if (XDGDataHome.isEmpty()) {
-        XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
-    }
-
-    XDGDataDirs.push_front(std::move(XDGDataHome));
+    XDGDataDirs.push_front(getXDGDataHome());
 
     std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {

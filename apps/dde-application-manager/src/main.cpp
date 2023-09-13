@@ -8,6 +8,7 @@
 #include <QDir>
 #include "dbus/applicationmanager1service.h"
 #include "cgroupsidentifier.h"
+#include "applicationmanagerstorage.h"
 #include <chrono>
 #include <iostream>
 
@@ -42,7 +43,10 @@ int main(int argc, char *argv[])
     auto &AMBus = bus.globalServerBus();
 
     registerComplexDbusType();
-    ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus};
+    auto storageDir = getXDGDataHome() + QDir::separator() + "deepin" + QDir::separator() + "ApplicationManager";
+    auto storage = ApplicationManager1Storage::createApplicationManager1Storage(storageDir);
+
+    ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus, storage};
 
 #ifdef PROFILING_MODE
     auto end = std::chrono::high_resolution_clock::now();
