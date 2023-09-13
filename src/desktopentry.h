@@ -80,7 +80,7 @@ struct DesktopFileGuard
     DesktopFileGuard &operator=(const DesktopFileGuard &) = delete;
     DesktopFileGuard &operator=(DesktopFileGuard &&) = delete;
 
-    explicit DesktopFileGuard(DesktopFile &file)
+    explicit DesktopFileGuard(const DesktopFile &file)
         : fileRef(file)
     {
     }
@@ -107,7 +107,7 @@ struct DesktopFileGuard
     }
 
 private:
-    DesktopFile &fileRef;
+    const DesktopFile &fileRef;
 };
 
 class DesktopEntry
@@ -135,10 +135,13 @@ public:
     DesktopEntry &operator=(DesktopEntry &&) = default;
 
     ~DesktopEntry() = default;
-    [[nodiscard]] DesktopErrorCode parse(DesktopFile &file) noexcept;
+    [[nodiscard]] DesktopErrorCode parse(const DesktopFile &file) noexcept;
     [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
+
+    friend bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
+    friend bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);
 
 private:
     [[nodiscard]] bool checkMainEntryValidation() const noexcept;
@@ -149,5 +152,9 @@ private:
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
 
 QDebug operator<<(QDebug debug, const DesktopErrorCode &v);
+
+bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
+
+bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);
 
 #endif

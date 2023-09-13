@@ -39,7 +39,7 @@ public:
     void removeOneApplication(const QDBusObjectPath &application) noexcept;
     void removeAllApplication() noexcept;
 
-    void updateApplication(const QSharedPointer<ApplicationService> &destApp, const DesktopFile &desktopFile) noexcept;
+    void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
 
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 

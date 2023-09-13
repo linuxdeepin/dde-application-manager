@@ -19,7 +19,7 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
 
     auto UnitStr = parseCGroupsPath(AppCgroupFile);
 
-    auto [appId, InstanceId] = processUnitName(UnitStr);
+    auto [appId, launcher, InstanceId] = processUnitName(UnitStr);
     return {std::move(appId), std::move(InstanceId)};
 }
 

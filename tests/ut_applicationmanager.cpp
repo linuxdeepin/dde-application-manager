@@ -38,8 +38,8 @@ public:
         auto ptr = std::make_unique<QFile>(QString{"/usr/share/applications/test-Application.desktop"});
         DesktopFile file{std::move(ptr), "test-Application", 0, 0};
         QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr, tmp);
-        QSharedPointer<InstanceService> instance =
-            QSharedPointer<InstanceService>::create(InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"});
+        QSharedPointer<InstanceService> instance = QSharedPointer<InstanceService>::create(
+            InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"}, QString{"DDE"});
         app->m_Instances.insert(InstancePath, instance);
         m_am->m_applicationList.insert(ApplicationPath, app);
     }

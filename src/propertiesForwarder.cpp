@@ -42,12 +42,32 @@ void PropertiesForwarder::PropertyChanged()
         return;
     }
 
-    auto sig = mo->property(sigIndex + 1);
-    const auto *propName = sig.name();
-    auto value = sig.read(sender);
+    auto sig = mo->method(sigIndex);
+    auto signature = sig.methodSignature();
 
-    auto childs = sender->children();
+    QByteArray propName;
+    for (auto i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+        auto prop = mo->property(i);
+        if (!prop.hasNotifySignal()) {
+            continue;
+        }
+
+        if (prop.notifySignal().methodSignature() == signature) {
+            propName = prop.name();
+        }
+    }
+
+    if (propName.isEmpty()) {
+        qDebug() << "can't find corresponding property:" << signature;
+        return;
+    }
+
+    auto propIndex = mo->indexOfProperty(propName.constData());
+    auto prop = mo->property(propIndex);
+    auto value = prop.read(sender);
+
     auto msg = QDBusMessage::createSignal(m_path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+
     msg << QString{ApplicationInterface};
     msg << QVariantMap{{QString{propName}, value}};
     msg << QStringList{};

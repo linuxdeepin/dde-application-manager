@@ -34,10 +34,8 @@ ApplicationService::ApplicationService(DesktopFile source,
 ApplicationService::~ApplicationService()
 {
     for (auto &instance : m_Instances.values()) {
-        instance->m_Application = QDBusObjectPath{"/"};
-        auto *ptr = instance.get();
-        instance.reset(nullptr);
-        ptr->setParent(qApp);  // detach all instances to qApp
+        orphanedInstances->append(instance);
+        instance->m_orphaned = true;
     }
 }
 
@@ -465,9 +463,12 @@ QList<QDBusObjectPath> ApplicationService::instances() const noexcept
     return m_Instances.keys();
 }
 
-bool ApplicationService::addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath)
+bool ApplicationService::addOneInstance(const QString &instanceId,
+                                        const QString &application,
+                                        const QString &systemdUnitPath,
+                                        const QString &launcher)
 {
-    auto *service = new InstanceService{instanceId, application, systemdUnitPath};
+    auto *service = new InstanceService{instanceId, application, systemdUnitPath, launcher};
     auto *adaptor = new InstanceAdaptor(service);
     QString objectPath{m_applicationPath.path() + "/" + instanceId};
 
