@@ -25,5 +25,21 @@
                        if this instance is not managed by systemd."
             />
         </property>
+
+        <property name="Launcher" type="s" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="This property indicates which Application
+                       launcher started this instance." 
+            />
+        </property>
+
+        <property name="Orphaned" type="b" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="This property indicates that the application 
+                       to which the instance belonged has been removed."
+            />
+        </property>
     </interface>
 </node>

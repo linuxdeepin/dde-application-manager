@@ -33,20 +33,18 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
 
 void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    decltype(auto) appPrefix = u8"app-";
-    if (!unitName.startsWith(appPrefix)) {
+    if (!unitName.startsWith("app-")) {
         return;
     }
 
-    emit SystemdUnitNew(unitName.sliced(sizeof(appPrefix) - 1), systemdUnitPath);
+    emit SystemdUnitNew(unitName, systemdUnitPath);
 }
 
 void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    decltype(auto) appPrefix = u8"app-";
-    if (!unitName.startsWith(appPrefix)) {
+    if (!unitName.startsWith("app-")) {
         return;
     }
 
-    emit SystemdUnitRemoved(unitName.sliced(sizeof(appPrefix) - 1), systemdUnitPath);
+    emit SystemdUnitRemoved(unitName, systemdUnitPath);
 }

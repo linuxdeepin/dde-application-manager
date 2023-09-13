@@ -233,11 +233,13 @@ inline QString getDBusInterface(const QMetaType &meta)
     if (name == "APPObjectManagerAdaptor" or name == "AMObjectManagerAdaptor") {
         return ObjectManagerInterface;
     }
-    // const auto *infoObject = meta.metaObject();
-    // if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
-    //     return infoObject->classInfo(infoIndex).value();
-    // }
-    qWarning() << "couldn't found interface:" << name;
+
+    if (name == "ApplicationManager1Service")
+        // const auto *infoObject = meta.metaObject();
+        // if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
+        //     return infoObject->classInfo(infoIndex).value();
+        // }
+        qWarning() << "couldn't found interface:" << name;
     return "";
 }
 
@@ -425,31 +427,48 @@ inline bool isApplication(const QDBusObjectPath &path)
     return path.path().split('/').last().startsWith("app");
 }
 
-inline QPair<QString, QString> processUnitName(const QString &unitName)
+struct unitInfo
+{
+    QString applicationID;
+    QString Launcher;
+    QString instanceID;
+};
+
+inline unitInfo processUnitName(const QString &unitName)
 {
     QString instanceId;
+    QString launcher;
     QString applicationId;
 
-    if (unitName.endsWith(".service")) {
-        auto lastDotIndex = unitName.lastIndexOf('.');
-        auto app = unitName.sliced(0, lastDotIndex);  // remove suffix
+    decltype(auto) appPrefix = u8"app-";
+    auto unit = unitName.sliced(sizeof(appPrefix) - 1);
+
+    if (unit.endsWith(".service")) {
+        auto lastDotIndex = unit.lastIndexOf('.');
+        auto app = unit.sliced(0, lastDotIndex);  // remove suffix
 
         if (app.contains('@')) {
             auto atIndex = app.indexOf('@');
             instanceId = app.sliced(atIndex + 1);
             app.remove(atIndex, instanceId.length() + 1);
         }
-
-        applicationId = app.split('-').last();  // drop launcher if it exists.
-    } else if (unitName.endsWith(".scope")) {
-        auto lastDotIndex = unitName.lastIndexOf('.');
-        auto app = unitName.sliced(0, lastDotIndex);
+        auto rest = app.split('-', Qt::SkipEmptyParts);
+        if (rest.size() == 2) {
+            launcher = rest.takeFirst();
+        }
+        applicationId = rest.takeFirst();
+    } else if (unit.endsWith(".scope")) {
+        auto lastDotIndex = unit.lastIndexOf('.');
+        auto app = unit.sliced(0, lastDotIndex);
 
         auto components = app.split('-');
         instanceId = components.takeLast();
         applicationId = components.takeLast();
+        if (!components.isEmpty()) {
+            launcher = components.takeLast();
+        }
     } else {
-        qDebug() << "it's not service or scope:" << unitName << "ignore";
+        qDebug() << "it's not service or scope:" << unit << "ignore";
         return {};
     }
 
@@ -457,7 +476,7 @@ inline QPair<QString, QString> processUnitName(const QString &unitName)
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
-    return qMakePair(unescapeApplicationId(applicationId), std::move(instanceId));
+    return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
 }
 
 template <typename T>

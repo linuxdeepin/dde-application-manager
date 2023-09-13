@@ -103,9 +103,11 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
         return;
     }
 
-    auto pair = processUnitName(unitName);
-    auto appId = pair.first;
-    auto instanceId = pair.second;
+    auto info = processUnitName(unitName);
+    auto appId = std::move(info.applicationID);
+    auto launcher = std::move(info.Launcher);
+    auto instanceId = std::move(info.instanceID);
+
     if (appId.isEmpty()) {
         return;
     }
@@ -132,7 +134,7 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
 
     const auto &applicationPath = (*appIt)->applicationPath().path();
 
-    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path())) [[likely]] {
+    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) [[likely]] {
         qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
     }
 }
@@ -143,9 +145,11 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
         return;
     }
 
-    auto pair = processUnitName(unitName);
-    auto appId = pair.first;
-    auto instanceId = pair.second;
+    auto info = processUnitName(unitName);
+    auto appId = std::move(info.applicationID);
+    auto launcher = std::move(info.Launcher);
+    auto instanceId = std::move(info.instanceID);
+
     if (appId.isEmpty()) {
         return;
     }
@@ -163,12 +167,17 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
 
     auto instanceIt =
         std::find_if(appIns.cbegin(), appIns.cend(), [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
-            return value->systemdUnitPath() == systemdUnitPath;
+            return value->property("SystemdUnitPath") == systemdUnitPath;
         });
 
     if (instanceIt != appIns.cend()) [[likely]] {
         (*appIt)->removeOneInstance(instanceIt.key());
+        return;
     }
+
+    orphanedInstances->removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
+        return (ptr->property("SystemdUnitPath").value<QDBusObjectPath>() == systemdUnitPath);
+    });
 }
 
 void ApplicationManager1Service::scanApplications() noexcept
@@ -357,28 +366,28 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 }
 
 void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,
-                                                   const DesktopFile &desktopFile) noexcept
+                                                   DesktopFile desktopFile) noexcept
 {
     // TODO: add propertyChanged
     if (auto app = m_applicationList.find(destApp->applicationPath()); app == m_applicationList.cend()) {
         return;
     }
 
-    auto timeInfo = getFileTimeInfo(QFileInfo{desktopFile.sourceFileRef()});
+    auto *newEntry = new (std::nothrow) DesktopEntry{};
+    if (newEntry == nullptr) {
+        qCritical() << "new DesktopEntry failed.";
+        return;
+    }
 
-    if (destApp->desktopFileSource().modified(timeInfo.mtime)) {
-        auto *newEntry = new (std::nothrow) DesktopEntry{};
-        if (newEntry == nullptr) {
-            qCritical() << "new DesktopEntry failed.";
-            return;
-        }
+    auto err = newEntry->parse(desktopFile);
+    if (err != DesktopErrorCode::NoError) {
+        qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
+        return;
+    }
 
-        auto err = newEntry->parse(destApp->desktopFileSource());
-        if (err != DesktopErrorCode::NoError) {
-            qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
-            return;
-        }
+    if (destApp->m_entry != newEntry) {
         destApp->resetEntry(newEntry);
+        destApp->m_desktopSource = std::move(desktopFile);
     }
 }
 
@@ -407,9 +416,9 @@ void ApplicationManager1Service::ReloadApplications()
             return false;
         }
 
-        if (destApp != m_applicationList.cend()) {
+        if (destApp != m_applicationList.cend() and apps.contains(destApp.key())) {
             apps.removeOne(destApp.key());
-            updateApplication(destApp.value(), file);
+            updateApplication(destApp.value(), std::move(file));
             return false;
         }
 

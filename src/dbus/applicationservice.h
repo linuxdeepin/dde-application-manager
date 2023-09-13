@@ -86,7 +86,10 @@ public:
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
     void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
 
-    bool addOneInstance(const QString &instanceId, const QString &application, const QString &systemdUnitPath);
+    bool addOneInstance(const QString &instanceId,
+                        const QString &application,
+                        const QString &systemdUnitPath,
+                        const QString &launcher);
     void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;
     void removeAllInstance() noexcept;

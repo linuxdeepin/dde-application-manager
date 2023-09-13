@@ -369,7 +369,7 @@ bool DesktopFile::modified(qint64 time) const noexcept
     return time != m_mtime;
 }
 
-DesktopErrorCode DesktopEntry::parse(DesktopFile &file) noexcept
+DesktopErrorCode DesktopEntry::parse(const DesktopFile &file) noexcept
 {
     DesktopFileGuard guard{file};
 
@@ -536,6 +536,24 @@ float DesktopEntry::Value::toNumeric(bool &ok) const noexcept
     const auto &str = (*this)[defaultKeyStr];
     QVariant v{str};
     return v.toFloat(&ok);
+}
+
+bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs)
+{
+    if (lhs.m_parsed != rhs.m_parsed) {
+        return false;
+    }
+
+    if (lhs.m_entryMap != rhs.m_entryMap) {
+        return false;
+    }
+
+    return true;
+}
+
+bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs)
+{
+    return !(lhs == rhs);
 }
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
