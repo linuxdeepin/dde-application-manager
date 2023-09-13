@@ -17,6 +17,7 @@
 #include <QFile>
 #include <memory>
 #include <utility>
+#include "applicationmanagerstorage.h"
 #include "dbus/instanceservice.h"
 #include "global.h"
 #include "desktopentry.h"
@@ -110,10 +111,13 @@ Q_SIGNALS:
 
 private:
     friend class ApplicationManager1Service;
-    explicit ApplicationService(DesktopFile source, ApplicationManager1Service *parent);
-    static QSharedPointer<ApplicationService> createApplicationService(DesktopFile source,
-                                                                       ApplicationManager1Service *parent) noexcept;
-    qlonglong m_lastLaunch{0};
+    explicit ApplicationService(DesktopFile source,
+                                ApplicationManager1Service *parent,
+                                std::weak_ptr<ApplicationManager1Storage> storage);
+    static QSharedPointer<ApplicationService> createApplicationService(
+        DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
+    qint64 m_lastLaunch{0};
+    std::weak_ptr<ApplicationManager1Storage> m_storage;
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
     DesktopFile m_desktopSource;

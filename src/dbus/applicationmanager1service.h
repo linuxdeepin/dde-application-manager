@@ -12,6 +12,7 @@
 #include <QScopedPointer>
 #include <memory>
 #include <QMap>
+#include "applicationmanagerstorage.h"
 #include "dbus/jobmanager1service.h"
 #include "desktopentry.h"
 #include "identifier.h"
@@ -22,7 +23,9 @@ class ApplicationManager1Service final : public QObject
 {
     Q_OBJECT
 public:
-    explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr, QDBusConnection &connection) noexcept;
+    explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
+                                        QDBusConnection &connection,
+                                        std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
     ~ApplicationManager1Service() override;
     ApplicationManager1Service(const ApplicationManager1Service &) = delete;
     ApplicationManager1Service(ApplicationManager1Service &&) = delete;
@@ -52,6 +55,7 @@ Q_SIGNALS:
 
 private:
     std::unique_ptr<Identifier> m_identifier;
+    std::weak_ptr<ApplicationManager1Storage> m_storage;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 

@@ -6,6 +6,7 @@
 #include "APPobjectmanager1adaptor.h"
 #include "applicationchecker.h"
 #include "applicationmanager1service.h"
+#include "applicationmanagerstorage.h"
 #include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
@@ -18,10 +19,14 @@
 #include <QStandardPaths>
 #include <algorithm>
 #include <new>
+#include <utility>
 #include <wordexp.h>
 
-ApplicationService::ApplicationService(DesktopFile source, ApplicationManager1Service *parent)
+ApplicationService::ApplicationService(DesktopFile source,
+                                       ApplicationManager1Service *parent,
+                                       std::weak_ptr<ApplicationManager1Storage> storage)
     : QObject(parent)
+    , m_storage(std::move(storage))
     , m_desktopSource(std::move(source))
 {
 }
@@ -36,10 +41,10 @@ ApplicationService::~ApplicationService()
     }
 }
 
-QSharedPointer<ApplicationService> ApplicationService::createApplicationService(DesktopFile source,
-                                                                                ApplicationManager1Service *parent) noexcept
+QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
+    DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept
 {
-    QSharedPointer<ApplicationService> app{new (std::nothrow) ApplicationService{std::move(source), parent}};
+    QSharedPointer<ApplicationService> app{new (std::nothrow) ApplicationService{std::move(source), parent, std::move(storage)}};
     if (!app) {
         qCritical() << "new application service failed.";
         return nullptr;
@@ -88,6 +93,12 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     if (auto *ptr = new (std::nothrow) PropertiesForwarder{app->m_applicationPath.path(), app.data()}; ptr == nullptr) {
         qCritical() << "new PropertiesForwarder of Application failed.";
         return nullptr;
+    }
+
+    auto ptr = app->m_storage.lock();
+    if (!ptr) {
+        qWarning() << "runtime storage doesn't exists.";
+        return app;
     }
 
     return app;
@@ -176,7 +187,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, binary = std::move(bin), commands = std::move(cmds)](QVariant variantValue) mutable -> QVariant {
+        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &variantValue) mutable -> QVariant {
             auto resourceFile = variantValue.toString();
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;

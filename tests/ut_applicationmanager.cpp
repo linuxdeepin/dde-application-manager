@@ -33,11 +33,11 @@ public:
         auto &bus = ApplicationManager1DBus::instance();
         bus.initGlobalServerBus(DBusType::Session);
         bus.setDestBus();
-
-        m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), bus.globalServerBus()};
+        std::shared_ptr<ApplicationManager1Storage> tmp{nullptr};
+        m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), bus.globalServerBus(), tmp};
         auto ptr = std::make_unique<QFile>(QString{"/usr/share/applications/test-Application.desktop"});
         DesktopFile file{std::move(ptr), "test-Application", 0, 0};
-        QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr);
+        QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr, tmp);
         QSharedPointer<InstanceService> instance =
             QSharedPointer<InstanceService>::create(InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"});
         app->m_Instances.insert(InstancePath, instance);
