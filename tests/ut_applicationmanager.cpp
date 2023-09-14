@@ -97,12 +97,12 @@ TEST_F(TestApplicationManager, identifyService)
 
     auto pidfd = pidfd_open(fakePid, 0);
     ASSERT_TRUE(pidfd > 0) << std::strerror(errno);
-    ObjectMap instanceInfo;
-    auto appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, instanceInfo);
+    ObjectInterfaceMap instanceInfo;
+    QDBusObjectPath path;
+    auto appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, path, instanceInfo);
     EXPECT_EQ(appId.toStdString(), QString{"test-Application"}.toStdString());
 
-    auto instance = instanceInfo.constFind(InstancePath);
-    if (instance == instanceInfo.cend()) {
+    if (path.path().isEmpty()) {
         GTEST_SKIP_("couldn't find instance and skip.");
     }
 
@@ -111,7 +111,7 @@ TEST_F(TestApplicationManager, identifyService)
                                         {QString{"SystemdUnitPath"}, QDBusObjectPath{"/"}},
                                         {QString{"Launcher"}, QString{"DDE"}},
                                         {QString{"Orphaned"}, false}}}};
-    EXPECT_EQ(instance.value(), map);
+    EXPECT_EQ(instanceInfo, map);
 
     close(pidfd);
 
@@ -148,16 +148,16 @@ TEST_F(TestApplicationManager, identifyService)
     ASSERT_TRUE(pidfd > 0) << std::strerror(errno);
 
     instanceInfo.clear();
+    path.setPath("/");
 
-    appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, instanceInfo);
+    appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, path, instanceInfo);
     EXPECT_EQ(appId.toStdString(), QString{"test-Application"}.toStdString());
 
-    instance = instanceInfo.constFind(InstancePath);
-    if (instance == instanceInfo.cend()) {
+    if (path.path().isEmpty()) {
         GTEST_SKIP_("couldn't find instance and skip.");
     }
 
-    EXPECT_EQ(instance.value(), map);
+    EXPECT_EQ(instanceInfo, map);
 
     close(pidfd);
 

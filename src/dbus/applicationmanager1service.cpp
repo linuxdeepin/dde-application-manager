@@ -124,16 +124,7 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
         return;
     }
 
-    if (sender() != nullptr) {  // activate by signal
-        auto timestamp = QDateTime::currentMSecsSinceEpoch();
-
-        if (auto ptr = m_storage.lock(); ptr) {
-            ptr->updateApplicationValue((*appIt)->m_desktopSource.desktopId(),
-                                        ApplicationPropertiesGroup,
-                                        LastLaunchedTime,
-                                        QVariant::fromValue(timestamp));
-        }
-    }
+    (*appIt)->updateAfterLaunch(sender() != nullptr);  // activate by signal
 
     const auto &applicationPath = (*appIt)->applicationPath().path();
 
@@ -278,17 +269,6 @@ bool ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) n
     }
     m_applicationList.insert(application->applicationPath(), application);
 
-    if (auto storagePtr = m_storage.lock(); storagePtr) {
-        auto appId = ptr->id();
-        auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
-        if (value.isNull()) {
-            storagePtr->createApplicationValue(
-                appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue<qint64>(0));
-        } else {
-            ptr->m_lastLaunch = value.toInt();
-        }
-    }
-
     emit listChanged();
     emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
 
@@ -300,7 +280,7 @@ void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &app
     if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
         emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
         if (auto ptr = m_storage.lock(); ptr) {
-            ptr->deleteApplicationValue((*it)->id());
+            ptr->deleteApplication((*it)->id());
         }
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
@@ -317,7 +297,8 @@ void ApplicationManager1Service::removeAllApplication() noexcept
 }
 
 QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidfd,
-                                             ObjectMap &application_instance_info) const noexcept
+                                             QDBusObjectPath &instance,
+                                             ObjectInterfaceMap &application_instance_info) const noexcept
 {
     if (!pidfd.isValid()) {
         qWarning() << "pidfd isn't a valid unix file descriptor";
@@ -369,17 +350,16 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
         return {};
     }
 
-    auto instance = (*app)->findInstance(ret.InstanceId);
+    auto instancePath = (*app)->findInstance(ret.InstanceId);
 
-    if (auto path = instance.path(); path.isEmpty()) {
+    if (auto path = instancePath.path(); path.isEmpty()) {
         qWarning() << "can't find instance:" << path;
         return {};
     }
 
+    instance = instancePath;
     auto instanceObj = (*app)->m_Instances.constFind(instance);
-    auto map = getChildInterfacesAndPropertiesFromObject(instanceObj->get());
-
-    application_instance_info.insert(instance, map);
+    application_instance_info = getChildInterfacesAndPropertiesFromObject(instanceObj->get());
 
     return ret.ApplicationId;
 }
@@ -407,6 +387,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
     if (destApp->m_entry != newEntry) {
         destApp->resetEntry(newEntry);
         destApp->m_desktopSource = std::move(desktopFile);
+        destApp->detachAllInstance();
     }
 }
 

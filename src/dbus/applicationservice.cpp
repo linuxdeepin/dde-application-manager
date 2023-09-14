@@ -29,14 +29,28 @@ ApplicationService::ApplicationService(DesktopFile source,
     , m_storage(std::move(storage))
     , m_desktopSource(std::move(source))
 {
+    auto storagePtr = m_storage.lock();
+    if (!storagePtr) {
+        m_lastLaunch = -1;
+        return;
+    }
+
+    auto appId = id();
+    auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
+    if (value.isNull()) {
+        if (!storagePtr->createApplicationValue(
+                appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue<qint64>(0))) {
+            m_lastLaunch = -1;
+        }
+        return;
+    }
+
+    m_lastLaunch = value.toInt();
 }
 
 ApplicationService::~ApplicationService()
 {
-    for (auto &instance : m_Instances.values()) {
-        orphanedInstances->append(instance);
-        instance->m_orphaned = true;
-    }
+    detachAllInstance();
 }
 
 QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
@@ -91,12 +105,6 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     if (auto *ptr = new (std::nothrow) PropertiesForwarder{app->m_applicationPath.path(), app.data()}; ptr == nullptr) {
         qCritical() << "new PropertiesForwarder of Application failed.";
         return nullptr;
-    }
-
-    auto ptr = app->m_storage.lock();
-    if (!ptr) {
-        qWarning() << "runtime storage doesn't exists.";
-        return app;
     }
 
     return app;
@@ -501,6 +509,16 @@ void ApplicationService::removeAllInstance() noexcept
     }
 }
 
+void ApplicationService::detachAllInstance() noexcept
+{
+    for (auto &instance : m_Instances.values()) {
+        orphanedInstances->append(instance);
+        instance->m_orphaned = true;
+    }
+
+    m_Instances.clear();
+}
+
 QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) const
 {
     for (auto it = m_Instances.constKeyValueBegin(); it != m_Instances.constKeyValueEnd(); ++it) {
@@ -713,6 +731,20 @@ QVariant ApplicationService::findEntryValue(const QString &group,
     }
 
     return ret;
+}
+
+void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
+{
+    if (!isLaunch) {
+        return;
+    }
+
+    auto timestamp = QDateTime::currentMSecsSinceEpoch();
+
+    if (auto ptr = m_storage.lock(); ptr) {
+        ptr->updateApplicationValue(
+            m_desktopSource.desktopId(), ApplicationPropertiesGroup, ::LastLaunchedTime, QVariant::fromValue(timestamp));
+    }
 }
 
 QString getDeepinWineScaleFactor(const QString &appId) noexcept

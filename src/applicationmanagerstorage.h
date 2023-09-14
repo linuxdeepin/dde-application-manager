@@ -20,25 +20,28 @@ public:
     ApplicationManager1Storage &operator=(ApplicationManager1Storage &&) = default;
     ~ApplicationManager1Storage() = default;
 
-    void createApplicationValue(const QString &appId,
+    bool createApplicationValue(const QString &appId,
                                 const QString &groupName,
                                 const QString &valueKey,
                                 const QVariant &value) noexcept;
-    void updateApplicationValue(const QString &appId,
+    bool updateApplicationValue(const QString &appId,
                                 const QString &groupName,
                                 const QString &valueKey,
                                 const QVariant &value) noexcept;
     [[nodiscard]] QVariant
     readApplicationValue(const QString &appId, const QString &groupName, const QString &valueKey) const noexcept;
-    void deleteApplicationValue(const QString &appId = "", const QString &groupName = "", const QString &valueKey = "") noexcept;
+    bool deleteApplicationValue(const QString &appId, const QString &groupName, const QString &valueKey) noexcept;
+    bool clearData() noexcept;
+    bool deleteApplication(const QString &appId) noexcept;
+    bool deleteGroup(const QString &appId, const QString &groupName) noexcept;
 
-    void setVersion(uint8_t version) noexcept;
+    bool setVersion(uint8_t version) noexcept;
     [[nodiscard]] uint8_t version() const noexcept;
 
     static std::shared_ptr<ApplicationManager1Storage> createApplicationManager1Storage(const QString &storageDir) noexcept;
 
 private:
-    void writeToFile() const noexcept;
+    [[nodiscard]] bool writeToFile() const noexcept;
     explicit ApplicationManager1Storage(const QString &storagePath);
     std::unique_ptr<QFile> m_file;
     QJsonObject m_data;
