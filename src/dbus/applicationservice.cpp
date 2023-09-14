@@ -513,7 +513,7 @@ void ApplicationService::detachAllInstance() noexcept
 {
     for (auto &instance : m_Instances.values()) {
         orphanedInstances->append(instance);
-        instance->m_orphaned = true;
+        instance->setProperty("Orphaned", true);
     }
 
     m_Instances.clear();
