@@ -17,8 +17,6 @@ Q_LOGGING_CATEGORY(DDEAMProf, "dde.am.prof", QtInfoMsg)
 namespace {
 void registerComplexDbusType()
 {
-    qDBusRegisterMetaType<QMap<QString, QDBusUnixFileDescriptor>>();
-    qDBusRegisterMetaType<QMap<uint, QMap<QString, QDBusUnixFileDescriptor>>>();
     qRegisterMetaType<ObjectInterfaceMap>();
     qDBusRegisterMetaType<ObjectInterfaceMap>();
     qRegisterMetaType<ObjectMap>();
@@ -46,7 +44,8 @@ int main(int argc, char *argv[])
     auto storageDir = getXDGDataHome() + QDir::separator() + "deepin" + QDir::separator() + "ApplicationManager";
     auto storage = ApplicationManager1Storage::createApplicationManager1Storage(storageDir);
 
-    ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), AMBus, storage};
+    ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), storage};
+    AMService.initService(AMBus);
 
 #ifdef PROFILING_MODE
     auto end = std::chrono::high_resolution_clock::now();

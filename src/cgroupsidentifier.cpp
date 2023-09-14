@@ -19,19 +19,25 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
 
     auto UnitStr = parseCGroupsPath(AppCgroupFile);
 
+    if (UnitStr.isEmpty()) {
+        qWarning() << "process CGroups file failed.";
+        return {};
+    }
+
     auto [appId, launcher, InstanceId] = processUnitName(UnitStr);
     return {std::move(appId), std::move(InstanceId)};
 }
 
 QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
 {
-    QTextStream stream{&cgroupFile};
-
-    if (stream.atEnd()) {
-        qWarning() << "read from cgroup file failed:" << stream.status();
+    QString content = cgroupFile.readAll();
+    if (content.isEmpty()) {
         return {};
     }
+
+    QTextStream stream{&content};
     stream.setEncoding(QStringConverter::Utf8);
+
     QString CGP;
     while (!stream.atEnd()) {
         auto line = stream.readLine();

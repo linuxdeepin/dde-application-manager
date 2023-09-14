@@ -14,10 +14,13 @@
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
 ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
-                                                       QDBusConnection &connection,
                                                        std::weak_ptr<ApplicationManager1Storage> storage) noexcept
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
+{
+}
+
+void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
 {
     if (!connection.registerService(DDEApplicationManager1ServiceName)) {
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
@@ -314,8 +317,7 @@ void ApplicationManager1Service::removeAllApplication() noexcept
 }
 
 QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidfd,
-                                             QDBusObjectPath &application,
-                                             QDBusObjectPath &application_instance)
+                                             ObjectMap &application_instance_info) const noexcept
 {
     if (!pidfd.isValid()) {
         qWarning() << "pidfd isn't a valid unix file descriptor";
@@ -353,15 +355,32 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 
     const auto ret = m_identifier->Identify(pid);
 
+    if (ret.ApplicationId.isEmpty()) {
+        qInfo() << "Identify failed.";
+        return {};
+    }
+
     auto app = std::find_if(m_applicationList.cbegin(), m_applicationList.cend(), [&ret](const auto &appPtr) {
         return appPtr->id() == ret.ApplicationId;
     });
+
     if (app == m_applicationList.cend()) {
         qWarning() << "can't find application:" << ret.ApplicationId;
         return {};
     }
-    application = m_applicationList.key(*app);
-    application_instance = (*app)->findInstance(ret.InstanceId);
+
+    auto instance = (*app)->findInstance(ret.InstanceId);
+
+    if (auto path = instance.path(); path.isEmpty()) {
+        qWarning() << "can't find instance:" << path;
+        return {};
+    }
+
+    auto instanceObj = (*app)->m_Instances.constFind(instance);
+    auto map = getChildInterfacesAndPropertiesFromObject(instanceObj->get());
+
+    application_instance_info.insert(instance, map);
+
     return ret.ApplicationId;
 }
 
