@@ -100,6 +100,7 @@ public:
         return m_Instances;
     }
     void resetEntry(DesktopEntry *newEntry) noexcept;
+    void detachAllInstance() noexcept;
 
 public Q_SLOTS:
     QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
@@ -131,6 +132,7 @@ private:
                                           const QString &valueKey,
                                           EntryValueType type,
                                           const QLocale &locale = getUserLocale()) const noexcept;
+    void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     static bool autostartCheck(const QString &linkPath) noexcept;
 };

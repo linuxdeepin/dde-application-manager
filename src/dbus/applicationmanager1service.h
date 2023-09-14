@@ -44,7 +44,9 @@ public:
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 
 public Q_SLOTS:
-    QString Identify(const QDBusUnixFileDescriptor &pidfd, ObjectMap &application_instance_info) const noexcept;
+    QString Identify(const QDBusUnixFileDescriptor &pidfd,
+                     QDBusObjectPath &instance,
+                     ObjectInterfaceMap &application_instance_info) const noexcept;
     void ReloadApplications();
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 

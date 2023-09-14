@@ -58,16 +58,16 @@ ApplicationManager1Storage::ApplicationManager1Storage(const QString &storagePat
 {
 }
 
-void ApplicationManager1Storage::writeToFile() const noexcept
+bool ApplicationManager1Storage::writeToFile() const noexcept
 {
     if (!m_file) {
         qCritical() << "file is nullptr";
-        return;
+        return false;
     }
 
     if (!m_file->resize(0)) {
         qCritical() << "failed to clear file:" << m_file->errorString();
-        return;
+        return false;
     }
 
     auto content = QJsonDocument{m_data}.toJson(QJsonDocument::Compact);
@@ -77,28 +77,32 @@ void ApplicationManager1Storage::writeToFile() const noexcept
     }
 
     if (!m_file->flush()) {
-        qCritical() << "io error.";
+        qCritical() << "io error, write failed.";
+        return false;
     }
+
+    return true;
 }
 
-void ApplicationManager1Storage::setVersion(uint8_t version) noexcept
+bool ApplicationManager1Storage::setVersion(uint8_t version) noexcept
 {
     m_data["version"] = version;
-    writeToFile();
+    return writeToFile();
 }
 
 uint8_t ApplicationManager1Storage::version() const noexcept
 {
-    return m_data["version"].toInt(0);
+    return m_data["version"].toInt(-1);
 }
 
-void ApplicationManager1Storage::createApplicationValue(const QString &appId,
+bool ApplicationManager1Storage::createApplicationValue(const QString &appId,
                                                         const QString &groupName,
                                                         const QString &valueKey,
                                                         const QVariant &value) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
-        return;
+        qWarning() << "unexpected empty string";
+        return false;
     }
 
     QJsonObject appObj;
@@ -112,94 +116,137 @@ void ApplicationManager1Storage::createApplicationValue(const QString &appId,
     }
 
     if (groupObj.contains(valueKey)) {
-        return;
+        qInfo() << "value" << valueKey << value << "is already exists.";
+        return true;
     }
 
     groupObj.insert(valueKey, value.toJsonValue());
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    writeToFile();
+    return writeToFile();
 }
 
-void ApplicationManager1Storage::updateApplicationValue(const QString &appId,
+bool ApplicationManager1Storage::updateApplicationValue(const QString &appId,
                                                         const QString &groupName,
                                                         const QString &valueKey,
                                                         const QVariant &value) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
-        return;
+        qWarning() << "unexpected empty string";
+        return false;
     }
 
     if (!m_data.contains(appId)) {
-        return;
+        qInfo() << "app" << appId << "doesn't exists.";
+        return false;
     }
     auto appObj = m_data[appId].toObject();
 
     if (!appObj.contains(groupName)) {
-        return;
+        qInfo() << "group" << groupName << "doesn't exists.";
+        return false;
     }
     auto groupObj = appObj[groupName].toObject();
 
     if (!groupObj.contains(valueKey)) {
-        return;
+        qInfo() << "value" << valueKey << "doesn't exists.";
+        return false;
     }
 
     groupObj.insert(valueKey, value.toJsonValue());
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    writeToFile();
+    return writeToFile();
 }
 
 QVariant ApplicationManager1Storage::readApplicationValue(const QString &appId,
                                                           const QString &groupName,
                                                           const QString &valueKey) const noexcept
 {
-    return m_data[appId][groupName][valueKey].toVariant();
+    auto app = m_data.constFind(appId)->toObject();
+    if (app.isEmpty()) {
+        return {};
+    }
+
+    auto group = app.constFind(groupName)->toObject();
+    if (group.isEmpty()) {
+        return {};
+    }
+
+    auto val = group.constFind(valueKey);
+    if (val->isNull()) {
+        return {};
+    }
+
+    return val->toVariant();
 }
 
-void ApplicationManager1Storage::deleteApplicationValue(const QString &appId,
+bool ApplicationManager1Storage::deleteApplicationValue(const QString &appId,
                                                         const QString &groupName,
                                                         const QString &valueKey) noexcept
 {
-    if (appId.isEmpty()) {
-        auto empty = QJsonObject{};
-        m_data.swap(empty);
-        return;
+    if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
+        qWarning() << "unexpected empty string";
+        return false;
     }
 
     auto app = m_data.find(appId).value();
     if (app.isNull()) {
-        return;
+        return true;
     }
     auto appObj = app.toObject();
 
-    if (groupName.isEmpty()) {
-        m_data.remove(appId);
-        return;
-    }
-
     auto group = appObj.find(groupName).value();
     if (group.isNull()) {
-        return;
+        return true;
     }
     auto groupObj = group.toObject();
 
-    if (valueKey.isEmpty()) {
-        appObj.remove(groupName);
-        m_data.insert(appId, appObj);
-        return;
-    }
-
     auto val = groupObj.find(valueKey).value();
     if (val.isNull()) {
-        return;
+        return true;
     }
 
     groupObj.remove(valueKey);
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    writeToFile();
+    return writeToFile();
+}
+
+bool ApplicationManager1Storage::clearData() noexcept
+{
+    QJsonObject obj;
+    m_data.swap(obj);
+    return setVersion(STORAGE_VERSION);
+}
+
+bool ApplicationManager1Storage::deleteApplication(const QString &appId) noexcept
+{
+    if (appId.isEmpty()) {
+        qWarning() << "unexpected empty string.";
+        return false;
+    }
+
+    m_data.remove(appId);
+    return writeToFile();
+}
+
+bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString &groupName) noexcept
+{
+    if (appId.isEmpty() or groupName.isEmpty()) {
+        qWarning() << "unexpected empty string.";
+        return false;
+    }
+
+    auto app = m_data.find(appId).value().toObject();
+    if (app.isEmpty()) {
+        return true;
+    }
+
+    app.remove(groupName);
+    m_data.insert(appId, app);
+    return writeToFile();
 }
