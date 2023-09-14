@@ -18,12 +18,15 @@ public:
     InstanceService &operator=(const InstanceService &) = delete;
     InstanceService &operator=(InstanceService &&) = delete;
 
-    Q_PROPERTY(QDBusObjectPath Application MEMBER m_Application)
-    Q_PROPERTY(QDBusObjectPath SystemdUnitPath MEMBER m_SystemdUnitPath)
-    Q_PROPERTY(QString Launcher MEMBER m_Launcher)
-    Q_PROPERTY(bool Orphaned MEMBER m_orphaned)
+    Q_PROPERTY(QDBusObjectPath Application MEMBER m_Application CONSTANT)
+    Q_PROPERTY(QDBusObjectPath SystemdUnitPath MEMBER m_SystemdUnitPath CONSTANT)
+    Q_PROPERTY(QString Launcher MEMBER m_Launcher CONSTANT)
+    Q_PROPERTY(bool Orphaned MEMBER m_orphaned NOTIFY orphanedChanged)
 
     [[nodiscard]] const QString &instanceId() const noexcept { return m_instanceId; }
+
+Q_SIGNALS:
+    void orphanedChanged();
 
 private:
     friend class ApplicationService;
