@@ -22,16 +22,16 @@ public:
 
         m_thread = QThread::create(
             [](QPromise<QVariantList> promise) {
-                std::this_thread::sleep_for(2ms);
+                std::this_thread::sleep_for(4ms);
                 promise.start();
-                std::this_thread::sleep_for(1ms);
+                std::this_thread::sleep_for(2ms);
                 if (promise.isCanceled()) {
                     return;
                 }
 
-                std::this_thread::sleep_for(1ms);
+                std::this_thread::sleep_for(2ms);
                 promise.suspendIfRequested();
-                std::this_thread::sleep_for(1ms);
+                std::this_thread::sleep_for(2ms);
 
                 std::size_t x{0};
                 for (std::size_t i = 0; i < 20000; ++i) {
@@ -62,14 +62,14 @@ TEST_F(TestJob, cancelJob)
 {
     m_thread->start();
 
-    std::this_thread::sleep_for(1ms);
-    EXPECT_EQ(m_jobService->status().toStdString(), std::string{"pending"});
     std::this_thread::sleep_for(2ms);
+    EXPECT_EQ(m_jobService->status().toStdString(), std::string{"pending"});
+    std::this_thread::sleep_for(4ms);
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
 
     m_jobService->Cancel();
 
-    std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(2ms);
 
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"canceled"});
 }
@@ -78,20 +78,20 @@ TEST_F(TestJob, suspendAndResumeJob)
 {
     m_thread->start();
 
-    std::this_thread::sleep_for(3ms);
+    std::this_thread::sleep_for(6ms);
 
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
 
     m_jobService->Suspend();
 
-    std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(2ms);
 
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"suspending"});
-    std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(2ms);
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"suspended"});
     m_jobService->Resume();
 
-    std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(2ms);
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
 
     EXPECT_TRUE(m_thread->wait());

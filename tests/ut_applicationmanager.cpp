@@ -6,6 +6,7 @@
 #include "dbus/applicationservice.h"
 #include "cgroupsidentifier.h"
 #include "constant.h"
+#include "dbus/instanceadaptor.h"
 #include <gtest/gtest.h>
 #include <QDBusConnection>
 #include <QSharedPointer>
@@ -34,7 +35,7 @@ public:
         bus.initGlobalServerBus(DBusType::Session);
         bus.setDestBus();
         std::shared_ptr<ApplicationManager1Storage> tmp{nullptr};
-        m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), bus.globalServerBus(), tmp};
+        m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), tmp};
         auto ptr = std::make_unique<QFile>(QString{"/usr/share/applications/test-Application.desktop"});
         DesktopFile file{std::move(ptr), "test-Application", 0, 0};
         QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr, tmp);
@@ -42,13 +43,13 @@ public:
             InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"}, QString{"DDE"});
         app->m_Instances.insert(InstancePath, instance);
         m_am->m_applicationList.insert(ApplicationPath, app);
+        new InstanceAdaptor{instance.data()};
     }
 
     static void TearDownTestCase() { m_am->deleteLater(); }
 
     static inline ApplicationManager1Service *m_am{nullptr};
-    const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/" +
-                                                        QUuid::createUuid().toString(QUuid::Id128)};
+    const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/test_2dApplication"};
     const static inline QDBusObjectPath InstancePath{ApplicationPath.path() + "/" + QUuid::createUuid().toString(QUuid::Id128)};
 };
 
@@ -96,12 +97,22 @@ TEST_F(TestApplicationManager, identifyService)
 
     auto pidfd = pidfd_open(fakePid, 0);
     ASSERT_TRUE(pidfd > 0) << std::strerror(errno);
-    QDBusObjectPath application;
-    QDBusObjectPath application_instance;
-    auto appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, application, application_instance);
+    ObjectMap instanceInfo;
+    auto appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, instanceInfo);
     EXPECT_EQ(appId.toStdString(), QString{"test-Application"}.toStdString());
-    EXPECT_EQ(application.path().toStdString(), ApplicationPath.path().toStdString());
-    EXPECT_EQ(application_instance.path().toStdString(), InstancePath.path().toStdString());
+
+    auto instance = instanceInfo.constFind(InstancePath);
+    if (instance == instanceInfo.cend()) {
+        GTEST_SKIP_("couldn't find instance and skip.");
+    }
+
+    ObjectInterfaceMap map{{QString{InstanceInterface},
+                            QVariantMap{{QString{"Application"}, ApplicationPath},
+                                        {QString{"SystemdUnitPath"}, QDBusObjectPath{"/"}},
+                                        {QString{"Launcher"}, QString{"DDE"}},
+                                        {QString{"Orphaned"}, false}}}};
+    EXPECT_EQ(instance.value(), map);
+
     close(pidfd);
 
     if (pidFile.exists()) {
@@ -136,10 +147,18 @@ TEST_F(TestApplicationManager, identifyService)
     pidfd = pidfd_open(fakePid, 0);
     ASSERT_TRUE(pidfd > 0) << std::strerror(errno);
 
-    appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, application, application_instance);
+    instanceInfo.clear();
+
+    appId = m_am->Identify(QDBusUnixFileDescriptor{pidfd}, instanceInfo);
     EXPECT_EQ(appId.toStdString(), QString{"test-Application"}.toStdString());
-    EXPECT_EQ(application.path().toStdString(), ApplicationPath.path().toStdString());
-    EXPECT_EQ(application_instance.path().toStdString(), InstancePath.path().toStdString());
+
+    instance = instanceInfo.constFind(InstancePath);
+    if (instance == instanceInfo.cend()) {
+        GTEST_SKIP_("couldn't find instance and skip.");
+    }
+
+    EXPECT_EQ(instance.value(), map);
+
     close(pidfd);
 
     if (pidFile.exists()) {

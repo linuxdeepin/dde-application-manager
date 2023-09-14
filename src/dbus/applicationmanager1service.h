@@ -24,7 +24,6 @@ class ApplicationManager1Service final : public QObject
     Q_OBJECT
 public:
     explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
-                                        QDBusConnection &connection,
                                         std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
     ~ApplicationManager1Service() override;
     ApplicationManager1Service(const ApplicationManager1Service &) = delete;
@@ -35,6 +34,7 @@ public:
     Q_PROPERTY(QList<QDBusObjectPath> List READ list NOTIFY listChanged)
     [[nodiscard]] QList<QDBusObjectPath> list() const;
 
+    void initService(QDBusConnection &connection) noexcept;
     bool addApplication(DesktopFile desktopFileSource) noexcept;
     void removeOneApplication(const QDBusObjectPath &application) noexcept;
     void removeAllApplication() noexcept;
@@ -44,7 +44,7 @@ public:
     JobManager1Service &jobManager() noexcept { return *m_jobManager; }
 
 public Q_SLOTS:
-    QString Identify(const QDBusUnixFileDescriptor &pidfd, QDBusObjectPath &application, QDBusObjectPath &application_instance);
+    QString Identify(const QDBusUnixFileDescriptor &pidfd, ObjectMap &application_instance_info) const noexcept;
     void ReloadApplications();
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 

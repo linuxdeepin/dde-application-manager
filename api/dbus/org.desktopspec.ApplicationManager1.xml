@@ -15,8 +15,8 @@
             <arg type="h" name="pidfd" direction="in" />
 
             <arg type="s" name="id" direction="out" />
-            <arg type="o" name="application" direction="out" />
-            <arg type="o" name="application_instance" direction="out" />
+            <arg type="a{oa{sv}}" name="application_instance_info" direction="out" />
+            <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="ObjectMap"/>
 
             <annotation
                 name="org.freedesktop.DBus.Description"

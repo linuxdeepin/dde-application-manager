@@ -4,12 +4,20 @@
 
 #include <QCoreApplication>
 #include <gtest/gtest.h>
+#include "global.h"
 #include <QTimer>
 #include <QDBusMetaType>
 
 namespace {
-void registerComplexDbusType()
+void registerComplexDbusType()  // FIXME: test shouldn't associate with DBus
 {
+    qRegisterMetaType<ObjectInterfaceMap>();
+    qDBusRegisterMetaType<ObjectInterfaceMap>();
+    qRegisterMetaType<ObjectMap>();
+    qDBusRegisterMetaType<ObjectMap>();
+    qDBusRegisterMetaType<QMap<QString, QString>>();
+    qRegisterMetaType<PropMap>();
+    qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();
 }
 }  // namespace
