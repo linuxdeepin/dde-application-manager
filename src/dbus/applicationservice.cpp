@@ -421,12 +421,12 @@ qulonglong ApplicationService::lastLaunchedTime() const noexcept
     return m_lastLaunch;
 }
 
-bool ApplicationService::autostartCheck(const QString &linkPath) noexcept
+bool ApplicationService::autostartCheck(const QString &linkPath) const noexcept
 {
     QFileInfo info{linkPath};
 
     if (info.exists()) {
-        if (info.isSymbolicLink()) {
+        if (info.isSymbolicLink() and info.symLinkTarget() == m_desktopSource.sourcePath()) {
             return true;
         }
         qWarning() << "same name desktop file exists:" << linkPath << "but this may not created by AM.";
