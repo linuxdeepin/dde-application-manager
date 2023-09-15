@@ -556,6 +556,28 @@ bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs)
     return !(lhs == rhs);
 }
 
+bool operator==(const DesktopFile &lhs, const DesktopFile &rhs)
+{
+    if (lhs.m_desktopId != rhs.m_desktopId) {
+        return false;
+    }
+
+    if (lhs.sourcePath() != rhs.sourcePath()) {
+        return false;
+    }
+
+    if (lhs.m_ctime != rhs.m_ctime or lhs.m_mtime != rhs.m_mtime) {
+        return false;
+    }
+
+    return true;
+}
+
+bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs)
+{
+    return !(lhs == rhs);
+}
+
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
 {
     QDebugStateSaver saver{debug};

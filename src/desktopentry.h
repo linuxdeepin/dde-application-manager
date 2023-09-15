@@ -50,6 +50,9 @@ struct DesktopFile
     [[nodiscard]] bool modified(qint64 time) const noexcept;
     [[nodiscard]] qint64 createTime() const noexcept { return m_ctime; }
 
+    friend bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
+    friend bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
+
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
@@ -156,5 +159,9 @@ QDebug operator<<(QDebug debug, const DesktopErrorCode &v);
 bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
 
 bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);
+
+bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
+
+bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
 #endif
