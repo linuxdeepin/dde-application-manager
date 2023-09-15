@@ -97,7 +97,37 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         flag.write(sessionId, sessionId.size());
     }
 
-    scanAutoStart();
+    constexpr auto XSettings = "org.deepin.dde.XSettings1";
+
+    auto *watcher =
+        new QDBusServiceWatcher{XSettings, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration, this};
+
+    auto *sigCon = new QMetaObject::Connection{};
+
+    auto singleSlot = [this, watcher, sigCon]() {
+        QObject::disconnect(*sigCon);
+        delete sigCon;
+        qDebug() << XSettings << "is registered.";
+        scanAutoStart();
+        watcher->deleteLater();
+    };
+
+    *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, std::move(singleSlot));
+
+    auto msg =
+        QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
+    msg << XSettings;
+
+    auto reply = QDBusConnection::sessionBus().call(msg);
+    if (reply.type() != QDBusMessage::ReplyMessage) {
+        qWarning() << "call org.freedesktop.DBus::NameHasOwner failed, skip autostart:" << reply.errorMessage();
+        // ...
+        return;
+    }
+
+    if (reply.arguments().first().toBool()) {
+        singleSlot();
+    }
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
