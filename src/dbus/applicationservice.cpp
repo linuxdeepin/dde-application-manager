@@ -533,6 +533,19 @@ QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) cons
 void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
 {
     m_entry.reset(newEntry);
+    emit autostartChanged();
+    emit noDisplayChanged();
+    emit isOnDesktopChanged();
+    emit installedTimeChanged();
+    emit x_FlatpakChanged();
+    emit x_linglongChanged();
+    emit instanceChanged();
+    emit lastLaunchedTimeChanged();
+    emit iconsChanged();
+    emit displayNameChanged();
+    emit actionNameChanged();
+    emit actionsChanged();
+    emit categoriesChanged();
 }
 
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)
