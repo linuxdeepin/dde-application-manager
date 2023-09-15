@@ -35,25 +35,25 @@ public:
     ApplicationService &operator=(const ApplicationService &) = delete;
     ApplicationService &operator=(ApplicationService &&) = delete;
 
-    Q_PROPERTY(QStringList Categories READ categories)
+    Q_PROPERTY(QStringList Categories READ categories NOTIFY categoriesChanged)
     [[nodiscard]] QStringList categories() const noexcept;
 
-    Q_PROPERTY(QStringList Actions READ actions)
+    Q_PROPERTY(QStringList Actions READ actions NOTIFY actionsChanged)
     [[nodiscard]] QStringList actions() const noexcept;
 
-    Q_PROPERTY(PropMap ActionName READ actionName)
+    Q_PROPERTY(PropMap ActionName READ actionName NOTIFY actionNameChanged)
     [[nodiscard]] PropMap actionName() const noexcept;
 
     Q_PROPERTY(QString ID READ id CONSTANT)
     [[nodiscard]] QString id() const noexcept;
 
-    Q_PROPERTY(PropMap DisplayName READ displayName)
+    Q_PROPERTY(PropMap DisplayName READ displayName NOTIFY displayNameChanged)
     [[nodiscard]] PropMap displayName() const noexcept;
 
-    Q_PROPERTY(PropMap Icons READ icons)
+    Q_PROPERTY(PropMap Icons READ icons NOTIFY iconsChanged)
     [[nodiscard]] PropMap icons() const noexcept;
 
-    Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime)
+    Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime NOTIFY lastLaunchedTimeChanged)
     [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
 
     // FIXME:
@@ -63,22 +63,22 @@ public:
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
 
-    Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances)
+    Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances NOTIFY instanceChanged)
     [[nodiscard]] QList<QDBusObjectPath> instances() const noexcept;
 
-    Q_PROPERTY(bool X_Flatpak READ x_Flatpak)
+    Q_PROPERTY(bool X_Flatpak READ x_Flatpak NOTIFY x_FlatpakChanged)
     [[nodiscard]] bool x_Flatpak() const noexcept;
 
-    Q_PROPERTY(bool X_linglong READ x_linglong)
+    Q_PROPERTY(bool X_linglong READ x_linglong NOTIFY x_linglongChanged)
     [[nodiscard]] bool x_linglong() const noexcept;
 
-    Q_PROPERTY(qulonglong installedTime READ installedTime)
+    Q_PROPERTY(qulonglong installedTime READ installedTime NOTIFY installedTimeChanged)
     [[nodiscard]] qulonglong installedTime() const noexcept;
 
-    Q_PROPERTY(bool isOnDesktop READ isOnDesktop)
+    Q_PROPERTY(bool isOnDesktop READ isOnDesktop NOTIFY isOnDesktopChanged)
     [[nodiscard]] bool isOnDesktop() const noexcept;
 
-    Q_PROPERTY(bool NoDisplay READ noDisplay)
+    Q_PROPERTY(bool NoDisplay READ noDisplay NOTIFY noDisplayChanged)
     [[nodiscard]] bool noDisplay() const noexcept;
 
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
@@ -112,6 +112,18 @@ Q_SIGNALS:
     void InterfacesAdded(const QDBusObjectPath &object_path, const ObjectInterfaceMap &interfaces);
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
     void autostartChanged();
+    void noDisplayChanged();
+    void isOnDesktopChanged();
+    void installedTimeChanged();
+    void x_FlatpakChanged();
+    void x_linglongChanged();
+    void instanceChanged();
+    void lastLaunchedTimeChanged();
+    void iconsChanged();
+    void displayNameChanged();
+    void actionNameChanged();
+    void actionsChanged();
+    void categoriesChanged();
 
 private:
     friend class ApplicationManager1Service;
