@@ -220,7 +220,7 @@ bool KeyFile::loadFile(const std::string &filePath)
             )
         );
 
-        if (line.front() == '#') {
+        if (line.empty() || line.front() == '#') {
             continue;
         }
 
@@ -231,6 +231,10 @@ bool KeyFile::loadFile(const std::string &filePath)
             ).base(),
             line.end()
         );
+
+        if (line.empty()) {
+            continue;
+        }
 
         if (line.front() == '[') {
             auto rPos = line.find_first_of(']');
