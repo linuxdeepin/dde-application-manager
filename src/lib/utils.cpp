@@ -76,7 +76,8 @@ std::vector<std::string> getSystemDataDirs()
     std::vector<std::string> systemDir = getSystemDirs("XDG_DATA_DIRS");
 
     if (systemDir.empty()) {
-        systemDir.push_back({"/usr/local/share", "/usr/share"});
+        systemDir.push_back("/usr/local/share");
+        systemDir.push_back("/usr/share");
     }
 
     return systemDir;
