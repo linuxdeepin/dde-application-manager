@@ -112,7 +112,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         watcher->deleteLater();
     };
 
-    *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, std::move(singleSlot));
+    *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
 
     auto msg =
         QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
@@ -121,7 +121,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     auto reply = QDBusConnection::sessionBus().call(msg);
     if (reply.type() != QDBusMessage::ReplyMessage) {
         qWarning() << "call org.freedesktop.DBus::NameHasOwner failed, skip autostart:" << reply.errorMessage();
-        // ...
+        // The connection should not be deleted, failure to call org.freedesktop.DBus::NameHasOwner does not mean that the
+        // XSettings service is invalid.
         return;
     }
 
