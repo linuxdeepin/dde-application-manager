@@ -4,6 +4,7 @@
 
 #include "desktopentry.h"
 #include "global.h"
+#include "desktopfileparser.h"
 #include <QFileInfo>
 #include <QDir>
 #include <algorithm>
@@ -14,203 +15,6 @@
 #include <iostream>
 #include <chrono>
 #include <cstdio>
-
-namespace {
-bool isInvalidLocaleString(const QString &str) noexcept
-{
-    constexpr auto Language = R"((?:[a-z]+))";        // language of locale postfix. eg.(en, zh)
-    constexpr auto Country = R"((?:_[A-Z]+))";        // country of locale postfix. eg.(US, CN)
-    constexpr auto Encoding = R"((?:\.[0-9A-Z-]+))";  // encoding of locale postfix. eg.(UFT-8)
-    constexpr auto Modifier = R"((?:@[a-zA-Z=;]+))";  // modifier of locale postfix. eg.(euro;collation=traditional)
-    const static auto validKey = QString(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier);
-    // example: https://regex101.com/r/hylOay/2
-    static const QRegularExpression _re = []() -> QRegularExpression {
-        QRegularExpression tmp{validKey};
-        tmp.optimize();
-        return tmp;
-    }();
-    thread_local const auto re = _re;
-
-    return re.match(str).hasMatch();
-}
-
-bool hasNonAsciiAndControlCharacters(const QString &str) noexcept
-{
-    static const QRegularExpression _matchControlChars = []() {
-        QRegularExpression tmp{R"(\p{Cc})"};
-        tmp.optimize();
-        return tmp;
-    }();
-    thread_local const auto matchControlChars = _matchControlChars;
-    static const QRegularExpression _matchNonAsciiChars = []() {
-        QRegularExpression tmp{R"([^\x00-\x7f])"};
-        tmp.optimize();
-        return tmp;
-    }();
-    thread_local const auto matchNonAsciiChars = _matchNonAsciiChars;
-    if (str.contains(matchControlChars) and str.contains(matchNonAsciiChars)) {
-        return true;
-    }
-
-    return false;
-}
-
-struct Parser
-{
-    Parser(QTextStream &stream)
-        : m_stream(stream){};
-    QTextStream &m_stream;
-    QString m_line;
-
-    using Groups = QMap<QString, QMap<QString, DesktopEntry::Value>>;
-
-    DesktopErrorCode parse(Groups &groups) noexcept;
-
-private:
-    void skip() noexcept;
-    DesktopErrorCode addGroup(Groups &groups) noexcept;
-    DesktopErrorCode addEntry(Groups::iterator &group) noexcept;
-};
-
-void Parser::skip() noexcept
-{
-    while (!m_stream.atEnd() and (m_line.startsWith('#') or m_line.isEmpty())) {
-        m_line = m_stream.readLine().trimmed();
-    }
-}
-
-DesktopErrorCode Parser::parse(Groups &ret) noexcept
-{
-    std::remove_reference_t<decltype(ret)> groups;
-    while (!m_stream.atEnd()) {
-        auto err = addGroup(groups);
-        if (err != DesktopErrorCode::NoError) {
-            return err;
-        }
-
-        if (groups.size() != 1) {
-            continue;
-        }
-
-        if (groups.keys().first() != DesktopFileEntryKey) {
-            qWarning() << "There should be nothing preceding "
-                          "'Desktop Entry' group in the desktop entry file "
-                          "but possibly one or more comments.";
-            return DesktopErrorCode::InvalidFormat;
-        }
-    }
-
-    if (!m_line.isEmpty()) {
-        qCritical() << "Something is wrong in Desktop file parser, check logic.";
-        return DesktopErrorCode::InternalError;
-    }
-
-    ret = std::move(groups);
-    return DesktopErrorCode::NoError;
-}
-
-DesktopErrorCode Parser::addGroup(Groups &ret) noexcept
-{
-    skip();
-    if (!m_line.startsWith('[')) {
-        qWarning() << "Invalid desktop file format: unexpected line:" << m_line;
-        return DesktopErrorCode::InvalidFormat;
-    }
-
-    // Parsing group header.
-    // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#group-header
-
-    auto groupHeader = m_line.sliced(1, m_line.size() - 2).trimmed();
-
-    if (groupHeader.contains('[') || groupHeader.contains(']') || hasNonAsciiAndControlCharacters(groupHeader)) {
-        qWarning() << "group header invalid:" << m_line;
-        return DesktopErrorCode::InvalidFormat;
-    }
-
-    if (ret.find(groupHeader) != ret.end()) {
-        qWarning() << "duplicated group header detected:" << groupHeader;
-        return DesktopErrorCode::InvalidFormat;
-    }
-
-    auto group = ret.insert(groupHeader, {});
-
-    m_line.clear();
-    while (!m_stream.atEnd() && !m_line.startsWith('[')) {
-        skip();
-        if (m_line.startsWith('[')) {
-            break;
-        }
-        auto err = addEntry(group);
-        if (err != DesktopErrorCode::NoError) {
-            return err;
-        }
-    }
-    return DesktopErrorCode::NoError;
-}
-
-DesktopErrorCode Parser::addEntry(Groups::iterator &group) noexcept
-{
-    auto line = m_line;
-    m_line.clear();
-    auto splitCharIndex = line.indexOf('=');
-    if (splitCharIndex == -1) {
-        qWarning() << "invalid line in desktop file, skip it:" << line;
-        return DesktopErrorCode::NoError;
-    }
-    auto keyStr = line.first(splitCharIndex).trimmed();
-    auto valueStr = line.sliced(splitCharIndex + 1).trimmed();
-
-    QString key{""};
-    QString localeStr{defaultKeyStr};
-    // NOTE:
-    // We are process "localized keys" here, for usage check:
-    // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#localized-keys
-    qsizetype localeBegin = keyStr.indexOf('[');
-    qsizetype localeEnd = keyStr.lastIndexOf(']');
-    if ((localeBegin == -1 && localeEnd != -1) || (localeBegin != -1 && localeEnd == -1)) {
-        qWarning() << "unmatched [] detected in desktop file, skip this line: " << line;
-        return DesktopErrorCode::NoError;
-    }
-
-    if (localeBegin == -1 && localeEnd == -1) {
-        key = keyStr;
-    } else {
-        key = keyStr.sliced(0, localeBegin);
-        localeStr = keyStr.sliced(localeBegin + 1, localeEnd - localeBegin - 1);  // strip '[' and ']'
-    }
-
-    static const QRegularExpression _re = []() {
-        QRegularExpression tmp{"R([^A-Za-z0-9-])"};
-        tmp.optimize();
-        return tmp;
-    }();
-    // NOTE: https://stackoverflow.com/a/25583104
-    thread_local const QRegularExpression re = _re;
-    if (re.match(key).hasMatch()) {
-        qWarning() << "invalid key name, skip this line:" << line;
-        return DesktopErrorCode::NoError;
-    }
-
-    if (localeStr != defaultKeyStr && !isInvalidLocaleString(localeStr)) {
-        qWarning().noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
-    }
-
-    auto keyIt = group->find(key);
-    if (keyIt != group->end() && keyIt->find(localeStr) != keyIt->end()) {
-        qWarning() << "duplicated localestring, skip this line:" << line;
-        return DesktopErrorCode::NoError;
-    }
-
-    if (keyIt == group->end()) {
-        group->insert(key, {{localeStr, valueStr}});
-        return DesktopErrorCode::NoError;
-    }
-
-    keyIt->insert(localeStr, valueStr);
-    return DesktopErrorCode::NoError;
-}
-
-}  // namespace
 
 QString DesktopFile::sourcePath() const noexcept
 {
@@ -293,20 +97,20 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
     return createTemporaryDesktopFile(std::move(tempFile));
 }
 
-std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, DesktopErrorCode &err) noexcept
+std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept
 {
     decltype(auto) desktopSuffix = ".desktop";
 
     if (!desktopFile.endsWith(desktopSuffix)) {
         qWarning() << "file isn't a desktop file:" << desktopFile;
-        err = DesktopErrorCode::MismatchedFile;
+        err = ParserError::MismatchedFile;
         return std::nullopt;
     }
 
     QFileInfo fileinfo{desktopFile};
     if (!fileinfo.isAbsolute() or !fileinfo.exists()) {
         qWarning() << "desktop file not found.";
-        err = DesktopErrorCode::NotFound;
+        err = ParserError::NotFound;
         return std::nullopt;
     }
 
@@ -334,11 +138,11 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
     auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*filePtr});
 
-    err = DesktopErrorCode::NoError;
+    err = ParserError::NoError;
     return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};
 }
 
-std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept
+std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, ParserError &err) noexcept
 {
     auto XDGDataDirs = getDesktopFileDirs();
     constexpr auto desktopSuffix = u8".desktop";
@@ -360,7 +164,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &app
         }
     }
 
-    err = DesktopErrorCode::NotFound;
+    err = ParserError::NotFound;
     return std::nullopt;
 }
 
@@ -369,13 +173,13 @@ bool DesktopFile::modified(qint64 time) const noexcept
     return time != m_mtime;
 }
 
-DesktopErrorCode DesktopEntry::parse(const DesktopFile &file) noexcept
+ParserError DesktopEntry::parse(const DesktopFile &file) noexcept
 {
     DesktopFileGuard guard{file};
 
     if (!guard.try_open()) {
         qWarning() << file.sourcePath() << "can't open.";
-        return DesktopErrorCode::OpenFailed;
+        return ParserError::OpenFailed;
     }
 
     QTextStream stream;
@@ -383,29 +187,29 @@ DesktopErrorCode DesktopEntry::parse(const DesktopFile &file) noexcept
     return parse(stream);
 }
 
-DesktopErrorCode DesktopEntry::parse(QTextStream &stream) noexcept
+ParserError DesktopEntry::parse(QTextStream &stream) noexcept
 {
-    if (m_parsed == true) {
-        return DesktopErrorCode::Parsed;
+    if (m_parsed) {
+        return ParserError::Parsed;
     }
 
     if (stream.atEnd()) {
-        return DesktopErrorCode::OpenFailed;
+        return ParserError::OpenFailed;
     }
 
     stream.setEncoding(QStringConverter::Utf8);
 
-    DesktopErrorCode err{DesktopErrorCode::NoError};
-    Parser p(stream);
+    ParserError err{ParserError::NoError};
+    DesktopFileParser p(stream);
     err = p.parse(m_entryMap);
     m_parsed = true;
-    if (err != DesktopErrorCode::NoError) {
+    if (err != ParserError::NoError) {
         return err;
     }
 
     if (!checkMainEntryValidation()) {
         qWarning() << "invalid MainEntry, abort.";
-        err = DesktopErrorCode::MissingInfo;
+        err = ParserError::MissingInfo;
     }
 
     return err;
@@ -582,42 +386,5 @@ QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
 {
     QDebugStateSaver saver{debug};
     debug << static_cast<const QMap<QString, QString> &>(v);
-    return debug;
-}
-
-QDebug operator<<(QDebug debug, const DesktopErrorCode &v)
-{
-    QDebugStateSaver saver{debug};
-    QString errMsg;
-    switch (v) {
-    case DesktopErrorCode::NoError: {
-        errMsg = "no error.";
-    } break;
-    case DesktopErrorCode::NotFound: {
-        errMsg = "file not found.";
-    } break;
-    case DesktopErrorCode::MismatchedFile: {
-        errMsg = "file type is mismatched.";
-    } break;
-    case DesktopErrorCode::InvalidLocation: {
-        errMsg = "file location is invalid, please check $XDG_DATA_DIRS.";
-    } break;
-    case DesktopErrorCode::OpenFailed: {
-        errMsg = "couldn't open the file.";
-    } break;
-    case DesktopErrorCode::InvalidFormat: {
-        errMsg = "the format of desktopEntry file is invalid.";
-    } break;
-    case DesktopErrorCode::MissingInfo: {
-        errMsg = "missing required infomation.";
-    } break;
-    case DesktopErrorCode::Parsed: {
-        errMsg = "this desktop entry is parsed.";
-    } break;
-    case DesktopErrorCode::InternalError: {
-        errMsg = "internal error of parser.";
-    } break;
-    }
-    debug << errMsg;
     return debug;
 }

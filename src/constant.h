@@ -17,7 +17,8 @@ constexpr auto DDEApplicationManager1ServiceName =
 
 constexpr auto DDEApplicationManager1ObjectPath = u8"/org/desktopspec/ApplicationManager1";
 constexpr auto DDEAutoStartManager1ObjectPath = u8"/org/desktopspec/AutoStartManager1";
-constexpr auto DDEApplicationManager1JobManagerObjectPath = u8"/org/desktopspec/ApplicationManager1/JobManager1";
+constexpr auto DDEApplicationManager1JobManager1ObjectPath = u8"/org/desktopspec/ApplicationManager1/JobManager1";
+constexpr auto DDEApplicationManager1MimeManager1ObjectPath = u8"/org/desktopspec/ApplicationManager1/MimeManager1";
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
 
@@ -36,12 +37,13 @@ constexpr auto ApplicationManagerDestDBusName =
 #endif
 
 constexpr auto ObjectManagerInterface = "org.desktopspec.DBus.ObjectManager";
-constexpr auto JobManagerInterface = "org.desktopspec.JobManager1";
+constexpr auto JobManager1Interface = "org.desktopspec.JobManager1";
 constexpr auto JobInterface = "org.desktopspec.JobManager1.Job";
-constexpr auto ApplicationManagerInterface = "org.desktopspec.ApplicationManager1";
+constexpr auto ApplicationManager1Interface = "org.desktopspec.ApplicationManager1";
 constexpr auto InstanceInterface = "org.desktopspec.ApplicationManager1.Instance";
 constexpr auto ApplicationInterface = "org.desktopspec.ApplicationManager1.Application";
 constexpr auto PropertiesInterface = u8"org.freedesktop.DBus.Properties";
+constexpr auto MimeManager1Interface = u8"org.desktopspec.MimeManager1";
 
 constexpr auto systemdOption = u8"systemd";
 constexpr auto splitOption = u8"split";

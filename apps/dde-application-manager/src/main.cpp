@@ -21,7 +21,7 @@ void registerComplexDbusType()
     qDBusRegisterMetaType<ObjectInterfaceMap>();
     qRegisterMetaType<ObjectMap>();
     qDBusRegisterMetaType<ObjectMap>();
-    qDBusRegisterMetaType<QMap<QString, QString>>();
+    qDBusRegisterMetaType<KVPairs>();
     qRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();

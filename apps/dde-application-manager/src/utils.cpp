@@ -9,9 +9,9 @@ bool registerObjectToDBus(QObject *o, const QString &path, const QString &interf
     auto &con = ApplicationManager1DBus::instance().globalServerBus();
     if (!con.registerObject(path, interface, o, QDBusConnection::RegisterOption::ExportAdaptors)) {
         qCritical() << "register object failed:" << path << interface << con.lastError();
-    } else {
-        qDebug() << "register object:" << path << interface;
+        return false;
     }
+    qDebug() << "register object:" << path << interface;
     return true;
 }
 

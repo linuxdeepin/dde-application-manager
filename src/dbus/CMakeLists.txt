@@ -13,6 +13,7 @@ qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.deskto
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.JobManager1.Job.xml dbus/jobservice.h JobService)
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.ObjectManager1.xml dbus/applicationmanager1service.h ApplicationManager1Service AMobjectmanager1adaptor AMObjectManagerAdaptor)
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.ObjectManager1.xml dbus/applicationservice.h ApplicationService APPobjectmanager1adaptor APPObjectManagerAdaptor)
+qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.MimeManager1.xml dbus/mimemanager1service.h MimeManager1Service)
 
 target_sources(dde_am_dbus PRIVATE
     ${dde_am_dbus_SOURCE}
