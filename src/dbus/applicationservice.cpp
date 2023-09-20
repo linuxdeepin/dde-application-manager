@@ -5,7 +5,6 @@
 #include "dbus/applicationservice.h"
 #include "APPobjectmanager1adaptor.h"
 #include "applicationchecker.h"
-#include "applicationmanager1service.h"
 #include "applicationmanagerstorage.h"
 #include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
@@ -83,7 +82,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     std::unique_ptr<DesktopEntry> entry{std::make_unique<DesktopEntry>()};
     auto error = entry->parse(sourceStream);
 
-    if (error != DesktopErrorCode::NoError) {
+    if (error != ParserError::NoError) {
         qWarning() << "parse failed:" << error << app->desktopFileSource().sourcePath();
         return nullptr;
     }
@@ -486,6 +485,79 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     emit autostartChanged();
 }
 
+QStringList ApplicationService::mimeTypes() const noexcept
+{
+    QStringList ret;
+    const auto &desktopFilePath = m_desktopSource.sourcePath();
+    const auto &cacheList = parent()->mimeManager().infos();
+    auto cache = std::find_if(cacheList.cbegin(), cacheList.cend(), [&desktopFilePath](const MimeInfo &info) {
+        return desktopFilePath.startsWith(info.directory());
+    });
+
+    const auto &info = cache->cacheInfo();
+    if (info) {
+        ret.append(info->queryTypes(id()));
+    }
+
+    AppList tmp;
+
+    for (auto it = cacheList.crbegin(); it != cacheList.crend(); ++it) {
+        const auto &list = it->appsList();
+        std::for_each(list.crbegin(), list.crend(), [&tmp, this](const MimeApps &app) {
+            auto [added, removed] = app.queryTypes(id());
+            tmp.added.append(std::move(added));
+            tmp.removed.append(std::move(removed));
+        });
+    };
+
+    tmp.added.removeDuplicates();
+    tmp.removed.removeDuplicates();
+    for (const auto &it : tmp.removed) {
+        tmp.added.removeOne(it);
+    }
+
+    ret.append(std::move(tmp.added));
+    ret.removeDuplicates();
+    return ret;
+}
+
+void ApplicationService::setMimeTypes(const QStringList &value) noexcept
+{
+    auto oldMimes = mimeTypes();
+    auto newMimes = value;
+    std::sort(oldMimes.begin(), oldMimes.end());
+    std::sort(newMimes.begin(), newMimes.end());
+
+    QStringList newAdds;
+    QStringList newRemoved;
+
+    std::set_difference(oldMimes.begin(), oldMimes.end(), newMimes.begin(), newMimes.end(), std::back_inserter(newRemoved));
+    std::set_difference(newMimes.begin(), newMimes.end(), oldMimes.begin(), oldMimes.end(), std::back_inserter(newAdds));
+
+    static QString userDir = getXDGConfigHome();
+    auto &infos = parent()->mimeManager().infos();
+    auto userInfo = std::find_if(infos.begin(), infos.end(), [](const MimeInfo &info) { return info.directory() == userDir; });
+    if (userInfo == infos.cend()) {
+        sendErrorReply(QDBusError::Failed, "user-specific config file doesn't exists.");
+        return;
+    }
+
+    const auto &list = userInfo->appsList().rbegin();
+    const auto &appId = id();
+    for (const auto &add : newAdds) {
+        list->addAssociation(add, appId);
+    }
+    for (const auto &remove : newRemoved) {
+        list->removeAssociation(remove, appId);
+    }
+
+    if (!list->writeToFile()) {
+        qWarning() << "error occurred when write mime association to file";
+    }
+
+    emit MimeTypesChanged();
+}
+
 QList<QDBusObjectPath> ApplicationService::instances() const noexcept
 {
     return m_Instances.keys();
@@ -567,6 +639,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit actionNameChanged();
     emit actionsChanged();
     emit categoriesChanged();
+    emit MimeTypesChanged();
 }
 
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)

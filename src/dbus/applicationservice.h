@@ -23,6 +23,7 @@
 #include "global.h"
 #include "desktopentry.h"
 #include "dbus/jobmanager1service.h"
+#include "applicationmanager1service.h"
 
 QString getDeepinWineScaleFactor(const QString &appId) noexcept;
 
@@ -66,6 +67,10 @@ public:
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart NOTIFY autostartChanged)
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
+
+    Q_PROPERTY(QStringList MimeTypes READ mimeTypes WRITE setMimeTypes)
+    [[nodiscard]] QStringList mimeTypes() const noexcept;
+    void setMimeTypes(const QStringList &value) noexcept;
 
     Q_PROPERTY(QList<QDBusObjectPath> Instances READ instances NOTIFY instanceChanged)
     [[nodiscard]] QList<QDBusObjectPath> instances() const noexcept;
@@ -129,6 +134,7 @@ Q_SIGNALS:
     void actionNameChanged();
     void actionsChanged();
     void categoriesChanged();
+    void MimeTypesChanged();
 
 private:
     friend class ApplicationManager1Service;

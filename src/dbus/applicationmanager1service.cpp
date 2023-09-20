@@ -37,14 +37,17 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         std::terminate();
     }
 
-    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, ApplicationManagerInterface)) {
+    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, ApplicationManager1Interface)) {
         std::terminate();
     }
 
-    m_jobManager.reset(new (std::nothrow) JobManager1Service(this));
-
-    if (!m_jobManager) {
+    if (m_jobManager.reset(new (std::nothrow) JobManager1Service(this)); !m_jobManager) {
         qCritical() << "new JobManager failed.";
+        std::terminate();
+    }
+
+    if (m_mimeManager.reset(new (std::nothrow) MimeManager1Service(this)); !m_mimeManager) {
+        qCritical() << "new MimeManager failed.";
         std::terminate();
     }
 
@@ -66,6 +69,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
                         SLOT(ReloadApplications()))) {
         qFatal("connect to ApplicationUpdated failed.");
     }
+
+    scanMimeInfos();
 
     scanApplications();
 
@@ -208,6 +213,20 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
     });
 }
 
+void ApplicationManager1Service::scanMimeInfos() noexcept
+{
+    QStringList dirs;
+    dirs.append(getXDGConfigDirs());
+    dirs.append(getDesktopFileDirs());
+
+    for (const auto &dir : dirs) {
+        auto info = MimeInfo::createMimeInfo(dir);
+        if (info) {
+            m_mimeManager->appendMimeInfo(std::move(info).value());
+        }
+    }
+}
+
 void ApplicationManager1Service::scanApplications() noexcept
 {
     const auto &desktopFileDirs = getDesktopFileDirs();
@@ -215,7 +234,7 @@ void ApplicationManager1Service::scanApplications() noexcept
     applyIteratively(
         QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
         [this](const QFileInfo &info) -> bool {
-            DesktopErrorCode err{DesktopErrorCode::NoError};
+            ParserError err{ParserError::NoError};
             auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
             if (!ret.has_value()) {
                 qWarning() << "failed to search File:" << err;
@@ -449,7 +468,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
     }
 
     auto err = newEntry->parse(desktopFile);
-    if (err != DesktopErrorCode::NoError) {
+    if (err != ParserError::NoError) {
         qWarning() << "update desktop file failed:" << err << ", content wouldn't change.";
         return;
     }
@@ -475,7 +494,7 @@ void ApplicationManager1Service::ReloadApplications()
     applyIteratively(
         QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
         [this, &apps](const QFileInfo &info) -> bool {
-            DesktopErrorCode err{DesktopErrorCode::NoError};
+            ParserError err{ParserError::NoError};
             auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
             if (!ret.has_value()) {
                 return false;
@@ -488,7 +507,7 @@ void ApplicationManager1Service::ReloadApplications()
                              m_applicationList.cend(),
                              [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
 
-            if (err != DesktopErrorCode::NoError) {
+            if (err != ParserError::NoError) {
                 qWarning() << "error occurred:" << err << " skip this application.";
                 return false;
             }
@@ -514,4 +533,18 @@ void ApplicationManager1Service::ReloadApplications()
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
 {
     return dumpDBusObject(m_applicationList);
+}
+
+QMap<QDBusObjectPath, QSharedPointer<ApplicationService>>
+ApplicationManager1Service::findApplicationsByIds(const QStringList &appIds) const noexcept
+{
+    QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> ret;
+    for (auto it = m_applicationList.constKeyValueBegin(); it != m_applicationList.constKeyValueEnd(); ++it) {
+        const auto &ptr = it->second;
+        if (appIds.contains(ptr->id())) {
+            ret.insert(it->first, it->second);
+        }
+    }
+
+    return ret;
 }

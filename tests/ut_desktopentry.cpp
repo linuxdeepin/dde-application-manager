@@ -18,8 +18,8 @@ public:
         env = qgetenv("XDG_DATA_DIRS");
         auto curDir = QDir::current();
         QByteArray fakeXDG = (curDir.absolutePath() + QDir::separator() + "data").toLocal8Bit();
-        ASSERT_TRUE(qputenv("XDG_DATA_DIRS", fakeXDG)) ;
-        DesktopErrorCode err;
+        ASSERT_TRUE(qputenv("XDG_DATA_DIRS", fakeXDG));
+        ParserError err;
         auto file = DesktopFile::searchDesktopFileById("deepin-editor", err);
         if (!file.has_value()) {
             qWarning() << "search failed:" << err;
@@ -58,7 +58,7 @@ TEST_F(TestDesktopEntry, prase)
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));
     QTextStream fs{&in};
     auto err = entry.parse(fs);
-    ASSERT_EQ(err, DesktopErrorCode::NoError);
+    ASSERT_EQ(err, ParserError::NoError);
 
     auto group = entry.group("Desktop Entry");
     ASSERT_TRUE(group);

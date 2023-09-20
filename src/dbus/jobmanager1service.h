@@ -51,7 +51,7 @@ public:
         static_assert(std::is_invocable_v<F, QVariant>, "param type must be QVariant.");
 
         QString objectPath =
-            QString{"%1/%2"}.arg(DDEApplicationManager1JobManagerObjectPath).arg(QUuid::createUuid().toString(QUuid::Id128));
+            QString{"%1/%2"}.arg(DDEApplicationManager1JobManager1ObjectPath).arg(QUuid::createUuid().toString(QUuid::Id128));
         QFuture<QVariantList> future = QtConcurrent::mappedReduced(std::move(args),
                                                                    func,
                                                                    qOverload<QVariantList::parameter_type>(&QVariantList::append),

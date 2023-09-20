@@ -29,10 +29,12 @@ Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 
 using ObjectInterfaceMap = QMap<QString, QVariantMap>;
 using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
-using PropMap = QMap<QString, QMap<QString, QString>>;
+using KVPairs = QMap<QString, QString>;
+using PropMap = QMap<QString, KVPairs>;
 
 Q_DECLARE_METATYPE(ObjectInterfaceMap)
 Q_DECLARE_METATYPE(ObjectMap)
+Q_DECLARE_METATYPE(KVPairs)
 Q_DECLARE_METATYPE(PropMap)
 
 struct SystemdUnitDBusMessage
@@ -401,23 +403,36 @@ inline QStringList getDesktopFileDirs()
     return XDGDataDirs;
 }
 
-inline QStringList getAutoStartDirs()
+inline QString getXDGConfigHome()
+{
+    auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
+    if (XDGConfigHome.isEmpty()) {
+        XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
+    }
+
+    return XDGConfigHome;
+}
+
+inline QStringList getXDGConfigDirs()
 {
     auto XDGConfigDirs = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_DIRS")).split(':', Qt::SkipEmptyParts);
     if (XDGConfigDirs.isEmpty()) {
         XDGConfigDirs.append("/etc/xdg");
     }
 
-    auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
-    if (XDGConfigHome.isEmpty()) {
-        XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
-    }
+    auto XDGConfigHome = getXDGConfigHome();
 
     if (XDGConfigDirs.constFirst() != XDGConfigHome) {
         XDGConfigDirs.removeAll(XDGConfigHome);
         XDGConfigDirs.push_front(std::move(XDGConfigHome));  //  guarantee XDG_CONFIG_HOME is first element.
     }
 
+    return XDGConfigDirs;
+}
+
+inline QStringList getAutoStartDirs()
+{
+    auto XDGConfigDirs = getXDGConfigDirs();
     std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {
             str.append(QDir::separator());
@@ -426,6 +441,17 @@ inline QStringList getAutoStartDirs()
     });
 
     return XDGConfigDirs;
+}
+
+inline QString getCurrentDesktop()
+{
+    auto desktops = QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP")).split(';', Qt::SkipEmptyParts);
+
+    if (desktops.size() > 1) {
+        qWarning() << "multi-DE is detected, use first value.";
+    }
+
+    return desktops.first();
 }
 
 inline bool isApplication(const QDBusObjectPath &path)

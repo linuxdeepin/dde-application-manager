@@ -14,6 +14,7 @@
 #include <QMap>
 #include "applicationmanagerstorage.h"
 #include "dbus/jobmanager1service.h"
+#include "dbus/mimemanager1service.h"
 #include "desktopentry.h"
 #include "identifier.h"
 
@@ -38,12 +39,15 @@ public:
     bool addApplication(DesktopFile desktopFileSource) noexcept;
     void removeOneApplication(const QDBusObjectPath &application) noexcept;
     void removeAllApplication() noexcept;
-
+    [[nodiscard]] QMap<QDBusObjectPath, QSharedPointer<ApplicationService>>
+    findApplicationsByIds(const QStringList &appIds) const noexcept;
     void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
 
     [[nodiscard]] JobManager1Service &jobManager() noexcept { return *m_jobManager; }
     [[nodiscard]] const JobManager1Service &jobManager() const noexcept { return *m_jobManager; }
     [[nodiscard]] const QStringList &applicationHooks() const noexcept { return m_hookElements; }
+    [[nodiscard]] MimeManager1Service &mimeManager() noexcept { return *m_mimeManager; }
+    [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
@@ -60,10 +64,12 @@ Q_SIGNALS:
 private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
+    QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QStringList m_hookElements;
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 
+    void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
     void scanInstances() noexcept;
     void scanAutoStart() noexcept;

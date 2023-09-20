@@ -12,20 +12,9 @@
 #include <QTextStream>
 #include <optional>
 #include <QFile>
+#include "iniParser.h"
 
 constexpr static auto defaultKeyStr = "default";
-
-enum class DesktopErrorCode {
-    NoError,
-    NotFound,
-    MismatchedFile,
-    InvalidLocation,
-    InvalidFormat,
-    OpenFailed,
-    MissingInfo,
-    Parsed,
-    InternalError,
-};
 
 enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
@@ -53,8 +42,8 @@ struct DesktopFile
     friend bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
     friend bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
-    static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, DesktopErrorCode &err) noexcept;
-    static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, DesktopErrorCode &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, ParserError &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, ParserError &err) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
@@ -138,8 +127,8 @@ public:
     DesktopEntry &operator=(DesktopEntry &&) = default;
 
     ~DesktopEntry() = default;
-    [[nodiscard]] DesktopErrorCode parse(const DesktopFile &file) noexcept;
-    [[nodiscard]] DesktopErrorCode parse(QTextStream &stream) noexcept;
+    [[nodiscard]] ParserError parse(const DesktopFile &file) noexcept;
+    [[nodiscard]] ParserError parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
 
@@ -153,8 +142,6 @@ private:
 };
 
 QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
-
-QDebug operator<<(QDebug debug, const DesktopErrorCode &v);
 
 bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
 
