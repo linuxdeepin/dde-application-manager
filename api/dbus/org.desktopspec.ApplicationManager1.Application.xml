@@ -56,7 +56,15 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
         </property>
 
-        <property name="DisplayName" type="a{ss}" access="read">
+        <property name="Name" type="a{ss}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The meaning of this property's type is same as which in ActionName."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+        </property>
+
+        <property name="GenericName" type="a{ss}" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
                 value="The meaning of this property's type is same as which in ActionName."

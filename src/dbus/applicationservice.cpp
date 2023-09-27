@@ -361,11 +361,27 @@ PropMap ApplicationService::actionName() const noexcept
     return ret;
 }
 
-PropMap ApplicationService::displayName() const noexcept
+PropMap ApplicationService::name() const noexcept
 {
     PropMap ret;
-    auto value = std::move(m_entry->value(DesktopFileEntryKey, "Name")).value();
-    ret.insert(QString{"Name"}, {std::move(value)});
+    auto value = m_entry->value(DesktopFileEntryKey, "Name");
+    if (!value) {
+        return ret;
+    }
+
+    ret.insert(QString{"Name"}, {std::move(value).value()});
+    return ret;
+}
+
+PropMap ApplicationService::genericName() const noexcept
+{
+    PropMap ret;
+    auto value = m_entry->value(DesktopFileEntryKey, "GenericName");
+    if (!value) {
+        return ret;
+    }
+
+    ret.insert(QString{"GenericName"}, {std::move(value).value()});
     return ret;
 }
 
@@ -542,7 +558,8 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit instanceChanged();
     emit lastLaunchedTimeChanged();
     emit iconsChanged();
-    emit displayNameChanged();
+    emit nameChanged();
+    emit genericNameChanged();
     emit actionNameChanged();
     emit actionsChanged();
     emit categoriesChanged();
