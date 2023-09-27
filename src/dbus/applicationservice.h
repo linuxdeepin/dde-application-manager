@@ -47,8 +47,11 @@ public:
     Q_PROPERTY(QString ID READ id CONSTANT)
     [[nodiscard]] QString id() const noexcept;
 
-    Q_PROPERTY(PropMap DisplayName READ displayName NOTIFY displayNameChanged)
-    [[nodiscard]] PropMap displayName() const noexcept;
+    Q_PROPERTY(PropMap Name READ name NOTIFY nameChanged)
+    [[nodiscard]] PropMap name() const noexcept;
+
+    Q_PROPERTY(PropMap GenericName READ genericName NOTIFY genericNameChanged)
+    [[nodiscard]] PropMap genericName() const noexcept;
 
     Q_PROPERTY(PropMap Icons READ icons NOTIFY iconsChanged)
     [[nodiscard]] PropMap icons() const noexcept;
@@ -120,7 +123,8 @@ Q_SIGNALS:
     void instanceChanged();
     void lastLaunchedTimeChanged();
     void iconsChanged();
-    void displayNameChanged();
+    void nameChanged();
+    void genericNameChanged();
     void actionNameChanged();
     void actionsChanged();
     void categoriesChanged();
