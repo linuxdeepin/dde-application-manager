@@ -1,14 +1,20 @@
+dde-application-manager (0.3.0) unstable; urgency=medium
+
+  * release 0.3.0, correct package version and data format
+
+ -- He YuMing <heyuming@deepin.org>  Thu, 28 Sep 2023 09:58:17 +0800
+
 dde-application-manager (0.2.4) unstable; urgency=medium
 
   * release 0.2.4, change package name
 
- -- He YuMing <heyuming@deepin.org>  Wed Sep 27 17:22:24 PM CST 2023
+ -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 17:22:24 +0800 
 
 dde-application-manager-reborn (0.2.3) unstable; urgency=medium
 
   * release 0.2.3
 
- -- He YuMing <heyuming@deepin.org>  Wed Sep 27 11:14:32 AM CST 2023
+ -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 11:14:32 +0800 
 
 dde-application-manager-reborn (0.2.2) unstable; urgency=medium
 
