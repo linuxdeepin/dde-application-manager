@@ -1,0 +1,337 @@
+{
+  "magic": "dsg.config.meta",
+  "version": "1.0",
+  "contents": {
+    "Qt_Active_Color": {
+      "value": "0,33153,65535,65535",
+      "serial": 0,
+      "flags": [],
+      "name": "Qt_Active_Color",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Xft_Antialias": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Xft_Antialias",
+      "name[zh_CN]": "*****",
+      "description": "Whether to antialias Xft fonts; 0=no, 1=yes, -1=default.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Cursor_Theme_Name": {
+      "value": "bloom",
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Cursor_Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Cursor theme name. Used only by Xservers that support the Xcursor extension.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Dtk_Window_Radius": {
+      "value": 18,
+      "serial": 0,
+      "flags": [],
+      "name": "Dtk_Window_Radius",
+      "name[zh_CN]": "*****",
+      "description": "The window radius last time",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Cursor_Blink_Timeout": {
+      "value": 10,
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Cursor_Blink_Timeout",
+      "name[zh_CN]": "*****",
+      "description": "Time after which the cursor stops blinking, in seconds.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Scale_Factor": {
+      "value": 1.0,
+      "serial": 0,
+      "flags": [],
+      "name": "Scale_Factor",
+      "name[zh_CN]": "*****",
+      "description": "Text scale for Gdk.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Key_Theme_Name": {
+      "value": "default",
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Key_Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Basename of the default keybinding theme used by gtk+.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Cursor_Blink_Time": {
+      "value": 1200,
+      "serial": 0,
+      "flags": [],
+      "name": "Cursor_Blink_Time",
+      "name[zh_CN]": "*****",
+      "description": "Length of the cursor blink cycle, in milliseconds.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Enable_Event_Sounds": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Enable_Event_Sounds",
+      "name[zh_CN]": "*****",
+      "description": "Whether to play any event sounds at all.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Qt_Font_Name": {
+      "value": "",
+      "serial": 0,
+      "flags": [],
+      "name": "Qt_Font_Name",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Theme_Name": {
+      "value": "deepin",
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Basename of the default theme used by gtk+.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Double_Click_Time": {
+      "value": 250,
+      "serial": 0,
+      "flags": [],
+      "name": "Double_Click_Time",
+      "name[zh_CN]": "*****",
+      "description": "Maximum time allowed between two clicks for them to be considered a double click (in milliseconds).",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Icon_Theme_Name": {
+      "value": "deepin",
+      "serial": 0,
+      "flags": [],
+      "name": "Icon_Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Icon theme to use for the panel, nautilus etc.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Primary_Monitor_Name": {
+      "value": "eDP-1",
+      "serial": 0,
+      "flags": [],
+      "name": "Primary_Monitor_Name",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Dnd_Drag_Threshold": {
+      "value": 8,
+      "serial": 0,
+      "flags": [],
+      "name": "Dnd_Drag_Threshold",
+      "name[zh_CN]": "*****",
+      "description": "A palette of named colors for use in themes.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Sound_Theme_Name": {
+      "value": "deepin",
+      "serial": 0,
+      "flags": [],
+      "name": "Sound_Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Set the system sound theme",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Double_Click_Distance": {
+      "value": 5,
+      "serial": 0,
+      "flags": [],
+      "name": "Double_Click_Distance",
+      "name[zh_CN]": "*****",
+      "description": "Maximum distance allowed between two clicks for them to be considered a double click (in pixels).",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Xft_Hinting": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Xft_Hinting",
+      "name[zh_CN]": "*****",
+      "description": "Whether to hint Xft fonts; 0=no, 1=yes, -1=default.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Theme_Name": {
+      "value": "deepin",
+      "serial": 0,
+      "flags": [],
+      "name": "Theme_Name",
+      "name[zh_CN]": "*****",
+      "description": "Theme to use for gtk+ and qt.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Cursor_Theme_Size": {
+      "value": 24,
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Cursor_Theme_Size",
+      "name[zh_CN]": "*****",
+      "description": "Timeout in milliseconds before a click starts repeating (onspinner buttons for example).",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Icon_Theme_Fallback": {
+      "value": "default",
+      "serial": 0,
+      "flags": [],
+      "name": "Icon_Theme_Fallback",
+      "name[zh_CN]": "*****",
+      "description": "Name of a icon theme to fall back to.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Xft_Rgba": {
+      "value": "rgb",
+      "serial": 0,
+      "flags": [],
+      "name": "Xft_Rgba",
+      "name[zh_CN]": "*****",
+      "description": "Type of subpixel antialiasing; none, rgb, bgr, vrgb, vbgr.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Window_Scale": {
+      "value": 1,
+      "serial": 0,
+      "flags": [],
+      "name": "Window_Scale",
+      "name[zh_CN]": "*****",
+      "description": "Window scale for Gdk.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Recent_Files_Enabled": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Recent_Files_Enabled",
+      "name[zh_CN]": "*****",
+      "description": "Whether GTK+ should keep track of items inside the recently used resources list.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Qt_Mono_Font_Name": {
+      "value": "",
+      "serial": 0,
+      "flags": [],
+      "name": "Qt_Mono_Font_Name",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Cursor_Blink": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Cursor_Blink",
+      "name[zh_CN]": "*****",
+      "description": "Whether the cursor should blink.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Individual_Scaling": {
+      "value": "",
+      "serial": 0,
+      "flags": [],
+      "name": "Individual_Scaling",
+      "name[zh_CN]": "*****",
+      "description": "Semicolon-separated list of name=value pairs, as used in QT_SCREEN_SCALE_FACTORS.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Xft_Dpi": {
+      "value": -1,
+      "serial": 0,
+      "flags": [],
+      "name": "Xft_Dpi",
+      "name[zh_CN]": "*****",
+      "description": "Resolution for Xft, in 1024 * dots/inch. -1 to use default value. Do not modify it manually.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Enable_Input_Feedback_Sounds": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Enable_Input_Feedback_Sounds",
+      "name[zh_CN]": "*****",
+      "description": "Whether to play event sounds as feedback to user input.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Xft_Hintstyle": {
+      "value": "hintfull",
+      "serial": 0,
+      "flags": [],
+      "name": "Xft_Hintstyle",
+      "name[zh_CN]": "*****",
+      "description": "What degree of hinting to use; hintnone, hintslight, hintmedium, or hintfull.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Qt_Font_Point_Size": {
+      "value": 10.5,
+      "serial": 0,
+      "flags": [],
+      "name": "Qt_Font_Point_Size",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Recent_Files_Max_Age": {
+      "value": 30,
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Recent_Files_Max_Age",
+      "name[zh_CN]": "*****",
+      "description": "The maximum age, in days, of the items inside the recently used resources list. Items older than this setting will be excised from the list. If set to 0, the list will always be empty; if set to -1, no item will be removed.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Gtk_Font_Name": {
+      "value": "sans-serif 10.5",
+      "serial": 0,
+      "flags": [],
+      "name": "Gtk_Font_Name",
+      "name[zh_CN]": "*****",
+      "description": "Name of the default font used by gtk+.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    }
+  }
+}
+

@@ -1,0 +1,96 @@
+{
+  "magic": "dsg.config.meta",
+  "version": "1.0",
+  "contents": {
+    "Wm_Cmd": {
+      "value": "",
+      "serial": 0,
+      "flags": [],
+      "name": "Wm_Cmd",
+      "name[zh_CN]": "*****",
+      "description": "This key will special window manager at startdde startup. If empty, using deepin-wm.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Quick_Black_Screen": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Quick_Black_Screen",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Swap_Sched_Enabled": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Swap_Sched_Enabled",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Launch_Welcome": {
+      "value": true,
+      "serial": 0,
+      "flags": [],
+      "name": "Launch_Welcome",
+      "name[zh_CN]": "*****",
+      "description": "This key will indicate whether showing dde-welcome.",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Autostart_Delay": {
+      "value": 0,
+      "serial": 0,
+      "flags": [],
+      "name": "Autostart_Delay",
+      "name[zh_CN]": "*****",
+      "description": "The delay seconds for autostart",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Turbo_Invoker_Enabled": {
+      "value": false,
+      "serial": 0,
+      "flags": [],
+      "name": "Turbo_Invoker_Enabled",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Login_Reminder": {
+      "value": false,
+      "serial": 0,
+      "flags": [],
+      "name": "Login_Reminder",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Iowait_Enabled": {
+      "value": false,
+      "serial": 0,
+      "flags": [],
+      "name": "Iowait_Enabled",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    },
+    "Memchecker_Enabled": {
+      "value": false,
+      "serial": 0,
+      "flags": [],
+      "name": "Memchecker_Enabled",
+      "name[zh_CN]": "*****",
+      "description": "",
+      "permissions": "readwrite",
+      "visibility": "private"
+    }
+  }
+}

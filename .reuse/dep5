@@ -42,3 +42,8 @@ License: CC0-1.0
 Files: misc/dpkg/dpkg.cfg.d/*
 Copyright: None
 License: CC0-1.0
+
+# configure file
+Files: misc/dsg/*
+Copyright: None
+License: CC0-1.0

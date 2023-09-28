@@ -44,4 +44,15 @@ install(FILES ${DBUS_APPLICATION_MANAGER_SERVICE_FILE}
 
 # install dpkg hook
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/dpkg/dpkg.cfg.d/am-update-hook
-	DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dpkg/dpkg.cfg.d)
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dpkg/dpkg.cfg.d)
+
+# FIXME: move to other project
+set(DCONFIG_FILES
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.launcher.json
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.dock.json
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.appearance.json
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.startdde.json
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.xsettings.json
+)
+
+install(FILES ${DCONFIG_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dsg/configs/dde-application-manager)
