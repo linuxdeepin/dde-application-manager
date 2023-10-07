@@ -51,4 +51,6 @@ constexpr auto STORAGE_VERSION = 0;
 constexpr auto ApplicationPropertiesGroup = u8"Application Properties";
 constexpr auto LastLaunchedTime = u8"LastLaunchedTime";
 
+constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/hooks.d";
+
 #endif

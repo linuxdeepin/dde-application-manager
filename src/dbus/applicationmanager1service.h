@@ -41,7 +41,9 @@ public:
 
     void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
 
-    JobManager1Service &jobManager() noexcept { return *m_jobManager; }
+    [[nodiscard]] JobManager1Service &jobManager() noexcept { return *m_jobManager; }
+    [[nodiscard]] const JobManager1Service &jobManager() const noexcept { return *m_jobManager; }
+    [[nodiscard]] const QStringList &applicationHooks() const noexcept { return m_hookElements; }
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
@@ -59,11 +61,13 @@ private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
+    QStringList m_hookElements;
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 
     void scanApplications() noexcept;
     void scanInstances() noexcept;
     void scanAutoStart() noexcept;
+    void loadHooks() noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
 };

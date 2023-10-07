@@ -79,7 +79,11 @@ template <typename T>
 using remove_cvr_t = std::remove_reference_t<std::remove_cv_t<T>>;
 
 template <typename T>
-void applyIteratively(QList<QDir> dirs, T &&func)
+void applyIteratively(QList<QDir> dirs,
+                      T &&func,
+                      QDir::Filters filter = QDir::NoFilter,
+                      QStringList nameFilter = {},
+                      QDir::SortFlags sortFlag = QDir::SortFlag::NoSort)
 {
     static_assert(std::is_invocable_v<T, const QFileInfo &>, "apply function should only accept one QFileInfo");
     static_assert(std::is_same_v<decltype(func(QFileInfo{})), bool>,
@@ -93,9 +97,7 @@ void applyIteratively(QList<QDir> dirs, T &&func)
             qWarning() << "apply function to an non-existent directory:" << dir.absolutePath() << ", skip.";
             continue;
         }
-
-        const auto &infoList = dir.entryInfoList(
-            {"*.desktop"}, QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot, QDir::Name | QDir::DirsLast);
+        const auto &infoList = dir.entryInfoList(nameFilter, filter, sortFlag);
 
         for (const auto &info : infoList) {
             if (info.isFile() and func(info)) {
@@ -374,7 +376,7 @@ inline QString getXDGDataHome()
     return XDGDataHome;
 }
 
-inline QStringList getDesktopFileDirs()
+inline QStringList getXDGDataDirs()
 {
     auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
 
@@ -384,14 +386,18 @@ inline QStringList getDesktopFileDirs()
     }
 
     XDGDataDirs.push_front(getXDGDataHome());
+    return XDGDataDirs;
+}
 
+inline QStringList getDesktopFileDirs()
+{
+    auto XDGDataDirs = getXDGDataDirs();
     std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {
             str.append(QDir::separator());
         }
         str.append("applications");
     });
-
     return XDGDataDirs;
 }
 

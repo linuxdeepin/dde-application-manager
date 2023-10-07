@@ -11,12 +11,14 @@
 QStringList generateCommand(const QVariantMap &props) noexcept
 {
     std::vector<std::unique_ptr<LaunchOption>> options;
-    for (auto it = props.constKeyValueBegin(); it!= props.constKeyValueEnd(); ++it) {
+    for (auto it = props.constKeyValueBegin(); it != props.constKeyValueEnd(); ++it) {
         const auto &[key, value] = *it;
         if (key == setUserLaunchOption::key()) {
-            options.push_back(std::make_unique<setUserLaunchOption>(value));
+            options.emplace_back(std::make_unique<setUserLaunchOption>(value));
         } else if (key == setEnvLaunchOption::key()) {
-            options.push_back(std::make_unique<setEnvLaunchOption>(value));
+            options.emplace_back(std::make_unique<setEnvLaunchOption>(value));
+        } else if (key == hookLaunchOption::key()) {
+            options.emplace_back(std::make_unique<hookLaunchOption>(value));
         } else {
             qWarning() << "unsupported options" << key;
         }
@@ -27,6 +29,10 @@ QStringList generateCommand(const QVariantMap &props) noexcept
     std::sort(options.begin(),
               options.end(),
               [](const std::unique_ptr<LaunchOption> &lOption, const std::unique_ptr<LaunchOption> &rOption) {
+                  if (lOption->type() == rOption->type()) {
+                      return lOption->m_priority >= rOption->m_priority;
+                  }
+
                   if (lOption->type() == AppExecOption and rOption->type() == systemdOption) {
                       return false;
                   }

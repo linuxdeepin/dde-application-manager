@@ -20,7 +20,11 @@ struct LaunchOption
     };
     [[nodiscard]] virtual const QString &type() const noexcept = 0;
 
+    uint32_t m_priority{0};
     QVariant m_val;
+
+protected:
+    LaunchOption() = default;
 };
 
 struct setUserLaunchOption : public LaunchOption
@@ -68,6 +72,26 @@ struct splitLaunchOption : public LaunchOption
         return tp;
     }
     [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+};
+
+struct hookLaunchOption : public LaunchOption
+{
+    explicit hookLaunchOption(QVariant v)
+        : LaunchOption(std::move(v))
+    {
+        m_priority = 1;
+    }
+    [[nodiscard]] const QString &type() const noexcept override
+    {
+        static QString tp{AppExecOption};
+        return tp;
+    }
+    [[nodiscard]] static const QString &key() noexcept
+    {
+        static QString hook{"hook"};
+        return hook;
+    }
+    [[nodiscard]] QStringList generateCommandLine() const noexcept override { return m_val.toStringList(); };
 };
 
 QStringList generateCommand(const QVariantMap &props) noexcept;

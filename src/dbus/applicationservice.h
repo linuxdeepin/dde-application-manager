@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 #include "applicationmanagerstorage.h"
+#include "dbus/applicationmanager1service.h"
 #include "dbus/instanceservice.h"
 #include "global.h"
 #include "desktopentry.h"
@@ -151,6 +152,11 @@ private:
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &linkPath) const noexcept;
+    [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
+    [[nodiscard]] const ApplicationManager1Service *parent() const
+    {
+        return dynamic_cast<ApplicationManager1Service *>(QObject::parent());
+    }
 };
 
 #endif

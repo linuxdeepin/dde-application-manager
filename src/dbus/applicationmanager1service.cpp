@@ -7,6 +7,7 @@
 #include "dbus/AMobjectmanager1adaptor.h"
 #include "systemdsignaldispatcher.h"
 #include "propertiesForwarder.h"
+#include "applicationHooks.h"
 #include <QFile>
 #include <QDBusMessage>
 #include <unistd.h>
@@ -69,6 +70,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     scanApplications();
 
     scanInstances();
+
+    loadHooks();
 
     if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {
         qCritical() << "new PropertiesForwarder of Application Manager failed.";
@@ -209,18 +212,23 @@ void ApplicationManager1Service::scanApplications() noexcept
 {
     const auto &desktopFileDirs = getDesktopFileDirs();
 
-    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this](const QFileInfo &info) -> bool {
-        DesktopErrorCode err{DesktopErrorCode::NoError};
-        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-        if (!ret.has_value()) {
-            qWarning() << "failed to search File:" << err;
-            return false;
-        }
-        if (!this->addApplication(std::move(ret).value())) {
-            qWarning() << "add Application failed, skip...";
-        }
-        return false;  // means to apply this function to the rest of the files
-    });
+    applyIteratively(
+        QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
+        [this](const QFileInfo &info) -> bool {
+            DesktopErrorCode err{DesktopErrorCode::NoError};
+            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
+            if (!ret.has_value()) {
+                qWarning() << "failed to search File:" << err;
+                return false;
+            }
+            if (!this->addApplication(std::move(ret).value())) {
+                qWarning() << "add Application failed, skip...";
+            }
+            return false;  // means to apply this function to the rest of the files
+        },
+        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
+        {"*.desktop"},
+        QDir::Name | QDir::DirsLast);
 }
 
 void ApplicationManager1Service::scanInstances() noexcept
@@ -250,12 +258,17 @@ void ApplicationManager1Service::scanAutoStart() noexcept
 {
     auto autostartDirs = getAutoStartDirs();
     QStringList needToLaunch;
-    applyIteratively(QList<QDir>{autostartDirs.cbegin(), autostartDirs.cend()}, [&needToLaunch](const QFileInfo &info) {
-        if (info.isSymbolicLink()) {
-            needToLaunch.emplace_back(info.symLinkTarget());
-        }
-        return false;
-    });
+    applyIteratively(
+        QList<QDir>{autostartDirs.cbegin(), autostartDirs.cend()},
+        [&needToLaunch](const QFileInfo &info) {
+            if (info.isSymbolicLink()) {
+                needToLaunch.emplace_back(info.symLinkTarget());
+            }
+            return false;
+        },
+        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
+        {"*.desktop"},
+        QDir::Name | QDir::DirsLast);
 
     while (!needToLaunch.isEmpty()) {
         const auto &filePath = needToLaunch.takeFirst();
@@ -267,6 +280,32 @@ void ApplicationManager1Service::scanAutoStart() noexcept
             appIt->second->Launch({}, {}, {});
         }
     }
+}
+
+void ApplicationManager1Service::loadHooks() noexcept
+{
+    auto hookDirs = getXDGDataDirs();
+    std::for_each(hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(ApplicationManagerHookDir); });
+    QHash<QString, ApplicationHook> hooks;
+
+    applyIteratively(
+        QList<QDir>(hookDirs.begin(), hookDirs.end()),
+        [&hooks](const QFileInfo &info) -> bool {
+            auto fileName = info.fileName();
+            if (!hooks.contains(fileName)) {
+                if (auto hook = ApplicationHook::loadFromFile(info.absoluteFilePath()); hook) {
+                    hooks.insert(fileName, std::move(hook).value());
+                }
+            }
+            return false;
+        },
+        QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks | QDir::Readable,
+        {"*.json"},
+        QDir::Name);
+
+    auto hookList = hooks.values();
+    std::sort(hookList.begin(), hookList.end());
+    m_hookElements = generateHooks(hookList);
 }
 
 QList<QDBusObjectPath> ApplicationManager1Service::list() const
@@ -433,34 +472,39 @@ void ApplicationManager1Service::ReloadApplications()
 
     auto apps = m_applicationList.keys();
 
-    applyIteratively(QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()), [this, &apps](const QFileInfo &info) -> bool {
-        DesktopErrorCode err{DesktopErrorCode::NoError};
-        auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-        if (!ret.has_value()) {
+    applyIteratively(
+        QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
+        [this, &apps](const QFileInfo &info) -> bool {
+            DesktopErrorCode err{DesktopErrorCode::NoError};
+            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
+            if (!ret.has_value()) {
+                return false;
+            }
+
+            auto file = std::move(ret).value();
+
+            auto destApp =
+                std::find_if(m_applicationList.cbegin(),
+                             m_applicationList.cend(),
+                             [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
+
+            if (err != DesktopErrorCode::NoError) {
+                qWarning() << "error occurred:" << err << " skip this application.";
+                return false;
+            }
+
+            if (destApp != m_applicationList.cend() and apps.contains(destApp.key())) {
+                apps.removeOne(destApp.key());
+                updateApplication(destApp.value(), std::move(file));
+                return false;
+            }
+
+            addApplication(std::move(file));
             return false;
-        }
-
-        auto file = std::move(ret).value();
-
-        auto destApp =
-            std::find_if(m_applicationList.cbegin(),
-                         m_applicationList.cend(),
-                         [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
-
-        if (err != DesktopErrorCode::NoError) {
-            qWarning() << "error occurred:" << err << " skip this application.";
-            return false;
-        }
-
-        if (destApp != m_applicationList.cend() and apps.contains(destApp.key())) {
-            apps.removeOne(destApp.key());
-            updateApplication(destApp.value(), std::move(file));
-            return false;
-        }
-
-        addApplication(std::move(file));
-        return false;
-    });
+        },
+        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
+        {"*.desktop"},
+        QDir::Name | QDir::DirsLast);
 
     for (const auto &key : apps) {
         removeOneApplication(key);
