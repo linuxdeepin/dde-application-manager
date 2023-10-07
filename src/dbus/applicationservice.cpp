@@ -180,6 +180,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         }
     }
 
+    optionsMap.remove("_hooks");  // this is internal property, user shouldn't pass it to Application Manager
+    if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
+        optionsMap.insert("_hooks", hooks);
+    }
     auto cmds = generateCommand(optionsMap);
 
     auto [bin, execCmds, res] = unescapeExec(execStr, fields);
@@ -190,7 +194,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }
 
     cmds.append(std::move(execCmds));
-    auto &jobManager = static_cast<ApplicationManager1Service *>(parent())->jobManager();
+    auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
         [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &variantValue) mutable -> QVariant {

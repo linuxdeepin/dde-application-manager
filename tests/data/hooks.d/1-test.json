@@ -1,0 +1,6 @@
+{
+    "Exec": "/usr/bin/echo",
+    "Args": [
+        "for test"
+    ]
+}
