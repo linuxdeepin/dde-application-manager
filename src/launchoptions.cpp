@@ -19,6 +19,8 @@ QStringList generateCommand(const QVariantMap &props) noexcept
             options.emplace_back(std::make_unique<setEnvLaunchOption>(value));
         } else if (key == hookLaunchOption::key()) {
             options.emplace_back(std::make_unique<hookLaunchOption>(value));
+        } else if (key == setPathLaunchOption::key()) {
+            options.emplace_back(std::make_unique<setPathLaunchOption>(value));
         } else {
             qWarning() << "unsupported options" << key;
         }
@@ -105,4 +107,14 @@ QStringList setEnvLaunchOption::generateCommandLine() const noexcept
     }
 
     return QStringList{QString{"--Environment=%1"}.arg(str)};
+}
+
+QStringList setPathLaunchOption::generateCommandLine() const noexcept
+{
+    auto str = m_val.toString();
+    if (str.isEmpty()) {
+        return {};
+    }
+
+    return QStringList{QString{"--WorkingDirectory=%1"}.arg(str)};
 }

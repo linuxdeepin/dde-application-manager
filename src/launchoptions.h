@@ -94,4 +94,20 @@ struct hookLaunchOption : public LaunchOption
     [[nodiscard]] QStringList generateCommandLine() const noexcept override { return m_val.toStringList(); };
 };
 
+struct setPathLaunchOption : public LaunchOption
+{
+    using LaunchOption::LaunchOption;
+    [[nodiscard]] const QString &type() const noexcept override
+    {
+        static QString tp{systemdOption};
+        return tp;
+    }
+    [[nodiscard]] static const QString &key() noexcept
+    {
+        static QString path{"path"};
+        return path;
+    }
+    [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+};
+
 QStringList generateCommand(const QVariantMap &props) noexcept;

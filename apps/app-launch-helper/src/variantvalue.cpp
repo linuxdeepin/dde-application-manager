@@ -8,7 +8,7 @@
 std::unique_ptr<VariantValue> creatValueHandler(msg_ptr &msg, DBusValueType type)
 {
     switch (type) {
-    case DBusValueType::Default:
+    case DBusValueType::String:
         return std::make_unique<StringValue>(msg);
     case DBusValueType::ArrayOfString:
         return std::make_unique<ASValue>(msg);

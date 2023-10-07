@@ -12,7 +12,7 @@
 
 enum class ExitCode { SystemdError = -3, InvalidInput = -2, InternalError = -1, Done = 0, Waiting = 1 };
 
-enum class DBusValueType { Default, ArrayOfString };
+enum class DBusValueType { String, ArrayOfString };
 
 using msg_ptr = sd_bus_message *;
 using bus_ptr = sd_bus *;

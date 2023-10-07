@@ -96,6 +96,9 @@
                        2. `env` (type s):
                           passing some specific environment variables to Launch
                           this application, eg. 'LANG=en_US;PATH=xxx:yyy;'
+                       3. `path` (type s):
+                          set this application's working directory, please pass
+                          absoult directory path.
                        NOTE:
                        When application launched with `uid` option,
                        `env` option will not take effect at all."
