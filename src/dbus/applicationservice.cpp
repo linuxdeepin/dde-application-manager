@@ -25,6 +25,7 @@ ApplicationService::ApplicationService(DesktopFile source,
                                        ApplicationManager1Service *parent,
                                        std::weak_ptr<ApplicationManager1Storage> storage)
     : QObject(parent)
+    , m_scaleFactor(getScaleFactor())
     , m_storage(std::move(storage))
     , m_desktopSource(std::move(source))
 {
@@ -43,8 +44,33 @@ ApplicationService::ApplicationService(DesktopFile source,
         }
         return;
     }
-
     m_lastLaunch = value.toInt();
+
+    value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
+    if (!value.isNull()) {
+        bool ok{false};
+        auto tmp = value.toDouble(&ok);
+        if (ok) {
+            m_scaleFactor = tmp;
+            m_customScale = true;
+        }
+    }
+
+    if (!QDBusConnection::sessionBus().connect("org.deepin.dde.XSettings1",
+                                               "/org/deepin/dde/XSettings1",
+                                               "org.deepin.dde.XSettings1",
+                                               "SetScaleFactorDone",
+                                               this,
+                                               SLOT(onGlobalScaleFactorChanged()))) {
+        qWarning() << "connect to org.deepin.dde.XSettings1 failed, scaleFactor is invalid.";
+    }
+}
+
+void ApplicationService::onGlobalScaleFactorChanged() noexcept
+{
+    if (!m_customScale) {
+        m_scaleFactor = getScaleFactor();
+    }
 }
 
 ApplicationService::~ApplicationService()
@@ -192,7 +218,14 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         return {};
     }
 
+    if (terminal()) {
+        // don't change this sequence
+        execCmds.push_front("-C");  // means run a shellscript
+        execCmds.push_front("--keep-open"); // keep terminal open, prevent exit immediately
+        execCmds.push_front("deepin-terminal");
+    }
     cmds.append(std::move(execCmds));
+
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
@@ -430,6 +463,15 @@ bool ApplicationService::x_linglong() const noexcept
     return !val.isNull();
 }
 
+bool ApplicationService::terminal() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "Terminal", EntryValueType::String);
+    if (!val.isNull()) {
+        return val.toBool();
+    }
+    return false;
+}
+
 qulonglong ApplicationService::installedTime() const noexcept
 {
     return m_desktopSource.createTime();
@@ -438,6 +480,47 @@ qulonglong ApplicationService::installedTime() const noexcept
 qulonglong ApplicationService::lastLaunchedTime() const noexcept
 {
     return m_lastLaunch;
+}
+
+double ApplicationService::scaleFactor() const noexcept
+{
+    return m_scaleFactor;
+}
+
+void ApplicationService::setScaleFactor(double value) noexcept
+{
+    if (value == m_scaleFactor) {
+        return;
+    }
+
+    auto storagePtr = m_storage.lock();
+    if (!storagePtr) {
+        qCritical() << "broken storage.";
+        sendErrorReply(QDBusError::InternalError);
+        return;
+    }
+
+    auto appId = id();
+    if (value == 0) {
+        m_customScale = false;
+        m_scaleFactor = getScaleFactor();
+        storagePtr->deleteApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
+        return;
+    }
+
+    if(m_customScale){
+        if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor, value)) {
+            sendErrorReply(QDBusError::Failed,"update scaleFactor failed.");
+            return;
+        }
+    } else {
+        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor, value)) {
+            sendErrorReply(QDBusError::Failed, "set scaleFactor failed.");
+        }
+    }
+
+    m_scaleFactor = value;
+    emit scaleFactorChanged();
 }
 
 bool ApplicationService::autostartCheck(const QString &linkPath) const noexcept
@@ -640,6 +723,8 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit actionsChanged();
     emit categoriesChanged();
     emit MimeTypesChanged();
+    emit terminalChanged();
+    emit scaleFactorChanged();
 }
 
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)
@@ -854,6 +939,23 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
     }
 }
 
+double getScaleFactor() noexcept
+{
+    auto sessionBus = QDBusConnection::sessionBus();
+    QDBusMessage reply1 = sessionBus.call(QDBusMessage::createMethodCall(
+        "org.deepin.dde.XSettings1", "/org/deepin/dde/XSettings1", "org.deepin.dde.XSettings1", "GetScaleFactor"));
+
+    if (reply1.type() != QDBusMessage::ReplyMessage) {
+        qWarning() << "call GetScaleFactor Failed:" << reply1.errorMessage();
+        return 1.0;
+    }
+
+    QDBusReply<double> ret1(reply1);
+    double scale = ret1.isValid() ? ret1.value() : 1.0;
+    scale = scale > 0 ? scale : 1;
+    return scale;
+}
+
 QString getDeepinWineScaleFactor(const QString &appId) noexcept
 {
     qCritical() << "Don't using env to control the window scale factor,  this function"
@@ -888,19 +990,7 @@ QString getDeepinWineScaleFactor(const QString &appId) noexcept
         }
     }
 
-    auto sessionBus = QDBusConnection::sessionBus();
-    QDBusMessage reply1 = sessionBus.call(QDBusMessage::createMethodCall(
-        "org.deepin.dde.XSettings1", "/org/deepin/dde/XSettings1", "org.deepin.dde.XSettings1", "GetScaleFactor"));
-
-    if (reply1.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "call GetScaleFactor Failed:" << reply1.errorMessage();
-        return factor;
-    }
-
-    QDBusReply<double> ret1(reply1);
-    double scale = ret1.isValid() ? ret1.value() : 1.0;
-    scale = scale > 0 ? scale : 1;
+    auto scale = getScaleFactor();
     factor = QString::number(scale, 'f', -1);
-
     return factor;
 }
