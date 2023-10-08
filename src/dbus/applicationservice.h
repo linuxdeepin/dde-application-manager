@@ -26,6 +26,7 @@
 #include "applicationmanager1service.h"
 
 QString getDeepinWineScaleFactor(const QString &appId) noexcept;
+double getScaleFactor() noexcept;
 
 class ApplicationService : public QObject, public QDBusContext
 {
@@ -60,6 +61,13 @@ public:
 
     Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime NOTIFY lastLaunchedTimeChanged)
     [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
+
+    Q_PROPERTY(double ScaleFactor READ scaleFactor WRITE setScaleFactor NOTIFY scaleFactorChanged)
+    [[nodiscard]] double scaleFactor() const noexcept;
+    void setScaleFactor(double value) noexcept;
+
+    Q_PROPERTY(bool Terminal READ terminal NOTIFY terminalChanged)
+    [[nodiscard]] bool terminal() const noexcept;
 
     // FIXME:
     // This property should implement with fuse guarded $XDG_CONFIG_HOME/autostart/.
@@ -111,6 +119,9 @@ public:
     void resetEntry(DesktopEntry *newEntry) noexcept;
     void detachAllInstance() noexcept;
 
+private Q_SLOTS:
+    void onGlobalScaleFactorChanged() noexcept;
+
 public Q_SLOTS:
     QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
     [[nodiscard]] ObjectMap GetManagedObjects() const;
@@ -135,6 +146,8 @@ Q_SIGNALS:
     void actionsChanged();
     void categoriesChanged();
     void MimeTypesChanged();
+    void terminalChanged();
+    void scaleFactorChanged();
 
 private:
     friend class ApplicationManager1Service;
@@ -143,7 +156,9 @@ private:
                                 std::weak_ptr<ApplicationManager1Storage> storage);
     static QSharedPointer<ApplicationService> createApplicationService(
         DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
+    bool m_customScale{false};
     qint64 m_lastLaunch{0};
+    double m_scaleFactor;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
