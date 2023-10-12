@@ -22,8 +22,5 @@ target_compile_options(${BIN_NAME} PRIVATE
     -fno-access-control
 )
 
-add_test(
-    NAME UnitTest
-    COMMAND ${BIN_NAME}
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests
-)
+include(GoogleTest)
+gtest_discover_tests(${BIN_NAME} WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests)
