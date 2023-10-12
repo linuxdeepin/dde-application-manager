@@ -5,6 +5,7 @@
 #include <QRegularExpression>
 #include "desktopfileparser.h"
 #include "constant.h"
+#include "global.h"
 
 namespace {
 bool isInvalidLocaleString(const QString &str) noexcept
@@ -23,6 +24,12 @@ bool isInvalidLocaleString(const QString &str) noexcept
     thread_local const auto re = _re;
 
     return re.match(str).hasMatch();
+}
+
+bool isLocaleString(const QString &key) noexcept
+{
+    static QSet<QString> localeSet{"Name", "GenericName", "Comment", "Keywords"};
+    return localeSet.contains(key);
 }
 
 }  // namespace
@@ -135,25 +142,41 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     // NOTE: https://stackoverflow.com/a/25583104
     thread_local const QRegularExpression re = _re;
     if (re.match(key).hasMatch()) {
-        qWarning() << "invalid key name, skip this line:" << line;
+        qWarning() << "invalid key name:" << key << ", skip this line:" << line;
         return ParserError::NoError;
     }
 
-    if (localeStr != defaultKeyStr && !isInvalidLocaleString(localeStr)) {
+    if (localeStr != defaultKeyStr and !isInvalidLocaleString(localeStr)) {
         qWarning().noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
-    }
-
-    auto keyIt = group->find(key);
-    if (keyIt != group->end() && keyIt->find(localeStr) != keyIt->end()) {
-        qWarning() << "duplicated localestring, skip this line:" << line;
         return ParserError::NoError;
     }
 
-    if (keyIt == group->end()) {
-        group->insert(key, {{localeStr, valueStr}});
-        return ParserError::NoError;
+    if (auto keyIt = group->find(key); keyIt != group->end()) {
+        if (!isLocaleString(key)) {
+            qWarning() << "duplicate key:" << key << "skip.";
+            return ParserError::NoError;
+        }
+
+        if (!keyIt->canConvert<QStringMap>()) {
+            qWarning() << "underlying type of value is invalid, raw value:" << *keyIt << "skip";
+            return ParserError::NoError;
+        }
+
+        auto localeMap = keyIt->value<QStringMap>();
+        if (auto valueIt = localeMap.find(localeStr) != localeMap.end()) {
+            qWarning() << "duplicate locale key:" << key << "skip.";
+            return ParserError::NoError;
+        }
+
+        localeMap.insert(localeStr, valueStr);
+        group->insert(key, QVariant::fromValue(localeMap));
+    } else {
+        if (isLocaleString(key)) {
+            group->insert(key, QVariant::fromValue(QStringMap{{localeStr, valueStr}}));
+        } else {
+            group->insert(key, QVariant::fromValue(valueStr));
+        }
     }
 
-    keyIt->insert(localeStr, valueStr);
     return ParserError::NoError;
 }

@@ -79,7 +79,7 @@ QString MimeManager1Service::queryFileTypeAndDefaultApplication(const QString &f
     return mimeType;
 }
 
-void MimeManager1Service::setDefaultApplication(const KVPairs &defaultApps) noexcept
+void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) noexcept
 {
     auto &app = m_infos.front().appsList();
     auto userConfig = std::find_if(

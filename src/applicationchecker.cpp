@@ -15,9 +15,9 @@ bool ApplicationFilter::hiddenCheck(const std::unique_ptr<DesktopEntry> &entry) 
 
     if (hiddenVal.has_value()) {
         bool ok{false};
-        hidden = hiddenVal.value().toBoolean(ok);
+        hidden = toBoolean(hiddenVal.value(), ok);
         if (!ok) {
-            qWarning() << "invalid hidden value:" << *hiddenVal.value().find(defaultKeyStr);
+            qWarning() << "invalid hidden value:" << hiddenVal.value();
             return false;
         }
     }
@@ -28,10 +28,9 @@ bool ApplicationFilter::tryExecCheck(const std::unique_ptr<DesktopEntry> &entry)
 {
     auto tryExecVal = entry->value(DesktopFileEntryKey, "TryExec");
     if (tryExecVal.has_value()) {
-        bool ok{false};
-        auto executable = tryExecVal.value().toString(ok);
-        if (!ok) {
-            qWarning() << "invalid TryExec value:" << *tryExecVal.value().find(defaultKeyStr);
+        auto executable = toString(tryExecVal.value());
+        if (executable.isEmpty()) {
+            qWarning() << "invalid TryExec value:" << tryExecVal.value();
             return false;
         }
 
@@ -56,10 +55,9 @@ bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) 
     bool showInCurrentDE{true};
     auto onlyShowInVal = entry->value(DesktopFileEntryKey, "OnlyShowIn");
     while (onlyShowInVal.has_value()) {
-        bool ok{false};
-        auto deStr = onlyShowInVal.value().toString(ok);
-        if (!ok) {
-            qWarning() << "invalid OnlyShowIn value:" << *onlyShowInVal.value().find(defaultKeyStr);
+        auto deStr = toString(onlyShowInVal.value());
+        if (deStr.isEmpty()) {
+            qWarning() << "invalid OnlyShowIn value:" << onlyShowInVal.value();
             break;
         }
 
@@ -79,10 +77,9 @@ bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) 
     bool notShowInCurrentDE{false};
     auto notShowInVal = entry->value(DesktopFileEntryKey, "NotShowIn");
     while (notShowInVal.has_value()) {
-        bool ok{false};
-        auto deStr = notShowInVal.value().toString(ok);
-        if (!ok) {
-            qWarning() << "invalid OnlyShowIn value:" << *notShowInVal.value().find(defaultKeyStr);
+        auto deStr = toString(notShowInVal.value());
+        if (deStr.isEmpty()) {
+            qWarning() << "invalid OnlyShowIn value:" << notShowInVal.value();
             break;
         }
 

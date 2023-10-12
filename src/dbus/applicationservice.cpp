@@ -180,9 +180,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (!actionExec) {
             break;
         }
-        execStr = actionExec->toString(ok);
-        if (!ok) {
-            qWarning() << "exec value to string failed, try default action.";
+
+        execStr = toString(actionExec.value());
+        if (execStr.isEmpty()) {
+            qWarning() << "exec value to string failed, try default action.";  // we need this log.
             break;
         }
         break;
@@ -196,8 +197,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
-        execStr = Actions->toString(ok);
-        if (!ok) {
+        execStr = toString(Actions.value());
+        if (execStr.isEmpty()) {
             QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
             sendErrorReply(QDBusError::Failed, msg);
@@ -220,8 +221,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
     if (terminal()) {
         // don't change this sequence
-        execCmds.push_front("-C");  // means run a shellscript
-        execCmds.push_front("--keep-open"); // keep terminal open, prevent exit immediately
+        execCmds.push_front("-C");           // means run a shellscript
+        execCmds.push_front("--keep-open");  // keep terminal open, prevent exit immediately
         execCmds.push_front("deepin-terminal");
     }
     cmds.append(std::move(execCmds));
@@ -391,7 +392,7 @@ PropMap ApplicationService::actionName() const noexcept
         if (!value.has_value()) {
             continue;
         }
-        ret.insert(action, {std::move(value).value()});
+        ret.insert(action, std::move(value).value());
     }
 
     return ret;
@@ -508,9 +509,9 @@ void ApplicationService::setScaleFactor(double value) noexcept
         return;
     }
 
-    if(m_customScale){
+    if (m_customScale) {
         if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor, value)) {
-            sendErrorReply(QDBusError::Failed,"update scaleFactor failed.");
+            sendErrorReply(QDBusError::Failed, "update scaleFactor failed.");
             return;
         }
     } else {
@@ -826,9 +827,9 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
             task.command.append(std::move(execList));
             return task;
         }
-        bool ok;
-        auto iconStr = val->toIconString(ok);
-        if (!ok) {
+
+        auto iconStr = toIconString(val.value());
+        if (iconStr.isEmpty()) {
             qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
             task.command.append(std::move(execList));
             return task;
@@ -845,9 +846,17 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
             task.command.append(std::move(execList));
             return task;
         }
-        bool ok;
-        auto NameStr = val->toLocaleString(getUserLocale(), ok);
-        if (!ok) {
+
+        const auto &rawValue = val.value();
+        if (!rawValue.canConvert<QStringMap>()) {
+            qDebug() << "Name's underlying type mismatch:"
+                     << "QStringMap" << rawValue.metaType().name();
+            task.command.append(std::move(execList));
+            return task;
+        }
+
+        auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
+        if (NameStr.isEmpty()) {
             qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
             task.command.append(std::move(execList));
             return task;
@@ -897,26 +906,29 @@ QVariant ApplicationService::findEntryValue(const QString &group,
 
     switch (type) {
     case EntryValueType::String: {
-        auto valStr = val.toString(ok);
-        if (ok) {
+        auto valStr = toString(val);
+        if (!valStr.isEmpty()) {
             ret = QVariant::fromValue(valStr);
         }
     } break;
     case EntryValueType::LocaleString: {
-        auto valStr = val.toLocaleString(locale, ok);
-        if (ok) {
+        if (!val.canConvert<QStringMap>()) {
+            return ret;
+        }
+        auto valStr = toLocaleString(val.value<QStringMap>(), locale);
+        if (!valStr.isEmpty()) {
             ret = QVariant::fromValue(valStr);
         }
     } break;
     case EntryValueType::Boolean: {
-        auto valBool = val.toBoolean(ok);
+        auto valBool = toBoolean(val, ok);
         if (ok) {
             ret = QVariant::fromValue(valBool);
         }
     } break;
     case EntryValueType::IconString: {
-        auto valStr = val.toIconString(ok);
-        if (ok) {
+        auto valStr = toIconString(val);
+        if (!valStr.isEmpty()) {
             ret = QVariant::fromValue(valStr);
         }
     } break;

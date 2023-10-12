@@ -29,12 +29,12 @@ Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 
 using ObjectInterfaceMap = QMap<QString, QVariantMap>;
 using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
-using KVPairs = QMap<QString, QString>;
-using PropMap = QMap<QString, KVPairs>;
+using QStringMap = QMap<QString, QString>;
+using PropMap = QVariantMap;
 
 Q_DECLARE_METATYPE(ObjectInterfaceMap)
 Q_DECLARE_METATYPE(ObjectMap)
-Q_DECLARE_METATYPE(KVPairs)
+Q_DECLARE_METATYPE(QStringMap)
 Q_DECLARE_METATYPE(PropMap)
 
 struct SystemdUnitDBusMessage
