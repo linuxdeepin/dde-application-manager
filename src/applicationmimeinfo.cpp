@@ -44,8 +44,8 @@ QString toString(const MimeContent &content) noexcept
 
     for (auto it = content.constKeyValueBegin(); it != content.constKeyValueEnd(); ++it) {
         ret.append(QString{"[%1]\n"}.arg(it->first));
-        const auto &kvPairs = it->second;
-        for (auto inner = kvPairs.constKeyValueBegin(); inner != kvPairs.constKeyValueEnd(); ++inner) {
+        const auto &QStringMap = it->second;
+        for (auto inner = QStringMap.constKeyValueBegin(); inner != QStringMap.constKeyValueEnd(); ++inner) {
             ret.append(QString{"%1="}.arg(inner->first));
             for (const auto &app : inner->second) {
                 ret.append(QString{"%2;"}.arg(app));

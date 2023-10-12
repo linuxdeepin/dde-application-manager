@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "desktopentry.h"
-#include "global.h"
 #include "desktopfileparser.h"
 #include <QFileInfo>
 #include <QDir>
@@ -43,17 +42,15 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
         qWarning() << "No Type.";
         for (auto tmp = it->constKeyValueBegin(); tmp != it->constKeyValueEnd(); ++tmp) {
             const auto &[k, v] = *tmp;
-            qInfo() << "keyName:" << k;
-            for (auto valIt = v.constKeyValueBegin(); valIt != v.constKeyValueEnd(); ++valIt) {
-                const auto &[key, value] = *valIt;
-                qInfo() << key << value;
-            }
+            qInfo() << "key:" << k << "value:" << v;
         }
         return false;
     }
 
-    const auto &typeStr = *type->find(defaultKeyStr);
-
+    const auto &typeStr = type->toString();
+    if (typeStr.isEmpty()) {
+        return false;
+    }
     if (typeStr == "Link") {
         if (it->find("URL") == it->end()) {
             return false;
@@ -239,7 +236,7 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
     return *it;
 }
 
-QString DesktopEntry::Value::unescape(const QString &str) noexcept
+QString unescape(const QString &str) noexcept
 {
     QString unescapedStr;
     for (qsizetype i = 0; i < str.size(); ++i) {
@@ -283,63 +280,66 @@ QString DesktopEntry::Value::unescape(const QString &str) noexcept
     return unescapedStr;
 }
 
-QString DesktopEntry::Value::toString(bool &ok) const noexcept
+QString toString(const DesktopEntry::Value &value) noexcept
 {
-    ok = false;
-    auto str = this->find(defaultKeyStr);
+    QString str;
 
-    if (str == this->end()) {
+    if (value.canConvert<QStringMap>()) {  // get default locale
+        str = value.value<QStringMap>()[defaultKeyStr];
+    } else {
+        str = value.toString();
+    }
+
+    if (str.isEmpty()) {
         qWarning() << "value not found.";
         return {};
     }
 
-    auto unescapedStr = unescape(*str);
+    auto unescapedStr = unescape(str);
     if (hasNonAsciiAndControlCharacters(unescapedStr)) {
         return {};
     }
 
-    ok = true;
     return unescapedStr;
 }
 
-QString DesktopEntry::Value::toLocaleString(const QLocale &locale, bool &ok) const noexcept
+QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept
 {
-    ok = false;
-    for (auto it = this->constKeyValueBegin(); it != this->constKeyValueEnd(); ++it) {
+    for (auto it = localeMap.constKeyValueBegin(); it != localeMap.constKeyValueEnd(); ++it) {
         auto [a, b] = *it;
         if (QLocale{a}.name() == locale.name()) {
-            ok = true;
             return unescape(b);
         }
     }
-    return toString(ok);
+
+    return toString(localeMap[defaultKeyStr]);
 }
 
-QString DesktopEntry::Value::toIconString(bool &ok) const noexcept
+QString toIconString(const DesktopEntry::Value &value) noexcept
 {
-    return toString(ok);
+    return toString(value);
 }
 
-bool DesktopEntry::Value::toBoolean(bool &ok) const noexcept
+bool toBoolean(const DesktopEntry::Value &value, bool &ok) noexcept
 {
     ok = false;
-    const auto &str = (*this)[defaultKeyStr];
+    const auto &str = toString(value);
     if (str == "true") {
         ok = true;
         return true;
     }
+
     if (str == "false") {
         ok = true;
         return false;
     }
+
     return false;
 }
 
-float DesktopEntry::Value::toNumeric(bool &ok) const noexcept
+float toNumeric(const DesktopEntry::Value &value, bool &ok) noexcept
 {
-    const auto &str = (*this)[defaultKeyStr];
-    QVariant v{str};
-    return v.toFloat(&ok);
+    return value.toFloat(&ok);
 }
 
 bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs)
@@ -380,11 +380,4 @@ bool operator==(const DesktopFile &lhs, const DesktopFile &rhs)
 bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs)
 {
     return !(lhs == rhs);
-}
-
-QDebug operator<<(QDebug debug, const DesktopEntry::Value &v)
-{
-    QDebugStateSaver saver{debug};
-    debug << static_cast<const QMap<QString, QString> &>(v);
-    return debug;
 }

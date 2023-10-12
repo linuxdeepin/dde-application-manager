@@ -66,19 +66,20 @@ TEST_F(TestDesktopEntry, prase)
     auto name = group->constFind("Name");
     ASSERT_NE(name, group->cend());
 
-    bool ok;
-    name->toBoolean(ok);
+    const auto &nameVal = *name;
+
+    bool ok{true};
+    toBoolean(nameVal, ok);
     EXPECT_FALSE(ok);
 
-    name->toNumeric(ok);
+    toNumeric(nameVal, ok);
     EXPECT_FALSE(ok);
 
-    auto defaultName = name->toString(ok);
-    ASSERT_TRUE(ok);
+    EXPECT_TRUE(nameVal.canConvert<QStringMap>());
+    auto defaultName = toString(nameVal);  // get default locale value.
     EXPECT_TRUE(defaultName == "Text Editor");
 
-    auto localeString = name->toLocaleString(QLocale{"zh_CN"}, ok);
-    ASSERT_TRUE(ok);
-
+    const auto &localeMap = nameVal.value<QStringMap>();
+    auto localeString = toLocaleString(nameVal.value<QStringMap>(), QLocale{"zh_CN"});
     EXPECT_TRUE(localeString == "文本编辑器");
 }

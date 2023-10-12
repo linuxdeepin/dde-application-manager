@@ -13,6 +13,7 @@
 #include <optional>
 #include <QFile>
 #include "iniParser.h"
+#include "global.h"
 
 constexpr static auto defaultKeyStr = "default";
 
@@ -105,21 +106,7 @@ private:
 class DesktopEntry
 {
 public:
-    class Value final : public QMap<QString, QString>
-    {
-    public:
-        using QMap<QString, QString>::QMap;
-        QString toString(bool &ok) const noexcept;
-        bool toBoolean(bool &ok) const noexcept;
-        QString toIconString(bool &ok) const noexcept;
-        float toNumeric(bool &ok) const noexcept;
-        QString toLocaleString(const QLocale &locale, bool &ok) const noexcept;
-        friend QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
-
-    private:
-        [[nodiscard]] static QString unescape(const QString &str) noexcept;
-    };
-
+    using Value = QVariant;
     DesktopEntry() = default;
     DesktopEntry(const DesktopEntry &) = default;
     DesktopEntry(DesktopEntry &&) = default;
@@ -141,8 +128,6 @@ private:
     bool m_parsed{false};
 };
 
-QDebug operator<<(QDebug debug, const DesktopEntry::Value &v);
-
 bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
 
 bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);
@@ -150,5 +135,17 @@ bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);
 bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
 
 bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
+
+QString unescape(const QString &str) noexcept;
+
+QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept;
+
+QString toString(const DesktopEntry::Value &value) noexcept;
+
+bool toBoolean(const DesktopEntry::Value &value, bool &ok) noexcept;
+
+QString toIconString(const DesktopEntry::Value &value) noexcept;
+
+float toNumeric(const DesktopEntry::Value &value, bool &ok) noexcept;
 
 #endif

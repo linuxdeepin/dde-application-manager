@@ -10,7 +10,7 @@
 
         <method name="setDefaultApplication">
             <arg type="a{ss}" name="defaultApps" direction="in"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="KVPairs"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QStringMap"/>
         </method>
 
         <method name="unsetDefaultApplication">
