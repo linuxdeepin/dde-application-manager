@@ -44,7 +44,7 @@
         <property name="Terminal" type="b" access="read">
             <annotation 
                 name="org.freedesktop.DBus.Description"
-                value="Indicate this application should launch by DEFAULT terminal or not."
+                value="Indicate this application should launch by terminal or not."
             />
         </property>
 
@@ -56,10 +56,10 @@
             />
         </property>
 
-        <property name="ActionName" type="a{ss}" access="read">
+        <property name="ActionName" type="a{sa{ss}}" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
-                value="The type of ActionName is a Map, where the key represents the locale and the value is the corresponding content."
+                value="The type of ActionName is a Map, first key represents action, second key represents locale and the value is the corresponding content."
             />
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
         </property>
@@ -69,7 +69,7 @@
                 name="org.freedesktop.DBus.Description"
                 value="The type of IconName is a Map, where the key represents the action and the value is the corresponding content."
             />
-            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
         </property>
 
         <property name="Name" type="a{ss}" access="read">
@@ -77,7 +77,7 @@
                 name="org.freedesktop.DBus.Description"
                 value="The meaning of this property's type is same as which in ActionName."
             />
-            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
         </property>
 
         <property name="GenericName" type="a{ss}" access="read">
@@ -85,7 +85,7 @@
                 name="org.freedesktop.DBus.Description"
                 value="The meaning of this property's type is same as which in ActionName."
             />
-            <annotation name="org.qtproject.QtDBus.QtTypeName" value="PropMap"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
         </property>
 
         <method name="Launch">

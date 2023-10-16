@@ -21,6 +21,7 @@ constexpr auto DDEApplicationManager1JobManager1ObjectPath = u8"/org/desktopspec
 constexpr auto DDEApplicationManager1MimeManager1ObjectPath = u8"/org/desktopspec/ApplicationManager1/MimeManager1";
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
+constexpr auto DesktopFileDefaultKeyLocale = "default";
 
 constexpr auto ApplicationManagerServerDBusName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
@@ -52,7 +53,7 @@ constexpr auto AppExecOption = u8"appExec";
 constexpr auto STORAGE_VERSION = 0;
 constexpr auto ApplicationPropertiesGroup = u8"Application Properties";
 constexpr auto LastLaunchedTime = u8"LastLaunchedTime";
-constexpr auto ScaleFactor=u8"ScaleFactor";
+constexpr auto ScaleFactor = u8"ScaleFactor";
 
 constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/hooks.d";
 

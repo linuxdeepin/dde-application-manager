@@ -20,7 +20,7 @@
 
 class ApplicationService;
 
-class ApplicationManager1Service final : public QObject
+class ApplicationManager1Service final : public QObject, public QDBusContext
 {
     Q_OBJECT
 public:
@@ -54,6 +54,7 @@ public Q_SLOTS:
                      QDBusObjectPath &instance,
                      ObjectInterfaceMap &application_instance_info) const noexcept;
     void ReloadApplications();
+    QString addUserApplication(const QVariantMap &desktop_file, const QString &name) noexcept;
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:

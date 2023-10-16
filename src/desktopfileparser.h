@@ -17,4 +17,6 @@ public:
     ParserError addEntry(Groups::iterator &group) noexcept override;
 };
 
+QString toString(const DesktopFileParser::Groups &map);
+
 #endif

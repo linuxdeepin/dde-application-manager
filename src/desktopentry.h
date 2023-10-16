@@ -15,8 +15,6 @@
 #include "iniParser.h"
 #include "global.h"
 
-constexpr static auto defaultKeyStr = "default";
-
 enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
 enum class EntryValueType { String, LocaleString, Boolean, IconString };
@@ -126,6 +124,9 @@ private:
     [[nodiscard]] bool checkMainEntryValidation() const noexcept;
     QMap<QString, QMap<QString, Value>> m_entryMap;
     bool m_parsed{false};
+
+public:
+    using container_type = decltype(m_entryMap);
 };
 
 bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
