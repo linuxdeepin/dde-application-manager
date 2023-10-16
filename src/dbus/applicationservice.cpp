@@ -384,59 +384,64 @@ QStringList ApplicationService::categories() const noexcept
 PropMap ApplicationService::actionName() const noexcept
 {
     PropMap ret;
-    auto actionList = actions();
+    const auto &actionList = actions();
 
-    for (auto &action : actionList) {
-        action.prepend(DesktopFileActionKey);
-        auto value = m_entry->value(action, "Name");
+    for (const auto &action : actionList) {
+        auto rawActionKey = DesktopFileActionKey % action;
+        auto value = m_entry->value(rawActionKey, "Name");
         if (!value.has_value()) {
             continue;
         }
-        ret.insert(action, std::move(value).value());
+        ret.insert(action, std::move(value).value().value<QStringMap>());
     }
 
     return ret;
 }
 
-PropMap ApplicationService::name() const noexcept
+QStringMap ApplicationService::name() const noexcept
 {
-    PropMap ret;
     auto value = m_entry->value(DesktopFileEntryKey, "Name");
     if (!value) {
-        return ret;
+        return {};
     }
 
-    ret.insert(QString{"Name"}, {std::move(value).value()});
-    return ret;
+    if (!value->canConvert<QStringMap>()) {
+        return {};
+    }
+
+    return value->value<QStringMap>();
 }
 
-PropMap ApplicationService::genericName() const noexcept
+QStringMap ApplicationService::genericName() const noexcept
 {
-    PropMap ret;
     auto value = m_entry->value(DesktopFileEntryKey, "GenericName");
     if (!value) {
-        return ret;
+        return {};
     }
 
-    ret.insert(QString{"GenericName"}, {std::move(value).value()});
-    return ret;
+    if (!value->canConvert<QStringMap>()) {
+        return {};
+    }
+
+    return value->value<QStringMap>();
 }
 
-PropMap ApplicationService::icons() const noexcept
+QStringMap ApplicationService::icons() const noexcept
 {
-    PropMap ret;
+    QStringMap ret;
     auto actionList = actions();
     for (const auto &action : actionList) {
-        auto value = m_entry->value(QString{action}.prepend(DesktopFileActionKey), "Icon");
+        const auto &actionKey = QString{action}.prepend(DesktopFileActionKey);
+        auto value = m_entry->value(actionKey, "Icon");
         if (!value.has_value()) {
             continue;
         }
-        ret.insert(action, {std::move(value).value()});
+        ret.insert(actionKey, value->value<QString>());
     }
 
     auto mainIcon = m_entry->value(DesktopFileEntryKey, "Icon");
     if (mainIcon.has_value()) {
-        ret.insert(defaultKeyStr, {std::move(mainIcon).value()});
+        ret.insert(DesktopFileEntryKey, mainIcon->value<QString>());
     }
 
     return ret;

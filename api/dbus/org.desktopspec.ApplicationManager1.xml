@@ -30,5 +30,20 @@
                        1. You should use pidfd_open(2) to get a pidfd."
             />
         </method>
+        <method name="addUserApplication">
+            <arg type="a{sv}" name="desktop_file" direction="in"/>
+            <arg type="s" name="name" direction="in"/>
+            <arg type="s" name="app_id" direction="out" />
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap" />
+            <annotation 
+                name="org.freedesktop.DBus.Description" 
+                value="Desktop-entry-spec: https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html,
+                       type of `v` is depends on the property which you want to set.
+                       examples:
+                       {'Name':{'en_US':'example','default':'测试'},{'custom':10}} : a{sa{sv}} // Name=测试 Name[en_US]=example custom=10
+                       {'custom':20,'Name':'example'} : a{sv} // custom=20 Name=example
+                      "
+            />
+        </method>
     </interface>
 </node>

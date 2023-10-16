@@ -285,7 +285,7 @@ QString toString(const DesktopEntry::Value &value) noexcept
     QString str;
 
     if (value.canConvert<QStringMap>()) {  // get default locale
-        str = value.value<QStringMap>()[defaultKeyStr];
+        str = value.value<QStringMap>()[DesktopFileDefaultKeyLocale];
     } else {
         str = value.toString();
     }
@@ -312,7 +312,7 @@ QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexc
         }
     }
 
-    return toString(localeMap[defaultKeyStr]);
+    return toString(localeMap[DesktopFileDefaultKeyLocale]);
 }
 
 QString toIconString(const DesktopEntry::Value &value) noexcept

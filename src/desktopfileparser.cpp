@@ -116,7 +116,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     auto valueStr = line.sliced(splitCharIndex + 1).trimmed();
 
     QString key{""};
-    QString localeStr{defaultKeyStr};
+    QString localeStr{DesktopFileDefaultKeyLocale};
     // NOTE:
     // We are process "localized keys" here, for usage check:
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#localized-keys
@@ -146,7 +146,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
         return ParserError::NoError;
     }
 
-    if (localeStr != defaultKeyStr and !isInvalidLocaleString(localeStr)) {
+    if (localeStr != DesktopFileDefaultKeyLocale and !isInvalidLocaleString(localeStr)) {
         qWarning().noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
         return ParserError::NoError;
     }
@@ -179,4 +179,48 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     }
 
     return ParserError::NoError;
+}
+
+QString toString(const DesktopFileParser::Groups &map)
+{
+    QString ret;
+    auto groupToString = [&ret, map](const QString &group) {
+        const auto &groupEntry = map[group];
+        ret.append('[' % group % "]\n");
+        for (auto entryIt = groupEntry.constKeyValueBegin(); entryIt != groupEntry.constKeyValueEnd(); ++entryIt) {
+            const auto &key = entryIt->first;
+            const auto &value = entryIt->second;
+            if (value.canConvert<QStringMap>()) {
+                const auto &rawMap = value.value<QStringMap>();
+                std::for_each(rawMap.constKeyValueBegin(), rawMap.constKeyValueEnd(), [key, &ret](const auto &inner) {
+                    const auto &[locale, rawVal] = inner;
+                    ret.append(key);
+                    if (locale != DesktopFileDefaultKeyLocale) {
+                        ret.append('[' % locale % ']');
+                    }
+                    ret.append('=' % rawVal % '\n');
+                });
+            } else if (value.canConvert<QStringList>()) {
+                const auto &rawVal = value.value<QStringList>();
+                auto str = rawVal.join(';');
+                ret.append(key % '=' % str % '\n');
+            } else if (value.canConvert<QString>()) {
+                const auto &rawVal = value.value<QString>();
+                ret.append(key % '=' % rawVal % '\n');
+            } else {
+                qWarning() << "value type mismatch:" << value;
+            }
+        }
+        ret.append('\n');
+    };
+
+    groupToString(DesktopFileEntryKey);
+    for (const auto &groupName : map.keys()) {
+        if (groupName == DesktopFileEntryKey) {
+            continue;
+        }
+        groupToString(groupName);
+    }
+
+    return ret;
 }

@@ -30,7 +30,7 @@ Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 using ObjectInterfaceMap = QMap<QString, QVariantMap>;
 using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
 using QStringMap = QMap<QString, QString>;
-using PropMap = QVariantMap;
+using PropMap = QMap<QString, QStringMap>;
 
 Q_DECLARE_METATYPE(ObjectInterfaceMap)
 Q_DECLARE_METATYPE(ObjectMap)
@@ -43,6 +43,21 @@ struct SystemdUnitDBusMessage
     QString subState;
     QDBusObjectPath objectPath;
 };
+
+inline const QDBusArgument &operator>>(const QDBusArgument &argument, QStringMap &map)
+{
+    argument.beginMap();
+    while (!argument.atEnd()) {
+        QString key;
+        QString value;
+        argument.beginMapEntry();
+        argument >> key >> value;
+        argument.endMapEntry();
+        map.insert(key, value);
+    }
+    argument.endMap();
+    return argument;
+}
 
 inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<SystemdUnitDBusMessage> &units)
 {

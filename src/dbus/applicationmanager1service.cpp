@@ -8,6 +8,7 @@
 #include "systemdsignaldispatcher.h"
 #include "propertiesForwarder.h"
 #include "applicationHooks.h"
+#include "desktopfilegenerator.h"
 #include <QFile>
 #include <QDBusMessage>
 #include <unistd.h>
@@ -547,4 +548,68 @@ ApplicationManager1Service::findApplicationsByIds(const QStringList &appIds) con
     }
 
     return ret;
+}
+
+QString ApplicationManager1Service::addUserApplication(const QVariantMap &desktop_file, const QString &name) noexcept
+{
+    if (name.isEmpty()) {
+        sendErrorReply(QDBusError::Failed, "file name is empty.");
+        return {};
+    }
+
+    QDir xdgDataHome{getXDGDataHome() + "/applications"};
+    const auto &filePath = xdgDataHome.filePath(name);
+
+    if (QFileInfo info{filePath}; info.exists() and info.isFile()) {
+        sendErrorReply(QDBusError::Failed, QString{"file already exists:%1"}.arg(info.absoluteFilePath()));
+        return {};
+    }
+
+    QFile file{filePath};
+    if (!file.open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
+        sendErrorReply(QDBusError::Failed, file.errorString());
+        return {};
+    }
+
+    QString errMsg;
+    auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
+    if (fileContent.isEmpty() or !errMsg.isEmpty()) {
+        file.remove();
+        sendErrorReply(QDBusError::Failed, errMsg);
+        return {};
+    }
+
+    auto writeContent = fileContent.toLocal8Bit();
+    if (file.write(writeContent) != writeContent.size()) {
+        file.remove();
+        sendErrorReply(QDBusError::Failed, "incomplete file content.this file will be removed.");
+        return {};
+    }
+
+    file.flush();
+
+    ParserError err{ParserError::NoError};
+    auto ret = DesktopFile::searchDesktopFileByPath(filePath, err);
+    if (err != ParserError::NoError) {
+        file.remove();
+        qDebug() << "add user's application failed:" << err;
+        sendErrorReply(QDBusError::Failed, "search failed.");
+        return {};
+    }
+
+    if (!ret) {
+        file.remove();
+        sendErrorReply(QDBusError::InternalError);
+        return {};
+    }
+
+    auto desktopSource = std::move(ret).value();
+    auto appId = desktopSource.desktopId();
+    if (!addApplication(std::move(desktopSource))) {
+        file.remove();
+        sendErrorReply(QDBusError::Failed, "add application to ApplicationManager failed.");
+        return {};
+    }
+
+    return appId;
 }
