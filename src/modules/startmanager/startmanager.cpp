@@ -490,6 +490,10 @@ void StartManager::launch(DesktopInfo *info, QString cmdLine, uint32_t timestamp
                 return tmp_buf;
             });
             envs[envStringList.length()] = 0;
+
+            if (!process.workingDirectory().isEmpty()) {
+                ::chdir(process.workingDirectory().toStdString().c_str());
+            }
             ::execvpe(arg0.constData(), (char**)args, (char**)envs);
             // qCritical() <<"failed to execve app, errno" << errno;
             _exit(-1);
