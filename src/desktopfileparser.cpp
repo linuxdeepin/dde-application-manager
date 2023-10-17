@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include <QRegularExpression>
+#include <QStringBuilder>
+
 #include "desktopfileparser.h"
 #include "constant.h"
 #include "global.h"

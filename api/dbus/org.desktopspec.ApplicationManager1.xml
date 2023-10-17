@@ -35,8 +35,8 @@
             <arg type="s" name="name" direction="in"/>
             <arg type="s" name="app_id" direction="out" />
             <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap" />
-            <annotation 
-                name="org.freedesktop.DBus.Description" 
+            <annotation
+                name="org.freedesktop.DBus.Description"
                 value="Desktop-entry-spec: https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html,
                        type of `v` is depends on the property which you want to set.
                        examples:
