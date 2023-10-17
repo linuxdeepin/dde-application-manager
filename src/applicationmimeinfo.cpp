@@ -5,7 +5,7 @@
 #include "applicationmimeinfo.h"
 #include "global.h"
 
-constexpr decltype(auto) desktopSuffix = u8".desktop";
+constexpr std::array<char, 9> desktopSuffix{u8".desktop"};
 
 QStringList getListFiles() noexcept
 {
@@ -60,7 +60,7 @@ QString toString(const MimeContent &content) noexcept
 
 QString removeDesktopSuffix(const QString &str) noexcept
 {
-    return str.chopped(sizeof(desktopSuffix) - 1);
+    return str.chopped(desktopSuffix.size() - 1);
 }
 }  // namespace
 
@@ -140,7 +140,7 @@ void MimeApps::insertToSection(const QString &section, const QString &mimeType, 
         targetSection = map.insert(section, {});
     }
 
-    QStringList newApps{appId + desktopSuffix};
+    QStringList newApps{QString{appId}.append(desktopSuffix.data())};
     auto oldApps = targetSection->find(mimeType);
     if (oldApps != targetSection->end()) {
         newApps.append(*oldApps);
@@ -168,7 +168,7 @@ void MimeApps::setDefaultApplication(const QString &mimeType, const QString &app
         defaultSection = map.insert(defaultApplications, {});
     }
 
-    defaultSection->insert(mimeType, {appId + desktopSuffix});
+    defaultSection->insert(mimeType, {QString{appId}.append(desktopSuffix.data())});
 }
 
 void MimeApps::unsetDefaultApplication(const QString &mimeType) noexcept
@@ -186,7 +186,7 @@ void MimeApps::unsetDefaultApplication(const QString &mimeType) noexcept
 AppList MimeApps::queryTypes(QString appId) const noexcept
 {
     AppList ret;
-    appId.append(desktopSuffix);
+    appId.append(desktopSuffix.data());
     const auto &lists = content();
 
     if (const auto &adds = lists.constFind(addedAssociations); adds != lists.cend()) {
@@ -258,7 +258,7 @@ QString MimeApps::queryDefaultApp(const QMimeType &type) const noexcept
 QStringList MimeCache::queryTypes(QString appId) const noexcept
 {
     QStringList ret;
-    appId.append(desktopSuffix);
+    appId.append(desktopSuffix.data());
     const auto &cache = content()[mimeCache];
     for (auto it = cache.constKeyValueBegin(); it != cache.constKeyValueEnd(); ++it) {
         if (it->second.contains(appId)) {
@@ -297,7 +297,7 @@ QStringList MimeCache::queryApps(const QMimeType &type) const noexcept
     if (auto kv = it->constFind(type.name()); kv != it->constEnd()) {
         const auto &apps = kv.value();
         for (const auto &e : apps) {
-            if (!e.endsWith(desktopSuffix)) {
+            if (!e.endsWith(desktopSuffix.data())) {
                 continue;
             }
             ret.append(removeDesktopSuffix(e));

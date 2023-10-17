@@ -14,12 +14,12 @@ TEST(ApplicationHookTest, load)
     auto hook = ApplicationHook::loadFromFile(file);
     EXPECT_TRUE(hook);
     EXPECT_EQ(hook->hookName(), QString{"1-test.json"});
-    EXPECT_EQ(hook->execPath(), QString{"/usr/bin/echo"});
+    EXPECT_EQ(hook->execPath(), QString{"/usr/bin/stat"});
 
     QStringList tmp{"for test"};
     EXPECT_EQ(hook->args(), tmp);
 
-    tmp.push_front("/usr/bin/echo");
+    tmp.push_front("/usr/bin/stat");
     auto elem = generateHooks({std::move(hook).value()});
     EXPECT_EQ(elem, tmp);
 }
