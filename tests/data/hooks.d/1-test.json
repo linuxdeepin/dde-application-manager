@@ -1,5 +1,5 @@
 {
-    "Exec": "/usr/bin/echo",
+    "Exec": "/usr/bin/stat",
     "Args": [
         "for test"
     ]
