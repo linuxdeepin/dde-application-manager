@@ -13,7 +13,7 @@
 
 class ApplicationManager1Service;
 
-class MimeManager1Service : public QObject, public QDBusContext
+class MimeManager1Service : public QObject, protected QDBusContext
 {
     Q_OBJECT
 public:

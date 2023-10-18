@@ -28,7 +28,7 @@
 QString getDeepinWineScaleFactor(const QString &appId) noexcept;
 double getScaleFactor() noexcept;
 
-class ApplicationService : public QObject, public QDBusContext
+class ApplicationService : public QObject, protected QDBusContext
 {
     Q_OBJECT
 public:
@@ -118,6 +118,10 @@ public:
     }
     void resetEntry(DesktopEntry *newEntry) noexcept;
     void detachAllInstance() noexcept;
+    [[nodiscard]] QVariant findEntryValue(const QString &group,
+                                          const QString &valueKey,
+                                          EntryValueType type,
+                                          const QLocale &locale = getUserLocale()) const noexcept;
 
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
     [[nodiscard]] static QStringList unescapeExecArgs(const QString &str) noexcept;
@@ -168,10 +172,6 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
-    [[nodiscard]] QVariant findEntryValue(const QString &group,
-                                          const QString &valueKey,
-                                          EntryValueType type,
-                                          const QLocale &locale = getUserLocale()) const noexcept;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &linkPath) const noexcept;

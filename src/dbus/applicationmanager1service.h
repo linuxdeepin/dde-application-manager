@@ -20,7 +20,7 @@
 
 class ApplicationService;
 
-class ApplicationManager1Service final : public QObject, public QDBusContext
+class ApplicationManager1Service final : public QObject, protected QDBusContext
 {
     Q_OBJECT
 public:
@@ -43,6 +43,7 @@ public:
     findApplicationsByIds(const QStringList &appIds) const noexcept;
     void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
 
+    [[nodiscard]] const auto &Applications() const noexcept { return m_applicationList; }
     [[nodiscard]] JobManager1Service &jobManager() noexcept { return *m_jobManager; }
     [[nodiscard]] const JobManager1Service &jobManager() const noexcept { return *m_jobManager; }
     [[nodiscard]] const QStringList &applicationHooks() const noexcept { return m_hookElements; }

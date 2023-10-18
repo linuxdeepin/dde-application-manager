@@ -9,8 +9,10 @@
 #include "propertiesForwarder.h"
 #include "applicationHooks.h"
 #include "desktopfilegenerator.h"
+#include "processguesser1service.h"
 #include <QFile>
 #include <QDBusMessage>
+#include <QStringBuilder>
 #include <unistd.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -27,6 +29,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (!connection.registerService(DDEApplicationManager1ServiceName)) {
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
+
+    new (std::nothrow) ProcessGuesser1Service{connection, this};
 
     if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
         qCritical() << "new Application Manager Adaptor failed.";
@@ -397,37 +401,15 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 
     Q_ASSERT_X(static_cast<bool>(m_identifier), "Identify", "Broken Identifier.");
 
-    QString fdFilePath = QString{"/proc/self/fdinfo/%1"}.arg(pidfd.fileDescriptor());
-    QFile fdFile{fdFilePath};
-    if (!fdFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        qWarning() << "open " << fdFilePath << "failed: " << fdFile.errorString();
-        return {};
-    }
-    auto content = fdFile.readAll();
-    QTextStream stream{content};
-    QString appPid;
-    while (!stream.atEnd()) {
-        auto line = stream.readLine();
-        if (line.startsWith("Pid")) {
-            appPid = line.split(":").last().trimmed();
-            break;
-        }
-    }
-    if (appPid.isEmpty()) {
-        qWarning() << "can't find pid which corresponding with the instance of this application.";
-        return {};
-    }
-    bool ok;
-    auto pid = appPid.toUInt(&ok);
-    if (!ok) {
-        qWarning() << "AppId is failed to convert to uint.";
+    auto pid = getPidFromPidFd(pidfd);
+    if (pid == 0) {
+        sendErrorReply(QDBusError::Failed, "pid is invalid");
         return {};
     }
 
     const auto ret = m_identifier->Identify(pid);
-
     if (ret.ApplicationId.isEmpty()) {
-        qInfo() << "Identify failed.";
+        sendErrorReply(QDBusError::Failed, "Identify failed.");
         return {};
     }
 
@@ -436,14 +418,14 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     });
 
     if (app == m_applicationList.cend()) {
-        qWarning() << "can't find application:" << ret.ApplicationId;
+        sendErrorReply(QDBusError::Failed, "can't find application:" % ret.ApplicationId);
         return {};
     }
 
     auto instancePath = (*app)->findInstance(ret.InstanceId);
 
     if (auto path = instancePath.path(); path.isEmpty()) {
-        qWarning() << "can't find instance:" << path;
+        sendErrorReply(QDBusError::Failed, "can't find instance:" % path);
         return {};
     }
 
@@ -457,7 +439,6 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,
                                                    DesktopFile desktopFile) noexcept
 {
-    // TODO: add propertyChanged
     if (auto app = m_applicationList.find(destApp->applicationPath()); app == m_applicationList.cend()) {
         return;
     }
