@@ -16,6 +16,7 @@
 #include <QDir>
 #include <QRegularExpression>
 #include <QDBusObjectPath>
+#include <QDBusUnixFileDescriptor>
 #include <QDBusArgument>
 #include <QDBusMessage>
 #include <unistd.h>
@@ -574,6 +575,40 @@ inline QByteArray getCurrentSessionId()
 
     auto id = ret.arguments().first();
     return id.value<QDBusVariant>().variant().toByteArray();
+}
+
+inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
+{
+    QString fdFilePath = QString{"/proc/self/fdinfo/%1"}.arg(pidfd.fileDescriptor());
+    QFile fdFile{fdFilePath};
+    if (!fdFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+        qWarning() << "open " << fdFilePath << "failed: " << fdFile.errorString();
+        return 0;
+    }
+
+    auto content = fdFile.readAll();
+    QTextStream stream{content};
+    QString appPid;
+    while (!stream.atEnd()) {
+        auto line = stream.readLine();
+        if (line.startsWith("Pid")) {
+            appPid = line.split(":").last().trimmed();
+            break;
+        }
+    }
+
+    if (appPid.isEmpty()) {
+        qWarning() << "can't find pid which corresponding with the instance of this application.";
+        return 0;
+    }
+    bool ok{false};
+    auto pid = appPid.toUInt(&ok);
+    if (!ok) {
+        qWarning() << "AppId is failed to convert to uint.";
+        return 0;
+    }
+
+    return pid;
 }
 
 #endif

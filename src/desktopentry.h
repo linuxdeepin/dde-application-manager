@@ -17,7 +17,7 @@
 
 enum class EntryContext { Unknown, EntryOuter, Entry, Done };
 
-enum class EntryValueType { String, LocaleString, Boolean, IconString };
+enum class EntryValueType { String, LocaleString, Boolean, IconString, Raw };
 
 struct DesktopFileGuard;
 

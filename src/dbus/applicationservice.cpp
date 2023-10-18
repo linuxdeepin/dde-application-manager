@@ -928,6 +928,12 @@ QVariant ApplicationService::findEntryValue(const QString &group,
     bool ok{false};
 
     switch (type) {
+    case EntryValueType::Raw: {
+        auto valStr = val.toString();
+        if (!valStr.isEmpty()) {
+            ret = QVariant::fromValue(valStr);
+        }
+    } break;
     case EntryValueType::String: {
         auto valStr = toString(val);
         if (!valStr.isEmpty()) {
