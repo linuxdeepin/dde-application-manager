@@ -5,25 +5,25 @@
 #ifndef APPLICATIONSERVICE_H
 #define APPLICATIONSERVICE_H
 
-#include <QObject>
-#include <QDBusObjectPath>
-#include <QMap>
-#include <QString>
-#include <QDBusUnixFileDescriptor>
-#include <QSharedPointer>
-#include <QUuid>
-#include <QTextStream>
-#include <QDBusContext>
-#include <QFile>
-#include <memory>
-#include <utility>
+#include "applicationmanager1service.h"
 #include "applicationmanagerstorage.h"
 #include "dbus/applicationmanager1service.h"
 #include "dbus/instanceservice.h"
-#include "global.h"
-#include "desktopentry.h"
 #include "dbus/jobmanager1service.h"
-#include "applicationmanager1service.h"
+#include "desktopentry.h"
+#include "global.h"
+#include <QDBusContext>
+#include <QDBusObjectPath>
+#include <QDBusUnixFileDescriptor>
+#include <QFile>
+#include <QMap>
+#include <QObject>
+#include <QSharedPointer>
+#include <QString>
+#include <QTextStream>
+#include <QUuid>
+#include <memory>
+#include <utility>
 
 QString getDeepinWineScaleFactor(const QString &appId) noexcept;
 double getScaleFactor() noexcept;
@@ -70,8 +70,8 @@ public:
     [[nodiscard]] bool terminal() const noexcept;
 
     // FIXME:
-    // This property should implement with fuse guarded $XDG_CONFIG_HOME/autostart/.
-    // Current implementation has some problems,
+    // This property should implement with fuse guarded
+    // $XDG_CONFIG_HOME/autostart/. Current implementation has some problems,
     Q_PROPERTY(bool AutoStart READ isAutoStart WRITE setAutoStart NOTIFY autostartChanged)
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
@@ -119,6 +119,9 @@ public:
     void resetEntry(DesktopEntry *newEntry) noexcept;
     void detachAllInstance() noexcept;
 
+    [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
+    [[nodiscard]] static QStringList unescapeExecArgs(const QString &str) noexcept;
+
 private Q_SLOTS:
     void onGlobalScaleFactorChanged() noexcept;
 
@@ -165,7 +168,6 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
-    [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields);
     [[nodiscard]] QVariant findEntryValue(const QString &group,
                                           const QString &valueKey,
                                           EntryValueType type,
