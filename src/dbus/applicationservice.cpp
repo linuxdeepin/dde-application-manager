@@ -9,6 +9,7 @@
 #include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
+#include "desktopentry.h"
 #include <QUuid>
 #include <QStringList>
 #include <QList>
@@ -197,7 +198,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
-        execStr = toString(Actions.value());
+
+        execStr = Actions.value().toString();
         if (execStr.isEmpty()) {
             QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
@@ -733,13 +735,21 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit scaleFactorChanged();
 }
 
-LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields)
+QStringList ApplicationService::unescapeExecArgs(const QString &str) noexcept
 {
-    LaunchTask task;
-    auto deleter = [](wordexp_t *word) { wordfree(word); };
+    auto unescapedStr = unescape(str, true);
+    if (unescapedStr.isEmpty()) {
+        qWarning() << "unescape Exec failed.";
+        return {};
+    }
+
+    auto deleter = [](wordexp_t *word) {
+        wordfree(word);
+        delete word;
+    };
     std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
 
-    if (auto ret = wordexp(str.toLocal8Bit().constData(), words.get(), WRDE_SHOWERR); ret != 0) {
+    if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
         if (ret != 0) {
             QString errMessage;
             switch (ret) {
@@ -771,6 +781,14 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     for (int i = 0; i < words->we_wordc; ++i) {
         execList.emplace_back(words->we_wordv[i]);
     }
+
+    return execList;
+}
+
+LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields) noexcept
+{
+    LaunchTask task;
+    auto execList = unescapeExecArgs(str);
     task.LaunchBin = execList.first();
 
     QRegularExpression re{"%[fFuUickdDnNvm]"};

@@ -236,7 +236,7 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
     return *it;
 }
 
-QString unescape(const QString &str) noexcept
+QString unescape(const QString &str, bool shellMode) noexcept
 {
     QString unescapedStr;
     for (qsizetype i = 0; i < str.size(); ++i) {
@@ -270,10 +270,13 @@ QString unescape(const QString &str) noexcept
             unescapedStr.append(';');
             ++i;
             break;
-        case 's':
+        case 's': {
+            if (shellMode) {  // for wordexp
+                unescapedStr.append('\\');
+            }
             unescapedStr.append(' ');
             ++i;
-            break;
+        } break;
         }
     }
 
@@ -296,6 +299,7 @@ QString toString(const DesktopEntry::Value &value) noexcept
     }
 
     auto unescapedStr = unescape(str);
+
     if (hasNonAsciiAndControlCharacters(unescapedStr)) {
         return {};
     }
