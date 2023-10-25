@@ -433,7 +433,7 @@ QStringMap ApplicationService::icons() const noexcept
     QStringMap ret;
     auto actionList = actions();
     for (const auto &action : actionList) {
-        const auto &actionKey = QString{action}.prepend(DesktopFileActionKey);
+        auto actionKey = QString{action}.prepend(DesktopFileActionKey);
         auto value = m_entry->value(actionKey, "Icon");
         if (!value.has_value()) {
             continue;
