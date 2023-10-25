@@ -28,7 +28,7 @@ if(DDE_AM_USE_DEBUG_DBUS_NAME)
 endif()
 
 if(PROFILING_MODE)
-    add_compile_definitions(-DDPROFILING_MODE)
+    add_compile_definitions(-DPROFILING_MODE)
 endif()
 
 add_subdirectory(src)
