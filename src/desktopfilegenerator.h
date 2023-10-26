@@ -10,6 +10,7 @@
 struct DesktopFileGenerator
 {
     static QString generate(const QVariantMap &desktopFile, QString &err) noexcept;
+    static QString generateShortCut(const DesktopEntry &entry, const QString &appId) noexcept;
 
 private:
     static bool checkValidation(const QVariantMap &desktopFile, QString &err) noexcept;

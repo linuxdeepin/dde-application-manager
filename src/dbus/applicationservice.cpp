@@ -10,6 +10,7 @@
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
 #include "desktopentry.h"
+#include "desktopfilegenerator.h"
 #include <QUuid>
 #include <QStringList>
 #include <QList>
@@ -294,14 +295,18 @@ bool ApplicationService::SendToDesktop() const noexcept
         return false;
     }
 
-    auto desktopFile = QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop");
-    auto success = m_desktopSource.sourceFileRef().link(desktopFile);
-    if (!success) {
-        qDebug() << "create link failed:" << m_desktopSource.sourceFileRef().errorString() << "path:" << desktopFile;
-        sendErrorReply(QDBusError::ErrorType::Failed, m_desktopSource.sourceFileRef().errorString());
+    QFile shortcutFile{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
+    if (!shortcutFile.open(QFile::NewOnly | QFile::Text | QFile::WriteOnly)) {
+        qWarning() << shortcutFile.errorString();
+        return false;
     }
 
-    return success;
+    auto content = DesktopFileGenerator::generateShortCut(*m_entry, id());
+    QTextStream stream{&shortcutFile};
+    stream.setEncoding(QStringConverter::Utf8);
+    stream << content;
+
+    return true;
 }
 
 bool ApplicationService::RemoveFromDesktop() const noexcept
@@ -332,21 +337,47 @@ bool ApplicationService::isOnDesktop() const noexcept
     auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
 
     if (dir.isEmpty()) {
-        qDebug() << "no desktop directory found.";
+        qDebug() << "No desktop directory found.";
         return false;
     }
 
     QFileInfo info{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
 
     if (!info.exists()) {
+        qDebug() << info.absoluteFilePath() << "doesn't exists.";
         return false;
     }
 
-    if (!info.isSymbolicLink()) {
+    if (!info.isFile() or info.isSymbolicLink()) {
+        qDebug() << info.absoluteFilePath() << "isn't a common file.";
         return false;
     }
 
-    return info.symLinkTarget() == m_desktopSource.sourcePath();
+    QFile file{info.absoluteFilePath()};
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+        qDebug() << file.errorString();
+        return false;
+    }
+
+    QTextStream stream{&file};
+    QLatin1StringView key{DesktopShortcutKey};
+    while (!stream.atEnd()) {
+        auto line = stream.readLine();
+        if (!line.startsWith(key)) {
+            continue;
+        }
+
+        auto list = line.split('=', Qt::SkipEmptyParts);
+        if (list.size() != 2) {
+            return false;
+        }
+
+        if (list[1] == id()) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool ApplicationService::noDisplay() const noexcept

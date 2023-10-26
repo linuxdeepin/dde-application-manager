@@ -183,3 +183,37 @@ QString DesktopFileGenerator::generate(const QVariantMap &desktopFile, QString &
 
     return fileContent;
 }
+
+QString DesktopFileGenerator::generateShortCut(const DesktopEntry &entry, const QString &appId) noexcept
+{
+    QString content = QString{"# Generate By ApplicationManager, DO NOT EDIT MANUALLY!\n"} % '[' % DesktopFileEntryKey % "]\n" %
+                      DesktopShortcutKey % "=" % appId % '\n';
+    auto mainGroup = entry.group(DesktopFileEntryKey).value();
+
+    for (auto it = mainGroup.constKeyValueBegin(); it != mainGroup.constKeyValueEnd(); ++it) {
+        const auto &key = it->first;
+
+        if (key == "Exec") {  // shouldn't export 'Exec'
+            continue;
+        }
+
+        const auto &value = it->second;
+        if (value.canConvert<QString>()) {
+            auto val = value.value<QString>();
+            content.append(key % '=' % val % '\n');
+        } else if (value.canConvert<QStringMap>()) {
+            auto map = value.value<QStringMap>();
+            for (auto inner = map.constKeyValueBegin(); inner != map.constKeyValueEnd(); ++inner) {
+                content.append(key);
+                if (inner->first != DesktopFileDefaultKeyLocale) {
+                    content.append('[' % inner->first % ']');
+                }
+                content.append('=' % inner->second % '\n');
+            }
+        } else {
+            qWarning() << "Unknown Type. Raw data:" << value;
+        }
+    }
+
+    return content;
+}

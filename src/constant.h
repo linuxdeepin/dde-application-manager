@@ -57,4 +57,6 @@ constexpr auto ScaleFactor = u8"ScaleFactor";
 
 constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/hooks.d";
 
+constexpr auto DesktopShortcutKey = u8"X-Deepin-ShortcutIdentity";
+
 #endif
