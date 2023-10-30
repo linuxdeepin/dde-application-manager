@@ -4,5 +4,5 @@
 
 [D-BUS Service]
 Name=org.desktopspec.ApplicationManager1
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager-reborn
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager
 SystemdService=org.desktopspec.ApplicationManager1.service
