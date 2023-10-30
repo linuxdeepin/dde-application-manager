@@ -38,22 +38,28 @@ ObjectMap MimeManager1Service::listApplications(const QString &mimeType) const n
     }
     appIds.removeDuplicates();
     qInfo() << "query" << mimeType << "find:" << appIds;
-    const auto &apps = static_cast<ApplicationManager1Service *>(parent())->findApplicationsByIds(appIds);
+    const auto &apps = dynamic_cast<ApplicationManager1Service *>(parent())->findApplicationsByIds(appIds);
     return dumpDBusObject(apps);
 }
 
-QString MimeManager1Service::queryFileTypeAndDefaultApplication(const QString &filePath,
-                                                                QDBusObjectPath &application) const noexcept
+QString MimeManager1Service::queryDefaultApplication(const QString &content, QDBusObjectPath &application) const noexcept
 {
-    QString mimeType;
-    application = QDBusObjectPath{"/"};
+    QMimeType mime;
+    QFileInfo info{content};
 
-    auto mime = m_database.mimeTypeForFile(filePath);
-    if (mime.isValid()) {
-        mimeType = mime.name();
+    if (info.isAbsolute() and info.exists() and info.isFile()) {
+        mime = m_database.mimeTypeForFile(content);
+    } else {
+        mime = m_database.mimeTypeForName(content);
+    }
+
+    if (!mime.isValid()) {
+        sendErrorReply(QDBusError::Failed, "query content is invalid.");
+        return {};
     }
 
     QString defaultAppId;
+    auto mimeType = mime.name();
     for (auto it1 = m_infos.rbegin(); it1 != m_infos.rend(); ++it1) {
         const auto &list = it1->appsList();
         for (auto it2 = list.rbegin(); it2 != list.rend(); ++it2) {
@@ -68,7 +74,7 @@ QString MimeManager1Service::queryFileTypeAndDefaultApplication(const QString &f
         return mimeType;
     }
 
-    const auto &apps = static_cast<ApplicationManager1Service *>(parent())->findApplicationsByIds({defaultAppId});
+    const auto &apps = dynamic_cast<ApplicationManager1Service *>(parent())->findApplicationsByIds({defaultAppId});
     if (apps.isEmpty()) {
         qWarning() << "default application has been found:" << defaultAppId
                    << " but we can't find corresponding application in ApplicationManagerService.";
