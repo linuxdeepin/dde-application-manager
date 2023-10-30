@@ -234,7 +234,7 @@ bool MimeApps::writeToFile() const noexcept
     return true;
 }
 
-QString MimeApps::queryDefaultApp(const QMimeType &type) const noexcept
+QString MimeApps::queryDefaultApp(const QString &type) const noexcept
 {
     const auto &map = content();
     auto defaultSection = map.find(defaultApplications);
@@ -242,7 +242,7 @@ QString MimeApps::queryDefaultApp(const QMimeType &type) const noexcept
         return {};
     }
 
-    auto defaultApp = defaultSection->find(type.name());
+    auto defaultApp = defaultSection->find(type);
     if (defaultApp == defaultSection->end()) {
         return {};
     }
@@ -284,7 +284,7 @@ MimeCache::MimeCache(MimeFileBase &&base)
 {
 }
 
-QStringList MimeCache::queryApps(const QMimeType &type) const noexcept
+QStringList MimeCache::queryApps(const QString &type) const noexcept
 {
     const auto &content = this->content();
     auto it = content.constFind(mimeCache);
@@ -294,7 +294,7 @@ QStringList MimeCache::queryApps(const QMimeType &type) const noexcept
     }
 
     QStringList ret;
-    if (auto kv = it->constFind(type.name()); kv != it->constEnd()) {
+    if (auto kv = it->constFind(type); kv != it->constEnd()) {
         const auto &apps = kv.value();
         for (const auto &e : apps) {
             if (!e.endsWith(desktopSuffix.data())) {
