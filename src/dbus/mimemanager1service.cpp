@@ -20,10 +20,10 @@ MimeManager1Service::~MimeManager1Service() = default;
 
 ObjectMap MimeManager1Service::listApplications(const QString &mimeType) const noexcept
 {
-    auto mime = m_database.mimeTypeForName(mimeType);
-    if (!mime.isValid()) {
-        qWarning() << "can't find" << mimeType;
-        return {};
+    auto type = m_database.mimeTypeForName(mimeType).name();
+    if (type.isEmpty()) {
+        qInfo() << "try to query raw type:" << mimeType;
+        type = mimeType;
     }
 
     QStringList appIds;
@@ -33,7 +33,7 @@ ObjectMap MimeManager1Service::listApplications(const QString &mimeType) const n
         if (!info) {
             continue;
         }
-        auto apps = info->queryApps(mime);
+        auto apps = info->queryApps(type);
         appIds.append(std::move(apps));
     }
     appIds.removeDuplicates();
@@ -53,17 +53,18 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
         mime = m_database.mimeTypeForName(content);
     }
 
-    if (!mime.isValid()) {
-        sendErrorReply(QDBusError::Failed, "query content is invalid.");
-        return {};
+    auto type = mime.name();
+
+    if (type.isEmpty()) {
+        qInfo() << "try to query raw content:" << content;
+        type = content;
     }
 
     QString defaultAppId;
-    auto mimeType = mime.name();
     for (auto it1 = m_infos.rbegin(); it1 != m_infos.rend(); ++it1) {
         const auto &list = it1->appsList();
         for (auto it2 = list.rbegin(); it2 != list.rend(); ++it2) {
-            if (auto app = it2->queryDefaultApp(mime); !app.isEmpty()) {
+            if (auto app = it2->queryDefaultApp(type); !app.isEmpty()) {
                 defaultAppId = app;
             }
         }
@@ -71,7 +72,7 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
 
     if (defaultAppId.isEmpty()) {
         qInfo() << "file's mimeType:" << mime.name() << "but can't find a default application for this type.";
-        return mimeType;
+        return type;
     }
 
     const auto &apps = dynamic_cast<ApplicationManager1Service *>(parent())->findApplicationsByIds({defaultAppId});
@@ -82,7 +83,7 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
         application = apps.firstKey();
     }
 
-    return mimeType;
+    return type;
 }
 
 void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) noexcept

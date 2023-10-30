@@ -67,7 +67,7 @@ public:
     void setDefaultApplication(const QString &mimeType, const QString &appId) noexcept;
     void unsetDefaultApplication(const QString &mimeType) noexcept;
 
-    [[nodiscard]] QString queryDefaultApp(const QMimeType &type) const noexcept;
+    [[nodiscard]] QString queryDefaultApp(const QString &type) const noexcept;
     [[nodiscard]] AppList queryTypes(QString appId) const noexcept;
     [[nodiscard]] bool writeToFile() const noexcept;
 
@@ -87,7 +87,7 @@ public:
     MimeCache &operator=(const MimeCache &) = delete;
     ~MimeCache() override = default;
 
-    [[nodiscard]] QStringList queryApps(const QMimeType &type) const noexcept;
+    [[nodiscard]] QStringList queryApps(const QString &type) const noexcept;
     [[nodiscard]] QStringList queryTypes(QString appId) const noexcept;
 
 private:
