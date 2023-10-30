@@ -1,9 +1,9 @@
 build*
 .vscode
 /debian/.debhelper
-/debian/dde-application-manager-reborn
-/debian/dde-application-manager-reborn.substvars
-/debian/dde-application-manager-reborn.debhelper.log
+/debian/dde-application-manager
+/debian/dde-application-manager.substvars
+/debian/dde-application-manager.debhelper.log
 /debian/debhelper-build-stamp
 /debian/files
 /obj-x86_64-linux-gnu
