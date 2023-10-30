@@ -26,8 +26,7 @@ public:
 
 public Q_SLOTS:
     [[nodiscard]] ObjectMap listApplications(const QString &mimeType) const noexcept;
-    [[nodiscard]] QString queryFileTypeAndDefaultApplication(const QString &filePath,
-                                                             QDBusObjectPath &application) const noexcept;
+    [[nodiscard]] QString queryDefaultApplication(const QString &content, QDBusObjectPath &application) const noexcept;
     void setDefaultApplication(const QStringMap &defaultApps) noexcept;
     void unsetDefaultApplication(const QStringList &mimeTypes) noexcept;
 

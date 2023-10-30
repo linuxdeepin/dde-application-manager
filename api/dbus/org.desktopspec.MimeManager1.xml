@@ -2,10 +2,13 @@
 <node>
     <interface name="org.desktopspec.MimeManager1">
 
-        <method name="queryFileTypeAndDefaultApplication">
-            <arg type="s" name="filePath" direction="in"/>
+        <method name="queryDefaultApplication">
+            <arg type="s" name="content" direction="in"/>
             <arg type="s" name="mimeType" direction="out"/>
             <arg type="o" name="application" direction="out"/>
+            <annotation 
+                name="org.freedesktop.DBus.Description" 
+                value="content can be absolute path of a file or a mime type."/>
         </method>
 
         <method name="setDefaultApplication">
