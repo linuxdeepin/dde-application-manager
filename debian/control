@@ -18,3 +18,7 @@ Depends:
 Description:  dde application manager module
  Application manager for DDE.
 
+Package: dde-application-manager-api
+Architecture: any
+Depends: dde-application-manager( =${binary:Version})
+Description: DBus Interface of dde-application-manager.

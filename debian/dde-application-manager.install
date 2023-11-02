@@ -1,0 +1,7 @@
+etc/dpkg/*
+usr/bin/*
+usr/lib/*
+usr/libexec/*
+usr/share/dbus-1/*
+usr/share/dsg/*
+
