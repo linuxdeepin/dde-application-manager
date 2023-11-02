@@ -35,6 +35,7 @@ add_subdirectory(src)
 add_subdirectory(plugins)
 add_subdirectory(apps)
 add_subdirectory(misc)
+add_subdirectory(api)
 
 include(CTest)
 
