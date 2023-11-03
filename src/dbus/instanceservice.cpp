@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "dbus/instanceservice.h"
+#include "constant.h"
 #include "propertiesForwarder.h"
-#include <QCoreApplication>
+#include <QDBusMessage>
+#include "global.h"
 
 InstanceService::InstanceService(QString instanceId, QString application, QString systemdUnitPath, QString launcher)
     : m_Launcher(std::move(launcher))
@@ -16,3 +18,18 @@ InstanceService::InstanceService(QString instanceId, QString application, QStrin
 }
 
 InstanceService::~InstanceService() = default;
+
+void InstanceService::KillAll(int signal)
+{
+    auto killMsg = QDBusMessage::createMethodCall(SystemdService, m_SystemdUnitPath.path(), SystemdUnitInterfaceName, "Kill");
+    killMsg << QString{"all"} << signal;
+
+    auto &con = ApplicationManager1DBus::instance().globalDestBus();
+    auto reply = con.call(killMsg);
+
+    if (reply.type() == QDBusMessage::ReplyMessage) {
+        return;
+    }
+
+    sendErrorReply(reply.errorName(), reply.errorMessage());
+}

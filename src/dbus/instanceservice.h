@@ -7,8 +7,9 @@
 
 #include <QObject>
 #include <QDBusObjectPath>
+#include <QDBusContext>
 
-class InstanceService : public QObject
+class InstanceService : public QObject, protected QDBusContext
 {
     Q_OBJECT
 public:
@@ -24,6 +25,9 @@ public:
     Q_PROPERTY(bool Orphaned MEMBER m_orphaned NOTIFY orphanedChanged)
 
     [[nodiscard]] const QString &instanceId() const noexcept { return m_instanceId; }
+
+public Q_SLOTS:
+    void KillAll(int signal);
 
 Q_SIGNALS:
     void orphanedChanged();

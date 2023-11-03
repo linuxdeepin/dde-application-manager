@@ -8,6 +8,7 @@
 constexpr auto SystemdService = u8"org.freedesktop.systemd1";
 constexpr auto SystemdObjectPath = u8"/org/freedesktop/systemd1";
 constexpr auto SystemdInterfaceName = u8"org.freedesktop.systemd1.Manager";
+constexpr auto SystemdUnitInterfaceName = u8"org.freedesktop.systemd1.Unit";
 constexpr auto DDEApplicationManager1ServiceName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
     u8"org.desktopspec.debug.ApplicationManager1";
