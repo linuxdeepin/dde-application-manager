@@ -41,5 +41,12 @@
                        to which the instance belonged has been removed."
             />
         </property>
+        <method name="KillAll">
+            <arg type="i" name="signal" direction="in"/> 
+            <annotation name="org.freedesktop.DBus.Description" 
+                        value="Force kill this instance.
+                                ATTENTION: All processes which launched by 
+                                this instance will be killed." />
+        </method>
     </interface>
 </node>
