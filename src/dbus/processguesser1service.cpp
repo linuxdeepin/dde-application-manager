@@ -74,7 +74,13 @@ QString ProcessGuesser1Service::GuessApplicationId(const QDBusUnixFileDescriptor
             continue;
         }
 
-        auto execList = ApplicationService::unescapeExecArgs(exec);
+        auto opt = ApplicationService::unescapeExecArgs(exec);
+        if (!opt) {
+            sendErrorReply(QDBusError::InternalError);
+            return {};
+        }
+
+        auto execList = std::move(opt).value();
         if (execList.isEmpty()) {
             sendErrorReply(QDBusError::InternalError);
             return {};

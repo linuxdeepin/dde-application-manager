@@ -124,7 +124,7 @@ public:
                                           const QLocale &locale = getUserLocale()) const noexcept;
 
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
-    [[nodiscard]] static QStringList unescapeExecArgs(const QString &str) noexcept;
+    [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
 
 private Q_SLOTS:
     void onGlobalScaleFactorChanged() noexcept;
