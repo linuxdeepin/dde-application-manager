@@ -213,8 +213,13 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         optionsMap.insert("_hooks", hooks);
     }
     auto cmds = generateCommand(optionsMap);
+    auto task = unescapeExec(execStr, fields);
+    if (!task) {
+        sendErrorReply(QDBusError::InternalError, "Invalid Command.");
+        return {};
+    }
 
-    auto [bin, execCmds, res] = unescapeExec(execStr, fields);
+    auto [bin, execCmds, res] = std::move(task);
     if (bin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
         sendErrorReply(QDBusError::Failed);
@@ -735,12 +740,12 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit scaleFactorChanged();
 }
 
-QStringList ApplicationService::unescapeExecArgs(const QString &str) noexcept
+std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &str) noexcept
 {
     auto unescapedStr = unescape(str, true);
     if (unescapedStr.isEmpty()) {
         qWarning() << "unescape Exec failed.";
-        return {};
+        return std::nullopt;
     }
 
     auto deleter = [](wordexp_t *word) {
@@ -755,8 +760,7 @@ QStringList ApplicationService::unescapeExecArgs(const QString &str) noexcept
             switch (ret) {
             case WRDE_BADCHAR:
                 errMessage = "BADCHAR";
-                qWarning() << "wordexp error: " << errMessage;
-                return {};
+                break;
             case WRDE_BADVAL:
                 errMessage = "BADVAL";
                 break;
@@ -773,7 +777,7 @@ QStringList ApplicationService::unescapeExecArgs(const QString &str) noexcept
                 errMessage = "unknown";
             }
             qWarning() << "wordexp error: " << errMessage;
-            return {};
+            return std::nullopt;
         }
     }
 
@@ -788,9 +792,20 @@ QStringList ApplicationService::unescapeExecArgs(const QString &str) noexcept
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields) noexcept
 {
     LaunchTask task;
-    auto execList = unescapeExecArgs(str);
-    task.LaunchBin = execList.first();
+    auto opt = unescapeExecArgs(str);
 
+    if (!opt.has_value()) {
+        qWarning() << "unescapeExecArgs failed.";
+        return {};
+    }
+
+    auto execList = std::move(opt).value();
+    if (execList.isEmpty()) {
+        qWarning() << "exec format is invalid.";
+        return {};
+    }
+
+    task.LaunchBin = execList.first();
     QRegularExpression re{"%[fFuUickdDnNvm]"};
     auto matcher = re.match(str);
     if (!matcher.hasMatch()) {

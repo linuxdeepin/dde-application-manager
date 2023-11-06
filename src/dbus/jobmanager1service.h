@@ -28,6 +28,7 @@ struct LaunchTask
     LaunchTask(LaunchTask &&) = default;
     LaunchTask &operator=(const LaunchTask &) = default;
     LaunchTask &operator=(LaunchTask &&) = default;
+    explicit operator bool() const { return !LaunchBin.isEmpty() and !command.isEmpty(); }
     QString LaunchBin;
     QStringList command;
     QVariantList Resources;
