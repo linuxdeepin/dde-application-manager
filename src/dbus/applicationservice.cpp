@@ -476,7 +476,7 @@ bool ApplicationService::x_linglong() const noexcept
     return !val.isNull();
 }
 
-QString ApplicationService::x_Vendor_Deepin() const noexcept
+QString ApplicationService::X_Deepin_Vendor() const noexcept
 {
     return findEntryValue(DesktopFileEntryKey, "X-Deepin-Vendor", EntryValueType::String).toString();
 }
