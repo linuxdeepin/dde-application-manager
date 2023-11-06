@@ -9,6 +9,11 @@
         <property name="Categories" type="as" access="read"/>
         <property name="X_linglong" type="b" access="read"/>
         <property name="X_Flatpak" type="b" access="read"/>
+        <property name="X_Vendor_Deepin" type="s" access="read">
+            <annotation name="org.freedesktop.DBus.Description" value="Whem this property is 'deepin', display name of the application
+                              should use GenericName." 
+            />
+        </property>
         <property name="installedTime" type="t" access="read"/>
         <property name="NoDisplay" type="b" access="read"/>
         <property name="MimeTypes" type="as" access="readwrite"/>
