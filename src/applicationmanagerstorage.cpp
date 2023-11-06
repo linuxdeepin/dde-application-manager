@@ -165,16 +165,25 @@ QVariant ApplicationManager1Storage::readApplicationValue(const QString &appId,
                                                           const QString &groupName,
                                                           const QString &valueKey) const noexcept
 {
+    if (!m_data.contains(appId)) {
+        return {};
+    }
     auto app = m_data.constFind(appId)->toObject();
     if (app.isEmpty()) {
         return {};
     }
 
+    if (!app.contains(groupName)) {
+        return {};
+    }
     auto group = app.constFind(groupName)->toObject();
     if (group.isEmpty()) {
         return {};
     }
 
+    if (!group.contains(valueKey)) {
+        return {};
+    }
     auto val = group.constFind(valueKey);
     if (val->isNull()) {
         return {};
