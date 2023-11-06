@@ -476,6 +476,11 @@ bool ApplicationService::x_linglong() const noexcept
     return !val.isNull();
 }
 
+QString ApplicationService::x_Vendor_Deepin() const noexcept
+{
+    return findEntryValue(DesktopFileEntryKey, "X-Deepin-Vendor", EntryValueType::String).toString();
+}
+
 bool ApplicationService::terminal() const noexcept
 {
     auto val = findEntryValue(DesktopFileEntryKey, "Terminal", EntryValueType::String);
