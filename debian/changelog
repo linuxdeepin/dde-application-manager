@@ -1,3 +1,9 @@
+dde-application-manager (1.1.2) unstable; urgency=medium
+
+  * release 1.1.2 for misc fixup.
+
+ -- He YuMing <heyuming@deepin.org>  Tue, 07 Nov 2023 13:08:59 +0800
+
 dde-application-manager (1.1.1) unstable; urgency=medium
 
   * release 1.1.1 for api package
