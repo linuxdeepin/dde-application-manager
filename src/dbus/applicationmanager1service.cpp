@@ -237,7 +237,7 @@ void ApplicationManager1Service::scanApplications() noexcept
     const auto &desktopFileDirs = getDesktopFileDirs();
 
     applyIteratively(
-        QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
+        QList<QDir>(desktopFileDirs.crbegin(), desktopFileDirs.crend()),
         [this](const QFileInfo &info) -> bool {
             ParserError err{ParserError::NoError};
             auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
