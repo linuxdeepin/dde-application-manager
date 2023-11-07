@@ -993,10 +993,11 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
     }
 
     auto timestamp = QDateTime::currentMSecsSinceEpoch();
-
     if (auto ptr = m_storage.lock(); ptr) {
+        m_lastLaunch = timestamp;
         ptr->updateApplicationValue(
             m_desktopSource.desktopId(), ApplicationPropertiesGroup, ::LastLaunchedTime, QVariant::fromValue(timestamp));
+        emit lastLaunchedTimeChanged();
     }
 }
 
