@@ -36,7 +36,7 @@ public:
     [[nodiscard]] QList<QDBusObjectPath> list() const;
 
     void initService(QDBusConnection &connection) noexcept;
-    bool addApplication(DesktopFile desktopFileSource) noexcept;
+    QSharedPointer<ApplicationService> addApplication(DesktopFile desktopFileSource) noexcept;
     void removeOneApplication(const QDBusObjectPath &application) noexcept;
     void removeAllApplication() noexcept;
     [[nodiscard]] QMap<QDBusObjectPath, QSharedPointer<ApplicationService>>
@@ -74,7 +74,7 @@ private:
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
     void scanInstances() noexcept;
-    void scanAutoStart() noexcept;
+    QList<QSharedPointer<ApplicationService>> scanAutoStart() noexcept;
     void loadHooks() noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);

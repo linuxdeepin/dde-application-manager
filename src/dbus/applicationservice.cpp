@@ -6,10 +6,14 @@
 #include "APPobjectmanager1adaptor.h"
 #include "applicationchecker.h"
 #include "applicationmanagerstorage.h"
+#include "constant.h"
+#include "global.h"
+#include "iniParser.h"
 #include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
 #include "launchoptions.h"
 #include "desktopentry.h"
+#include "desktopfileparser.h"
 #include <QUuid>
 #include <QStringList>
 #include <QList>
@@ -19,6 +23,11 @@
 #include <QStandardPaths>
 #include <algorithm>
 #include <new>
+#include <qdbuserror.h>
+#include <qfileinfo.h>
+#include <qlogging.h>
+#include <qnamespace.h>
+#include <qtmetamacros.h>
 #include <utility>
 #include <wordexp.h>
 
@@ -102,6 +111,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     DesktopFileGuard guard{app->desktopFileSource()};
 
     if (!guard.try_open()) {
+        qDebug() << "open source desktop failed.";
         return nullptr;
     }
 
@@ -139,14 +149,17 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
 bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept
 {
     if (ApplicationFilter::hiddenCheck(entry)) {
+        qDebug() << "hidden check failed.";
         return false;
     }
 
     if (ApplicationFilter::tryExecCheck(entry)) {
+        qDebug() << "tryExec check failed";
         return false;
     }
 
     if (ApplicationFilter::showInCheck(entry)) {
+        qDebug() << "showIn check failed.";
         return false;
     }
 
@@ -541,46 +554,76 @@ void ApplicationService::setScaleFactor(double value) noexcept
     emit scaleFactorChanged();
 }
 
-bool ApplicationService::autostartCheck(const QString &linkPath) const noexcept
+bool ApplicationService::autostartCheck(const QString &filePath) noexcept
 {
-    QFileInfo info{linkPath};
+    qDebug() << "current check autostart file:" << filePath;
 
-    if (info.exists()) {
-        if (info.isSymbolicLink() and info.symLinkTarget() == m_desktopSource.sourcePath()) {
-            return true;
-        }
-        qWarning() << "same name desktop file exists:" << linkPath << "but this may not created by AM.";
+    QFile file{filePath};
+    if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+        qWarning() << "open" << filePath << "failed:" << file.errorString();
+        return false;
     }
 
-    return false;
+    QTextStream stream{&file};
+    DesktopEntry s;
+    if (auto err = s.parse(stream); err != ParserError::NoError) {
+        qWarning() << "parse" << filePath << "failed:" << err;
+        return false;
+    }
+
+    auto hiddenVal = s.value(DesktopFileEntryKey, DesktopEntryHidden);
+    if (!hiddenVal) {
+        qDebug() << "no hidden in autostart desktop";
+        return true;
+    }
+
+    auto hidden = hiddenVal.value().toString();
+    return hidden.compare("false", Qt::CaseInsensitive) == 0;
 }
 
 bool ApplicationService::isAutoStart() const noexcept
 {
-    auto path = getAutoStartDirs().first();
-    auto linkName = QDir{path}.filePath(m_desktopSource.desktopId() + ".desktop");
-    return autostartCheck(linkName);
+    auto autostartDirs = getAutoStartDirs();
+    auto sourcePath = m_desktopSource.sourcePath();
+    auto userAutostart = QDir{autostartDirs.first()}.filePath(id() + ".desktop");
+
+    QFileInfo info{userAutostart};
+    auto isOverride = info.exists() and info.isFile();
+
+    if (std::any_of(autostartDirs.cbegin(), autostartDirs.cend(), [&sourcePath](const QString &dir) {
+            return sourcePath.startsWith(dir);
+        })) {  // load from autostart
+        return isOverride ? autostartCheck(userAutostart) : autostartCheck(sourcePath);
+    }
+
+    return isOverride and autostartCheck(userAutostart);
 }
 
 void ApplicationService::setAutoStart(bool autostart) noexcept
 {
-    auto path = getAutoStartDirs().first();
-    auto linkName = QDir{path}.filePath(m_desktopSource.desktopId() + ".desktop");
-    auto &file = m_desktopSource.sourceFileRef();
+    if (isAutoStart() == autostart) {
+        return;
+    }
 
-    if (autostart) {
-        if (!autostartCheck(linkName) and !file.link(linkName)) {
-            qWarning() << "link to autostart failed:" << file.errorString();
-            return;
-        }
-    } else {
-        if (autostartCheck(linkName)) {
-            QFile linkFile{linkName};
-            if (!linkFile.remove()) {
-                qWarning() << "remove link failed:" << linkFile.errorString();
-                return;
-            }
-        }
+    auto fileName = QDir{getAutoStartDirs().first()}.filePath(m_desktopSource.desktopId() + ".desktop");
+    QFile autostartFile{fileName};
+    if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
+        qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
+        sendErrorReply(QDBusError::Failed);
+        return;
+    }
+
+    auto newEntry = *m_entry;
+    newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, m_desktopSource.sourcePath());
+    newEntry.insert(DesktopFileEntryKey, DesktopEntryHidden, !autostart);
+
+    auto hideAutostart = toString(newEntry.data()).toLocal8Bit();
+    auto writeBytes = autostartFile.write(hideAutostart);
+
+    if (writeBytes != hideAutostart.size() or !autostartFile.flush()) {
+        qWarning() << "incomplete write:" << autostartFile.error();
+        sendErrorReply(QDBusError::Failed, "set failed: filesystem error.");
+        return;
     }
 
     emit autostartChanged();
@@ -1021,7 +1064,7 @@ double getScaleFactor() noexcept
 QString getDeepinWineScaleFactor(const QString &appId) noexcept
 {
     qCritical() << "Don't using env to control the window scale factor,  this function"
-                   "should via using graphisc server(Wayland Compositor/Xorg Xft) in deepin wine.";
+                   "should via using graphic server(Wayland Compositor/Xorg Xft) in deepin wine.";
 
     QString factor{"1.0"};
     auto objectPath = QString{"/dde_launcher/org_deepin_dde_launcher/%1"}.arg(getCurrentUID());
