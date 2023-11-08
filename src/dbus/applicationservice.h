@@ -177,7 +177,7 @@ private:
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
-    [[nodiscard]] bool autostartCheck(const QString &linkPath) const noexcept;
+    [[nodiscard]] static bool autostartCheck(const QString &filePath) noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {

@@ -78,6 +78,10 @@ struct DesktopFileGuard
 
     bool try_open()
     {
+        if (!fileRef.m_fileSource) {
+            return false;
+        }
+
         if (fileRef.m_fileSource->isOpen()) {
             return true;
         }
@@ -90,12 +94,18 @@ struct DesktopFileGuard
         return ret;
     }
 
-    ~DesktopFileGuard()
+    void close()
     {
+        if (!fileRef.m_fileSource) {
+            return;
+        }
+
         if (fileRef.m_fileSource->isOpen()) {
             fileRef.m_fileSource->close();
         }
     }
+
+    ~DesktopFileGuard() { close(); }
 
 private:
     const DesktopFile &fileRef;
@@ -116,6 +126,8 @@ public:
     [[nodiscard]] ParserError parse(QTextStream &stream) noexcept;
     [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
     [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
+    void insert(const QString &key, const QString &valueKey, Value &&val) noexcept;
+    [[nodiscard]] const auto &data() const noexcept { return m_entryMap; }
 
     friend bool operator==(const DesktopEntry &lhs, const DesktopEntry &rhs);
     friend bool operator!=(const DesktopEntry &lhs, const DesktopEntry &rhs);

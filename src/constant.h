@@ -23,6 +23,8 @@ constexpr auto DDEApplicationManager1MimeManager1ObjectPath = u8"/org/desktopspe
 constexpr auto DesktopFileEntryKey = u8"Desktop Entry";
 constexpr auto DesktopFileActionKey = u8"Desktop Action ";
 constexpr auto DesktopFileDefaultKeyLocale = "default";
+constexpr auto X_Deepin_GenerateSource = u8"X-Deepin-GenerateSource";
+constexpr auto DesktopEntryHidden = u8"Hidden";
 
 constexpr auto ApplicationManagerServerDBusName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME

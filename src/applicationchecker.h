@@ -13,6 +13,9 @@ namespace ApplicationFilter {
 bool hiddenCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept;
 bool tryExecCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept;
 bool showInCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept;
+bool hiddenCheck(const DesktopEntry &entry) noexcept;
+bool tryExecCheck(const DesktopEntry &entry) noexcept;
+bool showInCheck(const DesktopEntry &entry) noexcept;
 
 }  // namespace ApplicationFilter
 #endif

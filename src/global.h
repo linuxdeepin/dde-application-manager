@@ -403,7 +403,12 @@ inline QStringList getXDGDataDirs()
         XDGDataDirs.append("/usr/share");
     }
 
-    XDGDataDirs.push_front(getXDGDataHome());
+    auto XDGDataHome = getXDGDataHome();
+    if (XDGDataDirs.contains(XDGDataHome)) {
+        XDGDataDirs.removeAll(XDGDataHome);
+    }
+
+    XDGDataDirs.push_front(XDGDataHome);
     return XDGDataDirs;
 }
 
@@ -416,6 +421,7 @@ inline QStringList getDesktopFileDirs()
         }
         str.append("applications");
     });
+
     return XDGDataDirs;
 }
 

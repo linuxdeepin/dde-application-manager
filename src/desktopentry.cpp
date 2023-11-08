@@ -111,18 +111,31 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
         return std::nullopt;
     }
 
-    QString path{desktopFile};
-    QString id;
-
     const auto &XDGDataDirs = getDesktopFileDirs();
-    auto idGen = std::any_of(XDGDataDirs.cbegin(), XDGDataDirs.cend(), [&desktopFile](const QString &suffixPath) {
+    const auto &autostartDirs = getAutoStartDirs();
+    auto IsCommonApp = std::any_of(XDGDataDirs.cbegin(), XDGDataDirs.cend(), [&desktopFile](const QString &suffixPath) {
         return desktopFile.startsWith(suffixPath);
     });
 
-    if (idGen) {
+    auto IsAutostartApp = std::any_of(autostartDirs.cbegin(), autostartDirs.cend(), [&desktopFile](const QString &suffixPath) {
+        return desktopFile.startsWith(suffixPath);
+    });
+
+    QString path{desktopFile};
+    QString id;
+
+    if (IsCommonApp or IsAutostartApp) {
         auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
-        auto components = tmp.split(QDir::separator()).toList();
-        auto it = std::find(components.cbegin(), components.cend(), "applications");
+        auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts).toList();
+        decltype(components)::const_iterator it;
+        if (auto appIt = std::find(components.cbegin(), components.cend(), "applications"); appIt != components.cend()) {
+            it = appIt;
+
+        } else if (auto autostartIt = std::find(components.cbegin(), components.cend(), "autostart");
+                   autostartIt != components.cend()) {
+            it = autostartIt;
+        }
+
         QString FileId;
         ++it;
         while (it != components.cend()) {
@@ -234,6 +247,16 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
         return std::nullopt;
     }
     return *it;
+}
+
+void DesktopEntry::insert(const QString &key, const QString &valueKey, Value &&val) noexcept
+{
+    auto outer = m_entryMap.find(key);
+    if (outer == m_entryMap.end()) {
+        outer = m_entryMap.insert(key, {});
+    }
+
+    outer->insert(valueKey, val);
 }
 
 QString unescape(const QString &str, bool shellMode) noexcept

@@ -8,10 +8,10 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 
-bool ApplicationFilter::hiddenCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 {
     bool hidden{false};
-    auto hiddenVal = entry->value(DesktopFileEntryKey, "Hidden");
+    auto hiddenVal = entry.value(DesktopFileEntryKey, DesktopEntryHidden);
 
     if (hiddenVal.has_value()) {
         bool ok{false};
@@ -24,9 +24,9 @@ bool ApplicationFilter::hiddenCheck(const std::unique_ptr<DesktopEntry> &entry) 
     return hidden;
 }
 
-bool ApplicationFilter::tryExecCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
 {
-    auto tryExecVal = entry->value(DesktopFileEntryKey, "TryExec");
+    auto tryExecVal = entry.value(DesktopFileEntryKey, "TryExec");
     if (tryExecVal.has_value()) {
         auto executable = toString(tryExecVal.value());
         if (executable.isEmpty()) {
@@ -44,7 +44,7 @@ bool ApplicationFilter::tryExecCheck(const std::unique_ptr<DesktopEntry> &entry)
     return false;
 }
 
-bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+bool ApplicationFilter::showInCheck(const DesktopEntry &entry) noexcept
 {
     auto desktops = QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP")).split(':', Qt::SkipEmptyParts);
     if (desktops.isEmpty()) {
@@ -53,7 +53,7 @@ bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) 
     desktops.removeDuplicates();
 
     bool showInCurrentDE{true};
-    auto onlyShowInVal = entry->value(DesktopFileEntryKey, "OnlyShowIn");
+    auto onlyShowInVal = entry.value(DesktopFileEntryKey, "OnlyShowIn");
     while (onlyShowInVal.has_value()) {
         auto deStr = toString(onlyShowInVal.value());
         if (deStr.isEmpty()) {
@@ -75,7 +75,7 @@ bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) 
     }
 
     bool notShowInCurrentDE{false};
-    auto notShowInVal = entry->value(DesktopFileEntryKey, "NotShowIn");
+    auto notShowInVal = entry.value(DesktopFileEntryKey, "NotShowIn");
     while (notShowInVal.has_value()) {
         auto deStr = toString(notShowInVal.value());
         if (deStr.isEmpty()) {
@@ -97,4 +97,19 @@ bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) 
     }
 
     return !showInCurrentDE or notShowInCurrentDE;
+}
+
+bool ApplicationFilter::hiddenCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+{
+    return hiddenCheck(*entry);
+}
+
+bool ApplicationFilter::tryExecCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+{
+    return tryExecCheck(*entry);
+}
+
+bool ApplicationFilter::showInCheck(const std::unique_ptr<DesktopEntry> &entry) noexcept
+{
+    return showInCheck(*entry);
 }
