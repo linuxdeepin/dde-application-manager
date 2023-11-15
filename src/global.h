@@ -473,6 +473,10 @@ inline QString getCurrentDesktop()
         qWarning() << "multi-DE is detected, use first value.";
     }
 
+    if (desktops.isEmpty()) {
+        return "DDE";
+    }
+
     return desktops.first();
 }
 

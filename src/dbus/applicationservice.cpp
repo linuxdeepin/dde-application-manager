@@ -863,7 +863,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     }
 
     auto list = matcher.capturedTexts();
-    if (list.count() > 1) {
+    if (list.count() != 1) {
         qWarning() << "invalid exec format, all filed code will be ignored.";
         for (const auto &code : list) {
             execList.removeOne(code);

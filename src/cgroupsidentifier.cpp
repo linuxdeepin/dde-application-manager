@@ -60,12 +60,22 @@ QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
     }
 
     auto CGPSlices = CGP.split('/', Qt::SkipEmptyParts);
+    if (CGPSlices.isEmpty()) {
+        qCritical() << "invalid cgroups path,abort.";
+        return {};
+    }
 
     if (CGPSlices.first() != "user.slice") {
         qWarning() << "unrecognized process.";
         return {};
     }
-    auto processUIDStr = CGPSlices[1].split('.').first().split('-').last();
+
+    auto userSlice = CGPSlices.at(1);
+    if (userSlice.isEmpty()) {
+        qWarning() << "couldn't detect uid.";
+        return {};
+    }
+    auto processUIDStr = userSlice.split('.').first().split('-').last();
 
     if (processUIDStr.isEmpty()) {
         qWarning() << "no uid found.";
