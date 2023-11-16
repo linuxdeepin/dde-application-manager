@@ -498,7 +498,14 @@ inline unitInfo processUnitName(const QString &unitName)
     QString launcher;
     QString applicationId;
 
+    qDebug() << "process unit:" << unitName;
+
     decltype(auto) appPrefix = u8"app-";
+    if (!unitName.startsWith(appPrefix)) {
+        qDebug() << "this unit " << unitName << "isn't an app unit.";
+        return {};
+    }
+
     auto unit = unitName.sliced(sizeof(appPrefix) - 1);
 
     if (unit.endsWith(".service")) {
@@ -514,7 +521,9 @@ inline unitInfo processUnitName(const QString &unitName)
         if (rest.size() == 2) {
             launcher = rest.takeFirst();
         }
-        applicationId = rest.takeFirst();
+        if (rest.size() == 1) {
+            applicationId = rest.takeFirst();
+        }
     } else if (unit.endsWith(".scope")) {
         auto lastDotIndex = unit.lastIndexOf('.');
         auto app = unit.sliced(0, lastDotIndex);
