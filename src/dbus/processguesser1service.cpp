@@ -69,21 +69,27 @@ QString ProcessGuesser1Service::GuessApplicationId(const QDBusUnixFileDescriptor
     QString appId;
 
     for (const QSharedPointer<ApplicationService> &app : applications) {
-        auto exec = app->findEntryValue(DesktopFileEntryKey, "Exec", EntryValueType::Raw).toString();
+        auto tryExec = app->findEntryValue(DesktopFileEntryKey, "TryExec", EntryValueType::String).toString();
+        if (!tryExec.isEmpty() and !checkTryExec(tryExec)) {
+            qWarning() << "Couldn't find the binary which corresponding with process.";
+            continue;
+        }
+
+        auto exec = app->findEntryValue(DesktopFileEntryKey, "Exec", EntryValueType::String).toString();
         if (exec.isEmpty()) {  // NOTE: Exec is not required in desktop file.
             continue;
         }
 
         auto opt = ApplicationService::unescapeExecArgs(exec);
         if (!opt) {
-            sendErrorReply(QDBusError::InternalError);
-            return {};
+            qWarning() << app->id() << "unescape exec failed, skip.";
+            continue;
         }
 
         auto execList = std::move(opt).value();
         if (execList.isEmpty()) {
-            sendErrorReply(QDBusError::InternalError);
-            return {};
+            qWarning() << "exec is empty,skip.";
+            continue;
         }
 
         auto execBin = execList.first();
@@ -94,17 +100,12 @@ QString ProcessGuesser1Service::GuessApplicationId(const QDBusUnixFileDescriptor
 
         if (!execBin.isEmpty() and execBin == binary) {
             if (!appId.isEmpty()) {
-                sendErrorReply(QDBusError::Failed, "Multiple binary have been detected.");
+                auto msg = QString{"Multiple binary have been detected."};
+                qWarning() << msg << appId << app->id();
+                sendErrorReply(QDBusError::Failed, msg);
                 return {};
             }
             appId = app->id();
-            continue;
-        }
-
-        auto tryExec = app->findEntryValue(DesktopFileEntryKey, "TryExec", EntryValueType::String).toString();
-        if (!checkTryExec(tryExec)) {
-            sendErrorReply(QDBusError::Failed, "Couldn't find the binary which corresponding with process.");
-            return {};
         }
     }
 
