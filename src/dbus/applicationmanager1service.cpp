@@ -84,6 +84,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     scanInstances();
 
+    auto storagePtr = m_storage.lock();
+    storagePtr->setFirstLaunch(false);
+
     loadHooks();
 
     if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {

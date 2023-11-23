@@ -38,6 +38,9 @@ public:
     bool setVersion(uint8_t version) noexcept;
     [[nodiscard]] uint8_t version() const noexcept;
 
+    bool setFirstLaunch(bool first) noexcept;
+    [[nodiscard]] bool firstLaunch() const noexcept;
+
     static std::shared_ptr<ApplicationManager1Storage> createApplicationManager1Storage(const QString &storageDir) noexcept;
 
 private:
