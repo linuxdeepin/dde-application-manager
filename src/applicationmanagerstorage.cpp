@@ -36,6 +36,7 @@ ApplicationManager1Storage::createApplicationManager1Storage(const QString &stor
     auto content = obj->m_file->readAll();
     if (content.isEmpty()) {  // new file
         obj->setVersion(STORAGE_VERSION);
+        obj->setFirstLaunch(true);
         return obj;
     }
 
@@ -46,8 +47,11 @@ ApplicationManager1Storage::createApplicationManager1Storage(const QString &stor
     if (err.error != QJsonParseError::NoError) {
         qDebug() << "parse json failed:" << err.errorString() << "clear this file content.";
         obj->m_file->resize(0);
+        obj->setVersion(STORAGE_VERSION);
+        obj->setFirstLaunch(true);
     } else {
         obj->m_data = json.object();
+        obj->setFirstLaunch(false);
     }
 
     return obj;
@@ -93,6 +97,17 @@ bool ApplicationManager1Storage::setVersion(uint8_t version) noexcept
 uint8_t ApplicationManager1Storage::version() const noexcept
 {
     return m_data["version"].toInt(-1);
+}
+
+bool ApplicationManager1Storage::setFirstLaunch(bool first) noexcept
+{
+    m_data["FirstLaunch"] = first;
+    return writeToFile();
+}
+
+[[nodiscard]] bool ApplicationManager1Storage::firstLaunch() const noexcept
+{
+    return m_data["FirstLaunch"].toBool(true);
 }
 
 bool ApplicationManager1Storage::createApplicationValue(const QString &appId,

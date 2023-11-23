@@ -47,14 +47,21 @@ ApplicationService::ApplicationService(DesktopFile source,
 
     auto appId = id();
     auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
-    if (value.isNull()) {
-        if (!storagePtr->createApplicationValue(
-                appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue<qint64>(0))) {
-            m_lastLaunch = -1;
-        }
-        return;
+
+    qint64 val{0};
+    if (storagePtr->firstLaunch()) {
+        val = QDateTime::currentMSecsSinceEpoch();
     }
-    m_lastLaunch = value.toInt();
+
+    if (value.isNull()) {
+        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue(val))) {
+            m_lastLaunch = -1;
+        } else {
+            m_lastLaunch = val;
+        }
+    } else {
+        m_lastLaunch = value.toLongLong();
+    }
 
     value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
     if (!value.isNull()) {
