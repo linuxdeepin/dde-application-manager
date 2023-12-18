@@ -257,23 +257,24 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &variantValue) mutable -> QVariant {
+        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &variantValue) -> QVariant {
             auto resourceFile = variantValue.toString();
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
-            commands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
+            auto newCommands = commands;
 
-            auto location = commands.indexOf(R"(%f)");
+           newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
+            auto location = newCommands.indexOf(R"(%f)");
             if (location != -1) {  // due to std::move, there only remove once
-                commands.remove(location);
+                newCommands.remove(location);
             }
 
             if (resourceFile.isEmpty()) {
-                commands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
+                newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
-                qDebug() << "run with commands:" << commands;
-                process.start(m_launcher, commands);
+                qDebug() << "run with commands:" << newCommands;
+                process.start(m_launcher, newCommands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
                     qWarning() << "Launch Application Failed";
@@ -291,11 +292,12 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             }
 
             // NOTE: resourceFile must be available in the following contexts
-            commands.insert(location, resourceFile);
-            commands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
+            newCommands.insert(location, resourceFile);
+
+            newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
-            qDebug() << "run with commands:" << commands;
-            process.start(getApplicationLauncherBinary(), commands);
+            qDebug() << "run with commands:" << newCommands;
+            process.start(getApplicationLauncherBinary(), newCommands);
             process.waitForFinished();
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
@@ -909,6 +911,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         auto it = execList.begin() + location;
         for (const auto &field : fields) {
             it = execList.insert(it, field);
+            ++it;
         }
         task.command.append(std::move(execList));
     } break;
