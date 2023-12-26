@@ -14,8 +14,10 @@ Package: dde-application-manager
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description:  Application manager for DDE.
+  Launched ApplicationS By Systemd for more caps.
 
 Package: dde-application-manager-api
 Architecture: any
 Depends: dde-application-manager( =${binary:Version}), ${misc:Depends}
 Description: DBus Interface of dde-application-manager.
+  For the convenience of developers who want to use dde-application-manager.

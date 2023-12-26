@@ -1,3 +1,11 @@
+dde-application-manager (1.1.5) unstable; urgency=medium
+
+  * fix: update location after insertion
+  * refact: assuming all applications have been 
+    launched during AM create storage at first time
+
+ -- He YuMing <heyuming@deepin.org>  Tue, 26 Dec 2023 09:47:20 +0800
+
 dde-application-manager (1.1.4) unstable; urgency=medium
 
   * release 1.1.4 for Qt 6.6
