@@ -630,4 +630,18 @@ inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
     return pid;
 }
 
+inline QString getAutostartAppIdFromAbsolutePath(const QString &path)
+{
+    constexpr decltype(auto) desktopSuffix{u8".desktop"};
+    auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
+    auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts);
+    auto location = std::find(components.cbegin(), components.cend(), "autostart");
+    if (location == components.cend()) {
+        return {};
+    }
+
+    auto appId = QStringList{location + 1, components.cend()}.join('-');
+    return appId;
+}
+
 #endif

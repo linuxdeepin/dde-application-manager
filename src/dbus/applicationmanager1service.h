@@ -74,7 +74,7 @@ private:
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
     void scanInstances() noexcept;
-    QList<QSharedPointer<ApplicationService>> scanAutoStart() noexcept;
+    QHash<QSharedPointer<ApplicationService>, QString> scanAutoStart() noexcept;
     void loadHooks() noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);

@@ -133,7 +133,9 @@ private Q_SLOTS:
     void onGlobalScaleFactorChanged() noexcept;
 
 public Q_SLOTS:
-    QDBusObjectPath Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
+    // NOTE: 'realExec' only for internal implementation
+    QDBusObjectPath
+    Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec = {});
     [[nodiscard]] ObjectMap GetManagedObjects() const;
     [[nodiscard]] bool SendToDesktop() const noexcept;
     [[nodiscard]] bool RemoveFromDesktop() const noexcept;
