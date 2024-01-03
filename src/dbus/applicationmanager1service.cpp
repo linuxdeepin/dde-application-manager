@@ -12,6 +12,7 @@
 #include "desktopfilegenerator.h"
 #include "processguesser1service.h"
 #include <QFile>
+#include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
 #include <unistd.h>
@@ -123,13 +124,13 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     auto *sigCon = new (std::nothrow) QMetaObject::Connection{};
 
-    auto singleSlot = [watcher, sigCon, autostartList = std::move(needLaunch)]() {
+    auto singleSlot = [watcher, sigCon, autostartMap = std::move(needLaunch)]() {
         QObject::disconnect(*sigCon);
         delete sigCon;
         qDebug() << XSettings << "is registered.";
 
-        for (const auto &app : autostartList) {
-            app->Launch({}, {}, {});
+        for (const auto &[app, realExec] : autostartMap.asKeyValueRange()) {
+            app->Launch({}, {}, {}, realExec);
         }
 
         watcher->deleteLater();
@@ -294,9 +295,9 @@ void ApplicationManager1Service::scanInstances() noexcept
     }
 }
 
-QList<QSharedPointer<ApplicationService>> ApplicationManager1Service::scanAutoStart() noexcept
+QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::scanAutoStart() noexcept
 {
-    QList<QSharedPointer<ApplicationService>> ret;
+    QHash<QSharedPointer<ApplicationService>, QString> ret;
     auto autostartDirs = getAutoStartDirs();
     std::map<QString, DesktopFile> autostartItems;
 
@@ -374,7 +375,9 @@ QList<QSharedPointer<ApplicationService>> ApplicationManager1Service::scanAutoSt
         }
 
         if (app) {
-            ret.append(app);
+            auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
+            qInfo() << "launch normal autostart application " << app->id() << " by " << realExec;
+            ret.insert(app, realExec);
             continue;
         }
 
@@ -388,8 +391,9 @@ QList<QSharedPointer<ApplicationService>> ApplicationManager1Service::scanAutoSt
                                       m_applicationList.cend(),
                                       [&desktopFile](const auto &app) { return desktopFile.desktopId() == app->id(); });
             appIt != m_applicationList.cend()) {
-            qInfo() << "app already exists. use it to launch instance.";
-            ret.append(*appIt);
+            auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
+            qInfo() << "launch exist autostart application " << (*appIt)->id() << " by " << realExec;
+            ret.insert(*appIt, realExec);
             continue;
         }
 
@@ -401,7 +405,9 @@ QList<QSharedPointer<ApplicationService>> ApplicationManager1Service::scanAutoSt
             continue;
         }
 
-        ret.append(newApp);
+        auto realExec = newApp->m_entry->value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
+        qInfo() << "launch new autostart application " << newApp->id() << " by " << realExec;
+        ret.insert(newApp, realExec);
     }
 
     return ret;
@@ -642,7 +648,14 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    QDir xdgDataHome{getXDGDataHome() + "/applications"};
+    QDir xdgDataHome;
+    QString dir{getXDGDataHome() + "/applications"};
+    if (!xdgDataHome.mkpath(dir)) {
+        sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
+        return {};
+    }
+
+    xdgDataHome.setPath(dir);
     const auto &filePath = xdgDataHome.filePath(name);
 
     if (QFileInfo info{filePath}; info.exists() and info.isFile()) {

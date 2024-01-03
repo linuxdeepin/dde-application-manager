@@ -173,9 +173,10 @@ bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entr
     return true;
 }
 
-QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
+QDBusObjectPath
+ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec)
 {
-    QString execStr;
+    QString execStr{};
     bool ok;
     const auto &supportedActions = actions();
     auto optionsMap = options;
@@ -190,7 +191,16 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         optionsMap.insert("env", oldEnv);
     }
 
-    while (!action.isEmpty() and !supportedActions.isEmpty()) {  // break trick
+    if (!realExec.isNull()) {  // we want to replace exec of this applications.
+        if (realExec.isEmpty()) {
+            qWarning() << "try to replace exec but it's empty.";
+            return {};
+        }
+
+        execStr = realExec;
+    }
+
+    while (execStr.isEmpty() and !action.isEmpty() and !supportedActions.isEmpty()) {  // break trick
         if (auto index = supportedActions.indexOf(action); index == -1) {
             qWarning() << "can't find " << action << " in supported actions List. application will use default action to launch.";
             break;
@@ -215,7 +225,9 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (!Actions) {
             QString msg{"application can't be executed."};
             qWarning() << msg;
-            sendErrorReply(QDBusError::Failed, msg);
+            if (calledFromDBus()) {
+                sendErrorReply(QDBusError::Failed, msg);
+            }
             return {};
         }
 
@@ -223,7 +235,9 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (execStr.isEmpty()) {
             QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
-            sendErrorReply(QDBusError::Failed, msg);
+            if (calledFromDBus()) {
+                sendErrorReply(QDBusError::Failed, msg);
+            }
             return {};
         }
     }
@@ -235,14 +249,18 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto cmds = generateCommand(optionsMap);
     auto task = unescapeExec(execStr, fields);
     if (!task) {
-        sendErrorReply(QDBusError::InternalError, "Invalid Command.");
+        if (calledFromDBus()) {
+            sendErrorReply(QDBusError::InternalError, "Invalid Command.");
+        }
         return {};
     }
 
     auto [bin, execCmds, res] = std::move(task);
     if (bin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
-        sendErrorReply(QDBusError::Failed);
+        if (calledFromDBus()) {
+            sendErrorReply(QDBusError::Failed);
+        }
         return {};
     }
 
@@ -592,20 +610,30 @@ bool ApplicationService::autostartCheck(const QString &filePath) noexcept
 
 bool ApplicationService::isAutoStart() const noexcept
 {
-    auto autostartDirs = getAutoStartDirs();
-    auto sourcePath = m_desktopSource.sourcePath();
-    auto userAutostart = QDir{autostartDirs.first()}.filePath(id() + ".desktop");
+    auto appId = id();
+    auto dirs = getAutoStartDirs();
+    QString destDesktopFile;
 
-    QFileInfo info{userAutostart};
-    auto isOverride = info.exists() and info.isFile();
+    applyIteratively(
+        QList<QDir>(dirs.crbegin(), dirs.crend()),
+        [&appId, &destDesktopFile](const QFileInfo &file) {
+            auto filePath = file.absoluteFilePath();
+            if (appId == getAutostartAppIdFromAbsolutePath(filePath)) {
+                destDesktopFile = filePath;
+                return true;
+            }
+            return false;
+        },
+        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
+        {"*.desktop"},
+        QDir::Name | QDir::DirsLast);
 
-    if (std::any_of(autostartDirs.cbegin(), autostartDirs.cend(), [&sourcePath](const QString &dir) {
-            return sourcePath.startsWith(dir);
-        })) {  // load from autostart
-        return isOverride ? autostartCheck(userAutostart) : autostartCheck(sourcePath);
+    if (destDesktopFile.isEmpty()) {
+        qDebug() << "couldn't find autostart desktopFile.";
+        return false;
     }
 
-    return isOverride and autostartCheck(userAutostart);
+    return autostartCheck(destDesktopFile);
 }
 
 void ApplicationService::setAutoStart(bool autostart) noexcept
