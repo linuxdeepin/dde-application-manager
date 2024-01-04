@@ -23,10 +23,15 @@
 #include <QTextStream>
 #include <QUuid>
 #include <memory>
-#include <utility>
 
 QString getDeepinWineScaleFactor(const QString &appId) noexcept;
 double getScaleFactor() noexcept;
+
+struct AutostartSource
+{
+    QString m_filePath;
+    DesktopEntry m_entry;
+};
 
 class ApplicationService : public QObject, protected QDBusContext
 {
@@ -172,6 +177,7 @@ private:
     qint64 m_lastLaunch{0};
     double m_scaleFactor;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
+    AutostartSource m_autostartSource;
     QDBusObjectPath m_applicationPath;
     QString m_launcher{getApplicationLauncherBinary()};
     DesktopFile m_desktopSource;
@@ -179,7 +185,8 @@ private:
     QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
-    [[nodiscard]] static bool autostartCheck(const QString &filePath) noexcept;
+    [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
+    void setAutostartSource(AutostartSource &&source) noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {
