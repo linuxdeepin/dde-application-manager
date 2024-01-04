@@ -120,3 +120,8 @@ void MimeManager1Service::appendMimeInfo(MimeInfo &&info)
 {
     m_infos.emplace_back(std::move(info));
 }
+
+void MimeManager1Service::reset() noexcept
+{
+    m_infos.clear();
+}
