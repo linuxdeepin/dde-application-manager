@@ -23,6 +23,7 @@ public:
     void appendMimeInfo(MimeInfo &&info);
     [[nodiscard]] const auto &infos() const noexcept { return m_infos; }
     [[nodiscard]] auto &infos() noexcept { return m_infos; }
+    void reset() noexcept;
 
 public Q_SLOTS:
     [[nodiscard]] ObjectMap listApplications(const QString &mimeType) const noexcept;

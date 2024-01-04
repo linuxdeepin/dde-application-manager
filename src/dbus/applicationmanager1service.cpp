@@ -622,6 +622,11 @@ void ApplicationManager1Service::ReloadApplications()
     for (const auto &key : apps) {
         removeOneApplication(key);
     }
+
+    m_mimeManager->reset();
+    scanMimeInfos();
+
+    scanAutoStart();
 }
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
