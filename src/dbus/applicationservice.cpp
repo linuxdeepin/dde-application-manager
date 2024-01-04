@@ -107,14 +107,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     QString objectPath;
     QTextStream sourceStream;
 
-    auto appId = app->desktopFileSource().desktopId();
-
-    if (!appId.isEmpty()) {
-        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(appId);
-    } else {
-        objectPath = QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
-    }
-
+    objectPath = getObjectPathFromAppId(app->desktopFileSource().desktopId());
     DesktopFileGuard guard{app->desktopFileSource()};
 
     if (!guard.try_open()) {
@@ -581,21 +574,25 @@ void ApplicationService::setScaleFactor(double value) noexcept
     emit scaleFactorChanged();
 }
 
-bool ApplicationService::autostartCheck(const QString &filePath) noexcept
+bool ApplicationService::autostartCheck(const QString &filePath) const noexcept
 {
     qDebug() << "current check autostart file:" << filePath;
 
-    QFile file{filePath};
-    if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        qWarning() << "open" << filePath << "failed:" << file.errorString();
-        return false;
-    }
-
-    QTextStream stream{&file};
     DesktopEntry s;
-    if (auto err = s.parse(stream); err != ParserError::NoError) {
-        qWarning() << "parse" << filePath << "failed:" << err;
-        return false;
+    if (!m_autostartSource.m_entry.data().isEmpty()) {
+        s = m_autostartSource.m_entry;
+    } else {
+        QFile file{filePath};
+        if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
+            qWarning() << "open" << filePath << "failed:" << file.errorString();
+            return false;
+        }
+
+        QTextStream stream{&file};
+        if (auto err = s.parse(stream); err != ParserError::NoError) {
+            qWarning() << "parse" << filePath << "failed:" << err;
+            return false;
+        }
     }
 
     auto hiddenVal = s.value(DesktopFileEntryKey, DesktopEntryHidden);
@@ -610,6 +607,10 @@ bool ApplicationService::autostartCheck(const QString &filePath) noexcept
 
 bool ApplicationService::isAutoStart() const noexcept
 {
+    if (m_autostartSource.m_filePath.isEmpty()) {
+        return false;
+    }
+
     auto appId = id();
     auto dirs = getAutoStartDirs();
     QString destDesktopFile;
@@ -620,7 +621,6 @@ bool ApplicationService::isAutoStart() const noexcept
             auto filePath = file.absoluteFilePath();
             if (appId == getAutostartAppIdFromAbsolutePath(filePath)) {
                 destDesktopFile = filePath;
-                return true;
             }
             return false;
         },
@@ -628,8 +628,8 @@ bool ApplicationService::isAutoStart() const noexcept
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    if (destDesktopFile.isEmpty()) {
-        qDebug() << "couldn't find autostart desktopFile.";
+    // file has been removed
+    if (destDesktopFile != m_autostartSource.m_filePath) {
         return false;
     }
 
@@ -650,9 +650,17 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
-    auto newEntry = *m_entry;
+    DesktopEntry newEntry;
+    if (!m_autostartSource.m_entry.data().isEmpty()) {
+        newEntry = m_autostartSource.m_entry;
+    } else {
+        newEntry = *m_entry;
+    }
+
     newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, m_desktopSource.sourcePath());
     newEntry.insert(DesktopFileEntryKey, DesktopEntryHidden, !autostart);
+
+    setAutostartSource({fileName, newEntry});
 
     auto hideAutostart = toString(newEntry.data()).toLocal8Bit();
     auto writeBytes = autostartFile.write(hideAutostart);
@@ -1080,6 +1088,11 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
             m_desktopSource.desktopId(), ApplicationPropertiesGroup, ::LastLaunchedTime, QVariant::fromValue(timestamp));
         emit lastLaunchedTimeChanged();
     }
+}
+
+void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
+{
+    m_autostartSource = std::move(source);
 }
 
 double getScaleFactor() noexcept

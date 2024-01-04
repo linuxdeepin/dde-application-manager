@@ -644,4 +644,12 @@ inline QString getAutostartAppIdFromAbsolutePath(const QString &path)
     return appId;
 }
 
+inline QString getObjectPathFromAppId(const QString &appId)
+{
+    if (!appId.isEmpty()) {
+        return QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(appId);
+    }
+    return QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
+}
+
 #endif
