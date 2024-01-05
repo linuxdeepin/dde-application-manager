@@ -1,7 +1,15 @@
+dde-application-manager (1.1.6) unstable; urgency=medium
+
+  * refact: scanAutostart and get/set autostart
+  * fix: call scanMimeInfo and scanAutostart when reloadApplications
+  * fix: append env 'scaleFactor' to deepin-wine application
+
+ -- He YuMing <heyuming@deepin.org>  Fri, 05 Jan 2024 16:21:57 +0800
+
 dde-application-manager (1.1.5) unstable; urgency=medium
 
   * fix: update location after insertion
-  * refact: assuming all applications have been 
+  * refact: assuming all applications have been
     launched during AM create storage at first time
 
  -- He YuMing <heyuming@deepin.org>  Tue, 26 Dec 2023 09:47:20 +0800
@@ -50,13 +58,13 @@ dde-application-manager (0.2.4) unstable; urgency=medium
 
   * release 0.2.4, change package name
 
- -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 17:22:24 +0800 
+ -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 17:22:24 +0800
 
 dde-application-manager-reborn (0.2.3) unstable; urgency=medium
 
   * release 0.2.3
 
- -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 11:14:32 +0800 
+ -- He YuMing <heyuming@deepin.org>  Wed, 27 Sep 2023 11:14:32 +0800
 
 dde-application-manager-reborn (0.2.2) unstable; urgency=medium
 
