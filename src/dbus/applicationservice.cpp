@@ -175,7 +175,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     auto optionsMap = options;
     QString oldEnv;
 
-    auto factor = getDeepinWineScaleFactor(m_desktopSource.desktopId()).toDouble();
+    auto factor = scaleFactor();
     if (factor != 1.0) {
         if (auto it = optionsMap.find("env"); it != optionsMap.cend()) {
             oldEnv = it->value<QString>();
@@ -1110,43 +1110,4 @@ double getScaleFactor() noexcept
     double scale = ret1.isValid() ? ret1.value() : 1.0;
     scale = scale > 0 ? scale : 1;
     return scale;
-}
-
-QString getDeepinWineScaleFactor(const QString &appId) noexcept
-{
-    qCritical() << "Don't using env to control the window scale factor,  this function"
-                   "should via using graphic server(Wayland Compositor/Xorg Xft) in deepin wine.";
-
-    QString factor{"1.0"};
-    auto objectPath = QString{"/dde_launcher/org_deepin_dde_launcher/%1"}.arg(getCurrentUID());
-    auto systemBus = QDBusConnection::systemBus();
-
-    auto msg = QDBusMessage::createMethodCall(
-        "org.desktopspec.ConfigManager", objectPath, "org.desktopspec.ConfigManager.Manager", "value");
-    msg.setArguments({QString{"Apps_Disable_Scaling"}});
-    auto reply = systemBus.call(msg);
-
-    if (reply.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "get Apps_Disable_Scaling failed:" << reply.errorMessage();
-        return factor;
-    }
-
-    QDBusReply<QDBusVariant> ret{reply};
-    if (!ret.isValid()) {
-        qWarning() << "invalid reply:" << ret.error();
-        return factor;
-    }
-
-    QVariantList appList;
-    ret.value().variant().value<QDBusArgument>() >> appList;
-
-    for (const auto &val : appList) {
-        if (val.value<QString>() == appId) {
-            return factor;
-        }
-    }
-
-    auto scale = getScaleFactor();
-    factor = QString::number(scale, 'f', -1);
-    return factor;
 }

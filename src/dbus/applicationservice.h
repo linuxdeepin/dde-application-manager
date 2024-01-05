@@ -24,7 +24,6 @@
 #include <QUuid>
 #include <memory>
 
-QString getDeepinWineScaleFactor(const QString &appId) noexcept;
 double getScaleFactor() noexcept;
 
 struct AutostartSource
