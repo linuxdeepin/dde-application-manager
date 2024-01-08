@@ -14,7 +14,7 @@ Package: dde-application-manager
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description:  Application manager for DDE.
-  Launched ApplicationS By Systemd for more caps.
+  Launch applications by systemd for more caps.
 
 Package: dde-application-manager-api
 Architecture: any
