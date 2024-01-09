@@ -88,11 +88,6 @@ std::optional<MimeFileBase> MimeFileBase::loadFromFile(const QFileInfo &fileInfo
         return std::nullopt;
     }
 
-    if (content.isEmpty()) {
-        qInfo() << "ignore empty file:" << filePath;
-        return std::nullopt;
-    }
-
     return MimeFileBase{fileInfo, std::move(content), desktopSpec, isWritable};
 }
 
@@ -306,6 +301,23 @@ QStringList MimeCache::queryApps(const QString &type) const noexcept
     return ret;
 }
 
+void createUserConfig(const QString &filename) noexcept
+{
+    QFile userFile{filename};
+    if (!userFile.open(QFile::WriteOnly | QFile::Text)) {
+        qCritical() << "failed to create user file:" << filename << userFile.errorString();
+    }
+
+    decltype(auto) initContent = u8"[Default Applications]";
+    if (userFile.write(initContent) == sizeof(initContent) - 1 and userFile.flush()) {
+        qInfo() << "create user mimeapps:" << filename;
+        return;
+    }
+
+    qWarning() << "failed to write content into" << filename << userFile.errorString();
+    userFile.remove();
+}
+
 std::optional<MimeInfo> MimeInfo::createMimeInfo(const QString &directory) noexcept
 {
     MimeInfo ret;
@@ -333,12 +345,11 @@ std::optional<MimeInfo> MimeInfo::createMimeInfo(const QString &directory) noexc
     }
 
     QFileInfo appList{dir.filePath("mimeapps.list")};
-    if (auto userMimeApps = appList.absoluteFilePath();
-        userMimeApps.startsWith(getXDGConfigHome()) and (!appList.exists() or !appList.isFile())) [[unlikely]] {
-        QFile userFile{userMimeApps};
-        if (!userFile.open(QFile::WriteOnly | QFile::Text)) {
-            qCritical() << "failed to create user file:" << userMimeApps << userFile.errorString();
-        }
+    appList.setCaching(false);
+
+    auto userMimeApps = appList.absoluteFilePath();
+    if (userMimeApps.startsWith(getXDGConfigHome()) and (!appList.exists() or !appList.isFile())) {
+        createUserConfig(userMimeApps);
     }
 
     if (appList.exists() and appList.isFile()) {

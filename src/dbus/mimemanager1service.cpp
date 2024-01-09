@@ -90,8 +90,20 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
 void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) noexcept
 {
     auto &app = m_infos.front().appsList();
+
+    if (app.empty()) {
+        sendErrorReply(QDBusError::InternalError);
+        return;
+    }
+
     auto userConfig = std::find_if(
         app.begin(), app.end(), [](const MimeApps &config) { return !config.isDesktopSpecific(); });  // always find this
+
+    if (userConfig == app.end()) {
+        qWarning() << "couldn't find user mimeApps";
+        sendErrorReply(QDBusError::InternalError);
+        return;
+    }
 
     for (auto it = defaultApps.constKeyValueBegin(); it != defaultApps.constKeyValueEnd(); ++it) {
         userConfig->setDefaultApplication(it->first, it->second);
