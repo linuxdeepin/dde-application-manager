@@ -1,3 +1,9 @@
+dde-application-manager (1.1.7) unstable; urgency=medium
+
+  * fix: call scanMimeInfo and scanAutostart when reloadApplications
+
+ -- He YuMing <heyuming@deepin.org>  Wed, 10 Jan 2024 10:52:16 +0800
+
 dde-application-manager (1.1.6) unstable; urgency=medium
 
   * refact: scanAutostart and get/set autostart
