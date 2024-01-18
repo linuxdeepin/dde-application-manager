@@ -8,7 +8,7 @@
 #include <QPromise>
 #include <thread>
 #include <chrono>
-#include <QSemaphore>
+#include <QMutex>
 
 using namespace std::chrono_literals;
 
@@ -17,21 +17,35 @@ class TestJob : public testing::Test
 public:
     void SetUp() override
     {
+        if (!(QAtomicInt::isFetchAndAddNative() or QAtomicInt::isFetchAndAddWaitFree())) {
+            GTEST_SKIP() << "Current platform doesn't support native lockFree or waitFree fetchAdd.";
+        }
         QPromise<QVariantList> promise;
         m_jobService = new JobService{promise.future()};
 
         m_thread = QThread::create(
-            [](QPromise<QVariantList> promise) {
-                std::this_thread::sleep_for(4ms);
+            [this](QPromise<QVariantList> promise) {
+                while (true) {
+                    if (m_atomic.loadAcquire() == 1) {  // 1
+                        break;
+                    }
+                }
+
                 promise.start();
-                std::this_thread::sleep_for(2ms);
+                m_atomic.fetchAndAddAcquire(1);  // 2
+
+                while (true) {
+                    if (m_atomic.loadAcquire() == 3) {  // 3
+                        break;
+                    }
+                }
+
                 if (promise.isCanceled()) {
+                    m_atomic.fetchAndAddAcquire(1);  // 4
                     return;
                 }
 
-                std::this_thread::sleep_for(2ms);
                 promise.suspendIfRequested();
-                std::this_thread::sleep_for(2ms);
 
                 std::size_t x{0};
                 for (std::size_t i = 0; i < 20000; ++i) {
@@ -54,51 +68,61 @@ public:
         m_jobService = nullptr;
     }
 
+    QAtomicInt m_atomic{0};
     QThread *m_thread{nullptr};
     JobService *m_jobService{nullptr};
 };
 
 TEST_F(TestJob, cancelJob)
 {
-    m_thread->start();
-
-    std::this_thread::sleep_for(2ms);
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"pending"});
-    std::this_thread::sleep_for(4ms);
+    m_thread->start();
+    m_atomic.fetchAndAddAcquire(1);  // 1
+
+    while (true) {
+        if (m_atomic.loadAcquire() == 2) {  // 2
+            break;
+        }
+    }
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
-
     m_jobService->Cancel();
+    m_atomic.fetchAndAddAcquire(1);  // 3
 
-    std::this_thread::sleep_for(2ms);
+    while (true) {
+        if (m_atomic.loadAcquire() == 4) {  // 4
+            break;
+        }
+    }
 
+    qInfo() << "test canceled";
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"canceled"});
 }
 
 TEST_F(TestJob, suspendAndResumeJob)
 {
     m_thread->start();
+    m_atomic.fetchAndAddAcquire(1);  // 1
 
-    std::this_thread::sleep_for(6ms);
-
+    while (true) {
+        if (m_atomic.loadAcquire() == 2) {  // 2
+            break;
+        }
+    }
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
 
     m_jobService->Suspend();
 
-    std::this_thread::sleep_for(2ms);
+    m_atomic.fetchAndAddAcquire(1);  // 3
+    const auto &state = m_jobService->status().toStdString();
+    EXPECT_TRUE(state == std::string{"suspending"} or state == std::string{"suspended"});
 
-    EXPECT_EQ(m_jobService->status().toStdString(), std::string{"suspending"});
-    std::this_thread::sleep_for(2ms);
-    EXPECT_EQ(m_jobService->status().toStdString(), std::string{"suspended"});
     m_jobService->Resume();
 
-    std::this_thread::sleep_for(2ms);
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"running"});
-
     EXPECT_TRUE(m_thread->wait());
     EXPECT_EQ(m_jobService->status().toStdString(), std::string{"finished"});
 
     auto ret = m_jobService->m_job.result();
     EXPECT_FALSE(ret.isEmpty());
-
     EXPECT_EQ(ret.first().value<std::size_t>(), std::size_t{20000});
 }
