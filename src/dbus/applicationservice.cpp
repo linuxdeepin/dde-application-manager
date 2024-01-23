@@ -540,10 +540,6 @@ double ApplicationService::scaleFactor() const noexcept
 
 void ApplicationService::setScaleFactor(double value) noexcept
 {
-    if (value == m_scaleFactor) {
-        return;
-    }
-
     auto storagePtr = m_storage.lock();
     if (!storagePtr) {
         qCritical() << "broken storage.";
@@ -940,8 +936,21 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         execList.insert(location, fields.first());
         task.command.append(execList);
     } break;
-    case 'F':
-        [[fallthrough]];
+    case 'F': {
+        execList.remove(location);
+        auto it = execList.begin() + location;
+        for (const auto &field : fields) {
+            auto tmp = QUrl{field};
+            if (auto scheme = tmp.scheme(); scheme.startsWith("file") or scheme.isEmpty()) {
+                it = execList.insert(it, tmp.toLocalFile());
+            } else {
+                qWarning() << "shouldn't replace %F with an URL:" << field;
+                it = execList.insert(it, field);
+            }
+            ++it;
+        }
+        task.command.append(std::move(execList));
+    } break;
     case 'U': {
         execList.removeAt(location);
         auto it = execList.begin() + location;
