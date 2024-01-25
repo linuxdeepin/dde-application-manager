@@ -23,6 +23,7 @@
 #include <QStandardPaths>
 #include <algorithm>
 #include <new>
+#include <qcontainerfwd.h>
 #include <qdbuserror.h>
 #include <qfileinfo.h>
 #include <qlogging.h>
@@ -166,23 +167,31 @@ bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entr
     return true;
 }
 
+void ApplicationService::appendScaleFactor(QVariantMap &optionsMap) const noexcept
+{
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
+    QString oldEnv;
+
+    auto factor = scaleFactor();
+    if (auto it = optionsMap.find("env"); it != optionsMap.cend()) {
+        oldEnv = it->value<QString>();
+    }
+
+    for (const auto &env : scaleEnvs) {
+        oldEnv.append(env.arg(factor));
+    }
+
+    optionsMap.insert("env", oldEnv);
+}
+
 QDBusObjectPath
 ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec)
 {
     QString execStr{};
-    bool ok;
     const auto &supportedActions = actions();
     auto optionsMap = options;
-    QString oldEnv;
 
-    auto factor = scaleFactor();
-    if (factor != 1.0) {
-        if (auto it = optionsMap.find("env"); it != optionsMap.cend()) {
-            oldEnv = it->value<QString>();
-        }
-        oldEnv.append(QString{"DEEPIN_WINE_SCALE=%1;"}.arg(factor));
-        optionsMap.insert("env", oldEnv);
-    }
+    appendScaleFactor(optionsMap);
 
     if (!realExec.isNull()) {  // we want to replace exec of this applications.
         if (realExec.isEmpty()) {
