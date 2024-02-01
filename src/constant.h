@@ -7,6 +7,7 @@
 
 constexpr auto SystemdService = u8"org.freedesktop.systemd1";
 constexpr auto SystemdObjectPath = u8"/org/freedesktop/systemd1";
+constexpr auto SystemdPropInterfaceName = u8"org.freedesktop.DBus.Properties";
 constexpr auto SystemdInterfaceName = u8"org.freedesktop.systemd1.Manager";
 constexpr auto SystemdUnitInterfaceName = u8"org.freedesktop.systemd1.Unit";
 constexpr auto DDEApplicationManager1ServiceName =

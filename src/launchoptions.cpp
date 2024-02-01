@@ -19,8 +19,10 @@ QStringList generateCommand(const QVariantMap &props) noexcept
             options.emplace_back(std::make_unique<setEnvLaunchOption>(value));
         } else if (key == hookLaunchOption::key()) {
             options.emplace_back(std::make_unique<hookLaunchOption>(value));
-        } else if (key == setPathLaunchOption::key()) {
-            options.emplace_back(std::make_unique<setPathLaunchOption>(value));
+        } else if (key == setWorkingPathLaunchOption::key()) {
+            options.emplace_back(std::make_unique<setWorkingPathLaunchOption>(value));
+        } else if (key == builtInSearchExecOption::key()) {
+            options.emplace_back(std::make_unique<builtInSearchExecOption>(value));
         } else {
             qWarning() << "unsupported options" << key;
         }
@@ -109,7 +111,7 @@ QStringList setEnvLaunchOption::generateCommandLine() const noexcept
     return QStringList{QString{"--Environment=%1"}.arg(str)};
 }
 
-QStringList setPathLaunchOption::generateCommandLine() const noexcept
+QStringList setWorkingPathLaunchOption::generateCommandLine() const noexcept
 {
     auto str = m_val.toString();
     if (str.isEmpty()) {
@@ -117,4 +119,15 @@ QStringList setPathLaunchOption::generateCommandLine() const noexcept
     }
 
     return QStringList{QString{"--WorkingDirectory=%1"}.arg(str)};
+}
+
+QStringList builtInSearchExecOption::generateCommandLine() const noexcept
+{
+    auto list = m_val.toStringList();
+    if (list.isEmpty()) {
+        return {};
+    }
+
+    auto content = list.join(';');
+    return QStringList{QString{"--ExecSearchPath=%1"}.arg(content)};
 }

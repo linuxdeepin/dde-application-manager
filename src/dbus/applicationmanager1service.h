@@ -49,6 +49,7 @@ public:
     [[nodiscard]] const QStringList &applicationHooks() const noexcept { return m_hookElements; }
     [[nodiscard]] MimeManager1Service &mimeManager() noexcept { return *m_mimeManager; }
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
+    [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
@@ -69,6 +70,7 @@ private:
     QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QStringList m_hookElements;
+    QStringList m_systemdPathEnv;
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 
     void scanMimeInfos() noexcept;

@@ -23,10 +23,6 @@
 #include <QTextStream>
 #include <QUuid>
 #include <memory>
-#include <qcontainerfwd.h>
-#include <qvariant.h>
-
-double getScaleFactor() noexcept;
 
 struct AutostartSource
 {
@@ -137,7 +133,6 @@ public:
 
 private Q_SLOTS:
     void onGlobalScaleFactorChanged() noexcept;
-    void appendScaleFactor(QVariantMap &optionsMap) const noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation

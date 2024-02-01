@@ -21,10 +21,12 @@ public:
 Q_SIGNALS:
     void SystemdUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
     void SystemdUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
+    void SystemdEnvironmentChanged(QStringList envs);
 
 private Q_SLOTS:
     void onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
     void onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
+    void onPropertiesChanged(QString interface, QVariantMap props, QStringList invalid);
 
 private:
     explicit SystemdSignalDispatcher(QObject *parent = nullptr)

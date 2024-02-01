@@ -88,13 +88,13 @@ struct hookLaunchOption : public LaunchOption
     }
     [[nodiscard]] static const QString &key() noexcept
     {
-        static QString hook{"hook"};
+        static QString hook{"_hooks"};
         return hook;
     }
     [[nodiscard]] QStringList generateCommandLine() const noexcept override { return m_val.toStringList(); };
 };
 
-struct setPathLaunchOption : public LaunchOption
+struct setWorkingPathLaunchOption : public LaunchOption
 {
     using LaunchOption::LaunchOption;
     [[nodiscard]] const QString &type() const noexcept override
@@ -104,8 +104,24 @@ struct setPathLaunchOption : public LaunchOption
     }
     [[nodiscard]] static const QString &key() noexcept
     {
-        static QString path{"path"};
+        static QString path{"workingPath"};
         return path;
+    }
+    [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+};
+
+struct builtInSearchExecOption : public LaunchOption
+{
+    using LaunchOption::LaunchOption;
+    [[nodiscard]] const QString &type() const noexcept override
+    {
+        static QString tp{systemdOption};
+        return tp;
+    }
+    [[nodiscard]] static const QString &key() noexcept
+    {
+        static QString key{"_builtIn_searchExec"};
+        return key;
     }
     [[nodiscard]] QStringList generateCommandLine() const noexcept override;
 };

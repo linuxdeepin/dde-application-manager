@@ -32,6 +32,40 @@
 #include <utility>
 #include <wordexp.h>
 
+double getScaleFactor() noexcept
+{
+    auto sessionBus = QDBusConnection::sessionBus();
+    QDBusMessage reply1 = sessionBus.call(QDBusMessage::createMethodCall(
+        "org.deepin.dde.XSettings1", "/org/deepin/dde/XSettings1", "org.deepin.dde.XSettings1", "GetScaleFactor"));
+
+    if (reply1.type() != QDBusMessage::ReplyMessage) {
+        qWarning() << "call GetScaleFactor Failed:" << reply1.errorMessage();
+        return 1.0;
+    }
+
+    QDBusReply<double> ret1(reply1);
+    double scale = ret1.isValid() ? ret1.value() : 1.0;
+    scale = scale > 0 ? scale : 1;
+    return scale;
+}
+
+void appendRuntimeScaleFactor(const ApplicationService &app, QVariantMap &runtimeOptions) noexcept
+{
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
+    QString oldEnv;
+
+    auto factor = app.scaleFactor();
+    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
+        oldEnv = it->value<QString>();
+    }
+
+    for (const auto &env : scaleEnvs) {
+        oldEnv.append(env.arg(factor));
+    }
+
+    runtimeOptions.insert("env", oldEnv);
+}
+
 ApplicationService::ApplicationService(DesktopFile source,
                                        ApplicationManager1Service *parent,
                                        std::weak_ptr<ApplicationManager1Storage> storage)
@@ -167,23 +201,6 @@ bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entr
     return true;
 }
 
-void ApplicationService::appendScaleFactor(QVariantMap &optionsMap) const noexcept
-{
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
-    QString oldEnv;
-
-    auto factor = scaleFactor();
-    if (auto it = optionsMap.find("env"); it != optionsMap.cend()) {
-        oldEnv = it->value<QString>();
-    }
-
-    for (const auto &env : scaleEnvs) {
-        oldEnv.append(env.arg(factor));
-    }
-
-    optionsMap.insert("env", oldEnv);
-}
-
 QDBusObjectPath
 ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec)
 {
@@ -191,7 +208,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     const auto &supportedActions = actions();
     auto optionsMap = options;
 
-    appendScaleFactor(optionsMap);
+    appendRuntimeScaleFactor(*this, optionsMap);
 
     if (!realExec.isNull()) {  // we want to replace exec of this applications.
         if (realExec.isEmpty()) {
@@ -248,6 +265,8 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
         optionsMap.insert("_hooks", hooks);
     }
+    optionsMap.insert("_builtIn_searchExec", parent()->systemdPathEnv());
+
     auto cmds = generateCommand(optionsMap);
     auto task = unescapeExec(execStr, fields);
     if (!task) {
@@ -1111,21 +1130,4 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
 void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
 {
     m_autostartSource = std::move(source);
-}
-
-double getScaleFactor() noexcept
-{
-    auto sessionBus = QDBusConnection::sessionBus();
-    QDBusMessage reply1 = sessionBus.call(QDBusMessage::createMethodCall(
-        "org.deepin.dde.XSettings1", "/org/deepin/dde/XSettings1", "org.deepin.dde.XSettings1", "GetScaleFactor"));
-
-    if (reply1.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "call GetScaleFactor Failed:" << reply1.errorMessage();
-        return 1.0;
-    }
-
-    QDBusReply<double> ret1(reply1);
-    double scale = ret1.isValid() ? ret1.value() : 1.0;
-    scale = scale > 0 ? scale : 1;
-    return scale;
 }
