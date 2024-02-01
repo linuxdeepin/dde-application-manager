@@ -28,7 +28,28 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
         return false;
     }
 
+    if (!con.connect(SystemdService,
+                     SystemdObjectPath,
+                     SystemdPropInterfaceName,
+                     "PropertiesChanged",
+                     this,
+                     SLOT(onPropertiesChanged(QString, QVariantMap, QStringList)))) {
+        qCritical() << "can't connect to PropertiesChanged signal of systemd service.";
+        return false;
+    }
+
     return true;
+}
+
+void SystemdSignalDispatcher::onPropertiesChanged(QString interface, QVariantMap props, [[maybe_unused]] QStringList invalid)
+{
+    if (interface != SystemdPropInterfaceName) {
+        return;
+    }
+
+    if (auto it = props.find("Environment"); it != props.end()) {
+        emit SystemdEnvironmentChanged(it->toStringList());
+    }
 }
 
 void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)

@@ -67,6 +67,24 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             this,
             &ApplicationManager1Service::removeInstanceFromApplication);
 
+    auto envToPath = [this](const QStringList &envs) {
+        if (auto path = std::find_if(envs.cbegin(), envs.cend(), [](const QString &env) { return env.startsWith("PATH="); });
+            path != envs.cend()) {
+            m_systemdPathEnv = path->mid(5).split(':', Qt::SkipEmptyParts);
+        }
+    };
+
+    connect(&dispatcher, &SystemdSignalDispatcher::SystemdEnvironmentChanged, envToPath);
+
+    auto &con = ApplicationManager1DBus::instance().globalDestBus();
+    auto envMsg = QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdPropInterfaceName, "Get");
+    envMsg.setArguments({SystemdInterfaceName, "Environment"});
+    auto ret = con.call(envMsg);
+    if (ret.type() == QDBusMessage::ErrorMessage) {
+        qFatal("%s", ret.errorMessage().toLocal8Bit().data());
+    }
+    envToPath(qdbus_cast<QStringList>(ret.arguments().first().value<QDBusVariant>().variant()));
+
     auto sysBus = QDBusConnection::systemBus();
     if (!sysBus.connect("org.desktopspec.ApplicationUpdateNotifier1",
                         "/org/desktopspec/ApplicationUpdateNotifier1",

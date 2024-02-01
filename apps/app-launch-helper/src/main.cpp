@@ -142,7 +142,8 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 DBusValueType getPropType(std::string_view key)
 {
     static std::unordered_map<std::string_view, DBusValueType> map{{"Environment", DBusValueType::ArrayOfString},
-                                                                   {"WorkingDirectory", DBusValueType::String}};
+                                                                   {"WorkingDirectory", DBusValueType::String},
+                                                                   {"ExecSearchPath", DBusValueType::ArrayOfString}};
 
     if (auto it = map.find(key); it != map.cend()) {
         return it->second;
