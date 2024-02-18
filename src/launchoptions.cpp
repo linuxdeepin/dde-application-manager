@@ -86,7 +86,6 @@ QStringList setUserLaunchOption::generateCommandLine() const noexcept
     QString userName = destUser->pw_name;
     ret.append(userName);
 
-    struct passwd *curUser = getpwuid(curUID);
     ret.append("env");
     ret.append("DISPLAY=:0");
 

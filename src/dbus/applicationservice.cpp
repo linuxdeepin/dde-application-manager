@@ -779,23 +779,29 @@ QList<QDBusObjectPath> ApplicationService::instances() const noexcept
 bool ApplicationService::addOneInstance(const QString &instanceId,
                                         const QString &application,
                                         const QString &systemdUnitPath,
-                                        const QString &launcher)
+                                        const QString &launcher) noexcept
 {
-    auto *service = new InstanceService{instanceId, application, systemdUnitPath, launcher};
-    auto *adaptor = new InstanceAdaptor(service);
-    QString objectPath{m_applicationPath.path() + "/" + instanceId};
-
-    if (registerObjectToDBus(service, objectPath, InstanceInterface)) {
-        m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
-        service->moveToThread(this->thread());
-        adaptor->moveToThread(this->thread());
-        emit InterfacesAdded(QDBusObjectPath{objectPath}, getChildInterfacesAndPropertiesFromObject(service));
-        return true;
+    auto *service = new (std::nothrow) InstanceService{instanceId, application, systemdUnitPath, launcher};
+    if (service == nullptr) {
+        qCritical() << "couldn't new InstanceService.";
+        return false;
     }
 
-    adaptor->deleteLater();
-    service->deleteLater();
-    return false;
+    auto *adaptor = new (std::nothrow) InstanceAdaptor{service};
+    QString objectPath{m_applicationPath.path() + "/" + instanceId};
+
+    if (adaptor == nullptr or !registerObjectToDBus(service, objectPath, InstanceInterface)) {
+        adaptor->deleteLater();
+        service->deleteLater();
+        return false;
+    }
+
+    m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
+    service->moveToThread(this->thread());
+    adaptor->moveToThread(this->thread());
+    emit InterfacesAdded(QDBusObjectPath{objectPath}, getChildInterfacesAndPropertiesFromObject(service));
+
+    return true;
 }
 
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noexcept
@@ -817,7 +823,7 @@ void ApplicationService::removeAllInstance() noexcept
 void ApplicationService::detachAllInstance() noexcept
 {
     for (auto &instance : m_Instances.values()) {
-        orphanedInstances->append(instance);
+        orphanedInstances.append(instance);
         instance->setProperty("Orphaned", true);
     }
 
@@ -869,7 +875,12 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
         wordfree(word);
         delete word;
     };
+
     std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
+    if (words == nullptr) {
+        qCritical() << "couldn't new wordexp_t";
+        return std::nullopt;
+    }
 
     if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
         if (ret != 0) {
@@ -899,7 +910,7 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
     }
 
     QStringList execList;
-    for (int i = 0; i < words->we_wordc; ++i) {
+    for (std::size_t i = 0; i < words->we_wordc; ++i) {
         execList.emplace_back(words->we_wordv[i]);
     }
 

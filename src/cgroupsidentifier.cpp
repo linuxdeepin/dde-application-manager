@@ -82,7 +82,7 @@ QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
         return {};
     }
 
-    if (auto processUID = processUIDStr.toInt(); processUID != getCurrentUID()) {
+    if (auto processUID = processUIDStr.toInt(); static_cast<uid_t>(processUID) != getCurrentUID()) {
         qWarning() << "process is not in CGroups of current user, ignore....";
         return {};
     }

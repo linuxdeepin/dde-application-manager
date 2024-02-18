@@ -165,7 +165,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
         }
 
         auto localeMap = keyIt->value<QStringMap>();
-        if (auto valueIt = localeMap.find(localeStr) != localeMap.end()) {
+        if (localeMap.find(localeStr) != localeMap.end()) {
             qWarning() << "duplicate locale key:" << key << "skip.";
             return ParserError::NoError;
         }

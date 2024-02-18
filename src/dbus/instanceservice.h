@@ -42,6 +42,6 @@ private:
     QDBusObjectPath m_SystemdUnitPath;
 };
 
-Q_GLOBAL_STATIC(QList<QSharedPointer<InstanceService>>, orphanedInstances)
+static inline QList<QSharedPointer<InstanceService>> orphanedInstances{};
 
 #endif

@@ -14,7 +14,10 @@ InstanceService::InstanceService(QString instanceId, QString application, QStrin
     , m_Application(std::move(application))
     , m_SystemdUnitPath(std::move(systemdUnitPath))
 {
-    new PropertiesForwarder{application + "/" + instanceId, this};
+    if (auto *tmp = new (std::nothrow) PropertiesForwarder{application + "/" + instanceId, this}; tmp == nullptr) {
+        qCritical() << "couldn't new PropertiesForwarder for instanceService.";
+        return;
+    }
 }
 
 InstanceService::~InstanceService() = default;

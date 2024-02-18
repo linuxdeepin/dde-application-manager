@@ -73,9 +73,7 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_VARIANT, "a(sasb)"); ret < 0) {
         sd_journal_perror("open variant of execStart failed.");
-        if (auto tmp = sd_bus_message_close_container(msg)) {
-            return ret;
-        }
+        return ret;
     }
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sasb)"); ret < 0) {
@@ -229,7 +227,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
         }
 
         auto kvStr = str.substr(2);
-        if (!kvStr.empty()) [[likely]] {
+        if (!kvStr.empty()) {
             const auto *it = kvStr.cbegin();
             if (it = std::find(it, kvStr.cend(), '='); it == kvStr.cend()) {
                 sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
