@@ -8,10 +8,11 @@
 JobManager1Service::JobManager1Service(ApplicationManager1Service *parent)
     : m_parent(parent)
 {
-    new JobManager1Adaptor{this};
-    if (!registerObjectToDBus(this, DDEApplicationManager1JobManager1ObjectPath, JobManager1Interface)) {
+    auto *adaptor = new (std::nothrow) JobManager1Adaptor{this};
+    if (adaptor == nullptr or !registerObjectToDBus(this, DDEApplicationManager1JobManager1ObjectPath, JobManager1Interface)) {
         std::terminate();
     }
+
     qRegisterMetaType<LaunchTask>();
 }
 

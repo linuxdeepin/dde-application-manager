@@ -10,8 +10,8 @@
 MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     : QObject(parent)
 {
-    new MimeManager1Adaptor{this};
-    if (!registerObjectToDBus(this, DDEApplicationManager1MimeManager1ObjectPath, MimeManager1Interface)) {
+    auto *adaptor = new (std::nothrow) MimeManager1Adaptor{this};
+    if (adaptor == nullptr or !registerObjectToDBus(this, DDEApplicationManager1MimeManager1ObjectPath, MimeManager1Interface)) {
         std::terminate();
     }
 }

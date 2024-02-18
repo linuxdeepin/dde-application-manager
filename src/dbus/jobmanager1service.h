@@ -58,11 +58,16 @@ public:
                                                                    qOverload<QVariantList::parameter_type>(&QVariantList::append),
                                                                    QVariantList{},
                                                                    QtConcurrent::ReduceOption::OrderedReduce);
-        QSharedPointer<JobService> job{new JobService{future}};
+        QSharedPointer<JobService> job{new (std::nothrow) JobService{future}};
+        if (job == nullptr) {
+            qCritical() << "couldn't new JobService.";
+            future.cancel();
+            return {};
+        }
 
         auto *ptr = job.data();
-        new JobAdaptor(ptr);
-        if (!registerObjectToDBus(ptr, objectPath, JobInterface)) {
+        auto *adaptor = new (std::nothrow) JobAdaptor(ptr);
+        if (adaptor == nullptr or !registerObjectToDBus(ptr, objectPath, JobInterface)) {
             qCritical() << "can't register job to dbus.";
             future.cancel();
             return {};

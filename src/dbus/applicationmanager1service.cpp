@@ -32,7 +32,10 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
 
-    new (std::nothrow) ProcessGuesser1Service{connection, this};
+    if (auto *tmp = new (std::nothrow) ProcessGuesser1Service{connection, this}; tmp == nullptr) {
+        qCritical() << "new ProcessGuesser1Service failed.";
+        std::terminate();
+    }
 
     if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
         qCritical() << "new Application Manager Adaptor failed.";
@@ -154,7 +157,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         watcher->deleteLater();
     };
 
-    *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
+    if (watcher != nullptr) {
+        *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
+    }
 
     auto msg =
         QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
@@ -192,7 +197,7 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
                               m_applicationList.cend(),
                               [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
 
-    if (appIt == m_applicationList.cend()) [[unlikely]] {
+    if (appIt == m_applicationList.cend()) {
         qWarning() << "couldn't find app" << appId << "in application manager.";
         return;
     }
@@ -201,7 +206,7 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
 
     const auto &applicationPath = (*appIt)->applicationPath().path();
 
-    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) [[likely]] {
+    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) {
         qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
     }
 }
@@ -225,7 +230,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
                               m_applicationList.cend(),
                               [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
 
-    if (appIt == m_applicationList.cend()) [[unlikely]] {
+    if (appIt == m_applicationList.cend()) {
         qWarning() << "couldn't find app" << appId << "in application manager.";
         return;
     }
@@ -237,12 +242,12 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
             return value->property("SystemdUnitPath") == systemdUnitPath;
         });
 
-    if (instanceIt != appIns.cend()) [[likely]] {
+    if (instanceIt != appIns.cend()) {
         (*appIt)->removeOneInstance(instanceIt.key());
         return;
     }
 
-    orphanedInstances->removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
+    orphanedInstances.removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
         return (ptr->property("SystemdUnitPath").value<QDBusObjectPath>() == systemdUnitPath);
     });
 }
@@ -426,7 +431,7 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
         }
 
         qInfo() << "launch new autostart application " << newApp->id();
-        newApp->setAutostartSource({desktopFile.sourcePath()});
+        newApp->setAutostartSource({desktopFile.sourcePath(), {}});
         ret.insert(newApp, {});
     }
 

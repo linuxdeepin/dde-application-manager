@@ -13,11 +13,9 @@ ProcessGuesser1Service::ProcessGuesser1Service(QDBusConnection &connection, Appl
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
 
-    if (auto *tmp = new (std::nothrow) ProcessGuesser1Adaptor{this}; tmp == nullptr) {
-        qFatal("new Process Guesser Adaptor failed.");
-    }
-
-    if (!registerObjectToDBus(this, "/org/desktopspec/ProcessGuesser1", "org.desktopspec.ProcessGuesser1")) {
+    auto *adaptor = new (std::nothrow) ProcessGuesser1Adaptor{this};
+    if (adaptor == nullptr or
+        !registerObjectToDBus(this, "/org/desktopspec/ProcessGuesser1", "org.desktopspec.ProcessGuesser1")) {
         std::terminate();
     }
 }

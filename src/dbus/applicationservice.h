@@ -111,7 +111,7 @@ public:
     bool addOneInstance(const QString &instanceId,
                         const QString &application,
                         const QString &systemdUnitPath,
-                        const QString &launcher);
+                        const QString &launcher) noexcept;
     void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;
     void removeAllInstance() noexcept;

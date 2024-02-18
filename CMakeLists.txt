@@ -7,11 +7,16 @@ project(dde-application-manager
 )
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+add_definitions(-Wall -Wextra -Wpedantic -Wformat)
 
 set(BUILD_EXAMPLES OFF CACHE BOOL "Whether to build examples or not.")
 set(DDE_AM_USE_DEBUG_DBUS_NAME OFF CACHE BOOL "build a dbus service using a different bus name for debug.")
