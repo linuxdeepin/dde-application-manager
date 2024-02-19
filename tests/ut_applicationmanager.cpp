@@ -2,26 +2,20 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "dbus/applicationmanager1service.h"
-#include "dbus/applicationservice.h"
-#include "cgroupsidentifier.h"
-#include "constant.h"
-#include "dbus/instanceadaptor.h"
 #include <gtest/gtest.h>
 #include <QDBusConnection>
 #include <QSharedPointer>
 #include <sys/syscall.h>
 #include <QProcess>
 #include <thread>
-#include <chrono>
 #include <QDBusUnixFileDescriptor>
 
-namespace {
-int pidfd_open(pid_t pid, uint flags)
-{
-    return syscall(SYS_pidfd_open, pid, flags);
-}
-}  // namespace
+#include "dbus/applicationmanager1service.h"
+#include "dbus/applicationservice.h"
+#include "cgroupsidentifier.h"
+#include "constant.h"
+#include "dbus/instanceadaptor.h"
+#include "global.h"
 
 class TestApplicationManager : public testing::Test
 {

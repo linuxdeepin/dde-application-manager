@@ -23,6 +23,7 @@
 #include <QUuid>
 #include <QLoggingCategory>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include "constant.h"
 #include "config.h"
 
@@ -650,6 +651,11 @@ inline QString getObjectPathFromAppId(const QString &appId)
         return QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(appId);
     }
     return QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
+}
+
+inline int pidfd_open(pid_t pid, uint flags)
+{
+    return syscall(SYS_pidfd_open, pid, flags);
 }
 
 #endif
