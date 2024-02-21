@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription("Identify in what capacity the process is running.");
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addPositionalArgument("PIDs", "PIDs to identify.", "[pid1 pid2 pid3 ...]");
+    parser.addPositionalArgument("PIDs", "PIDs to identify.", "[pid1,pid2,pid3 ...]");
 
     parser.process(app);
     auto PIDs = parser.positionalArguments();
@@ -27,13 +27,14 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    auto slice = PIDs.first().split(' ', Qt::SkipEmptyParts);
+    auto slice = PIDs.first().split(',', Qt::SkipEmptyParts);
     QList<pid_t> PIDList{};
     std::transform(slice.cbegin(), slice.cend(), std::back_inserter(PIDList), [](const QString &pid) {
         bool ok{true};
         auto result = pid.toInt(&ok);
         if (!ok) {
-            qFatal() << "failed to convert:" << pid;
+            qCritical() << "syntax error:" << pid;
+            std::terminate();
         }
 
         return static_cast<pid_t>(result);
@@ -43,7 +44,8 @@ int main(int argc, char *argv[])
     std::for_each(PIDList.cbegin(), PIDList.cend(), [&con](pid_t pid) {
         auto pidfd = pidfd_open(pid, 0);
         if (pidfd == -1) {
-            qFatal() << "failed to open pidfd:" << std::strerror(errno);
+            qCritical() << "failed to open pidfd:" << std::strerror(errno) << "skip.";
+            return;
         }
 
         auto msg = QDBusMessage::createMethodCall(

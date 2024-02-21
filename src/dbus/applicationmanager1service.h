@@ -12,6 +12,8 @@
 #include <QScopedPointer>
 #include <memory>
 #include <QMap>
+#include <QFileSystemWatcher>
+#include <QTimer>
 #include "applicationmanagerstorage.h"
 #include "dbus/jobmanager1service.h"
 #include "dbus/mimemanager1service.h"
@@ -71,6 +73,8 @@ private:
     QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QStringList m_hookElements;
     QStringList m_systemdPathEnv;
+    QFileSystemWatcher m_watcher;
+    QTimer m_reloadTimer;
     QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
 
     void scanMimeInfos() noexcept;
