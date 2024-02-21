@@ -15,6 +15,7 @@
 #include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
+#include <chrono>
 #include <unistd.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -24,6 +25,8 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
 {
+    using namespace std::chrono_literals;
+    m_reloadTimer.setInterval(1s);
 }
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
@@ -59,6 +62,12 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (m_mimeManager.reset(new (std::nothrow) MimeManager1Service(this)); !m_mimeManager) {
         qCritical() << "new MimeManager failed.";
         std::terminate();
+    }
+
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
+    auto unhandled = m_watcher.addPaths(getDesktopFileDirs());
+    for (const auto &dir : unhandled) {
+        qCritical() << "couldn't watch directory:" << dir;
     }
 
     auto &dispatcher = SystemdSignalDispatcher::instance();
@@ -604,6 +613,13 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
 
 void ApplicationManager1Service::ReloadApplications()
 {
+    if (m_reloadTimer.isActive()) {
+        qInfo() << "reloadTimer is running, ignore...";
+        return;
+    }
+
+    m_reloadTimer.start();
+
     const auto &desktopFileDirs = getDesktopFileDirs();
 
     auto apps = m_applicationList.keys();
