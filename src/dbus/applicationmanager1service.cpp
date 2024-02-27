@@ -27,6 +27,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 {
     using namespace std::chrono_literals;
     m_reloadTimer.setInterval(1s);
+    connect(&m_reloadTimer, &QTimer::timeout, [this] { m_reloadTimer.stop(); });
 }
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
