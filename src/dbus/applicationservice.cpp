@@ -302,7 +302,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
             auto newCommands = commands;
 
-           newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
+            newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
             auto location = newCommands.indexOf(R"(%f)");
             if (location != -1) {  // due to std::move, there only remove once
                 newCommands.remove(location);
