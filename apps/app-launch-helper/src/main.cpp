@@ -305,6 +305,11 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
         return serviceName;
     }
 
+    if (ret = sd_bus_message_append(msg, "(sv)", "CollectMode", "s", "inactive-or-failed"); ret < 0) {
+        sd_journal_perror("append application slice failed.");
+        return serviceName;
+    }
+
     if (ret = processKVPair(msg, props); ret < 0) {  // process props
         serviceName = "invalidInput";
         return serviceName;
@@ -424,10 +429,10 @@ int main(int argc, const char *argv[])
     sd_bus_message *reply{nullptr};
     if (ret = sd_bus_call(bus, msg, 0, &error, &reply); ret < 0) {
         sd_bus_error_get_errno(&error);
-        sd_journal_print(LOG_ERR, "launch failed: [%s,%s]", error.name, error.message);
+        sd_journal_print(LOG_ERR, "failed to call StartTransientUnit: [%s,%s]", error.name, error.message);
         releaseRes(error, msg, bus, ExitCode::InternalError);
     } else {
-        sd_journal_print(LOG_INFO, "launch %s success.", serviceId.c_str());
+        sd_journal_print(LOG_INFO, "call StartTransientUnit successfully, service ID: %s", serviceId.c_str());
     }
 
     if (ret = sd_bus_message_read(reply, "o", &path); ret < 0) {
