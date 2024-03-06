@@ -893,6 +893,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit MimeTypesChanged();
     emit terminalChanged();
     emit scaleFactorChanged();
+    emit launchedTimesChanged();
 }
 
 std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &str) noexcept

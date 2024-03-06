@@ -599,7 +599,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         return;
     }
 
-    if (destApp->m_entry != newEntry) {
+    if (*(destApp->m_entry) != *newEntry) {
         destApp->resetEntry(newEntry);
         destApp->detachAllInstance();
     }
@@ -620,7 +620,8 @@ void ApplicationManager1Service::ReloadApplications()
 
     m_reloadTimer.start();
 
-    const auto &desktopFileDirs = getDesktopFileDirs();
+    auto desktopFileDirs = getDesktopFileDirs();
+    desktopFileDirs.append(getAutoStartDirs());  // detect autostart apps add/remove/update
 
     auto apps = m_applicationList.keys();
 
