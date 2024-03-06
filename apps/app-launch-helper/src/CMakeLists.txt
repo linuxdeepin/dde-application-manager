@@ -14,4 +14,4 @@ target_include_directories(${APP_LAUNCH_HELPER_BIN} PRIVATE
 )
 
 include(GNUInstallDirs)
-install(TARGETS ${APP_LAUNCH_HELPER_BIN} DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/deepin/application-manager/)
+install(TARGETS ${APP_LAUNCH_HELPER_BIN} DESTINATION ${AM_LIBEXEC_DIR})

@@ -49,12 +49,12 @@ double getScaleFactor() noexcept
     return scale;
 }
 
-void appendRuntimeScaleFactor(const ApplicationService &app, QVariantMap &runtimeOptions) noexcept
+void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
     QString oldEnv;
-
-    auto factor = app.scaleFactor();
+    // scale factor
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
+    auto factor = scaleFactor();
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
         oldEnv = it->value<QString>();
     }
@@ -62,6 +62,9 @@ void appendRuntimeScaleFactor(const ApplicationService &app, QVariantMap &runtim
     for (const auto &env : scaleEnvs) {
         oldEnv.append(env.arg(factor));
     }
+
+    // GIO
+    oldEnv.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1;"}.arg(m_desktopSource.sourcePath()));
 
     runtimeOptions.insert("env", oldEnv);
 }
@@ -232,8 +235,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     QString execStr{};
     const auto &supportedActions = actions();
     auto optionsMap = options;
-
-    appendRuntimeScaleFactor(*this, optionsMap);
+    appendExtraEnvironments(optionsMap);
 
     if (!realExec.isNull()) {  // we want to replace exec of this applications.
         if (realExec.isEmpty()) {

@@ -11,4 +11,4 @@ target_include_directories(${APP_UPDATE_NOTIFIER_BIN} PRIVATE
 )
 
 include(GNUInstallDirs)
-install(TARGETS ${APP_UPDATE_NOTIFIER_BIN} DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/deepin/application-manager/)
+install(TARGETS ${APP_UPDATE_NOTIFIER_BIN} DESTINATION ${AM_LIBEXEC_DIR})

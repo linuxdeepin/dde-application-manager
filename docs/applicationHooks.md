@@ -8,7 +8,7 @@ hook 允许系统组件在应用启动前对应用的运行时环境做出配置
 
 ## 配置文件
 
-hook 的配置文件需要放在'/usr/share/deepin/dde-application-manager/hook.d/'下，文件名必须符合以下规范:
+hook 的配置文件需要放在'/usr/share/deepin/dde-application-manager/hooks.d/'下，文件名必须符合以下规范:
     - 以数字开头，作为hook的顺序标识。
     - 以`-`分割顺序和hook名。
     - 文件格式需要是`json`，文件扩展名同样以`json`结尾。
