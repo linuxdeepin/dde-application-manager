@@ -110,10 +110,8 @@ bool ApplicationManager1Storage::setFirstLaunch(bool first) noexcept
     return m_data["FirstLaunch"].toBool(true);
 }
 
-bool ApplicationManager1Storage::createApplicationValue(const QString &appId,
-                                                        const QString &groupName,
-                                                        const QString &valueKey,
-                                                        const QVariant &value) noexcept
+bool ApplicationManager1Storage::createApplicationValue(
+    const QString &appId, const QString &groupName, const QString &valueKey, const QVariant &value, bool deferCommit) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
@@ -139,13 +137,11 @@ bool ApplicationManager1Storage::createApplicationValue(const QString &appId,
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    return writeToFile();
+    return deferCommit ? true : writeToFile();
 }
 
-bool ApplicationManager1Storage::updateApplicationValue(const QString &appId,
-                                                        const QString &groupName,
-                                                        const QString &valueKey,
-                                                        const QVariant &value) noexcept
+bool ApplicationManager1Storage::updateApplicationValue(
+    const QString &appId, const QString &groupName, const QString &valueKey, const QVariant &value, bool deferCommit) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
@@ -173,7 +169,7 @@ bool ApplicationManager1Storage::updateApplicationValue(const QString &appId,
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    return writeToFile();
+    return deferCommit ? true : writeToFile();
 }
 
 QVariant ApplicationManager1Storage::readApplicationValue(const QString &appId,
@@ -209,7 +205,8 @@ QVariant ApplicationManager1Storage::readApplicationValue(const QString &appId,
 
 bool ApplicationManager1Storage::deleteApplicationValue(const QString &appId,
                                                         const QString &groupName,
-                                                        const QString &valueKey) noexcept
+                                                        const QString &valueKey,
+                                                        bool deferCommit) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
@@ -237,7 +234,7 @@ bool ApplicationManager1Storage::deleteApplicationValue(const QString &appId,
     appObj.insert(groupName, groupObj);
     m_data.insert(appId, appObj);
 
-    return writeToFile();
+    return deferCommit ? true : writeToFile();
 }
 
 bool ApplicationManager1Storage::clearData() noexcept
@@ -247,7 +244,7 @@ bool ApplicationManager1Storage::clearData() noexcept
     return setVersion(STORAGE_VERSION);
 }
 
-bool ApplicationManager1Storage::deleteApplication(const QString &appId) noexcept
+bool ApplicationManager1Storage::deleteApplication(const QString &appId, bool deferCommit) noexcept
 {
     if (appId.isEmpty()) {
         qWarning() << "unexpected empty string.";
@@ -255,10 +252,10 @@ bool ApplicationManager1Storage::deleteApplication(const QString &appId) noexcep
     }
 
     m_data.remove(appId);
-    return writeToFile();
+    return deferCommit ? true : writeToFile();
 }
 
-bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString &groupName) noexcept
+bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString &groupName, bool deferCommit) noexcept
 {
     if (appId.isEmpty() or groupName.isEmpty()) {
         qWarning() << "unexpected empty string.";
@@ -272,5 +269,5 @@ bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString
 
     app.remove(groupName);
     m_data.insert(appId, app);
-    return writeToFile();
+    return deferCommit ? true : writeToFile();
 }

@@ -117,7 +117,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     scanInstances();
 
     auto storagePtr = m_storage.lock();
-    storagePtr->setFirstLaunch(false);
+    if (!storagePtr->setFirstLaunch(false)) {
+        qCritical() << "failed to update state of application manager, some properties may be lost after restart.";
+    }
 
     loadHooks();
 
@@ -519,7 +521,10 @@ void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &app
     if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
         emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
         if (auto ptr = m_storage.lock(); ptr) {
-            ptr->deleteApplication((*it)->id());
+            auto appId = (*it)->id();
+            if (!ptr->deleteApplication(appId)) {
+                qCritical() << "failed to delete all properties of" << appId;
+            }
         }
         unregisterObjectFromDBus(application.path());
         m_applicationList.remove(application);
