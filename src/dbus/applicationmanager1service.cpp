@@ -10,7 +10,6 @@
 #include "propertiesForwarder.h"
 #include "applicationHooks.h"
 #include "desktopfilegenerator.h"
-#include "processguesser1service.h"
 #include <QFile>
 #include <QHash>
 #include <QDBusMessage>
@@ -34,11 +33,6 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 {
     if (!connection.registerService(DDEApplicationManager1ServiceName)) {
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
-    }
-
-    if (auto *tmp = new (std::nothrow) ProcessGuesser1Service{connection, this}; tmp == nullptr) {
-        qCritical() << "new ProcessGuesser1Service failed.";
-        std::terminate();
     }
 
     if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
