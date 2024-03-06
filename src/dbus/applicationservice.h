@@ -61,8 +61,11 @@ public:
     Q_PROPERTY(QStringMap Icons READ icons NOTIFY iconsChanged)
     [[nodiscard]] QStringMap icons() const noexcept;
 
-    Q_PROPERTY(qulonglong LastLaunchedTime READ lastLaunchedTime NOTIFY lastLaunchedTimeChanged)
-    [[nodiscard]] qulonglong lastLaunchedTime() const noexcept;
+    Q_PROPERTY(qint64 LastLaunchedTime READ lastLaunchedTime NOTIFY lastLaunchedTimeChanged)
+    [[nodiscard]] qint64 lastLaunchedTime() const noexcept;
+
+    Q_PROPERTY(qint64 LaunchedTimes READ launchedTimes NOTIFY launchedTimesChanged)
+    [[nodiscard]] qint64 launchedTimes() const noexcept;
 
     Q_PROPERTY(double ScaleFactor READ scaleFactor WRITE setScaleFactor NOTIFY scaleFactorChanged)
     [[nodiscard]] double scaleFactor() const noexcept;
@@ -94,8 +97,8 @@ public:
     Q_PROPERTY(QString X_Deepin_Vendor READ X_Deepin_Vendor)
     [[nodiscard]] QString X_Deepin_Vendor() const noexcept;
 
-    Q_PROPERTY(qulonglong installedTime READ installedTime NOTIFY installedTimeChanged)
-    [[nodiscard]] qulonglong installedTime() const noexcept;
+    Q_PROPERTY(qint64 InstalledTime READ installedTime NOTIFY installedTimeChanged)
+    [[nodiscard]] qint64 installedTime() const noexcept;
 
     Q_PROPERTY(bool isOnDesktop READ isOnDesktop NOTIFY isOnDesktopChanged)
     [[nodiscard]] bool isOnDesktop() const noexcept;
@@ -162,6 +165,7 @@ Q_SIGNALS:
     void MimeTypesChanged();
     void terminalChanged();
     void scaleFactorChanged();
+    void launchedTimesChanged();
 
 private:
     friend class ApplicationManager1Service;
@@ -172,6 +176,8 @@ private:
         DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
     bool m_customScale{false};
     qint64 m_lastLaunch{0};
+    qint64 m_installedTime{0};
+    qint64 m_launchedTimes{0};
     double m_scaleFactor;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
     AutostartSource m_autostartSource;

@@ -58,6 +58,8 @@ constexpr auto STORAGE_VERSION = 0;
 constexpr auto ApplicationPropertiesGroup = u8"Application Properties";
 constexpr auto LastLaunchedTime = u8"LastLaunchedTime";
 constexpr auto ScaleFactor = u8"ScaleFactor";
+constexpr auto LaunchedTimes = u8"LaunchedTimes";
+constexpr auto InstalledTime = u8"InstalledTime";
 
 constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/hooks.d";
 

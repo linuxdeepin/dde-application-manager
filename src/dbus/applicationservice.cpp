@@ -81,21 +81,46 @@ ApplicationService::ApplicationService(DesktopFile source,
     }
 
     auto appId = id();
-    auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
+    auto value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime);
 
-    qint64 val{0};
     if (storagePtr->firstLaunch()) {
-        val = QDateTime::currentMSecsSinceEpoch();
+        auto ret = value.isNull() ? storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime, 0) :
+                                    storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime, 0);
+        if (!ret) {
+            m_installedTime = -1;
+            qWarning() << "failed to set InstalledTime for" << appId << "at first launch";
+        }
+    } else {
+        auto newInstalledTime = QDateTime::currentMSecsSinceEpoch();
+        auto ret = value.isNull() ?
+                       storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime, newInstalledTime) :
+                       true;
+        if (!ret) {
+            m_installedTime = -1;
+            qWarning() << "failed to set InstalledTime for new apps:" << appId;
+        } else {
+            m_installedTime = newInstalledTime;
+        }
     }
 
+    value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime);
     if (value.isNull()) {
-        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime, QVariant::fromValue(val))) {
+        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, LastLaunchedTime, 0)) {
+            qWarning() << "failed to set LastLaunchedTime for" << appId;
             m_lastLaunch = -1;
-        } else {
-            m_lastLaunch = val;
         }
     } else {
         m_lastLaunch = value.toLongLong();
+    }
+
+    value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ::LaunchedTimes);
+    if (value.isNull()) {
+        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, ::LaunchedTimes, 0)) {
+            qWarning() << "failed to set LaunchedTimes for" << appId;
+            m_launchedTimes = -1;
+        }
+    } else {
+        m_launchedTimes = value.toLongLong();
     }
 
     value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
@@ -551,14 +576,19 @@ bool ApplicationService::terminal() const noexcept
     return false;
 }
 
-qulonglong ApplicationService::installedTime() const noexcept
+qint64 ApplicationService::installedTime() const noexcept
 {
-    return m_desktopSource.createTime();
+    return m_installedTime;
 }
 
-qulonglong ApplicationService::lastLaunchedTime() const noexcept
+qint64 ApplicationService::lastLaunchedTime() const noexcept
 {
     return m_lastLaunch;
+}
+
+qint64 ApplicationService::launchedTimes() const noexcept
+{
+    return m_launchedTimes;
 }
 
 double ApplicationService::scaleFactor() const noexcept
@@ -579,7 +609,9 @@ void ApplicationService::setScaleFactor(double value) noexcept
     if (value == 0) {
         m_customScale = false;
         m_scaleFactor = getScaleFactor();
-        storagePtr->deleteApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
+        if (!storagePtr->deleteApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor)) {
+            qCritical() << "failed to delete app's property:" << appId;
+        }
         return;
     }
 
@@ -1131,10 +1163,27 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
 
     auto timestamp = QDateTime::currentMSecsSinceEpoch();
     if (auto ptr = m_storage.lock(); ptr) {
+        if (!ptr->updateApplicationValue(m_desktopSource.desktopId(),
+                                         ApplicationPropertiesGroup,
+                                         ::LastLaunchedTime,
+                                         QVariant::fromValue(timestamp),
+                                         true)) {
+            qWarning() << "failed to update LastLaunchedTime:" << id();
+            return;
+        }
+
+        if (!ptr->updateApplicationValue(m_desktopSource.desktopId(),
+                                         ApplicationPropertiesGroup,
+                                         ::LaunchedTimes,
+                                         QVariant::fromValue(m_launchedTimes + 1))) {
+            qWarning() << "failed to update LaunchedTimes:" << id();
+            return;
+        }
+
         m_lastLaunch = timestamp;
-        ptr->updateApplicationValue(
-            m_desktopSource.desktopId(), ApplicationPropertiesGroup, ::LastLaunchedTime, QVariant::fromValue(timestamp));
+        m_launchedTimes += 1;
         emit lastLaunchedTimeChanged();
+        emit launchedTimesChanged();
     }
 }
 
