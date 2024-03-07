@@ -104,7 +104,7 @@ struct setWorkingPathLaunchOption : public LaunchOption
     }
     [[nodiscard]] static const QString &key() noexcept
     {
-        static QString path{"workingPath"};
+        static QString path{"path"};
         return path;
     }
     [[nodiscard]] QStringList generateCommandLine() const noexcept override;
