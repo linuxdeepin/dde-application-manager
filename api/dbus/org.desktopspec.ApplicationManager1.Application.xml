@@ -119,7 +119,7 @@
                           this application, eg. 'LANG=en_US;PATH=xxx:yyy;'
                        3. `path` (type s):
                           set this application's working directory, please pass
-                          absoult directory path.
+                          absolute directory path.
                        NOTE:
                        When application launched with `uid` option,
                        `env` option will not take effect at all."
