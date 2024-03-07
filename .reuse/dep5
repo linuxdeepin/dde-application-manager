@@ -19,7 +19,7 @@ Copyright: None
 License: CC0-1.0
 
 # gitignore
-Files: .gitignore 
+Files: .gitignore
 Copyright: None
 License: CC0-1.0
 
@@ -39,7 +39,7 @@ Copyright: None
 License: CC0-1.0
 
 # hook
-Files: misc/dpkg/dpkg.cfg.d/*
+Files: misc/dpkg/dpkg.cfg.d/* misc/hooks.d/*
 Copyright: None
 License: CC0-1.0
 

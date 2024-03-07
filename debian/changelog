@@ -1,3 +1,16 @@
+dde-application-manager (1.2.0) unstable; urgency=medium
+
+  * fix: incorrect scale factor has been set in qt application which load dxcb platform plugin
+  * fix: correct launchoptions
+  * feat: add GIO_LAUNCHED_DESKTOP_FILE to runtime envs
+  * fix: the signal is triggered repeatedly
+  * refact: remove processguesser1service
+  * feat: add property `LaunchedTimes`
+  * feat: set systemd.unit's property `CollectMode` to failed-or-inactive
+  * chore: correct typo
+
+ -- He YuMing <heyuming@deepin.org>  Thu, 07 Mar 2024 14:36:10 +0800
+
 dde-application-manager (1.1.9) unstable; urgency=medium
 
   * feat: add filesystem watcher for reloading applications
