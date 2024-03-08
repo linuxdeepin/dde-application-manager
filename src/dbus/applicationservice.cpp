@@ -53,7 +53,8 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 {
     QString oldEnv;
     // scale factor
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
+    // NOTE: Use QT_SCREEN_SCALE_FACTOR in multi-monitor situations, as this feature may be added in the future
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCREEN_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
     auto factor = scaleFactor();
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
         oldEnv = it->value<QString>();
@@ -65,6 +66,9 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 
     // GIO
     oldEnv.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1;"}.arg(m_desktopSource.sourcePath()));
+
+    // set for dxcb platform plugin, which should use scale factor directly instead of processing double times.
+    oldEnv.append(QString{"D_DXCB_FORCE_OVERRIDE_HIDPI=1"});
 
     runtimeOptions.insert("env", oldEnv);
 }
