@@ -22,7 +22,7 @@ DDE Application Manager 是深度桌面环境的应用程序管理器。
 2. 构建:
 
 ```shell
-$ cd dde-applications-manager
+$ cd dde-application-manager
 $ cmake -B build
 $ cmake --build build -j`nproc`
 ```
@@ -48,4 +48,4 @@ sudo cmake --install build
 
 ## 开源许可证
 
-dde-applications-manager 在 [GPL-3.0-or-later](LICENSE)下发布。
+dde-application-manager 在 [GPL-3.0-or-later](LICENSE)下发布。

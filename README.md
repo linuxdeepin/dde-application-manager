@@ -26,8 +26,8 @@ You can also check the "Build-Depends" provided in the `debian/control` file.
 
 2. Build:
 ```shell
-$ cd dde-applications-manager
-$ cmake -Bbuild .
+$ cd dde-application-manager
+$ cmake -B build
 $ cmake --build build -j`nproc`
 ```
 3. Install
@@ -52,4 +52,4 @@ We encourage you to report issues and contribute changes
 
 ## License
 
-dde-applications-manager is licensed under [GPL-3.0-or-later](LICENSE).
+dde-application-manager is licensed under [GPL-3.0-or-later](LICENSE).
