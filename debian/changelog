@@ -1,3 +1,11 @@
+dde-application-manager (1.2.1) unstable; urgency=medium
+
+  * fix: gtk app scaled size too big(#7528)
+  * chore: add doc describing the behavior of processing exec key
+  * chore: update README.md
+
+ -- Mike Chen <chenke@deepin.org>  Mon, 18 Mar 2024 17:18:13 +0800
+
 dde-application-manager (1.2.0) unstable; urgency=medium
 
   * fix: incorrect scale factor has been set in qt application which load dxcb platform plugin
