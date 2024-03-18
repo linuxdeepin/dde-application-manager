@@ -54,7 +54,7 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     QString oldEnv;
     // scale factor
     // NOTE: Use QT_SCREEN_SCALE_FACTOR in multi-monitor situations, as this feature may be added in the future
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "GDK_DPI_SCALE=%1;", "QT_SCREEN_SCALE_FACTOR=%1;", "GDK_SCALE=%1;"};
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "QT_SCREEN_SCALE_FACTOR=%1;"};
     auto factor = scaleFactor();
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
         oldEnv = it->value<QString>();
@@ -62,6 +62,15 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 
     for (const auto &env : scaleEnvs) {
         oldEnv.append(env.arg(factor));
+    }
+
+    // FIX #7528 GTK app only scale the UI, not scaling of text.
+    // GDK_SCALE Must be set to an integer, see https://docs.gtk.org/gtk3/x11.html
+    // 1.25 ==> 1 , 1.75 ==>2
+    int scale = qRound(factor);
+    oldEnv.append(QString("GDK_SCALE=%1;").arg(scale));
+    if (scale > 0) { // avoid division by 0
+        oldEnv.append(QString("GDK_DPI_SCALE=%1;").arg(qreal(1.0 / scale)));
     }
 
     // GIO
