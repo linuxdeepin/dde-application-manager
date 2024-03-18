@@ -107,15 +107,16 @@ ApplicationService::ApplicationService(DesktopFile source,
             qWarning() << "failed to set InstalledTime for" << appId << "at first launch";
         }
     } else {
-        auto newInstalledTime = QDateTime::currentMSecsSinceEpoch();
-        auto ret = value.isNull() ?
-                       storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime, newInstalledTime) :
-                       true;
-        if (!ret) {
-            m_installedTime = -1;
-            qWarning() << "failed to set InstalledTime for new apps:" << appId;
+        if (value.isNull()) {
+            auto newInstalledTime = QDateTime::currentMSecsSinceEpoch();
+            if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, InstalledTime, newInstalledTime)) {
+                m_installedTime = -1;
+                qWarning() << "failed to set InstalledTime for new apps:" << appId;
+            } else {
+                m_installedTime = newInstalledTime;
+            }
         } else {
-            m_installedTime = newInstalledTime;
+            m_installedTime = value.toLongLong();
         }
     }
 
