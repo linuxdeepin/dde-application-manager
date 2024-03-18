@@ -7,3 +7,4 @@ build*
 /debian/debhelper-build-stamp
 /debian/files
 /obj-x86_64-linux-gnu
+*.user
