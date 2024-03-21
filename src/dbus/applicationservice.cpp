@@ -53,8 +53,7 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 {
     QString oldEnv;
     // scale factor
-    // NOTE: Use QT_SCREEN_SCALE_FACTOR in multi-monitor situations, as this feature may be added in the future
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "QT_SCREEN_SCALE_FACTOR=%1;"};
+    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "QT_SCALE_FACTOR=%1;"};
     auto factor = scaleFactor();
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
         oldEnv = it->value<QString>();
