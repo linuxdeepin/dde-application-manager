@@ -7,6 +7,8 @@ Build-Depends: debhelper-compat ( =12), cmake,
  libsystemd-dev,
  pkg-config,
  qt6-base-dev,
+ libdtkcommon-dev,
+ libdtk6core-dev,
 Standards-Version: 4.5.0
 Homepage: https://github.com/linuxdeepin/dde-application-manager
 

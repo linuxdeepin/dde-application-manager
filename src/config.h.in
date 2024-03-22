@@ -8,4 +8,7 @@
 constexpr auto ApplicationLaunchHelperBinary =
     u8"@CMAKE_INSTALL_FULL_LIBEXECDIR@/deepin/application-manager/@APP_LAUNCH_HELPER_BIN@";
 
+const auto ApplicationServiceID =
+    u8"@APPLICATION_SERVICEID@";
+
 #endif

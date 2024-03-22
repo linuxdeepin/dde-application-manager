@@ -63,4 +63,6 @@ constexpr auto InstalledTime = u8"InstalledTime";
 
 constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/hooks.d";
 
+constexpr auto ApplicationManagerToolsConfig = u8"org.deepin.dde.am";
+
 #endif
