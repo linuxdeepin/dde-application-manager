@@ -23,11 +23,13 @@ set(DDE_AM_USE_DEBUG_DBUS_NAME OFF CACHE BOOL "build a dbus service using a diff
 set(PROFILING_MODE OFF CACHE BOOL "run a valgrind performance profiling.")
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
+find_package(Dtk6 REQUIRED COMPONENTS Core)
 find_package(Threads REQUIRED)
 
 set(APP_LAUNCH_HELPER_BIN app-launch-helper)
 set(APP_UPDATE_NOTIFIER_BIN app-update-notifier)
 set(AM_LIBEXEC_DIR ${CMAKE_INSTALL_LIBEXECDIR}/deepin/application-manager)
+set(APPLICATION_SERVICEID "org.deepin.dde.application-manager")
 
 if(DDE_AM_USE_DEBUG_DBUS_NAME)
     add_compile_definitions(-DDDE_AM_USE_DEBUG_DBUS_NAME)
