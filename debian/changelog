@@ -1,3 +1,9 @@
+dde-application-manager (1.2.2) unstable; urgency=medium
+
+  * feat: add dde-am tool to launch application
+
+ -- YeShanShan <yeshanshan@deepin.org>  Fri, 29 Mar 2024 18:05:10 +0800
+
 dde-application-manager (1.2.1) unstable; urgency=medium
 
   * fix: gtk app scaled size too big(#7528)
