@@ -32,51 +32,16 @@
 #include <utility>
 #include <wordexp.h>
 
-double getScaleFactor() noexcept
-{
-    auto sessionBus = QDBusConnection::sessionBus();
-    QDBusMessage reply1 = sessionBus.call(QDBusMessage::createMethodCall(
-        "org.deepin.dde.XSettings1", "/org/deepin/dde/XSettings1", "org.deepin.dde.XSettings1", "GetScaleFactor"));
-
-    if (reply1.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "call GetScaleFactor Failed:" << reply1.errorMessage();
-        return 1.0;
-    }
-
-    QDBusReply<double> ret1(reply1);
-    double scale = ret1.isValid() ? ret1.value() : 1.0;
-    scale = scale > 0 ? scale : 1;
-    return scale;
-}
-
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
     QString oldEnv;
-    // scale factor
-    static QStringList scaleEnvs{"DEEPIN_WINE_SCALE=%1;", "QT_SCALE_FACTOR=%1;"};
-    auto factor = scaleFactor();
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
         oldEnv = it->value<QString>();
     }
 
-    for (const auto &env : scaleEnvs) {
-        oldEnv.append(env.arg(factor));
-    }
-
-    // FIX #7528 GTK app only scale the UI, not scaling of text.
-    // GDK_SCALE Must be set to an integer, see https://docs.gtk.org/gtk3/x11.html
-    // 1.25 ==> 1 , 1.75 ==>2
-    int scale = qRound(factor);
-    oldEnv.append(QString("GDK_SCALE=%1;").arg(scale));
-    if (scale > 0) { // avoid division by 0
-        oldEnv.append(QString("GDK_DPI_SCALE=%1;").arg(qreal(1.0 / scale)));
-    }
-
-    // GIO
-    oldEnv.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1;"}.arg(m_desktopSource.sourcePath()));
-
-    // set for dxcb platform plugin, which should use scale factor directly instead of processing double times.
-    oldEnv.append(QString{"D_DXCB_FORCE_OVERRIDE_HIDPI=1"});
+    const QString &env = environ();
+    if (!env.isEmpty())
+        oldEnv.prepend(env);
 
     runtimeOptions.insert("env", oldEnv);
 }
@@ -85,7 +50,6 @@ ApplicationService::ApplicationService(DesktopFile source,
                                        ApplicationManager1Service *parent,
                                        std::weak_ptr<ApplicationManager1Storage> storage)
     : QObject(parent)
-    , m_scaleFactor(getScaleFactor())
     , m_storage(std::move(storage))
     , m_desktopSource(std::move(source))
 {
@@ -139,30 +103,9 @@ ApplicationService::ApplicationService(DesktopFile source,
         m_launchedTimes = value.toLongLong();
     }
 
-    value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor);
+    value = storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, ::Environ);
     if (!value.isNull()) {
-        bool ok{false};
-        auto tmp = value.toDouble(&ok);
-        if (ok) {
-            m_scaleFactor = tmp;
-            m_customScale = true;
-        }
-    }
-
-    if (!QDBusConnection::sessionBus().connect("org.deepin.dde.XSettings1",
-                                               "/org/deepin/dde/XSettings1",
-                                               "org.deepin.dde.XSettings1",
-                                               "SetScaleFactorDone",
-                                               this,
-                                               SLOT(onGlobalScaleFactorChanged()))) {
-        qWarning() << "connect to org.deepin.dde.XSettings1 failed, scaleFactor is invalid.";
-    }
-}
-
-void ApplicationService::onGlobalScaleFactorChanged() noexcept
-{
-    if (!m_customScale) {
-        m_scaleFactor = getScaleFactor();
+        m_environ = value.toString();
     }
 }
 
@@ -606,13 +549,17 @@ qint64 ApplicationService::launchedTimes() const noexcept
     return m_launchedTimes;
 }
 
-double ApplicationService::scaleFactor() const noexcept
+QString ApplicationService::environ() const noexcept
 {
-    return m_scaleFactor;
+    return m_environ;
 }
 
-void ApplicationService::setScaleFactor(double value) noexcept
+void ApplicationService::setEnviron(const QString &value) noexcept
 {
+    if (environ().trimmed() == value.trimmed()) {
+        return;
+    }
+
     auto storagePtr = m_storage.lock();
     if (!storagePtr) {
         qCritical() << "broken storage.";
@@ -621,28 +568,19 @@ void ApplicationService::setScaleFactor(double value) noexcept
     }
 
     auto appId = id();
-    if (value == 0) {
-        m_customScale = false;
-        m_scaleFactor = getScaleFactor();
-        if (!storagePtr->deleteApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor)) {
-            qCritical() << "failed to delete app's property:" << appId;
-        }
-        return;
-    }
-
-    if (m_customScale) {
-        if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor, value)) {
-            sendErrorReply(QDBusError::Failed, "update scaleFactor failed.");
+    if (!m_environ.isEmpty()) {
+        if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, Environ, value)) {
+            sendErrorReply(QDBusError::Failed, "update environ failed.");
             return;
         }
     } else {
-        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, ScaleFactor, value)) {
-            sendErrorReply(QDBusError::Failed, "set scaleFactor failed.");
+        if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, Environ, value)) {
+            sendErrorReply(QDBusError::Failed, "set environ failed.");
         }
     }
 
-    m_scaleFactor = value;
-    emit scaleFactorChanged();
+    m_environ = value;
+    emit environChanged();
 }
 
 bool ApplicationService::autostartCheck(const QString &filePath) const noexcept
@@ -907,7 +845,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit categoriesChanged();
     emit MimeTypesChanged();
     emit terminalChanged();
-    emit scaleFactorChanged();
+    emit environChanged();
     emit launchedTimesChanged();
 }
 
