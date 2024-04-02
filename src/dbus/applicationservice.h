@@ -67,9 +67,9 @@ public:
     Q_PROPERTY(qint64 LaunchedTimes READ launchedTimes NOTIFY launchedTimesChanged)
     [[nodiscard]] qint64 launchedTimes() const noexcept;
 
-    Q_PROPERTY(double ScaleFactor READ scaleFactor WRITE setScaleFactor NOTIFY scaleFactorChanged)
-    [[nodiscard]] double scaleFactor() const noexcept;
-    void setScaleFactor(double value) noexcept;
+    Q_PROPERTY(QString Environ READ environ WRITE setEnviron NOTIFY environChanged)
+    [[nodiscard]] QString environ() const noexcept;
+    void setEnviron(const QString &value) noexcept;
 
     Q_PROPERTY(bool Terminal READ terminal NOTIFY terminalChanged)
     [[nodiscard]] bool terminal() const noexcept;
@@ -134,9 +134,6 @@ public:
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
     [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
 
-private Q_SLOTS:
-    void onGlobalScaleFactorChanged() noexcept;
-
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
     QDBusObjectPath
@@ -164,7 +161,7 @@ Q_SIGNALS:
     void categoriesChanged();
     void MimeTypesChanged();
     void terminalChanged();
-    void scaleFactorChanged();
+    void environChanged();
     void launchedTimesChanged();
 
 private:
@@ -174,11 +171,10 @@ private:
                                 std::weak_ptr<ApplicationManager1Storage> storage);
     static QSharedPointer<ApplicationService> createApplicationService(
         DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
-    bool m_customScale{false};
     qint64 m_lastLaunch{0};
     qint64 m_installedTime{0};
     qint64 m_launchedTimes{0};
-    double m_scaleFactor;
+    QString m_environ;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
     AutostartSource m_autostartSource;
     QDBusObjectPath m_applicationPath;

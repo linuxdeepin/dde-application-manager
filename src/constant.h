@@ -57,7 +57,7 @@ constexpr auto AppExecOption = u8"appExec";
 constexpr auto STORAGE_VERSION = 0;
 constexpr auto ApplicationPropertiesGroup = u8"Application Properties";
 constexpr auto LastLaunchedTime = u8"LastLaunchedTime";
-constexpr auto ScaleFactor = u8"ScaleFactor";
+constexpr auto Environ = u8"Environ";
 constexpr auto LaunchedTimes = u8"LaunchedTimes";
 constexpr auto InstalledTime = u8"InstalledTime";
 

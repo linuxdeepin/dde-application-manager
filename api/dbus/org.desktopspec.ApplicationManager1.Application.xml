@@ -76,11 +76,12 @@
             />
         </property>
 
-        <property name="ScaleFactor" type="d" access="readwrite">
+        <property name="Environ" type="s" access="readwrite">
             <annotation
                 name="org.freedesktop.DBus.Description"
-                value="Indicate the scale factor of application's instance.
-                       Note: Set `0` to use global scaleFactor"
+                value="Indicate the environment of application's instance.
+                       passing some specific environment variables to Launch
+                       this application, eg. 'LANG=en_US;PATH=xxx:yyy;'"
             />
         </property>
 
