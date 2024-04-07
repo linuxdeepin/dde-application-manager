@@ -34,21 +34,19 @@
 
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
-    QString oldEnv;
-    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
-        oldEnv = it->value<QString>();
-    }
-
+    QStringList envs;
     const QString &env = environ();
-    if (!env.isEmpty()) {
-        //NOTE: prepend this directly may lead some error
-        oldEnv.prepend(env);
+    if (!env.isEmpty())
+        envs.append(env);
+
+    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
+        envs.append(it->value<QString>());
     }
 
     // NOTE: dde-dock need this environment variable for now, maybe we could remove it after we finish refactoring dde-shell.
-    oldEnv.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1;"}.arg(m_desktopSource.sourcePath()));
+    envs.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1"}.arg(m_desktopSource.sourcePath()));
 
-    runtimeOptions.insert("env", oldEnv);
+    runtimeOptions.insert("env", envs.join(';'));
 }
 
 ApplicationService::ApplicationService(DesktopFile source,
