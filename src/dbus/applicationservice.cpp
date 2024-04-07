@@ -573,7 +573,7 @@ void ApplicationService::setEnviron(const QString &value) noexcept
     }
 
     auto appId = id();
-    if (!m_environ.isEmpty()) {
+    if (!storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, Environ).isNull()) {
         if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, Environ, value)) {
             sendErrorReply(QDBusError::Failed, "update environ failed.");
             return;
