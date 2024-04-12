@@ -25,8 +25,9 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     , m_storage(std::move(storage))
 {
     using namespace std::chrono_literals;
-    m_reloadTimer.setInterval(1s);
-    connect(&m_reloadTimer, &QTimer::timeout, [this] { m_reloadTimer.stop(); });
+    m_reloadTimer.setInterval(50);
+    m_reloadTimer.setSingleShot(true);
+    connect(&m_reloadTimer, &QTimer::timeout, this, &ApplicationManager1Service::doReloadApplications);
 }
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
@@ -613,12 +614,16 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
 
 void ApplicationManager1Service::ReloadApplications()
 {
-    if (m_reloadTimer.isActive()) {
-        qInfo() << "reloadTimer is running, ignore...";
+    if (calledFromDBus() && !m_reloadTimer.isActive()) {
+        doReloadApplications();
         return;
     }
-
     m_reloadTimer.start();
+}
+
+void ApplicationManager1Service::doReloadApplications()
+{
+    qInfo() << "reload applications.";
 
     auto desktopFileDirs = getDesktopFileDirs();
     desktopFileDirs.append(getAutoStartDirs());  // detect autostart apps add/remove/update
