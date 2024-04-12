@@ -66,6 +66,8 @@ Q_SIGNALS:
     void InterfacesRemoved(const QDBusObjectPath &object_path, const QStringList &interfaces);
     void listChanged();
 
+private Q_SLOTS:
+    void doReloadApplications();
 private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
