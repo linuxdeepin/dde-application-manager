@@ -669,7 +669,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         newEntry = *m_entry;
     }
 
-    newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, m_autostartSource.m_filePath);
+    newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, m_desktopSource.sourcePath());
     newEntry.insert(DesktopFileEntryKey, DesktopEntryHidden, !autostart);
 
     setAutostartSource({fileName, newEntry});
