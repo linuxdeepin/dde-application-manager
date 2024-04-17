@@ -909,8 +909,99 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
 LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields) noexcept
 {
     LaunchTask task;
-    auto opt = unescapeExecArgs(str);
 
+    QString content = str;
+    QRegularExpression re{"%[fFuUickdDnNvm]"};
+    QStringList list = re.match(str).capturedTexts();
+    if (list.count() == 1) {
+        char fieldCode = list.first().back().toLatin1();
+        QString codeStr = QString(R"(%%1)").arg(fieldCode);
+        switch (fieldCode) {
+        case 'f': {  // Defer to async job
+            for (const auto &field : fields) {
+                task.Resources.emplace_back(field);
+            }
+        } break;
+        case 'u': {
+            if (fields.empty()) {
+                break;
+            }
+            if (fields.count() > 1) {
+                qDebug() << R"(fields count is greater than one, %u will only take first element.)";
+            }
+            content.replace(codeStr, fields.first());
+        } break;
+        case 'F': {
+            QStringList result;
+            for (const auto &field : fields) {
+                auto tmp = QUrl{field};
+                if (auto scheme = tmp.scheme(); scheme.startsWith("file") or scheme.isEmpty()) {
+                    result.append(tmp.toLocalFile());
+                } else {
+                    qWarning() << "shouldn't replace %F with an URL:" << field;
+                    result.append(field);
+                }
+            }
+            content.replace(codeStr, result.join(" "));
+        } break;
+        case 'U': {
+            content.replace(codeStr, fields.join(" "));
+        } break;
+        case 'i': {
+            auto val = m_entry->value(DesktopFileEntryKey, "Icon");
+            if (!val) {
+                qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
+                break;
+            }
+
+            auto iconStr = toIconString(val.value());
+            if (iconStr.isEmpty()) {
+                qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
+                break;
+            }
+            content.replace(codeStr, QString("--icon") + " " + iconStr);
+        } break;
+        case 'c': {
+            auto val = m_entry->value(DesktopFileEntryKey, "Name");
+            if (!val) {
+                qDebug() << R"(Application Name can't be found. %c will be ignored.)";
+                break;
+            }
+
+            const auto &rawValue = val.value();
+            if (!rawValue.canConvert<QStringMap>()) {
+                qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
+                break;
+            }
+
+            auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
+            if (NameStr.isEmpty()) {
+                qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
+                break;
+            }
+            content.replace(codeStr, NameStr);
+        } break;
+        case 'k': {  // ignore all desktop file location for now.
+        } break;
+        case 'd':
+        case 'D':
+        case 'n':
+        case 'N':
+        case 'v':
+            [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
+        case 'm': {
+        } break;
+        default: {
+            qDebug() << "unrecognized file code.";
+        }
+        }
+    } else if (list.count() > 1) {
+        for (const auto &code : list) {
+            content.remove(code);
+        }
+    }
+
+    auto opt = unescapeExecArgs(content);
     if (!opt.has_value()) {
         qWarning() << "unescapeExecArgs failed.";
         return {};
@@ -923,134 +1014,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     }
 
     task.LaunchBin = execList.first();
-    QRegularExpression re{"%[fFuUickdDnNvm]"};
-    auto matcher = re.match(str);
-    if (!matcher.hasMatch()) {
-        task.command.append(std::move(execList));
-        task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
-        return task;
-    }
-
-    auto list = matcher.capturedTexts();
-    if (list.count() != 1) {
-        qWarning() << "invalid exec format, all filed code will be ignored.";
-        for (const auto &code : list) {
-            execList.removeOne(code);
-        }
-        task.command.append(std::move(execList));
-        return task;
-    }
-
-    auto filesCode = list.first().back().toLatin1();
-    auto codeStr = QString(R"(%%1)").arg(filesCode);
-    auto location = execList.indexOf(codeStr);
-
-    switch (filesCode) {
-    case 'f': {  // Defer to async job
-        task.command.append(std::move(execList));
-        for (const auto &field : fields) {
-            task.Resources.emplace_back(field);
-        }
-    } break;
-    case 'u': {
-        execList.removeAt(location);
-        if (fields.empty()) {
-            task.command.append(execList);
-            break;
-        }
-        if (fields.count() > 1) {
-            qDebug() << R"(fields count is greater than one, %u will only take first element.)";
-        }
-        execList.insert(location, fields.first());
-        task.command.append(execList);
-    } break;
-    case 'F': {
-        execList.remove(location);
-        auto it = execList.begin() + location;
-        for (const auto &field : fields) {
-            auto tmp = QUrl::fromUserInput(field);
-            if (auto scheme = tmp.scheme(); scheme.startsWith("file") or scheme.isEmpty()) {
-                it = execList.insert(it, tmp.toLocalFile());
-            } else {
-                qWarning() << "shouldn't replace %F with an URL:" << field;
-                it = execList.insert(it, field);
-            }
-            ++it;
-        }
-        task.command.append(std::move(execList));
-    } break;
-    case 'U': {
-        execList.removeAt(location);
-        auto it = execList.begin() + location;
-        for (const auto &field : fields) {
-            it = execList.insert(it, field);
-            ++it;
-        }
-        task.command.append(std::move(execList));
-    } break;
-    case 'i': {
-        execList.removeAt(location);
-        auto val = m_entry->value(DesktopFileEntryKey, "Icon");
-        if (!val) {
-            qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-
-        auto iconStr = toIconString(val.value());
-        if (iconStr.isEmpty()) {
-            qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-        auto it = execList.insert(location, iconStr);
-        execList.insert(it, "--icon");
-        task.command.append(std::move(execList));
-    } break;
-    case 'c': {
-        execList.removeAt(location);
-        auto val = m_entry->value(DesktopFileEntryKey, "Name");
-        if (!val) {
-            qDebug() << R"(Application Name can't be found. %c will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-
-        const auto &rawValue = val.value();
-        if (!rawValue.canConvert<QStringMap>()) {
-            qDebug() << "Name's underlying type mismatch:"
-                     << "QStringMap" << rawValue.metaType().name();
-            task.command.append(std::move(execList));
-            return task;
-        }
-
-        auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
-        if (NameStr.isEmpty()) {
-            qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-        execList.insert(location, NameStr);
-        task.command.append(std::move(execList));
-    } break;
-    case 'k': {  // ignore all desktop file location for now.
-        execList.removeAt(location);
-        task.command.append(std::move(execList));
-    } break;
-    case 'd':
-    case 'D':
-    case 'n':
-    case 'N':
-    case 'v':
-        [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
-    case 'm': {
-        execList.removeAt(location);
-        task.command.append(std::move(execList));
-    } break;
-    default: {
-        qDebug() << "unrecognized file code.";
-    }
-    }
+    task.command.append(std::move(execList));
 
     if (task.Resources.isEmpty()) {
         task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
