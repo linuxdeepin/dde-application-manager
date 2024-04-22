@@ -48,7 +48,7 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
     QFileInfo info{content};
     application = QDBusObjectPath{"/"};
 
-    if (info.isAbsolute() and info.exists() and info.isFile()) {
+    if (info.isAbsolute() and info.exists()) {
         mime = m_database.mimeTypeForFile(content);
     } else {
         mime = m_database.mimeTypeForName(content);
