@@ -54,18 +54,10 @@ void SystemdSignalDispatcher::onPropertiesChanged(QString interface, QVariantMap
 
 void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    if (!unitName.startsWith("app-")) {
-        return;
-    }
-
     emit SystemdUnitNew(unitName, systemdUnitPath);
 }
 
 void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)
 {
-    if (!unitName.startsWith("app-")) {
-        return;
-    }
-
     emit SystemdUnitRemoved(unitName, systemdUnitPath);
 }

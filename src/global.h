@@ -481,11 +481,6 @@ inline QString getCurrentDesktop()
     return desktops.first();
 }
 
-inline bool isApplication(const QDBusObjectPath &path)
-{
-    return path.path().split('/').last().startsWith("app");
-}
-
 struct unitInfo
 {
     QString applicationID;
@@ -503,8 +498,10 @@ inline unitInfo processUnitName(const QString &unitName)
 
     decltype(auto) appPrefix = u8"app-";
     if (!unitName.startsWith(appPrefix)) {
-        qDebug() << "this unit " << unitName << "isn't an app unit.";
-        return {};
+        // If not started by application manager, just remove suffix and take name as app id.
+        auto lastDotIndex = unitName.lastIndexOf('.');
+        applicationId = unitName.sliced(0, lastDotIndex);
+        return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
     }
 
     auto unit = unitName.sliced(sizeof(appPrefix) - 1);
@@ -538,10 +535,6 @@ inline unitInfo processUnitName(const QString &unitName)
     } else {
         qDebug() << "it's not service or scope:" << unit << "ignore";
         return {};
-    }
-
-    if (instanceId.isEmpty()) {
-        instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
     return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};

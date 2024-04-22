@@ -187,10 +187,6 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
-    if (!isApplication(systemdUnitPath)) {
-        return;
-    }
-
     auto info = processUnitName(unitName);
     auto appId = std::move(info.applicationID);
     auto launcher = std::move(info.Launcher);
@@ -198,6 +194,9 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
 
     if (appId.isEmpty()) {
         return;
+    }
+    if (instanceId.isEmpty()) {
+        instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
     auto appIt = std::find_if(m_applicationList.cbegin(),
@@ -220,10 +219,6 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
 
 void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
-    if (!isApplication(systemdUnitPath)) {
-        return;
-    }
-
     auto info = processUnitName(unitName);
     auto appId = std::move(info.applicationID);
     auto launcher = std::move(info.Launcher);
@@ -316,9 +311,6 @@ void ApplicationManager1Service::scanInstances() noexcept
     QList<SystemdUnitDBusMessage> units;
     v.value<QDBusArgument>() >> units;
     for (const auto &unit : units) {
-        if (!isApplication(unit.objectPath)) {
-            continue;
-        }
         if (unit.subState == "running") {
             this->addInstanceToApplication(unit.name, unit.objectPath);
         }
@@ -567,10 +559,16 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
         return {};
     }
 
-    auto instancePath = (*app)->findInstance(ret.InstanceId);
-
-    if (auto path = instancePath.path(); path.isEmpty()) {
-        sendErrorReply(QDBusError::Failed, "can't find instance:" % path);
+    QDBusObjectPath instancePath;
+    const auto &instances = (*app)->instances();
+    if (ret.InstanceId.isEmpty() && instances.size() == 1) {
+        // Maybe a dbus systemd service
+        instancePath = instances.constFirst();
+    } else {
+        instancePath = (*app)->findInstance(ret.InstanceId);
+    }
+    if (instancePath.path().isEmpty()) {
+        sendErrorReply(QDBusError::Failed, "can't find instance:" % ret.InstanceId);
         return {};
     }
 
