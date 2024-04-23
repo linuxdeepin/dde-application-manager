@@ -968,7 +968,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         execList.remove(location);
         auto it = execList.begin() + location;
         for (const auto &field : fields) {
-            auto tmp = QUrl{field};
+            auto tmp = QUrl::fromUserInput(field);
             if (auto scheme = tmp.scheme(); scheme.startsWith("file") or scheme.isEmpty()) {
                 it = execList.insert(it, tmp.toLocalFile());
             } else {
