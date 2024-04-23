@@ -1,3 +1,10 @@
+dde-application-manager (1.2.5) unstable; urgency=medium
+
+  * fix: Return correct mimetype and default app for directories
+  * fix: dde-open file failed
+
+ -- dengbo <dengbo@deepin.org>  Tue, 23 Apr 2024 13:54:57 +0800
+
 dde-application-manager (1.2.4) unstable; urgency=medium
 
   * fix: missing package parsed when ReloadApplicaitons(Issue: https://github.com/linuxdeepin/developer-center/issues/7830)
