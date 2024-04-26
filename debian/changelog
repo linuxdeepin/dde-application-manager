@@ -1,3 +1,9 @@
+dde-application-manager (1.2.6) unstable; urgency=medium
+
+  * feat: Can emit correct remove signal when uninstalling applications patched by deepin-deb-fix
+
+ -- Zhang kun <zhangkun2@uniontech.com>  Fri, 26 Apr 2024 16:35:29 +0800
+
 dde-application-manager (1.2.5) unstable; urgency=medium
 
   * fix: Return correct mimetype and default app for directories
