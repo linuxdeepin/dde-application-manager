@@ -237,13 +237,13 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
 {
     const auto &destGroup = group(groupKey);
     if (!destGroup) {
-        qDebug() << "group " << groupKey << " can't be found.";
+        // qDebug() << "group " << groupKey << " can't be found.";
         return std::nullopt;
     }
 
     auto it = destGroup->find(valueKey);
     if (it == destGroup->cend()) {
-        qDebug() << "value " << valueKey << " can't be found.";
+        // qDebug() << "value " << valueKey << " can't be found.";
         return std::nullopt;
     }
     return *it;
