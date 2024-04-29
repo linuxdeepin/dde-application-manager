@@ -15,7 +15,6 @@ Homepage: https://github.com/linuxdeepin/dde-application-manager
 Package: dde-application-manager
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: deepin-deb-fix
 Description:  Application manager for DDE.
   Launch applications by systemd for more caps.
 
