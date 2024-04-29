@@ -1,3 +1,9 @@
+dde-application-manager (1.2.7) unstable; urgency=medium
+
+  * feat: Add a hook and wrap all applications in the hook script to start
+
+ -- Zhang kun <zhangkun2@uniontech.com>  Mon, 29 Apr 2024 15:59:14 +0800
+
 dde-application-manager (1.2.6) unstable; urgency=medium
 
   * feat: Can emit correct remove signal when uninstalling applications patched by deepin-deb-fix
