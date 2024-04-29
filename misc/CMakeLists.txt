@@ -53,10 +53,26 @@ configure_file(
     hooks.d/1-dockEnv.json
     @ONLY
 )
+configure_file(
+    hooks.d/2-debFix.json.in
+    hooks.d/2-debFix.json
+    @ONLY
+)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/hooks.d/1-dockEnv.json
         DESTINATION ${HOOKS_DEST_DIR})
 
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/dockEnv.sh
+        DESTINATION ${AM_LIBEXEC_DIR}
+        PERMISSIONS
+            OWNER_READ OWNER_EXECUTE OWNER_WRITE
+            GROUP_READ GROUP_EXECUTE
+            WORLD_READ WORLD_EXECUTE
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/hooks.d/2-debFix.json
+        DESTINATION ${HOOKS_DEST_DIR})
+
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/debFix.sh
         DESTINATION ${AM_LIBEXEC_DIR}
         PERMISSIONS
             OWNER_READ OWNER_EXECUTE OWNER_WRITE

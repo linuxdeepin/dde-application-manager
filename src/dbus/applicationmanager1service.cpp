@@ -650,7 +650,7 @@ void ApplicationManager1Service::doReloadApplications()
             }
 
             if (destApp != m_applicationList.cend() and apps.contains(destApp.key())) {
-                // Can emit correct remove signal when uninstalling applications patched by deepin-deb-fix
+                // Can emit correct remove signal when uninstalling applications
                 if (ApplicationFilter::tryExecCheck(*(destApp->data()->m_entry))) {
                     qDebug() << info.absolutePath() << "Checked TryExec failed and will be removed";
                     return false;
