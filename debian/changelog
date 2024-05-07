@@ -1,3 +1,9 @@
+dde-application-manager (1.2.8) unstable; urgency=medium
+
+  * release 1.2.8
+
+ -- Mike Chen <chenke@deepin.org>  Tue, 07 May 2024 09:38:22 +0800
+
 dde-application-manager (1.2.7) unstable; urgency=medium
 
   * feat: Add a hook and wrap all applications in the hook script to start
