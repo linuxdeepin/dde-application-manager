@@ -924,6 +924,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
         } break;
         case 'u': {
             if (fields.empty()) {
+                content.replace(codeStr, "");
                 break;
             }
             if (fields.count() > 1) {
@@ -951,12 +952,14 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
             auto val = m_entry->value(DesktopFileEntryKey, "Icon");
             if (!val) {
                 qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
+                content.replace(codeStr, "");
                 break;
             }
 
             auto iconStr = toIconString(val.value());
             if (iconStr.isEmpty()) {
                 qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
+                content.replace(codeStr, "");
                 break;
             }
             content.replace(codeStr, QString("--icon") + " " + iconStr);
@@ -965,18 +968,21 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
             auto val = m_entry->value(DesktopFileEntryKey, "Name");
             if (!val) {
                 qDebug() << R"(Application Name can't be found. %c will be ignored.)";
+                content.replace(codeStr, "");
                 break;
             }
 
             const auto &rawValue = val.value();
             if (!rawValue.canConvert<QStringMap>()) {
                 qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
+                content.replace(codeStr, "");
                 break;
             }
 
             auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
             if (NameStr.isEmpty()) {
                 qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
+                content.replace(codeStr, "");
                 break;
             }
             content.replace(codeStr, NameStr);
