@@ -944,6 +944,10 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
     auto filesCode = list.first().back().toLatin1();
     auto codeStr = QString(R"(%%1)").arg(filesCode);
     auto location = execList.indexOf(codeStr);
+    if (location == -1) {
+        qWarning() << "invalid exec format, all filed code will be ignored.";
+        return {};
+    }
 
     switch (filesCode) {
     case 'f': {  // Defer to async job
