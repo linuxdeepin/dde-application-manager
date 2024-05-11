@@ -392,7 +392,9 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
 
         auto shouldLaunch = tmp.value(DesktopFileEntryKey, DesktopEntryHidden).value_or(DesktopEntry::Value{});
         if (!shouldLaunch.isNull() and (shouldLaunch.toString().compare("true", Qt::CaseInsensitive) == 0)) {
-            app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
+            if (app)
+                app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
+
             qInfo() << "shouldn't launch this autoStart item.";
             continue;
         }
