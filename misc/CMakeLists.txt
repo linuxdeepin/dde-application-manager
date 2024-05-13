@@ -20,9 +20,14 @@ set(SYSTEMD_USER_FILE
     ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/org.desktopspec.ApplicationManager1.service
 )
 
+set(SYSTEMD_USER_DROP_IN_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}/systemd/user/app-DDE-.service.d/override.conf
+)
+
 set(SERVICE_DEST_PATH ${CMAKE_INSTALL_PREFIX}/lib/systemd/user/)
 
 install(FILES ${SYSTEMD_USER_FILE} DESTINATION ${SERVICE_DEST_PATH})
+install(FILES ${SYSTEMD_USER_DROP_IN_FILE} DESTINATION ${SERVICE_DEST_PATH}/app-DDE-.service.d)
 
 # create a symlink to dde-session
 install_symlink(org.desktopspec.ApplicationManager1.service dde-session-initialized.target.wants)
