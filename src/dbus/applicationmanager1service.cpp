@@ -357,8 +357,12 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             continue;
         }
 
+        QString originalSource;
         QSharedPointer<ApplicationService> app{nullptr};
         auto asApplication = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{});
+        auto shouldLaunch = tmp.value(DesktopFileEntryKey, DesktopEntryHidden).value_or(DesktopEntry::Value{});
+        auto autostartFlag = shouldLaunch.isNull() || (shouldLaunch.toString().compare("true", Qt::CaseInsensitive) != 0);
+
         if (!asApplication.isNull()) {  // modified by application manager
             auto appSource = asApplication.toString();
 
@@ -388,22 +392,19 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
                 qWarning() << "add autostart application failed, skip.";
                 continue;
             }
+
+            originalSource = appSource;
         }
 
-        auto shouldLaunch = tmp.value(DesktopFileEntryKey, DesktopEntryHidden).value_or(DesktopEntry::Value{});
-        if (!shouldLaunch.isNull() and (shouldLaunch.toString().compare("true", Qt::CaseInsensitive) == 0)) {
-            if (app)
-                app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
-
-            qInfo() << "shouldn't launch this autoStart item.";
-            continue;
-        }
-
+        originalSource = originalSource.isNull() ? desktopFile.sourcePath() : originalSource;
         if (app) {
-            auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
-            qInfo() << "launch normal autostart application " << app->id() << " by " << realExec;
-            ret.insert(app, realExec);
-            app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
+            if (autostartFlag) {
+                auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
+                qInfo() << "launch autostart application " << app->id() << " by " << realExec;
+                ret.insert(app, realExec);
+            }
+
+            app->setAutostartSource({std::move(originalSource), std::move(tmp)});
             continue;
         }
 
@@ -417,24 +418,28 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
                                       m_applicationList.cend(),
                                       [&desktopFile](const auto &app) { return desktopFile.desktopId() == app->id(); });
             appIt != m_applicationList.cend()) {
-            auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
-            qInfo() << "launch exist autostart application " << (*appIt)->id() << " by " << realExec;
-            ret.insert(*appIt, realExec);
-            (*appIt)->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
+            if (autostartFlag) {
+                auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
+                qInfo() << "launch exist autostart application " << (*appIt)->id() << " by " << realExec;
+                ret.insert(*appIt, realExec);
+            }
+            (*appIt)->setAutostartSource({std::move(originalSource), std::move(tmp)});
             continue;
         }
 
         guard.close();
         // new application
-        auto newApp = addApplication(std::move(desktopFile));
-        if (!newApp) {
+        app = addApplication(std::move(desktopFile));
+        if (!app) {
             qWarning() << "add autostart application failed, skip.";
             continue;
         }
+        app->setAutostartSource({std::move(originalSource), {}});
 
-        qInfo() << "launch new autostart application " << newApp->id();
-        newApp->setAutostartSource({desktopFile.sourcePath(), {}});
-        ret.insert(newApp, {});
+        if (autostartFlag) {
+            qInfo() << "launch new autostart application " << app->id();
+            ret.insert(app, {});
+        }
     }
 
     return ret;
@@ -475,8 +480,7 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
 {
     auto objectPath = QDBusObjectPath{getObjectPathFromAppId(desktopFileSource.desktopId())};
     if (auto app = m_applicationList.constFind(objectPath); app != m_applicationList.cend()) {
-        qInfo() << "this application already exists."
-                << "current desktop source:" << desktopFileSource.sourcePath()
+        qInfo() << "this application already exists." << "current desktop source:" << desktopFileSource.sourcePath()
                 << "exists app source:" << app->data()->desktopFileSource().sourcePath();
         return *app;
     }
