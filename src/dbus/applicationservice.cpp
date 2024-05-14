@@ -695,6 +695,11 @@ QStringList ApplicationService::mimeTypes() const noexcept
         return desktopFilePath.startsWith(info.directory());
     });
 
+    if (cache == cacheList.cend()) {
+        qWarning() << "error occurred when get mimeTypes for" << desktopFilePath;
+        return ret;
+    }
+
     const auto &info = cache->cacheInfo();
     if (info) {
         ret.append(info->queryTypes(id()));
