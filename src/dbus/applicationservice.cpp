@@ -623,6 +623,10 @@ bool ApplicationService::isAutoStart() const noexcept
         return false;
     }
 
+    if (m_autostartSource.m_filePath == m_desktopSource.sourcePath()) {
+        return true;
+    }
+
     auto appId = id();
     auto dirs = getAutoStartDirs();
     QString destDesktopFile;
@@ -663,13 +667,18 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     }
 
     DesktopEntry newEntry;
+    QString originalSource;
     if (!m_autostartSource.m_entry.data().isEmpty()) {
         newEntry = m_autostartSource.m_entry;
+        originalSource = newEntry.value(DesktopFileEntryKey, X_Deepin_GenerateSource)
+                             .value_or(DesktopEntry::Value{m_autostartSource.m_filePath})
+                             .toString();
     } else {
         newEntry = *m_entry;
+        originalSource = m_desktopSource.sourcePath();
     }
 
-    newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, m_desktopSource.sourcePath());
+    newEntry.insert(DesktopFileEntryKey, X_Deepin_GenerateSource, originalSource);
     newEntry.insert(DesktopFileEntryKey, DesktopEntryHidden, !autostart);
 
     setAutostartSource({fileName, newEntry});
@@ -1027,8 +1036,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
 
         const auto &rawValue = val.value();
         if (!rawValue.canConvert<QStringMap>()) {
-            qDebug() << "Name's underlying type mismatch:"
-                     << "QStringMap" << rawValue.metaType().name();
+            qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
             task.command.append(std::move(execList));
             return task;
         }
