@@ -232,9 +232,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         if (!Actions) {
             QString msg{"application can't be executed."};
             qWarning() << msg;
-            if (calledFromDBus()) {
-                sendErrorReply(QDBusError::Failed, msg);
-            }
+            safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
 
@@ -242,9 +240,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         if (execStr.isEmpty()) {
             QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
-            if (calledFromDBus()) {
-                sendErrorReply(QDBusError::Failed, msg);
-            }
+            safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
     }
@@ -258,18 +254,14 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     auto cmds = generateCommand(optionsMap);
     auto task = unescapeExec(execStr, fields);
     if (!task) {
-        if (calledFromDBus()) {
-            sendErrorReply(QDBusError::InternalError, "Invalid Command.");
-        }
+        safe_sendErrorReply(QDBusError::InternalError, "Invalid Command.");
         return {};
     }
 
     auto [bin, execCmds, res] = std::move(task);
     if (bin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
-        if (calledFromDBus()) {
-            sendErrorReply(QDBusError::Failed);
-        }
+        safe_sendErrorReply(QDBusError::Failed);
         return {};
     }
 
@@ -352,7 +344,7 @@ bool ApplicationService::SendToDesktop() const noexcept
     auto success = m_desktopSource.sourceFileRef().link(desktopFile);
     if (!success) {
         qDebug() << "create link failed:" << m_desktopSource.sourceFileRef().errorString() << "path:" << desktopFile;
-        sendErrorReply(QDBusError::ErrorType::Failed, m_desktopSource.sourceFileRef().errorString());
+        safe_sendErrorReply(QDBusError::ErrorType::Failed, m_desktopSource.sourceFileRef().errorString());
     }
 
     return success;
@@ -375,7 +367,7 @@ bool ApplicationService::RemoveFromDesktop() const noexcept
 
     if (!success) {
         qDebug() << "remove desktop file failed:" << desktopFile.errorString();
-        sendErrorReply(QDBusError::ErrorType::Failed, desktopFile.errorString());
+        safe_sendErrorReply(QDBusError::ErrorType::Failed, desktopFile.errorString());
     }
 
     return success;
@@ -568,19 +560,19 @@ void ApplicationService::setEnviron(const QString &value) noexcept
     auto storagePtr = m_storage.lock();
     if (!storagePtr) {
         qCritical() << "broken storage.";
-        sendErrorReply(QDBusError::InternalError);
+        safe_sendErrorReply(QDBusError::InternalError);
         return;
     }
 
     auto appId = id();
     if (!storagePtr->readApplicationValue(appId, ApplicationPropertiesGroup, Environ).isNull()) {
         if (!storagePtr->updateApplicationValue(appId, ApplicationPropertiesGroup, Environ, value)) {
-            sendErrorReply(QDBusError::Failed, "update environ failed.");
+            safe_sendErrorReply(QDBusError::Failed, "update environ failed.");
             return;
         }
     } else {
         if (!storagePtr->createApplicationValue(appId, ApplicationPropertiesGroup, Environ, value)) {
-            sendErrorReply(QDBusError::Failed, "set environ failed.");
+            safe_sendErrorReply(QDBusError::Failed, "set environ failed.");
         }
     }
 
@@ -664,7 +656,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     QFile autostartFile{fileName};
     if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
         qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
-        sendErrorReply(QDBusError::Failed);
+        safe_sendErrorReply(QDBusError::Failed);
         return;
     }
 
@@ -690,7 +682,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
 
     if (writeBytes != hideAutostart.size() or !autostartFile.flush()) {
         qWarning() << "incomplete write:" << autostartFile.error();
-        sendErrorReply(QDBusError::Failed, "set failed: filesystem error.");
+        safe_sendErrorReply(QDBusError::Failed, "set failed: filesystem error.");
         return;
     }
 
@@ -755,7 +747,7 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
     auto &infos = parent()->mimeManager().infos();
     auto userInfo = std::find_if(infos.begin(), infos.end(), [](const MimeInfo &info) { return info.directory() == userDir; });
     if (userInfo == infos.cend()) {
-        sendErrorReply(QDBusError::Failed, "user-specific config file doesn't exists.");
+        safe_sendErrorReply(QDBusError::Failed, "user-specific config file doesn't exists.");
         return;
     }
 
