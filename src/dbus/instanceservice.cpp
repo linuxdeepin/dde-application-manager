@@ -34,5 +34,5 @@ void InstanceService::KillAll(int signal)
         return;
     }
 
-    sendErrorReply(reply.errorName(), reply.errorMessage());
+    safe_sendErrorReply(reply.errorName(), reply.errorMessage());
 }

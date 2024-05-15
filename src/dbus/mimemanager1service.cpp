@@ -92,7 +92,7 @@ void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) n
     auto &app = m_infos.front().appsList();
 
     if (app.empty()) {
-        sendErrorReply(QDBusError::InternalError);
+        safe_sendErrorReply(QDBusError::InternalError);
         return;
     }
 
@@ -101,7 +101,7 @@ void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) n
 
     if (userConfig == app.end()) {
         qWarning() << "couldn't find user mimeApps";
-        sendErrorReply(QDBusError::InternalError);
+        safe_sendErrorReply(QDBusError::InternalError);
         return;
     }
 
@@ -110,7 +110,7 @@ void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) n
     }
 
     if (!userConfig->writeToFile()) {
-        sendErrorReply(QDBusError::Failed, "set default app failed, these config will be reset after re-login.");
+        safe_sendErrorReply(QDBusError::Failed, "set default app failed, these config will be reset after re-login.");
     }
 }
 
@@ -121,7 +121,7 @@ void MimeManager1Service::unsetDefaultApplication(const QStringList &mimeTypes) 
 
     if (userConfig == app.end()) {
         qWarning() << "couldn't find user mimeApps";
-        sendErrorReply(QDBusError::InternalError);
+        safe_sendErrorReply(QDBusError::InternalError);
         return;
     }
 
@@ -130,7 +130,7 @@ void MimeManager1Service::unsetDefaultApplication(const QStringList &mimeTypes) 
     }
 
     if (!userConfig->writeToFile()) {
-        sendErrorReply(QDBusError::Failed, "unset default app failed, these config will be reset after re-login.");
+        safe_sendErrorReply(QDBusError::Failed, "unset default app failed, these config will be reset after re-login.");
     }
 }
 

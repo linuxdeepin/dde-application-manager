@@ -547,13 +547,13 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 
     auto pid = getPidFromPidFd(pidfd);
     if (pid == 0) {
-        sendErrorReply(QDBusError::Failed, "pid is invalid");
+        safe_sendErrorReply(QDBusError::Failed, "pid is invalid");
         return {};
     }
 
     const auto ret = m_identifier->Identify(pid);
     if (ret.ApplicationId.isEmpty()) {
-        sendErrorReply(QDBusError::Failed, "Identify failed.");
+        safe_sendErrorReply(QDBusError::Failed, "Identify failed.");
         return {};
     }
 
@@ -562,7 +562,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     });
 
     if (app == m_applicationList.cend()) {
-        sendErrorReply(QDBusError::Failed, "can't find application:" % ret.ApplicationId);
+        safe_sendErrorReply(QDBusError::Failed, "can't find application:" % ret.ApplicationId);
         return {};
     }
 
@@ -575,7 +575,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
         instancePath = (*app)->findInstance(ret.InstanceId);
     }
     if (instancePath.path().isEmpty()) {
-        sendErrorReply(QDBusError::Failed, "can't find instance:" % ret.InstanceId);
+        safe_sendErrorReply(QDBusError::Failed, "can't find instance:" % ret.InstanceId);
         return {};
     }
 
@@ -706,14 +706,14 @@ ApplicationManager1Service::findApplicationsByIds(const QStringList &appIds) con
 QString ApplicationManager1Service::addUserApplication(const QVariantMap &desktop_file, const QString &name) noexcept
 {
     if (name.isEmpty()) {
-        sendErrorReply(QDBusError::Failed, "file name is empty.");
+        safe_sendErrorReply(QDBusError::Failed, "file name is empty.");
         return {};
     }
 
     QDir xdgDataHome;
     QString dir{getXDGDataHome() + "/applications"};
     if (!xdgDataHome.mkpath(dir)) {
-        sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
+        safe_sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
         return {};
     }
 
@@ -721,13 +721,13 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     const auto &filePath = xdgDataHome.filePath(name);
 
     if (QFileInfo info{filePath}; info.exists() and info.isFile()) {
-        sendErrorReply(QDBusError::Failed, QString{"file already exists:%1"}.arg(info.absoluteFilePath()));
+        safe_sendErrorReply(QDBusError::Failed, QString{"file already exists:%1"}.arg(info.absoluteFilePath()));
         return {};
     }
 
     QFile file{filePath};
     if (!file.open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
-        sendErrorReply(QDBusError::Failed, file.errorString());
+        safe_sendErrorReply(QDBusError::Failed, file.errorString());
         return {};
     }
 
@@ -735,14 +735,14 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
     if (fileContent.isEmpty() or !errMsg.isEmpty()) {
         file.remove();
-        sendErrorReply(QDBusError::Failed, errMsg);
+        safe_sendErrorReply(QDBusError::Failed, errMsg);
         return {};
     }
 
     auto writeContent = fileContent.toLocal8Bit();
     if (file.write(writeContent) != writeContent.size()) {
         file.remove();
-        sendErrorReply(QDBusError::Failed, "incomplete file content.this file will be removed.");
+        safe_sendErrorReply(QDBusError::Failed, "incomplete file content.this file will be removed.");
         return {};
     }
 
@@ -753,13 +753,13 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     if (err != ParserError::NoError) {
         file.remove();
         qDebug() << "add user's application failed:" << err;
-        sendErrorReply(QDBusError::Failed, "search failed.");
+        safe_sendErrorReply(QDBusError::Failed, "search failed.");
         return {};
     }
 
     if (!ret) {
         file.remove();
-        sendErrorReply(QDBusError::InternalError);
+        safe_sendErrorReply(QDBusError::InternalError);
         return {};
     }
 
@@ -767,7 +767,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     auto appId = desktopSource.desktopId();
     if (!addApplication(std::move(desktopSource))) {
         file.remove();
-        sendErrorReply(QDBusError::Failed, "add application to ApplicationManager failed.");
+        safe_sendErrorReply(QDBusError::Failed, "add application to ApplicationManager failed.");
         return {};
     }
 

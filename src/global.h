@@ -651,4 +651,6 @@ inline int pidfd_open(pid_t pid, uint flags)
     return syscall(SYS_pidfd_open, pid, flags);
 }
 
+#define safe_sendErrorReply if (calledFromDBus()) sendErrorReply
+
 #endif
