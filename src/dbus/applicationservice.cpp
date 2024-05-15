@@ -650,7 +650,14 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
-    auto fileName = QDir{getAutoStartDirs().first()}.filePath(m_desktopSource.desktopId() + ".desktop");
+    QDir startDir (getAutoStartDirs().first());
+    if (!startDir.exists() && !startDir.mkpath(startDir.path())) {
+        qWarning() << "mkpath " << startDir.path() << "failed";
+        safe_sendErrorReply(QDBusError::InternalError);
+        return;
+    }
+
+    auto fileName = startDir.filePath(m_desktopSource.desktopId() + ".desktop");
     QFile autostartFile{fileName};
     if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
         qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
