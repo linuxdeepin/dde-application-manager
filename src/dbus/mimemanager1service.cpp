@@ -119,6 +119,12 @@ void MimeManager1Service::unsetDefaultApplication(const QStringList &mimeTypes) 
     auto &app = m_infos.front().appsList();
     auto userConfig = std::find_if(app.begin(), app.end(), [](const MimeApps &config) { return !config.isDesktopSpecific(); });
 
+    if (userConfig == app.end()) {
+        qWarning() << "couldn't find user mimeApps";
+        sendErrorReply(QDBusError::InternalError);
+        return;
+    }
+
     for (const auto &mime : mimeTypes) {
         userConfig->unsetDefaultApplication(mime);
     }
