@@ -45,6 +45,8 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 
     // NOTE: dde-dock need this environment variable for now, maybe we could remove it after we finish refactoring dde-shell.
     envs.append(QString{"GIO_LAUNCHED_DESKTOP_FILE=%1"}.arg(m_desktopSource.sourcePath()));
+    // it's useful for App to get itself AppId.
+    envs.append(QString{"DSG_APP_ID=%1"}.arg(id()));
 
     runtimeOptions.insert("env", envs.join(';'));
 }
