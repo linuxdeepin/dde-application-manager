@@ -49,34 +49,33 @@ function log.debug() { log.log "debug" $@; }
 
 
 function check_file_no_shebang(){
-local file_type=$(file -b "${1}")
-# 检查文件类型是否为纯文本文件、是否具有可执行权限，并且不是脚本文件
-if [[ ($file_type == *"ASCII text"* || $file_type == *"Unicode text"*) && -x "$exec_cmd_origin_path" && "$file_type" != *"script"* ]]; then
-true
-else
-false
-fi
-
+    local file_type=$(file -b "${1}")
+    # 文件类型是纯文本文件、有可执行权限，并且不是脚本文件，则可能忘记加上shebang
+    if [[ ($file_type == *"ASCII text"* || $file_type == *"Unicode text"*) && -x "$exec_cmd_origin_path" && "$file_type" != *"script"* ]]; then
+        true
+    else
+        false
+    fi
 }
 
 function check_file_is_python(){
-if file -b "${1}" | grep -q "Python script" ;then
-true
-else
-false
-fi
+    if file -b "${1}" | grep -q "Python script" ;then
+        true
+    else
+        false
+    fi
 }
 
 function choose_python(){
-pythonInterpreter=$(command -v python3 || command -v python)
-        		if [ -z "${pythonInterpreter}" ]; then
-            			log.error "Python interpreter not found."
-            			exit 1
-        		fi
-		log.debug "Automatically add interpreter ${pythonInterpreter} to launch app."
+    pythonInterpreter=$(command -v python3 || command -v python)
+    if [ -z "${pythonInterpreter}" ]; then
+        log.warn "Python interpreter not found. Trying to continue"
+        exec "$@"
+    fi
+    log.debug "Automatically add interpreter ${pythonInterpreter} to launch app."
 }
 
-exec_cmd_origin_path=$(realpath $1)
+exec_cmd_origin_path=$1
 
 if [[ -e ${exec_cmd_origin_path} ]]; then
 
@@ -86,22 +85,15 @@ if [[ -e ${exec_cmd_origin_path} ]]; then
 ##### 2. If do not need to fix,just try to run.
 
     if  check_file_no_shebang "${exec_cmd_origin_path}" ; then
-	log.debug "The executable is a script without shebang. Trying to fix..."
-
-    	if  check_file_is_python "${exec_cmd_origin_path}"  ; then
-        	choose_python
-
-       		exec ${pythonInterpreter} "$@"
-        else
-    		exec /bin/bash "$@"
-    	fi
-
+        log.debug "The executable is a script without shebang. Trying to fix..."
+        exec bash -c "$@"
+    elif check_file_is_python "${exec_cmd_origin_path}"  ; then
+        choose_python
+        exec ${pythonInterpreter} "$@"
     else
-    exec "$@"
+        exec "$@"
     fi
-    
-    
 else
-log.error "File not found."
-exit 1
+    log.info "${exec_cmd_origin_path} maybe not an absolute path. Continue"
+    exec "$@"
 fi
