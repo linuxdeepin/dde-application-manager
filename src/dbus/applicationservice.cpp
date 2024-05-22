@@ -14,6 +14,7 @@
 #include "launchoptions.h"
 #include "desktopentry.h"
 #include "desktopfileparser.h"
+#include "config.h"
 #include <QUuid>
 #include <QStringList>
 #include <QList>
@@ -31,16 +32,43 @@
 #include <qtmetamacros.h>
 #include <utility>
 #include <wordexp.h>
+#include <DConfig>
+
+static inline void appendEnvs(const QVariant &var, QStringList &envs)
+{
+    if (var.canConvert(QMetaType::QStringList)) {
+        envs.append(var.value<QStringList>());
+    } else if (var.canConvert(QMetaType::QString)) {
+        envs.append(var.value<QString>().split(";", Qt::SkipEmptyParts));
+    }
+}
 
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
-    QStringList envs;
+    DCORE_USE_NAMESPACE
+    QStringList envs, unsetEnvs;
     const QString &env = environ();
     if (!env.isEmpty())
         envs.append(env);
 
     if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
-        envs.append(it->value<QString>());
+        appendEnvs(*it, envs);
+    }
+
+    if (auto it = runtimeOptions.find("unsetEnv"); it != runtimeOptions.cend()) {
+        appendEnvs(*it, unsetEnvs);
+    }
+
+    std::unique_ptr<DConfig> config(DConfig::create(ApplicationServiceID, ApplicationManagerConfig,
+                                                    QString("/%1").arg((id())))); // $appid as subpath
+    if (config->isValid()){
+        const QStringList &extraEnvs = config->value(AppExtraEnvironments).toStringList();
+        if (!extraEnvs.isEmpty())
+            envs.append(extraEnvs);
+
+        const QStringList &envsBlacklist = config->value(AppEnvironmentsBlacklist).toStringList();
+        if (!envsBlacklist.isEmpty())
+            unsetEnvs.append(envsBlacklist);
     }
 
     // NOTE: dde-dock need this environment variable for now, maybe we could remove it after we finish refactoring dde-shell.
@@ -48,7 +76,8 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     // it's useful for App to get itself AppId.
     envs.append(QString{"DSG_APP_ID=%1"}.arg(id()));
 
-    runtimeOptions.insert("env", envs.join(';'));
+    runtimeOptions.insert("env", envs);
+    runtimeOptions.insert("unsetEnv", unsetEnvs);
 }
 
 ApplicationService::ApplicationService(DesktopFile source,

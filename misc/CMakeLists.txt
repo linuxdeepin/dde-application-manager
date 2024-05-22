@@ -97,5 +97,7 @@ set(DCONFIG_FILES
 install(FILES ${DCONFIG_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dsg/configs/dde-application-manager)
 
 dtk_add_config_meta_files(APPID ${APPLICATION_SERVICEID}
-    FILES ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.am.json
+    FILES
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.am.json
+    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.application-manager.json
 )
