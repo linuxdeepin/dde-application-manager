@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <map>
+#include <list>
 #include <thread>
 #include "constant.h"
 #include "types.h"
@@ -140,6 +141,7 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 DBusValueType getPropType(std::string_view key)
 {
     static std::unordered_map<std::string_view, DBusValueType> map{{"Environment", DBusValueType::ArrayOfString},
+                                                                   {"UnsetEnvironment", DBusValueType::ArrayOfString},
                                                                    {"WorkingDirectory", DBusValueType::String},
                                                                    {"ExecSearchPath", DBusValueType::ArrayOfString}};
 
@@ -150,7 +152,7 @@ DBusValueType getPropType(std::string_view key)
     return DBusValueType::String;  // fallback to string
 }
 
-int appendPropValue(msg_ptr &msg, DBusValueType type, std::string_view value)
+int appendPropValue(msg_ptr &msg, DBusValueType type, const std::list<std::string_view> &value)
 {
     int ret;
 
@@ -165,9 +167,11 @@ int appendPropValue(msg_ptr &msg, DBusValueType type, std::string_view value)
         return ret;
     }
 
-    if (ret = handler->appendValue(std::string{value}); ret < 0) {
-        sd_journal_perror("append property's variant value failed.");
-        return ret;
+    for (const auto &v : value) {
+        if (ret = handler->appendValue(std::string{v}); ret < 0) {
+            sd_journal_perror("append property's variant value failed.");
+            return ret;
+        }
     }
 
     if (ret = handler->closeVariant(); ret < 0) {
@@ -178,13 +182,12 @@ int appendPropValue(msg_ptr &msg, DBusValueType type, std::string_view value)
     return 0;
 }
 
-int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_view> &props)
+int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::list<std::string_view>> &props)
 {
     int ret;
     if (!props.empty()) {
         for (auto [key, value] : props) {
             std::string keyStr{key};
-            std::string valueStr{value};
             if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
                 sd_journal_perror("open struct of properties failed.");
                 return ret;
@@ -195,7 +198,7 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_vie
                 return ret;
             }
 
-            if (ret = appendPropValue(msg, getPropType(key), valueStr); ret < 0) {
+            if (ret = appendPropValue(msg, getPropType(key), value); ret < 0) {
                 sd_journal_perror("append value of property failed.");
                 return ret;
             }
@@ -212,7 +215,7 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::string_vie
 std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
 {
     std::string serviceName{"internalError"};
-    std::map<std::string_view, std::string_view> props;
+    std::map<std::string_view, std::list<std::string_view>> props;
     while (!cmdLines.empty()) {  // NOTE: avoid stl exception
         auto str = cmdLines.front();
         if (str.size() < 2) {
@@ -249,7 +252,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
                 cmdLines.pop_front();
                 continue;
             }
-            props[key] = kvStr.substr(splitIndex + 1);
+            props[key].push_back(kvStr.substr(splitIndex + 1));
             cmdLines.pop_front();
             continue;
         }
@@ -265,18 +268,19 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
         serviceName = "invalidInput";
         return serviceName;
     }
-    int ret;
     if (props.find("unitName") == props.cend()) {
         sd_journal_perror("unitName doesn't exists.");
         serviceName = "invalidInput";
         return serviceName;
     }
-    if (ret = sd_bus_message_append(msg, "s", props["unitName"].data()); ret < 0) {  // unitName
+
+    int ret;
+    if (ret = sd_bus_message_append(msg, "s", props["unitName"].front().data()); ret < 0) {  // unitName
         sd_journal_perror("append unitName failed.");
         return serviceName;
     }
 
-    serviceName = props["unitName"];
+    serviceName = props["unitName"].front();
     props.erase("unitName");
 
     if (ret = sd_bus_message_append(msg, "s", "replace"); ret < 0) {  // start mode

@@ -65,4 +65,8 @@ constexpr auto ApplicationManagerHookDir = u8"/deepin/dde-application-manager/ho
 
 constexpr auto ApplicationManagerToolsConfig = u8"org.deepin.dde.am";
 
+constexpr auto ApplicationManagerConfig = u8"org.deepin.dde.application-manager";
+constexpr auto AppExtraEnvironments = u8"appExtraEnvironments";
+constexpr auto AppEnvironmentsBlacklist = u8"appEnvironmentsBlacklist";
+
 #endif

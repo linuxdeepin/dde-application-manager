@@ -138,10 +138,13 @@
                        1. `uid` (type u):
                           The user id as who is that application will be run.
                           This option might request a polikit authentication.
-                       2. `env` (type s):
+                       2. `env` (type as):
                           passing some specific environment variables to Launch
-                          this application, eg. 'LANG=en_US;PATH=xxx:yyy;'
-                       3. `path` (type s):
+                          this application without them, eg. '[LANG=en_US, PATH=xxx:yyy]'
+                       3. `unsetEnv` (type as):
+                          passed environment variables will be ignored when
+                          launching this application, eg. '[LANG, PATH]'
+                       4. `path` (type s):
                           set this application's working directory, please pass
                           absolute directory path.
                        NOTE:

@@ -17,6 +17,8 @@ QStringList generateCommand(const QVariantMap &props) noexcept
             options.emplace_back(std::make_unique<setUserLaunchOption>(value));
         } else if (key == setEnvLaunchOption::key()) {
             options.emplace_back(std::make_unique<setEnvLaunchOption>(value));
+        } else if (key == unsetEnvLaunchOption::key()) {
+            options.emplace_back(std::make_unique<unsetEnvLaunchOption>(value));
         } else if (key == hookLaunchOption::key()) {
             options.emplace_back(std::make_unique<hookLaunchOption>(value));
         } else if (key == setWorkingPathLaunchOption::key()) {
@@ -100,16 +102,6 @@ QStringList splitLaunchOption::generateCommandLine() const noexcept
     return QStringList{m_val.toString()};
 }
 
-QStringList setEnvLaunchOption::generateCommandLine() const noexcept
-{
-    auto str = m_val.toString();
-    if (str.isEmpty()) {
-        return {};
-    }
-
-    return QStringList{QString{"--Environment=%1"}.arg(str)};
-}
-
 QStringList setWorkingPathLaunchOption::generateCommandLine() const noexcept
 {
     auto str = m_val.toString();
@@ -120,13 +112,18 @@ QStringList setWorkingPathLaunchOption::generateCommandLine() const noexcept
     return QStringList{QString{"--WorkingDirectory=%1"}.arg(str)};
 }
 
-QStringList builtInSearchExecOption::generateCommandLine() const noexcept
+QStringList StringListLaunchOption::generateCommandLine() const noexcept
 {
     auto list = m_val.toStringList();
     if (list.isEmpty()) {
         return {};
     }
 
-    auto content = list.join(';');
-    return QStringList{QString{"--ExecSearchPath=%1"}.arg(content)};
+    QStringList ret;
+    const QString ok = optionKey();
+    for (const auto &ov : list) {
+        ret << QString{"%1=%2"}.arg(ok).arg(ov);
+    }
+
+    return ret;
 }

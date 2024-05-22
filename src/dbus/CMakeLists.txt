@@ -24,6 +24,7 @@ target_link_libraries(
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::DBus
     Qt${QT_VERSION_MAJOR}::Concurrent
+    Dtk6::Core
 )
 
 target_include_directories(

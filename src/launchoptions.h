@@ -27,6 +27,14 @@ protected:
     LaunchOption() = default;
 };
 
+struct StringListLaunchOption : public LaunchOption
+{
+    using LaunchOption::LaunchOption;
+    [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+protected:
+    [[nodiscard]] virtual const QString optionKey() const noexcept = 0;
+};
+
 struct setUserLaunchOption : public LaunchOption
 {
     using LaunchOption::LaunchOption;
@@ -43,9 +51,9 @@ struct setUserLaunchOption : public LaunchOption
     [[nodiscard]] QStringList generateCommandLine() const noexcept override;
 };
 
-struct setEnvLaunchOption : public LaunchOption
+struct setEnvLaunchOption : public StringListLaunchOption
 {
-    using LaunchOption::LaunchOption;
+    using StringListLaunchOption::StringListLaunchOption;
     [[nodiscard]] const QString &type() const noexcept override
     {
         static QString tp{systemdOption};
@@ -56,7 +64,10 @@ struct setEnvLaunchOption : public LaunchOption
         static QString env{"env"};
         return env;
     }
-    [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+protected:
+    [[nodiscard]] virtual const QString optionKey() const noexcept {
+        return QString("--Environment");
+    }
 };
 
 struct splitLaunchOption : public LaunchOption
@@ -110,9 +121,9 @@ struct setWorkingPathLaunchOption : public LaunchOption
     [[nodiscard]] QStringList generateCommandLine() const noexcept override;
 };
 
-struct builtInSearchExecOption : public LaunchOption
+struct builtInSearchExecOption : public StringListLaunchOption
 {
-    using LaunchOption::LaunchOption;
+    using StringListLaunchOption::StringListLaunchOption;
     [[nodiscard]] const QString &type() const noexcept override
     {
         static QString tp{systemdOption};
@@ -123,7 +134,29 @@ struct builtInSearchExecOption : public LaunchOption
         static QString key{"_builtIn_searchExec"};
         return key;
     }
-    [[nodiscard]] QStringList generateCommandLine() const noexcept override;
+protected:
+    [[nodiscard]] virtual const QString optionKey() const noexcept {
+        return QString("--ExecSearchPath");
+    }
+};
+
+struct unsetEnvLaunchOption : public StringListLaunchOption
+{
+    using StringListLaunchOption::StringListLaunchOption;
+    [[nodiscard]] const QString &type() const noexcept override
+    {
+        static QString tp{systemdOption};
+        return tp;
+    }
+    [[nodiscard]] static const QString &key() noexcept
+    {
+        static QString env{"unsetEnv"};
+        return env;
+    }
+protected:
+    [[nodiscard]] virtual const QString optionKey() const noexcept {
+        return QString("--UnsetEnvironment");
+    }
 };
 
 QStringList generateCommand(const QVariantMap &props) noexcept;
