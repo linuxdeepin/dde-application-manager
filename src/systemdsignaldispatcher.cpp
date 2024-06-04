@@ -38,6 +38,16 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
         return false;
     }
 
+    if (!con.connect(SystemdService,
+                     SystemdObjectPath,
+                     SystemdInterfaceName,
+                     "JobNew",
+                     this,
+                     SLOT(onJobNew(uint32_t, QDBusObjectPath, QString)))) {
+        qCritical() << "can't connect to UnitNew signal of systemd service.";
+        return false;
+    }
+
     return true;
 }
 
@@ -55,6 +65,11 @@ void SystemdSignalDispatcher::onPropertiesChanged(QString interface, QVariantMap
 void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
 {
     emit SystemdUnitNew(unitName, systemdUnitPath);
+}
+
+void SystemdSignalDispatcher::onJobNew(uint32_t, QDBusObjectPath systemdUnitPath, QString unitName)
+{
+    emit SystemdJobNew(unitName, systemdUnitPath);
 }
 
 void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)

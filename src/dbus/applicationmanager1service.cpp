@@ -69,6 +69,32 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     auto &dispatcher = SystemdSignalDispatcher::instance();
 
     connect(&dispatcher, &SystemdSignalDispatcher::SystemdUnitNew, this, &ApplicationManager1Service::addInstanceToApplication);
+    connect(&dispatcher, &SystemdSignalDispatcher::SystemdJobNew, this, [this](QString unitName, QDBusObjectPath systemdUnitPath){
+        auto info = processUnitName(unitName);
+        auto appId = std::move(info.applicationID);
+
+        if (appId.isEmpty()) {
+            return;
+        }
+
+        auto appIt = std::find_if(m_applicationList.cbegin(),
+                                  m_applicationList.cend(),
+                                  [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+
+        if (appIt == m_applicationList.cend()) {
+            return;
+        }
+
+        // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
+        // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
+        if ((*appIt)->instances().size() > 0) {
+            return;
+        }
+
+        qDebug() << "add Instance " << unitName << "on JobNew";
+
+        addInstanceToApplication(unitName, systemdUnitPath);
+    });
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
