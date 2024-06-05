@@ -540,8 +540,8 @@ inline unitInfo processUnitName(const QString &unitName)
     return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
 }
 
-template <typename T>
-ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
+template <template<typename, typename> class Container, typename QDBusObjectPath, typename T>
+ObjectMap dumpDBusObject(const Container<QDBusObjectPath, QSharedPointer<T>> &map)
 {
     ObjectMap objs;
 
