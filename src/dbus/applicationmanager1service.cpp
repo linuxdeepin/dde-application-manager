@@ -77,21 +77,19 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             return;
         }
 
-        auto appIt = std::find_if(m_applicationList.cbegin(),
-                                  m_applicationList.cend(),
-                                  [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+        auto app = m_applicationList.value(appId);
 
-        if (appIt == m_applicationList.cend()) {
+        if (!app) {
             return;
         }
 
         // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
         // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
-        if ((*appIt)->instances().size() > 0) {
+        if (app->instances().size() > 0) {
             return;
         }
 
-        qDebug() << "add Instance " << unitName << "on JobNew";
+        qDebug() << "add Instance " << unitName << "on JobNew, " << app->instances().size();
 
         addInstanceToApplication(unitName, systemdUnitPath);
     });
@@ -225,20 +223,18 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
-    auto appIt = std::find_if(m_applicationList.cbegin(),
-                              m_applicationList.cend(),
-                              [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+    auto app = m_applicationList.value(appId);
 
-    if (appIt == m_applicationList.cend()) {
+    if (!app) {
         qWarning() << "couldn't find app" << appId << "in application manager.";
         return;
     }
 
-    (*appIt)->updateAfterLaunch(sender() != nullptr);  // activate by signal
+    app->updateAfterLaunch(sender() != nullptr);  // activate by signal
 
-    const auto &applicationPath = (*appIt)->applicationPath().path();
+    const auto &applicationPath = app->applicationPath().path();
 
-    if (!(*appIt)->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) {
+    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) {
         qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
     }
 }
@@ -254,16 +250,14 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
         return;
     }
 
-    auto appIt = std::find_if(m_applicationList.cbegin(),
-                              m_applicationList.cend(),
-                              [&appId](const QSharedPointer<ApplicationService> &app) { return app->id() == appId; });
+    auto app = m_applicationList.value(appId);
 
-    if (appIt == m_applicationList.cend()) {
+    if (!app) {
         qWarning() << "couldn't find app" << appId << "in application manager.";
         return;
     }
 
-    const auto &appIns = (*appIt)->applicationInstances();
+    const auto &appIns = app->applicationInstances();
 
     auto instanceIt =
         std::find_if(appIns.cbegin(), appIns.cend(), [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
@@ -271,7 +265,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
         });
 
     if (instanceIt != appIns.cend()) {
-        (*appIt)->removeOneInstance(instanceIt.key());
+        app->removeOneInstance(instanceIt.key());
         return;
     }
 
@@ -440,16 +434,13 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             continue;
         }
 
-        if (auto appIt = std::find_if(m_applicationList.cbegin(),
-                                      m_applicationList.cend(),
-                                      [&desktopFile](const auto &app) { return desktopFile.desktopId() == app->id(); });
-            appIt != m_applicationList.cend()) {
+        if (auto existApp = m_applicationList.value(desktopFile.desktopId()); existApp) {
             if (autostartFlag) {
                 auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
-                qInfo() << "launch exist autostart application " << (*appIt)->id() << " by " << realExec;
-                ret.insert(*appIt, realExec);
+                qInfo() << "launch exist autostart application " << existApp->id() << " by " << realExec;
+                ret.insert(existApp, realExec);
             }
-            (*appIt)->setAutostartSource({std::move(originalSource), std::move(tmp)});
+            existApp->setAutostartSource({std::move(originalSource), std::move(tmp)});
             continue;
         }
 
@@ -499,13 +490,16 @@ void ApplicationManager1Service::loadHooks() noexcept
 
 QList<QDBusObjectPath> ApplicationManager1Service::list() const
 {
-    return m_applicationList.keys();
+    QList<QDBusObjectPath> paths;
+    for (const auto &appId : m_applicationList.keys())
+        paths << QDBusObjectPath{getObjectPathFromAppId(appId)};
+
+    return paths;
 }
 
 QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) noexcept
 {
-    auto objectPath = QDBusObjectPath{getObjectPathFromAppId(desktopFileSource.desktopId())};
-    if (auto app = m_applicationList.constFind(objectPath); app != m_applicationList.cend()) {
+    if (auto app = m_applicationList.constFind(desktopFileSource.desktopId()); app != m_applicationList.cend()) {
         qInfo() << "this application already exists." << "current desktop source:" << desktopFileSource.sourcePath()
                 << "exists app source:" << app->data()->desktopFileSource().sourcePath();
         return *app;
@@ -528,7 +522,7 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
     if (!registerObjectToDBus(ptr, application->applicationPath().path(), ApplicationInterface)) {
         return nullptr;
     }
-    m_applicationList.insert(application->applicationPath(), application);
+    m_applicationList.insert(application->id(), application);
 
     emit listChanged();
     emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
@@ -536,18 +530,18 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
     return application;
 }
 
-void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &application) noexcept
+void ApplicationManager1Service::removeOneApplication(const QString &appId) noexcept
 {
-    if (auto it = m_applicationList.find(application); it != m_applicationList.cend()) {
-        emit InterfacesRemoved(application, getChildInterfacesFromObject(it->data()));
+    auto objectPath = QDBusObjectPath{getObjectPathFromAppId(appId)};
+    if (auto it = m_applicationList.find(appId); it != m_applicationList.cend()) {
+        emit InterfacesRemoved(objectPath, getChildInterfacesFromObject(it->data()));
         if (auto ptr = m_storage.lock(); ptr) {
-            auto appId = (*it)->id();
             if (!ptr->deleteApplication(appId)) {
                 qCritical() << "failed to delete all properties of" << appId;
             }
         }
-        unregisterObjectFromDBus(application.path());
-        m_applicationList.remove(application);
+        unregisterObjectFromDBus(objectPath.path());
+        m_applicationList.remove(appId);
 
         emit listChanged();
     }
@@ -555,8 +549,8 @@ void ApplicationManager1Service::removeOneApplication(const QDBusObjectPath &app
 
 void ApplicationManager1Service::removeAllApplication() noexcept
 {
-    for (const auto &app : m_applicationList.keys()) {
-        removeOneApplication(app);
+    for (const auto &appId : m_applicationList.keys()) {
+        removeOneApplication(appId);
     }
 }
 
@@ -583,22 +577,19 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
         return {};
     }
 
-    auto app = std::find_if(m_applicationList.cbegin(), m_applicationList.cend(), [&ret](const auto &appPtr) {
-        return appPtr->id() == ret.ApplicationId;
-    });
-
-    if (app == m_applicationList.cend()) {
+    if (!m_applicationList.contains(ret.ApplicationId)) {
         safe_sendErrorReply(QDBusError::Failed, "can't find application:" % ret.ApplicationId);
         return {};
     }
 
+    auto app = m_applicationList.value(ret.ApplicationId);
     QDBusObjectPath instancePath;
-    const auto &instances = (*app)->instances();
+    const auto &instances = app->instances();
     if (ret.InstanceId.isEmpty() && instances.size() == 1) {
         // Maybe a dbus systemd service
         instancePath = instances.constFirst();
     } else {
-        instancePath = (*app)->findInstance(ret.InstanceId);
+        instancePath = app->findInstance(ret.InstanceId);
     }
     if (instancePath.path().isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, "can't find instance:" % ret.InstanceId);
@@ -606,7 +597,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     }
 
     instance = instancePath;
-    auto instanceObj = (*app)->m_Instances.constFind(instance);
+    auto instanceObj = app->m_Instances.constFind(instance);
     application_instance_info = getChildInterfacesAndPropertiesFromObject(instanceObj->get());
 
     return ret.ApplicationId;
@@ -615,7 +606,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 void ApplicationManager1Service::updateApplication(const QSharedPointer<ApplicationService> &destApp,
                                                    DesktopFile desktopFile) noexcept
 {
-    if (auto app = m_applicationList.find(destApp->applicationPath()); app == m_applicationList.cend()) {
+    if (!m_applicationList.contains(destApp->id())) {
         return;
     }
 
@@ -659,11 +650,11 @@ void ApplicationManager1Service::doReloadApplications()
     auto desktopFileDirs = getDesktopFileDirs();
     desktopFileDirs.append(getAutoStartDirs());  // detect autostart apps add/remove/update
 
-    auto apps = m_applicationList.keys();
+    auto appIds = m_applicationList.keys();
 
     applyIteratively(
         QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
-        [this, &apps](const QFileInfo &info) -> bool {
+        [this, &appIds](const QFileInfo &info) -> bool {
             ParserError err{ParserError::NoError};
             auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
             if (!ret.has_value()) {
@@ -672,24 +663,16 @@ void ApplicationManager1Service::doReloadApplications()
 
             auto file = std::move(ret).value();
 
-            auto destApp =
-                std::find_if(m_applicationList.cbegin(),
-                             m_applicationList.cend(),
-                             [&file](const QSharedPointer<ApplicationService> &app) { return file.desktopId() == app->id(); });
+            QSharedPointer<ApplicationService> app = m_applicationList.value(file.desktopId());
 
-            if (err != ParserError::NoError) {
-                qWarning() << "error occurred:" << err << " skip this application.";
-                return false;
-            }
-
-            if (destApp != m_applicationList.cend() and apps.contains(destApp.key())) {
+            if (app and appIds.contains(app->id())) {
                 // Can emit correct remove signal when uninstalling applications
-                if (ApplicationFilter::tryExecCheck(*(destApp->data()->m_entry))) {
+                if (ApplicationFilter::tryExecCheck(*(app.data()->m_entry))) {
                     qDebug() << info.absolutePath() << "Checked TryExec failed and will be removed";
                     return false;
                 }
-                apps.removeOne(destApp.key());
-                updateApplication(destApp.value(), std::move(file));
+                appIds.removeOne(app->id());
+                updateApplication(app, std::move(file));
                 return false;
             }
 
@@ -700,8 +683,8 @@ void ApplicationManager1Service::doReloadApplications()
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    for (const auto &key : apps) {
-        removeOneApplication(key);
+    for (const auto &appId : appIds) {
+        removeOneApplication(appId);
     }
 
     m_mimeManager->reset();
@@ -715,15 +698,13 @@ ObjectMap ApplicationManager1Service::GetManagedObjects() const
     return dumpDBusObject(m_applicationList);
 }
 
-QMap<QDBusObjectPath, QSharedPointer<ApplicationService>>
+QHash<QDBusObjectPath, QSharedPointer<ApplicationService>>
 ApplicationManager1Service::findApplicationsByIds(const QStringList &appIds) const noexcept
 {
-    QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> ret;
-    for (auto it = m_applicationList.constKeyValueBegin(); it != m_applicationList.constKeyValueEnd(); ++it) {
-        const auto &ptr = it->second;
-        if (appIds.contains(ptr->id())) {
-            ret.insert(it->first, it->second);
-        }
+    QHash<QDBusObjectPath, QSharedPointer<ApplicationService>> ret;
+    for (const auto appId : appIds) {
+        if (auto app = m_applicationList.value(appId); app)
+            ret.insert(QDBusObjectPath{getObjectPathFromAppId(appId)}, app);
     }
 
     return ret;

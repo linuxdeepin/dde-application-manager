@@ -554,6 +554,20 @@ ObjectMap dumpDBusObject(const QMap<QDBusObjectPath, QSharedPointer<T>> &map)
     return objs;
 }
 
+template <typename T>
+ObjectMap dumpDBusObject(const QHash<QString, QSharedPointer<T>> &map)
+{
+    ObjectMap objs;
+
+    for (auto it = map.constKeyValueBegin(); it != map.constKeyValueEnd(); ++it) {
+        const auto &[key, value] = *it;
+        auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
+        objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, interAndProps);
+    }
+
+    return objs;
+}
+
 struct FileTimeInfo
 {
     qint64 mtime;

@@ -12,6 +12,7 @@
 #include <QScopedPointer>
 #include <memory>
 #include <QMap>
+#include <QHash>
 #include <QFileSystemWatcher>
 #include <QTimer>
 #include "applicationmanagerstorage.h"
@@ -39,9 +40,9 @@ public:
 
     void initService(QDBusConnection &connection) noexcept;
     QSharedPointer<ApplicationService> addApplication(DesktopFile desktopFileSource) noexcept;
-    void removeOneApplication(const QDBusObjectPath &application) noexcept;
+    void removeOneApplication(const QString &appId) noexcept;
     void removeAllApplication() noexcept;
-    [[nodiscard]] QMap<QDBusObjectPath, QSharedPointer<ApplicationService>>
+    [[nodiscard]] QHash<QDBusObjectPath, QSharedPointer<ApplicationService>>
     findApplicationsByIds(const QStringList &appIds) const noexcept;
     void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
 
@@ -77,7 +78,7 @@ private:
     QStringList m_systemdPathEnv;
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
-    QMap<QDBusObjectPath, QSharedPointer<ApplicationService>> m_applicationList;
+    QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;

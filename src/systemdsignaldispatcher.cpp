@@ -44,7 +44,7 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
                      "JobNew",
                      this,
                      SLOT(onJobNew(uint32_t, QDBusObjectPath, QString)))) {
-        qCritical() << "can't connect to UnitNew signal of systemd service.";
+        qCritical() << "can't connect to JobNew signal of systemd service.";
         return false;
     }
 
