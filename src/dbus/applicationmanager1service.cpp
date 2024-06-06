@@ -321,7 +321,12 @@ void ApplicationManager1Service::scanApplications() noexcept
 void ApplicationManager1Service::scanInstances() noexcept
 {
     auto &conn = ApplicationManager1DBus::instance().globalDestBus();
-    auto call_message = QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "ListUnits");
+    auto call_message =
+        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "ListUnitsByPatterns");
+    QList<QVariant> args;
+    args << QVariant::fromValue(QStringList{"running", "start"});
+    args << QVariant::fromValue(QStringList{"dde*", "deepin*"});
+    call_message.setArguments(args);
     auto result = conn.call(call_message);
     if (result.type() == QDBusMessage::ErrorMessage) {
         qCritical() << "failed to scan existing instances: call to ListUnits failed:" << result.errorMessage();
@@ -332,9 +337,7 @@ void ApplicationManager1Service::scanInstances() noexcept
     QList<SystemdUnitDBusMessage> units;
     v.value<QDBusArgument>() >> units;
     for (const auto &unit : units) {
-        if (unit.subState == "running") {
-            this->addInstanceToApplication(unit.name, unit.objectPath);
-        }
+        this->addInstanceToApplication(unit.name, unit.objectPath);
     }
 }
 
