@@ -540,29 +540,21 @@ inline unitInfo processUnitName(const QString &unitName)
     return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
 }
 
-template <template<typename, typename> class Container, typename QDBusObjectPath, typename T>
-ObjectMap dumpDBusObject(const Container<QDBusObjectPath, QSharedPointer<T>> &map)
+template <typename Key, typename Value>
+ObjectMap dumpDBusObject(const QHash<Key, QSharedPointer<Value>> &map)
 {
+    static_assert(std::is_base_of_v<QObject, Value>, "dumpDBusObject only support which derived by QObject class");
     ObjectMap objs;
 
-    for (auto it = map.constKeyValueBegin(); it != map.constKeyValueEnd(); ++it) {
-        const auto &[key, value] = *it;
+    for (const auto &[key, value] : map.asKeyValueRange()) {
         auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
-        objs.insert(key, interAndProps);
-    }
-
-    return objs;
-}
-
-template <typename T>
-ObjectMap dumpDBusObject(const QHash<QString, QSharedPointer<T>> &map)
-{
-    ObjectMap objs;
-
-    for (auto it = map.constKeyValueBegin(); it != map.constKeyValueEnd(); ++it) {
-        const auto &[key, value] = *it;
-        auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
-        objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, interAndProps);
+        if constexpr (std::is_same_v<Key, QString>) {
+            objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, interAndProps);
+        } else if constexpr (std::is_same_v<Key, QDBusObjectPath>) {
+            objs.insert(key, interAndProps);
+        } else {
+            static_assert(false, "dumpDBusObject only support QString/QDBusObject as key type");
+        }
     }
 
     return objs;
@@ -665,6 +657,8 @@ inline int pidfd_open(pid_t pid, uint flags)
     return syscall(SYS_pidfd_open, pid, flags);
 }
 
-#define safe_sendErrorReply if (calledFromDBus()) sendErrorReply
+#define safe_sendErrorReply                                                                                                      \
+    if (calledFromDBus())                                                                                                        \
+    sendErrorReply
 
 #endif

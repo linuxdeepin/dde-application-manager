@@ -120,7 +120,7 @@ public:
     void removeAllInstance() noexcept;
     [[nodiscard]] const QDBusObjectPath &applicationPath() const noexcept { return m_applicationPath; }
     [[nodiscard]] DesktopFile &desktopFileSource() noexcept { return m_desktopSource; }
-    [[nodiscard]] const QMap<QDBusObjectPath, QSharedPointer<InstanceService>> &applicationInstances() const noexcept
+    [[nodiscard]] const QHash<QDBusObjectPath, QSharedPointer<InstanceService>> &applicationInstances() const noexcept
     {
         return m_Instances;
     }
@@ -181,7 +181,7 @@ private:
     QString m_launcher{getApplicationLauncherBinary()};
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
-    QMap<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
+    QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;

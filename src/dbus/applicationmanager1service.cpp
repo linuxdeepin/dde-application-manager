@@ -69,30 +69,31 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     auto &dispatcher = SystemdSignalDispatcher::instance();
 
     connect(&dispatcher, &SystemdSignalDispatcher::SystemdUnitNew, this, &ApplicationManager1Service::addInstanceToApplication);
-    connect(&dispatcher, &SystemdSignalDispatcher::SystemdJobNew, this, [this](QString unitName, QDBusObjectPath systemdUnitPath){
-        auto info = processUnitName(unitName);
-        auto appId = std::move(info.applicationID);
+    connect(
+        &dispatcher, &SystemdSignalDispatcher::SystemdJobNew, this, [this](QString unitName, QDBusObjectPath systemdUnitPath) {
+            auto info = processUnitName(unitName);
+            auto appId = std::move(info.applicationID);
 
-        if (appId.isEmpty()) {
-            return;
-        }
+            if (appId.isEmpty()) {
+                return;
+            }
 
-        auto app = m_applicationList.value(appId);
+            auto app = m_applicationList.value(appId);
 
-        if (!app) {
-            return;
-        }
+            if (!app) {
+                return;
+            }
 
-        // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
-        // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
-        if (app->instances().size() > 0) {
-            return;
-        }
+            // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
+            // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
+            if (app->instances().size() > 0) {
+                return;
+            }
 
-        qDebug() << "add Instance " << unitName << "on JobNew, " << app->instances().size();
+            qDebug() << "add Instance " << unitName << "on JobNew, " << app->instances().size();
 
-        addInstanceToApplication(unitName, systemdUnitPath);
-    });
+            addInstanceToApplication(unitName, systemdUnitPath);
+        });
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
@@ -702,9 +703,10 @@ QHash<QDBusObjectPath, QSharedPointer<ApplicationService>>
 ApplicationManager1Service::findApplicationsByIds(const QStringList &appIds) const noexcept
 {
     QHash<QDBusObjectPath, QSharedPointer<ApplicationService>> ret;
-    for (const auto appId : appIds) {
-        if (auto app = m_applicationList.value(appId); app)
+    for (const auto &appId : appIds) {
+        if (auto app = m_applicationList.value(appId); app) {
             ret.insert(QDBusObjectPath{getObjectPathFromAppId(appId)}, app);
+        }
     }
 
     return ret;
