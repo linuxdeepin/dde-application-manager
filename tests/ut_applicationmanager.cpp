@@ -31,12 +31,13 @@ public:
         std::shared_ptr<ApplicationManager1Storage> tmp{nullptr};
         m_am = new ApplicationManager1Service{std::make_unique<CGroupsIdentifier>(), tmp};
         auto ptr = std::make_unique<QFile>(QString{"/usr/share/applications/test-Application.desktop"});
-        DesktopFile file{std::move(ptr), "test-Application", 0, 0};
+        const auto *appID = "test-Application";
+        DesktopFile file{std::move(ptr), appID, 0, 0};
         QSharedPointer<ApplicationService> app = QSharedPointer<ApplicationService>::create(std::move(file), nullptr, tmp);
         QSharedPointer<InstanceService> instance = QSharedPointer<InstanceService>::create(
             InstancePath.path().split('/').last(), ApplicationPath.path(), QString{"/"}, QString{"DDE"});
         app->m_Instances.insert(InstancePath, instance);
-        m_am->m_applicationList.insert(ApplicationPath, app);
+        m_am->m_applicationList.insert(appID, app);
         new InstanceAdaptor{instance.data()};
     }
 
