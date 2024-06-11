@@ -1,5 +1,0 @@
-
-{
-    "Exec": "@CMAKE_INSTALL_PREFIX@/@AM_LIBEXEC_DIR@/dockEnv.sh",
-    "Args":[]
-}
