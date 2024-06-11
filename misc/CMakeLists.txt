@@ -51,27 +51,11 @@ install(FILES ${DBUS_APPLICATION_MANAGER_SERVICE_FILE}
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/dpkg/dpkg.cfg.d/am-update-hook
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dpkg/dpkg.cfg.d)
 
-# configure and install dde-dock hooks
 set(HOOKS_DEST_DIR ${CMAKE_INSTALL_DATADIR}/deepin/dde-application-manager/hooks.d)
-configure_file(
-    hooks.d/1-dockEnv.json.in
-    hooks.d/1-dockEnv.json
-    @ONLY
-)
 configure_file(
     hooks.d/2-debFix.json.in
     hooks.d/2-debFix.json
     @ONLY
-)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/hooks.d/1-dockEnv.json
-        DESTINATION ${HOOKS_DEST_DIR})
-
-install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/dockEnv.sh
-        DESTINATION ${AM_LIBEXEC_DIR}
-        PERMISSIONS
-            OWNER_READ OWNER_EXECUTE OWNER_WRITE
-            GROUP_READ GROUP_EXECUTE
-            WORLD_READ WORLD_EXECUTE
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/hooks.d/2-debFix.json
@@ -84,17 +68,6 @@ install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/debFix.sh
             GROUP_READ GROUP_EXECUTE
             WORLD_READ WORLD_EXECUTE
 )
-
-# FIXME: move to other project
-set(DCONFIG_FILES
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.launcher.json
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.dock.json
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.appearance.json
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.dde.startdde.json
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/com.deepin.xsettings.json
-)
-
-install(FILES ${DCONFIG_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dsg/configs/dde-application-manager)
 
 dtk_add_config_meta_files(APPID ${APPLICATION_SERVICEID}
     FILES ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.am.json
