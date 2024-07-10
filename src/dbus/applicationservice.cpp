@@ -628,6 +628,13 @@ bool ApplicationService::autostartCheck(const QString &filePath) const noexcept
         }
     }
 
+    QString source = s.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{}).toString();
+    // file has been removed
+    if (source != m_autostartSource.m_filePath &&
+        filePath != m_autostartSource.m_filePath) {
+        return false;
+    }
+
     auto hiddenVal = s.value(DesktopFileEntryKey, DesktopEntryHidden);
     if (!hiddenVal) {
         qDebug() << "no hidden in autostart desktop";
@@ -665,10 +672,6 @@ bool ApplicationService::isAutoStart() const noexcept
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    // file has been removed
-    if (destDesktopFile != m_autostartSource.m_filePath) {
-        return false;
-    }
 
     return autostartCheck(destDesktopFile);
 }
