@@ -36,9 +36,9 @@
 
 static inline void appendEnvs(const QVariant &var, QStringList &envs)
 {
-    if (var.canConvert(QMetaType::QStringList)) {
+    if (var.canConvert<QStringList>()) {
         envs.append(var.value<QStringList>());
-    } else if (var.canConvert(QMetaType::QString)) {
+    } else if (var.canConvert<QString>()) {
         envs.append(var.value<QString>().split(";", Qt::SkipEmptyParts));
     }
 }
@@ -59,9 +59,10 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
         appendEnvs(*it, unsetEnvs);
     }
 
-    std::unique_ptr<DConfig> config(DConfig::create(ApplicationServiceID, ApplicationManagerConfig,
-                                                    QString("/%1").arg((id())))); // $appid as subpath
-    if (config->isValid()){
+    std::unique_ptr<DConfig> config(DConfig::create(ApplicationServiceID,
+                                                    ApplicationManagerConfig,
+                                                    QString("/%1").arg((id()))));  // $appid as subpath
+    if (config->isValid()) {
         const QStringList &extraEnvs = config->value(AppExtraEnvironments).toStringList();
         if (!extraEnvs.isEmpty())
             envs.append(extraEnvs);
@@ -630,8 +631,7 @@ bool ApplicationService::autostartCheck(const QString &filePath) const noexcept
 
     QString source = s.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{}).toString();
     // file has been removed
-    if (source != m_autostartSource.m_filePath &&
-        filePath != m_autostartSource.m_filePath) {
+    if (source != m_autostartSource.m_filePath && filePath != m_autostartSource.m_filePath) {
         return false;
     }
 
@@ -672,7 +672,6 @@ bool ApplicationService::isAutoStart() const noexcept
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-
     return autostartCheck(destDesktopFile);
 }
 
@@ -682,7 +681,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
-    QDir startDir (getAutoStartDirs().first());
+    QDir startDir(getAutoStartDirs().first());
     if (!startDir.exists() && !startDir.mkpath(startDir.path())) {
         qWarning() << "mkpath " << startDir.path() << "failed";
         safe_sendErrorReply(QDBusError::InternalError);
