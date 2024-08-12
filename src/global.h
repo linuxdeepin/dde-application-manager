@@ -544,6 +544,8 @@ template <typename Key, typename Value>
 ObjectMap dumpDBusObject(const QHash<Key, QSharedPointer<Value>> &map)
 {
     static_assert(std::is_base_of_v<QObject, Value>, "dumpDBusObject only support which derived by QObject class");
+    static_assert(std::is_same_v<Key, QString> || std::is_same_v<Key, QDBusObjectPath>,
+                  "dumpDBusObject only support QString/QDBusObject as key type");
     ObjectMap objs;
 
     for (const auto &[key, value] : map.asKeyValueRange()) {
@@ -552,8 +554,6 @@ ObjectMap dumpDBusObject(const QHash<Key, QSharedPointer<Value>> &map)
             objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, interAndProps);
         } else if constexpr (std::is_same_v<Key, QDBusObjectPath>) {
             objs.insert(key, interAndProps);
-        } else {
-            static_assert(false, "dumpDBusObject only support QString/QDBusObject as key type");
         }
     }
 
