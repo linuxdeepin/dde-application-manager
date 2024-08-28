@@ -295,7 +295,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
     if (terminal()) {
         // don't change this sequence
-        execCmds.push_front("-C");           // means run a shellscript
+        execCmds.push_front("-e");           // run all original execution commands in deepin-terminal
         execCmds.push_front("--keep-open");  // keep terminal open, prevent exit immediately
         execCmds.push_front("deepin-terminal");
     }
