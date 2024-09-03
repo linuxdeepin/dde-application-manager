@@ -559,6 +559,12 @@ bool ApplicationService::terminal() const noexcept
     return false;
 }
 
+QString ApplicationService::startupWMClass() const noexcept
+{
+    auto value = findEntryValue(DesktopFileEntryKey, "StartupWMClass", EntryValueType::String);
+    return value.isNull() ? QString{} : value.toString();
+}
+
 qint64 ApplicationService::installedTime() const noexcept
 {
     return m_installedTime;
@@ -894,6 +900,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit terminalChanged();
     emit environChanged();
     emit launchedTimesChanged();
+    emit startupWMClassChanged();
 }
 
 std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &str) noexcept
