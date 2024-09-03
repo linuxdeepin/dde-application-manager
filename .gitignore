@@ -1,10 +1,13 @@
+.cache
 build*
 .vscode
 /debian/.debhelper
 /debian/dde-application-manager
-/debian/dde-application-manager.substvars
-/debian/dde-application-manager.debhelper.log
+/debian/dde-application-manager-api
+/debian/*.substvars
+/debian/*.debhelper
 /debian/debhelper-build-stamp
 /debian/files
-/obj-x86_64-linux-gnu
+/debian/tmp
+/obj-*-linux-gnu
 *.user

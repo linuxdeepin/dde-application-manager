@@ -23,6 +23,11 @@ Files: .gitignore
 Copyright: None
 License: CC0-1.0
 
+# cmake
+Files: api/*.cmake.in
+Copyright: None
+License: CC0-1.0
+
 # DBus API
 Files: api/dbus/*.xml apps/app-update-notifier/api/dbus/*.xml
 Copyright: None
