@@ -117,6 +117,14 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
         </property>
 
+        <property name="StartupWMClass" type="s" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The meaning of this property's type is same as which in StartupWMClass."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
+        </property>
+
         <method name="Launch">
             <arg type="s" name="action" direction="in" />
             <arg type="as" name="fields" direction="in" />

@@ -74,6 +74,9 @@ public:
     Q_PROPERTY(bool Terminal READ terminal NOTIFY terminalChanged)
     [[nodiscard]] bool terminal() const noexcept;
 
+    Q_PROPERTY(QString StartupWMClass READ startupWMClass NOTIFY startupWMClassChanged)
+    [[nodiscard]] QString startupWMClass() const noexcept;
+
     // FIXME:
     // This property should implement with fuse guarded
     // $XDG_CONFIG_HOME/autostart/. Current implementation has some problems,
@@ -163,6 +166,7 @@ Q_SIGNALS:
     void terminalChanged();
     void environChanged();
     void launchedTimesChanged();
+    void startupWMClassChanged();
 
 private:
     friend class ApplicationManager1Service;
