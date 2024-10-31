@@ -60,6 +60,10 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         std::terminate();
     }
 
+    if (m_compatibilityManager.reset(new (std::nothrow) CompatibilityManager()); !m_compatibilityManager) {
+        qWarning() << "new CompatibilityManager failed.";
+    }
+
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
     auto unhandled = m_watcher.addPaths(getDesktopFileDirs());
     for (const auto &dir : unhandled) {

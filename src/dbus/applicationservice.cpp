@@ -79,6 +79,68 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     runtimeOptions.insert("unsetEnv", unsetEnvs);
 }
 
+void ApplicationService::processCompatibility(const QString &action, QVariantMap &options,QString& execStr,bool &needExecStopPost)
+{
+    qInfo() << "processCompatibility action:"<<action;
+    QString tempExecStr = execStr;
+    auto compatibilityManager = parent()->getCompatibilityManager();
+
+    auto getExec = [action, compatibilityManager](QString desktopID) -> QString{
+        std::optional<QString> execValue;
+        if(!action.isEmpty()){
+            const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
+            execValue = compatibilityManager->getExec(desktopID,actionHeader);
+        }else{
+            execValue = compatibilityManager->getExec(desktopID,DesktopFileEntryKey);
+        }
+
+        if(!execValue.has_value() || execValue->isEmpty()){
+            return QString();
+        }
+        return execValue.value();
+    };
+
+    auto addEnv = [this,&options,compatibilityManager] () {
+        auto envValue = compatibilityManager->getEnv(m_desktopSource.desktopId(),DesktopFileEntryKey);
+        if(!envValue.isEmpty()){
+            if (auto it = options.find("env"); it != options.cend()) {
+                auto value = it->toStringList();
+                value.append(envValue);
+                options.insert("env", value);
+            }else{
+                options.insert("env", envValue);
+            }
+        }
+    };
+
+    auto exec =  getExec(m_desktopSource.desktopId());
+    if(!exec.isEmpty()){
+        execStr = exec;
+        addEnv();
+        qInfo() << "get compatibility : " <<m_desktopSource.desktopId()<<" Exec : "<<execStr;
+        return;
+    }
+
+    if (auto it = options.find("LaunchType"); it != options.cend() && options["LaunchType"] == "Compatibility") {
+        qInfo() << "try get :" <<DesktopDefault<<" Exec";
+        auto exec =  getExec(DesktopDefault);
+        if(!exec.isEmpty()){
+            QRegularExpression regexF("-n\\s+%f");
+            exec.replace(regexF, "-n " + m_desktopSource.desktopId());
+
+            QRegularExpression regexS("--\\s+%s");
+            exec.replace(regexS, "-- " + execStr);
+            execStr = exec;
+            addEnv();
+            qInfo() << "get compatibility " <<DesktopDefault<<" Exec : "<<execStr;
+        }
+        return;
+    }
+
+    needExecStopPost = true;
+    return;
+}
+
 ApplicationService::ApplicationService(DesktopFile source,
                                        ApplicationManager1Service *parent,
                                        std::weak_ptr<ApplicationManager1Storage> storage)
@@ -279,6 +341,10 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
     optionsMap.insert("_builtIn_searchExec", parent()->systemdPathEnv());
 
+    bool needExecStopPost{false};
+    processCompatibility(action, optionsMap, execStr, needExecStopPost);
+    unescapeEens(optionsMap);
+
     auto cmds = generateCommand(optionsMap);
     auto task = unescapeExec(execStr, fields);
     if (!task) {
@@ -301,6 +367,8 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
     cmds.append(std::move(execCmds));
 
+    cmds.push_front(QString{"--ExecStopPost=%1"}.arg(QString::number(needExecStopPost)));
+
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
@@ -320,7 +388,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
                 newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
                 QProcess process;
-                qDebug() << "run with commands:" << newCommands;
+                qDebug() << "launcher :"<<m_launcher<<"run with commands:" << newCommands;
                 process.start(m_launcher, newCommands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
@@ -343,7 +411,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
             newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
             QProcess process;
-            qDebug() << "run with commands:" << newCommands;
+            qDebug() << "launcher :"<<m_launcher<<"run with commands:" << newCommands;
             process.start(getApplicationLauncherBinary(), newCommands);
             process.waitForFinished();
             auto exitCode = process.exitCode();
@@ -1112,6 +1180,29 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringLis
 
     return task;
 }
+
+void ApplicationService::unescapeEens(QVariantMap &options) noexcept{
+    if(options.find("env") == options.end()){
+        return;
+    }
+    QStringList result;
+    auto envs = options["env"];
+    for (const QString &var : envs.toStringList()) {
+        wordexp_t p;
+        if (wordexp(var.toStdString().c_str(), &p, 0) == 0) {
+            for (size_t i = 0; i < p.we_wordc; i++) {
+                result << QString::fromLocal8Bit(p.we_wordv[i]); // 将结果转换为QString
+            }
+            wordfree(&p);
+        } else {
+            return;
+        }
+    }
+
+    options.insert("env",result);
+    return ;
+}
+
 
 QVariant ApplicationService::findEntryValue(const QString &group,
                                             const QString &valueKey,

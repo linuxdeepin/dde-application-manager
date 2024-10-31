@@ -216,6 +216,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
 {
     std::string serviceName{"internalError"};
     std::map<std::string_view, std::list<std::string_view>> props;
+    bool needExecStopPost = false;
     while (!cmdLines.empty()) {  // NOTE: avoid stl exception
         auto str = cmdLines.front();
         if (str.size() < 2) {
@@ -250,6 +251,14 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
                 // Systemd service type must be "exec",
                 // this should not be configured in command line arguments.
                 cmdLines.pop_front();
+                continue;
+            }
+
+            if(key == "ExecStopPost"){
+                cmdLines.pop_front();
+                if(kvStr.substr(splitIndex + 1) == "1"){
+                    needExecStopPost = true;
+                }
                 continue;
             }
             props[key].push_back(kvStr.substr(splitIndex + 1));
@@ -322,6 +331,90 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
     if (ret = processExecStart(msg, execArgs); ret < 0) {
         serviceName = "invalidInput";
         return serviceName;
+    }
+
+    if (needExecStopPost) {
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
+            sd_journal_perror("open struct of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_append(msg, "s", "ExecStopPost"); ret < 0) {
+            sd_journal_perror("append ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_VARIANT, "a(sasb)"); ret < 0) {
+            sd_journal_perror("open variant of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sasb)"); ret < 0) {
+            sd_journal_perror("open array of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sasb"); ret < 0) {
+            sd_journal_perror("open struct of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_append(msg, "s", "dde-am-compatibility"); ret < 0) {
+            sd_journal_perror("append binary of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "s"); ret < 0) {
+            sd_journal_perror("open array of ExecStopPost variant failed.");
+            return serviceName;
+        }
+
+
+        if (ret = sd_bus_message_append(msg, "s", "dde-am-compatibility"); ret < 0) {
+            sd_journal_perror("append args of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_append(msg, "s", serviceName.c_str()); ret < 0) {
+            sd_journal_perror("append args of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_append(msg, "s", "$SERVICE_RESULT"); ret < 0) {
+            sd_journal_perror("append args of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close array of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_append(msg, "b", 0);
+            ret < 0) {  // this value indicate that systemd should be considered a failure if the process exits uncleanly
+            sd_journal_perror("append boolean of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close struct of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close array of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close variant of ExecStopPost failed.");
+            return serviceName;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close struct of ExecStopPost failed.");
+            return serviceName;
+        }
     }
 
     if (ret = sd_bus_message_close_container(msg); ret < 0) {

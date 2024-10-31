@@ -20,6 +20,7 @@
 #include "dbus/mimemanager1service.h"
 #include "desktopentry.h"
 #include "identifier.h"
+#include "compatibilitymanager.h"
 
 class ApplicationService;
 
@@ -53,6 +54,7 @@ public:
     [[nodiscard]] MimeManager1Service &mimeManager() noexcept { return *m_mimeManager; }
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
+    [[nodiscard]] const QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
@@ -79,6 +81,7 @@ private:
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
+    QSharedPointer<CompatibilityManager> m_compatibilityManager{nullptr};
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
