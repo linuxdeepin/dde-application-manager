@@ -136,6 +136,7 @@ public:
 
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
     [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
+    void unescapeEens(QVariantMap &options) noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
@@ -191,6 +192,7 @@ private:
     [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
     void setAutostartSource(AutostartSource &&source) noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
+    void processCompatibility(const QString &action, QVariantMap &options,QString &execStr,bool &needExecStopPost);
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {

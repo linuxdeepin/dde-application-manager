@@ -26,6 +26,9 @@ constexpr auto DesktopFileActionKey = u8"Desktop Action ";
 constexpr auto DesktopFileDefaultKeyLocale = "default";
 constexpr auto X_Deepin_GenerateSource = u8"X-Deepin-GenerateSource";
 constexpr auto DesktopEntryHidden = u8"Hidden";
+constexpr auto DesktopEntryExec = u8"Exec";
+constexpr auto DesktopEntryEnv = u8"Env";
+constexpr auto DesktopDefault = u8"default";
 
 constexpr auto ApplicationManagerServerDBusName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
@@ -68,5 +71,7 @@ constexpr auto ApplicationManagerToolsConfig = u8"org.deepin.dde.am";
 constexpr auto ApplicationManagerConfig = u8"org.deepin.dde.application-manager";
 constexpr auto AppExtraEnvironments = u8"appExtraEnvironments";
 constexpr auto AppEnvironmentsBlacklist = u8"appEnvironmentsBlacklist";
+
+constexpr auto CompatibilityConfigFilePath = "/var/lib/compatible/compatibleDesktop.json";
 
 #endif
