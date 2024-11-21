@@ -173,44 +173,50 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
         flag.write(sessionId, sessionId.size());
     }
-
-    constexpr auto XSettings = "org.deepin.dde.XSettings1";
-
-    auto *watcher = new (std::nothrow)
-        QDBusServiceWatcher{XSettings, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration, this};
-
-    auto *sigCon = new (std::nothrow) QMetaObject::Connection{};
-
-    auto singleSlot = [watcher, sigCon, autostartMap = std::move(needLaunch)]() {
-        QObject::disconnect(*sigCon);
-        delete sigCon;
-        qDebug() << XSettings << "is registered.";
-
-        for (const auto &[app, realExec] : autostartMap.asKeyValueRange()) {
+    auto value = QString::fromLocal8Bit(qgetenv("XDG_SESSION_TYPE"));
+    if (!value.isEmpty() && value == QString::fromLocal8Bit("wayland")) {
+        for (const auto &[app, realExec] : needLaunch.asKeyValueRange()) {
             app->Launch({}, {}, {}, realExec);
         }
+    } else {
+         constexpr auto XSettings = "org.deepin.dde.XSettings1";
 
-        watcher->deleteLater();
-    };
+        auto *watcher = new (std::nothrow)
+            QDBusServiceWatcher{XSettings, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration, this};
 
-    if (watcher != nullptr) {
-        *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
-    }
+        auto *sigCon = new (std::nothrow) QMetaObject::Connection{};
 
-    auto msg =
-        QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
-    msg << XSettings;
+        auto singleSlot = [watcher, sigCon, autostartMap = std::move(needLaunch)]() {
+            QObject::disconnect(*sigCon);
+            delete sigCon;
+            qDebug() << XSettings << "is registered.";
 
-    auto reply = QDBusConnection::sessionBus().call(msg);
-    if (reply.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "call org.freedesktop.DBus::NameHasOwner failed, skip autostart:" << reply.errorMessage();
-        // The connection should not be deleted, failure to call org.freedesktop.DBus::NameHasOwner does not mean that the
-        // XSettings service is invalid.
-        return;
-    }
+            for (const auto &[app, realExec] : autostartMap.asKeyValueRange()) {
+                app->Launch({}, {}, {}, realExec);
+            }
 
-    if (reply.arguments().first().toBool()) {
-        singleSlot();
+            watcher->deleteLater();
+        };
+
+        if (watcher != nullptr) {
+            *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
+        }
+
+        auto msg =
+            QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
+        msg << XSettings;
+
+        auto reply = QDBusConnection::sessionBus().call(msg);
+        if (reply.type() != QDBusMessage::ReplyMessage) {
+            qWarning() << "call org.freedesktop.DBus::NameHasOwner failed, skip autostart:" << reply.errorMessage();
+            // The connection should not be deleted, failure to call org.freedesktop.DBus::NameHasOwner does not mean that the
+            // XSettings service is invalid.
+            return;
+        }
+
+        if (reply.arguments().first().toBool()) {
+            singleSlot();
+        }
     }
 }
 
