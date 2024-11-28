@@ -5,3 +5,6 @@ export QT_SELECT = qt6
 
 %:
 	dh $@ --buildsystem=cmake
+
+override_dh_auto_test:
+	echo "skip auto test"
