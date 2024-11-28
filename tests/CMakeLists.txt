@@ -5,7 +5,7 @@ find_package(GTest REQUIRED)
 
 add_compile_definitions(DDEAM_UNIT_TESTING)
 
-file(GLOB_RECURSE TESTS ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
+file(GLOB_RECURSE TESTS ${CMAKE_CURRENT_LIST_DIR}/*.cpp ${CMAKE_CURRENT_LIST_DIR}/*.qrc)
 
 add_executable(${BIN_NAME} ${TESTS})
 

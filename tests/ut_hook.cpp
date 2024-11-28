@@ -9,10 +9,10 @@
 
 TEST(ApplicationHookTest, load)
 {
-    auto file =
-        QDir::currentPath() + QDir::separator() + "data" + QDir::separator() + "hooks.d" + QDir::separator() + "1-test.json";
+    auto file = ":/data/hooks.d/1-test.json";
     auto hook = ApplicationHook::loadFromFile(file);
     EXPECT_TRUE(hook);
+
     EXPECT_EQ(hook->hookName(), QString{"1-test.json"});
     EXPECT_EQ(hook->execPath(), QString{"/usr/bin/stat"});
 

@@ -4,6 +4,6 @@
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-echo $$ > pid.txt
+echo $$ > ./pid.txt
 sleep 1s
 exit 0

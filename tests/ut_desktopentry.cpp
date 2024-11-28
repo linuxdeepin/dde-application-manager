@@ -15,9 +15,13 @@ class TestDesktopEntry : public testing::Test
 public:
     static void SetUpTestCase()
     {
+        QDir dir("/tmp");
+        dir.mkpath("data/applications");
+        QFile::copy(":/data/applications/deepin-editor.desktop",
+                    "/tmp/data/applications/deepin-editor.desktop");
+
         env = qgetenv("XDG_DATA_DIRS");
-        auto curDir = QDir::current();
-        QByteArray fakeXDG = (curDir.absolutePath() + QDir::separator() + "data").toLocal8Bit();
+        QByteArray fakeXDG = QString("/tmp/data").toLocal8Bit();
         ASSERT_TRUE(qputenv("XDG_DATA_DIRS", fakeXDG));
         ParserError err;
         auto file = DesktopFile::searchDesktopFileById("deepin-editor", err);
@@ -28,7 +32,15 @@ public:
         m_file.reset(new DesktopFile{std::move(file).value()});
     }
 
-    static void TearDownTestCase() { qputenv("XDG_DATA_DIRS", env); }
+    static void TearDownTestCase() {
+        qputenv("XDG_DATA_DIRS", env);
+        QFile pidFile{"/tmp/data/applications/deepin-editor.desktop"};
+        if (pidFile.exists()) {
+            ASSERT_TRUE(pidFile.remove());
+            QDir dir("/tmp");
+            ASSERT_TRUE(dir.rmpath("data/applications"));
+        }
+    }
 
     QSharedPointer<DesktopFile> file() { return m_file; }
 
@@ -43,8 +55,7 @@ TEST_F(TestDesktopEntry, desktopFile)
     ASSERT_FALSE(fileptr.isNull());
     const auto &exampleFile = file();
     auto curDir = QDir::current();
-    QString path{curDir.absolutePath() + QDir::separator() + "data" + QDir::separator() + "applications" + QDir::separator() +
-                 "deepin-editor.desktop"};
+    QString path{"/tmp/data/applications/deepin-editor.desktop"};
     EXPECT_EQ(exampleFile->sourcePath(), path);
     EXPECT_EQ(exampleFile->desktopId().toStdString(), "deepin-editor");
 }

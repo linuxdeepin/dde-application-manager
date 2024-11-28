@@ -39,9 +39,24 @@ public:
         app->m_Instances.insert(InstancePath, instance);
         m_am->m_applicationList.insert(appID, app);
         new InstanceAdaptor{instance.data()};
+
+        QDir dir("/tmp");
+        dir.mkpath("tools");
+        QFile::copy(":/tools/fake-process.sh",
+                    "/tmp/tools/fake-process.sh");
+        QFile shfile("/tmp/tools/fake-process.sh");
+        shfile.setPermissions(shfile.permissions() | QFile::ExeUser | QFile::ExeGroup | QFile::ExeOther);
     }
 
-    static void TearDownTestCase() { m_am->deleteLater(); }
+    static void TearDownTestCase() {
+        m_am->deleteLater();
+        QFile file{"/tmp/tools/fake-process.sh"};
+        if (file.exists()) {
+            ASSERT_TRUE(file.remove());
+            QDir dir("/tmp");
+            dir.rmpath("tools");
+        }
+    }
 
     static inline ApplicationManager1Service *m_am{nullptr};
     const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/test_2dApplication"};
@@ -55,7 +70,7 @@ TEST_F(TestApplicationManager, identifyService)
     }
     using namespace std::chrono_literals;
     // for service unit
-    auto workingDir = QDir::cleanPath(QDir::current().absolutePath() + QDir::separator() + ".." + QDir::separator() + "tools");
+    auto workingDir = QDir::cleanPath("/tmp/tools");
     QFile pidFile{workingDir + QDir::separator() + "pid.txt"};
     if (pidFile.exists()) {
         ASSERT_TRUE(pidFile.remove());

@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>data/hooks.d/1-test.json</file>
+        <file>data/applications/deepin-editor.desktop</file>
+        <file alias="tools/fake-process.sh">../tools/fake-process.sh</file>
+    </qresource>
+</RCC>
