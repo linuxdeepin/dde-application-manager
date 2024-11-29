@@ -41,7 +41,11 @@ public:
         new InstanceAdaptor{instance.data()};
     }
 
-    static void TearDownTestCase() { m_am->deleteLater(); }
+    static void TearDownTestCase()
+    {
+        if (m_am)
+            m_am->deleteLater();
+    }
 
     static inline ApplicationManager1Service *m_am{nullptr};
     const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/test_2dApplication"};
