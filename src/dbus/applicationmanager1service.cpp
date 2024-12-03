@@ -642,9 +642,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
     }
 
     if (destApp->m_desktopSource != desktopFile and destApp->isAutoStart()) {
-        destApp->setAutoStart(false);
         destApp->m_desktopSource = std::move(desktopFile);
-        destApp->setAutoStart(true);
     }
 }
 
