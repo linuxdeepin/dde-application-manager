@@ -51,6 +51,8 @@ int main(int argc, char *argv[])
         auto msg = QDBusMessage::createMethodCall(
             DDEApplicationManager1ServiceName, DDEApplicationManager1ObjectPath, ApplicationManager1Interface, "Identify");
         msg.setArguments({QVariant::fromValue(QDBusUnixFileDescriptor{pidfd})});
+        // see QDBusUnixFileDescriptor: The original file descriptor is not touched and must be closed by the user.
+        close(pidfd);
 
         auto reply = con.call(msg);
         if (reply.type() != QDBusMessage::ReplyMessage) {
