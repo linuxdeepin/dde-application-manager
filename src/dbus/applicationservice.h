@@ -137,6 +137,7 @@ public:
     [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
     [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
     void unescapeEens(QVariantMap &options) noexcept;
+    void autoRemoveFromDesktop() const noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
