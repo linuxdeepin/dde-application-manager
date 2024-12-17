@@ -151,22 +151,12 @@ ParserError CompatibilityManager::parse(QFile &file) noexcept{
 
             //auto tub = std::make_tuple(exec,std::move(env.join("; ") + ";"));
             auto tub = std::make_tuple(exec,env);
-            qWarning()<<get<0>(tub);
-            qWarning()<<get<1>(tub);
             compatibilityEntry.insert(entryId,std::move(tub));
+            qInfo()<<"insert desktop id : " << entryId <<", with Exec : "<< exec << "and Env : "<<env;
         }
 
         m_compatibilityConfig.insert(desktopId,compatibilityEntry);
     }
 
-    for(auto iter:m_compatibilityConfig.keys()){
-        qWarning()<<"--------";
-        qWarning()<<iter;
-        for(auto entry: m_compatibilityConfig[iter].m_entrys.keys()){
-            qWarning()<<entry;
-            qWarning()<<get<0>(m_compatibilityConfig[iter].m_entrys[entry]);
-            qWarning()<<get<1>(m_compatibilityConfig[iter].m_entrys[entry]);
-        }
-    }
     return ParserError::NoError;
 }

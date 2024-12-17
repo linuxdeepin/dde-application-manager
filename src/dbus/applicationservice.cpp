@@ -79,9 +79,8 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     runtimeOptions.insert("unsetEnv", unsetEnvs);
 }
 
-void ApplicationService::processCompatibility(const QString &action, QVariantMap &options,QString& execStr,bool &needExecStopPost)
+void ApplicationService::processCompatibility(const QString &action, QVariantMap &options,QString& execStr)
 {
-    qInfo() << "processCompatibility action:"<<action;
     QString tempExecStr = execStr;
     auto compatibilityManager = parent()->getCompatibilityManager();
 
@@ -118,26 +117,8 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
         execStr = exec;
         addEnv();
         qInfo() << "get compatibility : " <<m_desktopSource.desktopId()<<" Exec : "<<execStr;
-        return;
     }
 
-    if (auto it = options.find("LaunchType"); it != options.cend() && options["LaunchType"] == "Compatibility") {
-        qInfo() << "try get :" <<DesktopDefault<<" Exec";
-        auto exec =  getExec(DesktopDefault);
-        if(!exec.isEmpty()){
-            QRegularExpression regexF("-n\\s+%f");
-            exec.replace(regexF, "-n " + m_desktopSource.desktopId());
-
-            QRegularExpression regexS("--\\s+%s");
-            exec.replace(regexS, "-- " + execStr);
-            execStr = exec;
-            addEnv();
-            qInfo() << "get compatibility " <<DesktopDefault<<" Exec : "<<execStr;
-        }
-        return;
-    }
-
-    needExecStopPost = true;
     return;
 }
 
@@ -342,8 +323,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
     optionsMap.insert("_builtIn_searchExec", parent()->systemdPathEnv());
 
-    bool needExecStopPost{false};
-    processCompatibility(action, optionsMap, execStr, needExecStopPost);
+    processCompatibility(action, optionsMap, execStr);
     unescapeEens(optionsMap);
 
     auto cmds = generateCommand(optionsMap);
@@ -367,8 +347,6 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         execCmds.push_front("deepin-terminal");
     }
     cmds.append(std::move(execCmds));
-
-    cmds.push_front(QString{"--ExecStopPost=%1"}.arg(QString::number(needExecStopPost)));
 
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
