@@ -134,8 +134,10 @@ public:
                                           EntryValueType type,
                                           const QLocale &locale = getUserLocale()) const noexcept;
 
-    [[nodiscard]] LaunchTask unescapeExec(const QString &str, const QStringList &fields) noexcept;
+    [[nodiscard]] LaunchTask unescapeExec(const QString &str, QStringList fields) noexcept;
     [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
+    void unescapeEens(QVariantMap&) noexcept;
+    void autoRemoveFromDesktop() const noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
