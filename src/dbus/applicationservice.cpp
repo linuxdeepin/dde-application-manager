@@ -79,44 +79,44 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     runtimeOptions.insert("unsetEnv", unsetEnvs);
 }
 
-void ApplicationService::processCompatibility(const QString &action, QVariantMap &options,QString& execStr)
+void ApplicationService::processCompatibility(const QString &action, QVariantMap &options, QString &execStr)
 {
     QString tempExecStr = execStr;
     auto compatibilityManager = parent()->getCompatibilityManager();
 
-    auto getExec = [action, compatibilityManager](QString desktopID) -> QString{
+    auto getExec = [action, compatibilityManager](QString desktopID) -> QString {
         std::optional<QString> execValue;
-        if(!action.isEmpty()){
+        if (!action.isEmpty()) {
             const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
-            execValue = compatibilityManager->getExec(desktopID,actionHeader);
-        }else{
-            execValue = compatibilityManager->getExec(desktopID,DesktopFileEntryKey);
+            execValue = compatibilityManager->getExec(desktopID, actionHeader);
+        } else {
+            execValue = compatibilityManager->getExec(desktopID, DesktopFileEntryKey);
         }
 
-        if(!execValue.has_value() || execValue->isEmpty()){
+        if (!execValue.has_value() || execValue->isEmpty()) {
             return QString();
         }
         return execValue.value();
     };
 
-    auto addEnv = [this,&options,compatibilityManager] () {
-        auto envValue = compatibilityManager->getEnv(m_desktopSource.desktopId(),DesktopFileEntryKey);
-        if(!envValue.isEmpty()){
+    auto addEnv = [this, &options, compatibilityManager]() {
+        auto envValue = compatibilityManager->getEnv(m_desktopSource.desktopId(), DesktopFileEntryKey);
+        if (!envValue.isEmpty()) {
             if (auto it = options.find("env"); it != options.cend()) {
                 auto value = it->toStringList();
                 value.append(envValue);
                 options.insert("env", value);
-            }else{
+            } else {
                 options.insert("env", envValue);
             }
         }
     };
 
-    auto exec =  getExec(m_desktopSource.desktopId());
-    if(!exec.isEmpty()){
+    auto exec = getExec(m_desktopSource.desktopId());
+    if (!exec.isEmpty()) {
         execStr = exec;
         addEnv();
-        qInfo() << "get compatibility : " <<m_desktopSource.desktopId()<<" Exec : "<<execStr;
+        qInfo() << "get compatibility : " << m_desktopSource.desktopId() << " Exec : " << execStr;
     }
 
     return;
@@ -294,8 +294,8 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         execStr = toString(actionExec.value());
         if (execStr.isEmpty()) {
             qWarning() << "exec value to string failed, try default action.";  // we need this log.
-            break;
         }
+
         break;
     }
 
@@ -351,46 +351,78 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &variantValue) -> QVariant {
-            auto resourceFile = variantValue.toString();
+        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &value) -> QVariant {
+            auto rawResources = value.toString();
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
             auto newCommands = commands;
 
             newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
-            auto location = newCommands.indexOf(R"(%f)");
-            if (location != -1) {  // due to std::move, there only remove once
-                newCommands.remove(location);
-            }
-
-            if (resourceFile.isEmpty()) {
+            if (rawResources.isEmpty()) {
                 newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
+
                 QProcess process;
-                qDebug() << "launcher :"<<m_launcher<<"run with commands:" << newCommands;
+                qDebug() << "launcher :" << m_launcher << "run with commands:" << newCommands;
                 process.start(m_launcher, newCommands);
                 process.waitForFinished();
                 if (auto code = process.exitCode(); code != 0) {
                     qWarning() << "Launch Application Failed";
                     return QDBusError::Failed;
                 }
+
                 return objectPath;
             }
 
-            auto url = QUrl::fromUserInput(resourceFile);
-            if (!url.isValid()) {  // if url is invalid, passing to launcher directly
-                auto scheme = url.scheme();
-                if (!scheme.isEmpty()) {
-                    // TODO: resourceFile = processRemoteFile(resourceFile);
+            auto location = newCommands.end();
+            qsizetype fieldIndex{-1};
+            for (auto it = newCommands.begin(); it != newCommands.end(); ++it) {
+                auto fieldLocation = it->indexOf(R"(%f)");
+                if (fieldLocation != -1) {
+                    fieldIndex = fieldLocation;
+                    location = it;
+                    break;
+                }
+
+                fieldLocation = it->indexOf(R"(%F)");
+                if (fieldLocation != -1) {
+                    fieldIndex = fieldLocation;
+                    location = it;
+                    break;
                 }
             }
 
-            // NOTE: resourceFile must be available in the following contexts
-            newCommands.insert(location, resourceFile);
+            if (location == newCommands.end()) {
+                qCritical() << R"(internal logic error, can't find %f or %F in exec command, abort.)";
+                return QDBusError::Failed;
+            }
 
+            const auto &rawResource = rawResources.split(' ', Qt::SkipEmptyParts);
+            QStringList resources;
+            std::transform(rawResource.cbegin(), rawResource.cend(), std::back_inserter(resources), [](const QString &res) {
+                auto url = QUrl::fromUserInput(res);
+                if (url.isValid()) {
+                    if (url.isLocalFile()) {
+                        return url.toLocalFile();
+                    }
+                    // for now, we only support local file, maybe we will support remote file in the future.
+                    // TODO: return processRemoteFile(url);
+                }  // if url is invalid, passing to launcher directly
+
+                return res;
+            });
+            auto tmpRes = resources.join(' ');
+
+            location->replace(fieldIndex, tmpRes.size(), tmpRes);
+            auto newCmd = location->split(' ', Qt::SkipEmptyParts);
+            location = newCommands.erase(location);
+            for (auto &c : newCmd) {
+                location = newCommands.insert(location, std::move(c));
+            }
             newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
+
             QProcess process;
-            qDebug() << "launcher :"<<m_launcher<<"run with commands:" << newCommands;
+            qDebug().noquote() << "launcher :" << m_launcher << "run with commands:" << newCommands;
             process.start(getApplicationLauncherBinary(), newCommands);
             process.waitForFinished();
             auto exitCode = process.exitCode();
@@ -398,6 +430,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
                 qWarning() << "Launch Application Failed";
                 return QDBusError::Failed;
             }
+
             return objectPath;
         },
         std::move(res));
@@ -1004,164 +1037,195 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
     return execList;
 }
 
-LaunchTask ApplicationService::unescapeExec(const QString &str, const QStringList &fields) noexcept
+LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fields) noexcept
 {
     LaunchTask task;
-    auto opt = unescapeExecArgs(str);
+    auto args = unescapeExecArgs(str);
 
-    if (!opt.has_value()) {
+    if (!args) {
         qWarning() << "unescapeExecArgs failed.";
         return {};
     }
 
-    auto execList = std::move(opt).value();
-    if (execList.isEmpty()) {
+    if (args->isEmpty()) {
         qWarning() << "exec format is invalid.";
         return {};
     }
 
-    task.LaunchBin = execList.first();
-    QRegularExpression re{"%[fFuUickdDnNvm]"};
-    auto matcher = re.match(str);
-    if (!matcher.hasMatch()) {
-        task.command.append(std::move(execList));
-        task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
-        return task;
-    }
+    auto processUrl = [](const QString &str) {
+        auto url = QUrl::fromUserInput(str);
+        if (!url.isValid()) {
+            qDebug() << "url is invalid, pass to exec directly.";
+            return str;
+        }
 
-    auto list = matcher.capturedTexts();
-    if (list.count() != 1) {
-        qWarning() << "invalid exec format, all filed code will be ignored.";
-        for (const auto &code : list) {
-            execList.removeOne(code);
+        if (url.isLocalFile()) {
+            return url.toLocalFile();
         }
-        task.command.append(std::move(execList));
-        return task;
-    }
 
-    auto filesCode = list.first().back().toLatin1();
-    auto codeStr = QString(R"(%%1)").arg(filesCode);
-    auto location = execList.indexOf(codeStr);
-    if (location == -1) {
-        qWarning() << "invalid exec format, all filed code will be ignored.";
-        return {};
-    }
+        return url.toString();
+    };
 
-    switch (filesCode) {
-    case 'f': {  // Defer to async job
-        task.command.append(std::move(execList));
-        for (const auto &field : fields) {
-            task.Resources.emplace_back(field);
-        }
-    } break;
-    case 'u': {
-        execList.removeAt(location);
-        if (fields.empty()) {
-            task.command.append(execList);
-            break;
-        }
-        if (fields.count() > 1) {
-            qDebug() << R"(fields count is greater than one, %u will only take first element.)";
-        }
-        execList.insert(location, fields.first());
-        task.command.append(execList);
-    } break;
-    case 'F': {
-        execList.remove(location);
-        auto it = execList.begin() + location;
-        for (const auto &field : fields) {
-            auto tmp = QUrl::fromUserInput(field);
-            if (auto scheme = tmp.scheme(); scheme.startsWith("file") or scheme.isEmpty()) {
-                it = execList.insert(it, tmp.toLocalFile());
-            } else {
-                qWarning() << "shouldn't replace %F with an URL:" << field;
-                it = execList.insert(it, field);
+    task.LaunchBin = args->first();
+    const QChar percentage{'%'};
+    bool exclusiveField{false};
+
+    for (const auto &arg : *args) {
+        QString newArg;
+
+        for (const auto *it = arg.cbegin(); it != arg.cend();) {
+            if (*it != percentage) {
+                newArg.append(*(it++));
+                continue;
             }
-            ++it;
-        }
-        task.command.append(std::move(execList));
-    } break;
-    case 'U': {
-        execList.removeAt(location);
-        auto it = execList.begin() + location;
-        for (const auto &field : fields) {
-            it = execList.insert(it, field);
-            ++it;
-        }
-        task.command.append(std::move(execList));
-    } break;
-    case 'i': {
-        execList.removeAt(location);
-        auto val = m_entry->value(DesktopFileEntryKey, "Icon");
-        if (!val) {
-            qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
+
+            const auto *code = it + 1;
+            if (code == arg.cend()) {
+                qWarning() << R"(content of exec is invalid, a unterminated % is detected.)";
+                return {};
+            }
+
+            if (*code == percentage) {
+                newArg.append(percentage);
+                it += 2;
+                continue;
+            }
+
+            switch (code->toLatin1()) {
+            case 'f': {  // Defer to async job
+                if (exclusiveField) {
+                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    break;
+                }
+                exclusiveField = true;
+
+                if (fields.empty()) {
+                    qDebug() << R"(fields is empty, %f will be ignored.)";
+                    break;
+                }
+
+                if (fields.size() > 1) {
+                    qDebug() << R"(fields count is greater than one, %f will only take first element.)";
+                }
+
+                task.Resources.emplace_back(fields.takeFirst());
+                newArg.append(R"(%f)");
+            } break;
+            case 'u': {
+                if (exclusiveField) {
+                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    break;
+                }
+                exclusiveField = true;
+
+                if (fields.empty()) {
+                    qDebug() << "fields is empty, %u will be ignored.";
+                    break;
+                }
+
+                if (fields.size() > 1) {
+                    qDebug() << R"(fields count is greater than one, %u will only take first element.)";
+                }
+
+                newArg.append(processUrl(fields.takeFirst()));
+            } break;
+            case 'F': {  // Defer to async job
+                if (exclusiveField) {
+                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    break;
+                }
+                exclusiveField = true;
+
+                task.Resources.emplace_back(fields.join(' '));
+                fields.clear();
+                newArg.append(R"(%F)");
+            } break;
+            case 'U': {
+                if (exclusiveField) {
+                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    break;
+                }
+                exclusiveField = true;
+
+                QStringList urls;
+                std::transform(fields.cbegin(), fields.cend(), std::back_inserter(urls), processUrl);
+                fields.clear();
+                newArg.append(urls.join(' '));  // split at the end of loop
+            } break;
+            case 'i': {
+                auto val = m_entry->value(DesktopFileEntryKey, "Icon");
+                if (!val) {
+                    qDebug() << R"(Application Icons can't be found. %i will be ignored.)";
+                    break;
+                }
+
+                auto iconStr = toIconString(val.value());
+                if (iconStr.isEmpty()) {
+                    qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
+                    break;
+                }
+
+                // split at the end of loop
+                newArg.append(QString{"--icon %1"}.arg(iconStr));
+            } break;
+            case 'c': {
+                auto val = m_entry->value(DesktopFileEntryKey, "Name");
+                if (!val) {
+                    qDebug() << R"(Application Name can't be found. %c will be ignored.)";
+                    break;
+                }
+
+                const auto &rawValue = val.value();
+                if (!rawValue.canConvert<QStringMap>()) {
+                    qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
+                    break;
+                }
+
+                auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
+                if (NameStr.isEmpty()) {
+                    qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
+                    break;
+                }
+
+                newArg.append(NameStr);
+            } break;
+            case 'k': {  // ignore all desktop file location for now.
+                newArg.append(m_desktopSource.sourcePath());
+            } break;
+            case 'd':
+            case 'D':
+            case 'n':
+            case 'N':
+            case 'v':
+                [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
+            case 'm': {
+                qDebug() << "field code" << *code << "has been deprecated.";
+            } break;
+            default: {
+                qDebug() << "unknown field code:" << *code << ", ignore it.";
+            }
+            }
+
+            it += 2;  // skip filed code
         }
 
-        auto iconStr = toIconString(val.value());
-        if (iconStr.isEmpty()) {
-            qDebug() << R"(Icons Convert to string failed. %i will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
+        auto newArgList = newArg.split(' ', Qt::SkipEmptyParts);
+        if (!newArgList.isEmpty()) {
+            task.command.append(std::move(newArgList));
         }
-        auto it = execList.insert(location, iconStr);
-        execList.insert(it, "--icon");
-        task.command.append(std::move(execList));
-    } break;
-    case 'c': {
-        execList.removeAt(location);
-        auto val = m_entry->value(DesktopFileEntryKey, "Name");
-        if (!val) {
-            qDebug() << R"(Application Name can't be found. %c will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-
-        const auto &rawValue = val.value();
-        if (!rawValue.canConvert<QStringMap>()) {
-            qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
-            task.command.append(std::move(execList));
-            return task;
-        }
-
-        auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
-        if (NameStr.isEmpty()) {
-            qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
-            task.command.append(std::move(execList));
-            return task;
-        }
-        execList.insert(location, NameStr);
-        task.command.append(std::move(execList));
-    } break;
-    case 'k': {  // ignore all desktop file location for now.
-        execList.removeAt(location);
-        task.command.append(std::move(execList));
-    } break;
-    case 'd':
-    case 'D':
-    case 'n':
-    case 'N':
-    case 'v':
-        [[fallthrough]];  // Deprecated field codes should be removed from the command line and ignored.
-    case 'm': {
-        execList.removeAt(location);
-        task.command.append(std::move(execList));
-    } break;
-    default: {
-        qDebug() << "unrecognized file code.";
-    }
     }
 
     if (task.Resources.isEmpty()) {
         task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
     }
 
+    qInfo() << "after unescape exec:" << task.LaunchBin << task.command << task.Resources;
     return task;
 }
 
-void ApplicationService::unescapeEens(QVariantMap &options) noexcept{
-    if(options.find("env") == options.end()){
+void ApplicationService::unescapeEens(QVariantMap &options) noexcept
+{
+    if (options.find("env") == options.end()) {
         return;
     }
     QStringList result;
@@ -1170,7 +1234,7 @@ void ApplicationService::unescapeEens(QVariantMap &options) noexcept{
         wordexp_t p;
         if (wordexp(var.toStdString().c_str(), &p, 0) == 0) {
             for (size_t i = 0; i < p.we_wordc; i++) {
-                result << QString::fromLocal8Bit(p.we_wordv[i]); // 将结果转换为QString
+                result << QString::fromLocal8Bit(p.we_wordv[i]);  // 将结果转换为QString
             }
             wordfree(&p);
         } else {
@@ -1178,8 +1242,7 @@ void ApplicationService::unescapeEens(QVariantMap &options) noexcept{
         }
     }
 
-    options.insert("env",result);
-    return ;
+    options.insert("env", result);
 }
 
 void ApplicationService::autoRemoveFromDesktop() const noexcept
@@ -1192,7 +1255,7 @@ void ApplicationService::autoRemoveFromDesktop() const noexcept
     QFileInfo desktopFile{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
 
     if (!desktopFile.isSymbolicLink()) {
-        qDebug() << desktopFile.filePath() <<" is not symbolicLink";
+        qDebug() << desktopFile.filePath() << " is not symbolicLink";
         return;
     }
 
@@ -1202,8 +1265,6 @@ void ApplicationService::autoRemoveFromDesktop() const noexcept
         qWarning() << "remove desktop file failed:" << file.errorString();
         return;
     }
-
-    return;
 }
 
 QVariant ApplicationService::findEntryValue(const QString &group,
