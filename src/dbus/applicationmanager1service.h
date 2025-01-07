@@ -46,6 +46,7 @@ public:
     [[nodiscard]] QHash<QDBusObjectPath, QSharedPointer<ApplicationService>>
     findApplicationsByIds(const QStringList &appIds) const noexcept;
     void updateApplication(const QSharedPointer<ApplicationService> &destApp, DesktopFile desktopFile) noexcept;
+    void autoRemoveFromDesktop() noexcept;
 
     [[nodiscard]] const auto &Applications() const noexcept { return m_applicationList; }
     [[nodiscard]] JobManager1Service &jobManager() noexcept { return *m_jobManager; }
