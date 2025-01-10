@@ -63,6 +63,7 @@ public Q_SLOTS:
                      ObjectInterfaceMap &application_instance_info) const noexcept;
     void ReloadApplications();
     QString addUserApplication(const QVariantMap &desktop_file, const QString &name) noexcept;
+    void deleteUserApplication(const QString &app_id) noexcept;
     [[nodiscard]] ObjectMap GetManagedObjects() const;
 
 Q_SIGNALS:

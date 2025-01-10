@@ -878,5 +878,50 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
+    m_mimeManager->updateMimeCache(dir);
+
     return appId;
+}
+
+
+void ApplicationManager1Service::deleteUserApplication(const QString &app_id) noexcept
+{ 
+    if (app_id.isEmpty()) {
+        safe_sendErrorReply(QDBusError::Failed, "app id name is empty.");
+        return;
+    }
+
+    QDir xdgDataHome;
+    QString dir{getXDGDataHome() + "/applications"};
+    if (!xdgDataHome.mkpath(dir)) {
+        safe_sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
+        return;
+    }
+
+    xdgDataHome.setPath(dir);
+    const auto &filePath = xdgDataHome.filePath(app_id+".desktop");
+
+    if (QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"file not exists:%1"}.arg(info.absoluteFilePath()));
+        return;
+    }
+
+/*
+    auto apps = findApplicationsByIds({app_id});
+    if (apps.isEmpty()) {
+        qWarning() << "we can't find corresponding application in ApplicationManagerService.";
+    }
+
+    for (const auto &app : apps) {
+        app->setMimeTypes({});
+    }
+*/
+    if (!QFile::remove(filePath)) {
+        safe_sendErrorReply(QDBusError::Failed, "remove file failed.");
+        return;
+    }
+
+    m_mimeManager->updateMimeCache(dir);
+
+    return;
 }

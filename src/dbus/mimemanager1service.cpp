@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
+#include <QProcess>
 
 #include "dbus/mimemanager1adaptor.h"
 #include "applicationmanager1service.h"
@@ -142,4 +143,16 @@ void MimeManager1Service::appendMimeInfo(MimeInfo &&info)
 void MimeManager1Service::reset() noexcept
 {
     m_infos.clear();
+}
+
+void MimeManager1Service::updateMimeCache(QString dir) noexcept
+{
+    QProcess process;
+    process.start("update-desktop-database", {dir});
+    process.waitForFinished();
+    auto exitCode = process.exitCode();
+    if (exitCode != 0) {
+        qWarning() << "Launch Application Failed";
+    }
+
 }

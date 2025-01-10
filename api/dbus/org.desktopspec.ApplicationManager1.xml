@@ -45,5 +45,12 @@
                       "
             />
         </method>
+        <method name="deleteUserApplication">
+            <arg type="s" name="app_id" direction="in" />
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Delete a user application by app_id."
+            />
+        </method>
     </interface>
 </node>
