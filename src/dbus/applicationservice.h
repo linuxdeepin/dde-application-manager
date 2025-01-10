@@ -109,6 +109,9 @@ public:
     Q_PROPERTY(bool NoDisplay READ noDisplay NOTIFY noDisplayChanged)
     [[nodiscard]] bool noDisplay() const noexcept;
 
+    Q_PROPERTY(QString X_Deepin_CreateBy READ X_Deepin_CreateBy NOTIFY noDisplayChanged)
+    [[nodiscard]] QString X_Deepin_CreateBy() const noexcept;
+
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }

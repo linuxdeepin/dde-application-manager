@@ -163,6 +163,8 @@
 
         <property name="isOnDesktop" type="b" access="read"/>
 
+        <property name="X_Deepin_CreateBy" type="s" access="read"/>
+
         <method name="SendToDesktop">
             <arg type="b" name="success" direction="out"/>
         </method>

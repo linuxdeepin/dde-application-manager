@@ -630,6 +630,11 @@ QString ApplicationService::X_Deepin_Vendor() const noexcept
     return findEntryValue(DesktopFileEntryKey, "X-Deepin-Vendor", EntryValueType::String).toString();
 }
 
+QString ApplicationService::X_Deepin_CreateBy() const noexcept
+{
+    return findEntryValue(DesktopFileEntryKey, "X-Deepin-CreateBy", EntryValueType::String).toString();
+}
+
 bool ApplicationService::terminal() const noexcept
 {
     auto val = findEntryValue(DesktopFileEntryKey, "Terminal", EntryValueType::String);
