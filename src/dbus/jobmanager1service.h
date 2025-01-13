@@ -29,9 +29,13 @@ struct LaunchTask
     LaunchTask &operator=(const LaunchTask &) = default;
     LaunchTask &operator=(LaunchTask &&) = default;
     explicit operator bool() const { return !LaunchBin.isEmpty() and !command.isEmpty(); }
+
     QString LaunchBin;
     QStringList command;
     QVariantList Resources;
+    bool singleInstance{false};
+    int argNum{-1};
+    int fieldLocation{-1};
 };
 
 Q_DECLARE_METATYPE(LaunchTask)

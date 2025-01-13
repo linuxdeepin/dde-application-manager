@@ -333,8 +333,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         return {};
     }
 
-    auto [bin, execCmds, res] = std::move(task);
-    if (bin.isEmpty()) {
+    if (task.LaunchBin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
         safe_sendErrorReply(QDBusError::Failed);
         return {};
@@ -342,25 +341,24 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
     if (terminal()) {
         // don't change this sequence
-        execCmds.push_front("-e");           // run all original execution commands in deepin-terminal
-        execCmds.push_front("--keep-open");  // keep terminal open, prevent exit immediately
-        execCmds.push_front("deepin-terminal");
+        cmds.push_back("deepin-terminal");
+        cmds.push_back("--keep-open");  // keep terminal open, prevent exit immediately
+        cmds.push_front("-e");          // run all original execution commands in deepin-terminal
     }
-    cmds.append(std::move(execCmds));
 
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, binary = std::move(bin), commands = std::move(cmds)](const QVariant &value) -> QVariant {
-            auto rawResources = value.toString();
+        [this, task, cmds = std::move(cmds)](const QVariant &value) -> QVariant {  // do not change it to mutable lambda
             auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
             auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
-            auto newCommands = commands;
+            auto newCommands = cmds;
 
-            newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
-            if (rawResources.isEmpty()) {
+            if (value.isNull()) {
+                newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
                 newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(
                     escapeApplicationId(this->id()), instanceRandomUUID));  // launcher should use this instanceId
+                newCommands.append(task.command);
 
                 QProcess process;
                 qDebug() << "launcher :" << m_launcher << "run with commands:" << newCommands;
@@ -374,51 +372,25 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
                 return objectPath;
             }
 
-            auto location = newCommands.end();
-            qsizetype fieldIndex{-1};
-            for (auto it = newCommands.begin(); it != newCommands.end(); ++it) {
-                auto fieldLocation = it->indexOf(R"(%f)");
-                if (fieldLocation != -1) {
-                    fieldIndex = fieldLocation;
-                    location = it;
-                    break;
+            auto rawRes = value.toString();
+            if (task.argNum != -1) {
+                if (task.argNum >= newCommands.size()) {
+                    qCritical() << "task.argNum >= task.command.size()";
+                    return QDBusError::Failed;
                 }
 
-                fieldLocation = it->indexOf(R"(%F)");
-                if (fieldLocation != -1) {
-                    fieldIndex = fieldLocation;
-                    location = it;
-                    break;
+                auto tmp = task.command;
+                if (task.fieldLocation == -1) {
+                    tmp.insert(task.argNum + 1, rawRes);
+                } else {
+                    auto arg = tmp.at(task.argNum);
+                    arg.insert(task.fieldLocation, rawRes);
+                    tmp[task.argNum] = arg;
                 }
+
+                newCommands.append(std::move(tmp));
             }
-
-            if (location == newCommands.end()) {
-                qCritical() << R"(internal logic error, can't find %f or %F in exec command, abort.)";
-                return QDBusError::Failed;
-            }
-
-            const auto &rawResource = rawResources.split(' ', Qt::SkipEmptyParts);
-            QStringList resources;
-            std::transform(rawResource.cbegin(), rawResource.cend(), std::back_inserter(resources), [](const QString &res) {
-                auto url = QUrl::fromUserInput(res);
-                if (url.isValid()) {
-                    if (url.isLocalFile()) {
-                        return url.toLocalFile();
-                    }
-                    // for now, we only support local file, maybe we will support remote file in the future.
-                    // TODO: return processRemoteFile(url);
-                }  // if url is invalid, passing to launcher directly
-
-                return res;
-            });
-            auto tmpRes = resources.join(' ');
-
-            location->replace(fieldIndex, tmpRes.size(), tmpRes);
-            auto newCmd = location->split(' ', Qt::SkipEmptyParts);
-            location = newCommands.erase(location);
-            for (auto &c : newCmd) {
-                location = newCommands.insert(location, std::move(c));
-            }
+            newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
             newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
 
             QProcess process;
@@ -433,7 +405,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
             return objectPath;
         },
-        std::move(res));
+        std::move(task.Resources));
 }
 
 bool ApplicationService::SendToDesktop() const noexcept
@@ -1075,17 +1047,17 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
     const QChar percentage{'%'};
     bool exclusiveField{false};
 
-    for (const auto &arg : *args) {
+    for (auto arg = args->begin(); arg != args->end(); ++arg) {
         QString newArg;
 
-        for (const auto *it = arg.cbegin(); it != arg.cend();) {
+        for (const auto *it = arg->cbegin(); it != arg->cend();) {
             if (*it != percentage) {
                 newArg.append(*(it++));
                 continue;
             }
 
             const auto *code = it + 1;
-            if (code == arg.cend()) {
+            if (code == arg->cend()) {
                 qWarning() << R"(content of exec is invalid, a unterminated % is detected.)";
                 return {};
             }
@@ -1096,66 +1068,57 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
                 continue;
             }
 
-            switch (code->toLatin1()) {
-            case 'f': {  // Defer to async job
-                if (exclusiveField) {
-                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
-                    break;
-                }
-                exclusiveField = true;
-
-                if (fields.empty()) {
-                    qDebug() << R"(fields is empty, %f will be ignored.)";
-                    break;
-                }
-
-                if (fields.size() > 1) {
-                    qDebug() << R"(fields count is greater than one, %f will only take first element.)";
-                }
-
-                task.Resources.emplace_back(fields.takeFirst());
-                newArg.append(R"(%f)");
-            } break;
-            case 'u': {
-                if (exclusiveField) {
-                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
-                    break;
-                }
-                exclusiveField = true;
-
-                if (fields.empty()) {
-                    qDebug() << "fields is empty, %u will be ignored.";
-                    break;
-                }
-
-                if (fields.size() > 1) {
-                    qDebug() << R"(fields count is greater than one, %u will only take first element.)";
-                }
-
-                newArg.append(processUrl(fields.takeFirst()));
-            } break;
+            switch (auto c = code->toLatin1(); c) {
+            case 'f':
+                [[fallthrough]];
             case 'F': {  // Defer to async job
                 if (exclusiveField) {
-                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    qDebug() << QString{"exclusive field is detected again, %%1 will be ignored."}.arg(c);
                     break;
                 }
                 exclusiveField = true;
 
-                task.Resources.emplace_back(fields.join(' '));
-                fields.clear();
-                newArg.append(R"(%F)");
+                if (fields.empty()) {
+                    qDebug() << QString{"fields is empty, %%1 will be ignored."}.arg(c);
+                    break;
+                }
+
+                if (c == 'F') {
+                    task.Resources.emplace_back(fields.join(' '));
+                } else {
+                    std::for_each(
+                        fields.begin(), fields.end(), [&task](QString &str) { task.Resources.emplace_back(std::move(str)); });
+                }
+
+                task.argNum = std::distance(args->begin(), arg) - 1;
+                task.fieldLocation = std::distance(arg->cbegin(), it) - 1;
             } break;
+            case 'u':
             case 'U': {
                 if (exclusiveField) {
-                    qDebug() << R"(exclusive field is detected again, %f will be ignored.)";
+                    qDebug() << QString{"exclusive field is detected again, %%1 will be ignored."}.arg(c);
                     break;
                 }
                 exclusiveField = true;
+
+                if (fields.empty()) {
+                    qDebug() << QString{"fields is empty, %%1 will be ignored."}.arg(c);
+                    break;
+                }
 
                 QStringList urls;
                 std::transform(fields.cbegin(), fields.cend(), std::back_inserter(urls), processUrl);
                 fields.clear();
-                newArg.append(urls.join(' '));  // split at the end of loop
+
+                if (c == 'U') {
+                    task.Resources.emplace_back(urls.join(' '));
+                } else {
+                    std::for_each(
+                        urls.begin(), urls.end(), [&task](QString &url) { task.Resources.emplace_back(std::move(url)); });
+                }
+
+                task.argNum = std::distance(args->begin(), arg) - 1;
+                task.fieldLocation = std::distance(arg->cbegin(), it) - 1;
             } break;
             case 'i': {
                 auto val = m_entry->value(DesktopFileEntryKey, "Icon");
@@ -1221,7 +1184,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
     }
 
     if (task.Resources.isEmpty()) {
-        task.Resources.emplace_back(QString{""});  // mapReduce should run once at least
+        task.Resources.emplace_back(QVariant{});  // mapReduce should run once at least
     }
 
     qInfo() << "after unescape exec:" << task.LaunchBin << task.command << task.Resources;
