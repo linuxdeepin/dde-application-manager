@@ -343,7 +343,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         // don't change this sequence
         cmds.push_back("deepin-terminal");
         cmds.push_back("--keep-open");  // keep terminal open, prevent exit immediately
-        cmds.push_front("-e");          // run all original execution commands in deepin-terminal
+        cmds.push_back("-e");           // run all original execution commands in deepin-terminal
     }
 
     auto &jobManager = parent()->jobManager();
