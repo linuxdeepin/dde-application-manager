@@ -165,6 +165,16 @@
 
         <property name="X_Deepin_CreateBy" type="s" access="read"/>
 
+        <property name="Execs" type="a{ss}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Display the exec content of all actions"
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
+        </property>
+
+        <property name="X_CreatedBy" type="s" access="read"/>
+
         <method name="SendToDesktop">
             <arg type="b" name="success" direction="out"/>
         </method>

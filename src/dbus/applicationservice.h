@@ -109,8 +109,14 @@ public:
     Q_PROPERTY(bool NoDisplay READ noDisplay NOTIFY noDisplayChanged)
     [[nodiscard]] bool noDisplay() const noexcept;
 
-    Q_PROPERTY(QString X_Deepin_CreateBy READ X_Deepin_CreateBy NOTIFY noDisplayChanged)
+    Q_PROPERTY(QString X_Deepin_CreateBy READ X_Deepin_CreateBy NOTIFY xDeepinCreatedByChanged)
     [[nodiscard]] QString X_Deepin_CreateBy() const noexcept;
+
+    Q_PROPERTY(QStringMap Execs READ execs NOTIFY execsChanged)
+    [[nodiscard]] QStringMap execs() const noexcept;
+
+    Q_PROPERTY(QString X_CreatedBy READ X_CreatedBy NOTIFY xCreatedByChanged)
+    [[nodiscard]] QString X_CreatedBy() const noexcept;
 
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
@@ -172,6 +178,9 @@ Q_SIGNALS:
     void environChanged();
     void launchedTimesChanged();
     void startupWMClassChanged();
+    void xDeepinCreatedByChanged();
+    void execsChanged();
+    void xCreatedByChanged();
 
 private:
     friend class ApplicationManager1Service;
