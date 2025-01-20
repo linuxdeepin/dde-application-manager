@@ -607,6 +607,33 @@ QString ApplicationService::X_Deepin_CreateBy() const noexcept
     return findEntryValue(DesktopFileEntryKey, "X-Deepin-CreateBy", EntryValueType::String).toString();
 }
 
+QStringMap ApplicationService::execs() const noexcept
+{
+    QStringMap ret;
+
+    auto mainExec = m_entry->value(DesktopFileEntryKey, "Exec");
+    if (mainExec.has_value()) {
+        ret.insert(DesktopFileEntryKey, mainExec->value<QString>());
+    }
+
+    auto actionList = actions();
+    for (const auto &action : actionList) {
+        auto actionKey = QString{action}.prepend(DesktopFileActionKey);
+        auto value = m_entry->value(actionKey, "Exec");
+        if (!value.has_value()) {
+            continue;
+        }
+        ret.insert(actionKey, value->value<QString>());
+    }
+
+    return ret;
+}
+
+QString ApplicationService::X_CreatedBy() const noexcept
+{
+    return findEntryValue(DesktopFileEntryKey, "X-Created-By", EntryValueType::String).toString();
+}
+
 bool ApplicationService::terminal() const noexcept
 {
     auto val = findEntryValue(DesktopFileEntryKey, "Terminal", EntryValueType::String);
@@ -958,6 +985,9 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit environChanged();
     emit launchedTimesChanged();
     emit startupWMClassChanged();
+    emit xDeepinCreatedByChanged();
+    emit execsChanged();
+    emit xCreatedByChanged();
 }
 
 std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &str) noexcept
