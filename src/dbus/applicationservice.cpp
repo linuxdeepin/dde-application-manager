@@ -371,8 +371,11 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
                 return objectPath;
             }
+            QStringList rawRes;
+            if(value.canConvert<QStringList>()){
+                rawRes = value.toStringList();
+            }
 
-            auto rawRes = value.toString();
             if (task.argNum != -1) {
                 if (task.argNum >= newCommands.size()) {
                     qCritical() << "task.argNum >= task.command.size()";
@@ -381,10 +384,14 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
                 auto tmp = task.command;
                 if (task.fieldLocation == -1) {
-                    tmp.insert(task.argNum + 1, rawRes);
+                    for(int i = 0; i < rawRes.size(); i++){
+                        tmp.insert(task.argNum + 1 + i, rawRes.at(i));
+                    }
                 } else {
                     auto arg = tmp.at(task.argNum);
-                    arg.insert(task.fieldLocation, rawRes);
+                    for(int i = 0; i < rawRes.size(); i++){
+                        tmp.insert(task.fieldLocation, rawRes.at(i));
+                    }
                     tmp[task.argNum] = arg;
                 }
 
@@ -1114,7 +1121,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
                 }
 
                 if (c == 'F') {
-                    task.Resources.emplace_back(fields.join(' '));
+                    task.Resources.emplace_back(fields);
                 } else {
                     std::for_each(
                         fields.begin(), fields.end(), [&task](QString &str) { task.Resources.emplace_back(std::move(str)); });
