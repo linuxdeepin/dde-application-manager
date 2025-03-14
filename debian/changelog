@@ -1,3 +1,9 @@
+dde-application-manager (1.2.26) unstable; urgency=medium
+
+  * fix: abnormal splitting of parameters enclosed in quotation marks in Exec
+
+ -- zhangkun <zhangkun2@uniontech.com>  Fri, 14 Mar 2025 22:25:23 +0800
+
 dde-application-manager (1.2.25) unstable; urgency=medium
 
   * release 1.2.25
