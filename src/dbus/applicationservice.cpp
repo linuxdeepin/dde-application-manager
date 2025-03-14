@@ -1214,7 +1214,17 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
             it += 2;  // skip filed code
         }
 
-        auto newArgList = newArg.split(' ', Qt::SkipEmptyParts);
+        // unescapeExecArgs()函数中使用了遵循POSIX标准的wordexp，可以正确解析被引号包裹的整体，解析成参数列表，
+        // 被分割的都是一个个整体，若分割后的参数在这里还能再按空格分割，
+        // 则说明这个参数被包裹在一个引号中作为了一个整体，此时我们不能再分割这个参数
+        const bool noSplit = (*arg).split(' ').size() > 1;
+        QStringList newArgList;
+        if (noSplit) {
+            newArgList = {newArg};
+        } else {
+            newArgList = newArg.split(' ', Qt::SkipEmptyParts);
+        }
+
         if (!newArgList.isEmpty()) {
             task.command.append(std::move(newArgList));
         }
