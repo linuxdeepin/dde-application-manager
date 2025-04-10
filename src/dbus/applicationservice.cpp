@@ -371,10 +371,6 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
 
                 return objectPath;
             }
-            QStringList rawRes;
-            if(value.canConvert<QStringList>()){
-                rawRes = value.toStringList();
-            }
 
             if (task.argNum != -1) {
                 if (task.argNum >= newCommands.size()) {
@@ -382,21 +378,48 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
                     return QDBusError::Failed;
                 }
 
-                auto tmp = task.command;
-                if (task.fieldLocation == -1) {
-                    for(int i = 0; i < rawRes.size(); i++){
-                        tmp.insert(task.argNum + 1 + i, rawRes.at(i));
-                    }
+                QStringList rawRes;
+                if (value.canConvert<QStringList>()) {  // from %F, %U
+                    rawRes = value.toStringList();
+                } else if (value.canConvert<QString>()) {  // from %f, %u
+                    rawRes.append(value.toString());
                 } else {
-                    auto arg = tmp.at(task.argNum);
-                    for(int i = 0; i < rawRes.size(); i++){
-                        tmp.insert(task.fieldLocation, rawRes.at(i));
-                    }
-                    tmp[task.argNum] = arg;
+                    qWarning() << "value type mismatch:" << value;
+                    return QDBusError::Failed;
                 }
 
-                newCommands.append(std::move(tmp));
+                if (task.local) {
+                    std::for_each(rawRes.begin(), rawRes.end(), [](QString &str) {
+                        auto url = QUrl::fromUserInput(str);
+
+                        if (url.isLocalFile()) {
+                            str = url.toLocalFile();
+                            return;
+                        }
+
+                        // TODO: processing remote files
+                        // str = downloadToLocal(url).toLocalFile();
+                    });
+                }
+
+                auto newCmds = task.command;
+                if (task.fieldLocation == -1) {  // single field, e.g. "demo %U"
+                    auto it = newCmds.begin() + task.argNum + 1;
+                    std::for_each(
+                        rawRes.rbegin(), rawRes.rend(), [&newCmds, &it](QString &str) { it = newCmds.insert(it, str); });
+                } else {
+                    auto arg = newCmds.begin() + task.argNum + 1;
+                    arg->insert(task.fieldLocation, rawRes.takeFirst());
+                    ++arg;
+
+                    // expand the rest of res
+                    std::for_each(
+                        rawRes.rbegin(), rawRes.rend(), [&newCmds, &arg](QString &str) { arg = newCmds.insert(arg, str); });
+                }
+
+                newCommands.append(std::move(newCmds));
             }
+
             newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
             newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
 
@@ -1066,20 +1089,6 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
         return {};
     }
 
-    auto processUrl = [](const QString &str) {
-        auto url = QUrl::fromUserInput(str);
-        if (!url.isValid()) {
-            qDebug() << "url is invalid, pass to exec directly.";
-            return str;
-        }
-
-        if (url.isLocalFile()) {
-            return url.toLocalFile();
-        }
-
-        return url.toString();
-    };
-
     task.LaunchBin = args->first();
     const QChar percentage{'%'};
     bool exclusiveField{false};
@@ -1129,6 +1138,7 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
 
                 task.argNum = std::distance(args->begin(), arg) - 1;
                 task.fieldLocation = std::distance(arg->cbegin(), it) - 1;
+                task.local = true;
             } break;
             case 'u':
             case 'U': {
@@ -1143,15 +1153,12 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
                     break;
                 }
 
-                QStringList urls;
-                std::transform(fields.cbegin(), fields.cend(), std::back_inserter(urls), processUrl);
-                fields.clear();
-
+                // respect the original url, pass it to exec directly
                 if (c == 'U') {
-                    task.Resources.emplace_back(urls.join(' '));
+                    task.Resources.emplace_back(std::move(fields));
                 } else {
                     std::for_each(
-                        urls.begin(), urls.end(), [&task](QString &url) { task.Resources.emplace_back(std::move(url)); });
+                        fields.begin(), fields.end(), [&task](QString &url) { task.Resources.emplace_back(std::move(url)); });
                 }
 
                 task.argNum = std::distance(args->begin(), arg) - 1;

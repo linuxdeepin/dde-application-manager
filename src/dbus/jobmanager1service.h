@@ -33,7 +33,7 @@ struct LaunchTask
     QString LaunchBin;
     QStringList command;
     QVariantList Resources;
-    bool singleInstance{false};
+    bool local{false};
     int argNum{-1};
     int fieldLocation{-1};
 };
