@@ -1,3 +1,9 @@
+dde-application-manager (1.2.27) unstable; urgency=medium
+
+  * fix: convert file:// to local path
+
+ -- heyuming <heyuming@deepin.org>  Thu, 10 Apr 2025 16:52:52 +0800
+
 dde-application-manager (1.2.26) unstable; urgency=medium
 
   * fix: abnormal splitting of parameters enclosed in quotation marks in Exec
@@ -96,7 +102,7 @@ dde-application-manager (1.2.11) unstable; urgency=medium
 
 dde-application-manager (1.2.10) unstable; urgency=medium
 
-  * fix: crashed when launching a application contains "%U" 
+  * fix: crashed when launching a application contains "%U"
   * fix: revert "crashed when removing a invalid index"
 
  -- Wang Fei <wangfei@deepin.org>  Fri, 10 May 2024 15:18:39 +0800
