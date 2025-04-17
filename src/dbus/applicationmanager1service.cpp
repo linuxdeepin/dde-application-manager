@@ -16,10 +16,6 @@
 #include <QStringBuilder>
 #include <chrono>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <string.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
@@ -141,8 +137,6 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     scanApplications();
 
     auto needLaunch = scanAutoStart();
-
-    autoRemoveFromDesktop();
 
     scanInstances();
 
@@ -651,87 +645,6 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         destApp->m_desktopSource = std::move(desktopFile);
     }
 }
-
-// 删除桌面无效的快捷方式
- void ApplicationManager1Service::autoRemoveFromDesktop() noexcept
- {
-    auto dirPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-    if (dirPath.isEmpty()) {
-        return;
-    }
-
-    DIR *dir = opendir(dirPath.toLocal8Bit().constData());
-    if (dir == nullptr) {
-        qWarning() << "open dir :" << dirPath << "failed";
-        return;
-    }
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // 跳过 . 和 .. 目录
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        const char *suffix = ".desktop";
-        const char *entryName = entry->d_name;
-        int indexSuffix = strlen(suffix)-1;
-        int index = strlen(entryName)-1;
-        bool isDesktopFile = true;
-       
-        if (index < indexSuffix) {
-            continue;
-        }
-        
-        while (indexSuffix >= 0) {
-            if(suffix[indexSuffix--] != entryName[index--]){
-                isDesktopFile = false;
-                break;
-            }
-        }
-
-        if (!isDesktopFile) {
-            qWarning() << "entry->d_name not DesktopFile:" << entry->d_name;
-            continue;
-        }
-
-        qWarning() << "entry->d_name DesktopFile:" << entry->d_name;
-
-        std::string entryPath = dirPath.toStdString() + "/" + entry->d_name;
-
-        struct stat statbuf;
-        if (lstat(entryPath.c_str(), &statbuf) == -1) {
-            qWarning() << "lstat failed:" << entryPath.c_str();
-            continue;
-        }
-
-        // 检查是否是符号链接
-        if (S_ISLNK(statbuf.st_mode)) {
-            char target[4096];
-            ssize_t len = readlink(entryPath.c_str(), target, sizeof(target) - 1);
-            if (len == -1) {
-                qWarning() << "readlink failed:" << entryPath.c_str();
-                continue;
-            }
-            target[len] = '\0';
-
-            QFileInfo fileInfo{entryPath.c_str()};
-            // 检查符号链接的目标是否存在
-            struct stat targetStat;
-            if (lstat(target, &targetStat) == -1) {                     
-                QFile file{fileInfo.filePath()};
-                auto success = file.remove();
-                if (!success) {
-                    qWarning() << "remove desktop file failed:" << file.errorString();
-                }else {
-                    qWarning() << "remove desktop file success:" << fileInfo.filePath();
-                } 
-            }
-        }
-    }
-
-    closedir(dir);
- }
 
 void ApplicationManager1Service::ReloadApplications()
 {
