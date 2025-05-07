@@ -555,7 +555,8 @@ void ApplicationManager1Service::removeOneApplication(const QString &appId) noex
             }
         }
         unregisterObjectFromDBus(objectPath.path());
-        m_applicationList.remove(appId);
+        std::ignore = it->data()->RemoveFromDesktop();
+        m_applicationList.erase(it);
 
         emit listChanged();
     }
