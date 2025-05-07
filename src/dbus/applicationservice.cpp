@@ -188,7 +188,6 @@ ApplicationService::ApplicationService(DesktopFile source,
 ApplicationService::~ApplicationService()
 {
     detachAllInstance();
-    autoRemoveFromDesktop();
 }
 
 QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
@@ -1265,28 +1264,6 @@ void ApplicationService::unescapeEens(QVariantMap &options) noexcept
     }
 
     options.insert("env", result);
-}
-
-void ApplicationService::autoRemoveFromDesktop() const noexcept
-{
-    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-    if (dir.isEmpty()) {
-        return;
-    }
-
-    QFileInfo desktopFile{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
-
-    if (!desktopFile.isSymbolicLink()) {
-        qDebug() << desktopFile.filePath() << " is not symbolicLink";
-        return;
-    }
-
-    QFile file{desktopFile.filePath()};
-    auto success = file.remove();
-    if (!success) {
-        qWarning() << "remove desktop file failed:" << file.errorString();
-        return;
-    }
 }
 
 QVariant ApplicationService::findEntryValue(const QString &group,
