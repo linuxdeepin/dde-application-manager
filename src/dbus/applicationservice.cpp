@@ -770,10 +770,6 @@ bool ApplicationService::isAutoStart() const noexcept
         return false;
     }
 
-    if (m_autostartSource.m_filePath == m_desktopSource.sourcePath()) {
-        return true;
-    }
-
     auto appId = id();
     auto dirs = getAutoStartDirs();
     QString destDesktopFile;
