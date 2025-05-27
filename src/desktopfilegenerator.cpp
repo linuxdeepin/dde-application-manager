@@ -45,6 +45,17 @@ int DesktopFileGenerator::processMainGroupLocaleEntry(DesktopEntry::container_ty
         return 1;
     }
 
+    if (key == "GenericName") {
+        const auto &genericNameMap = qdbus_cast<QStringMap>(value);
+        if (genericNameMap.isEmpty()) {
+            qDebug() << "GenericName's type mismatch:" << genericNameMap;
+            return -1;
+        }
+
+        mainEntry->insert("GenericName", QVariant::fromValue(genericNameMap));
+        return 1;
+    }
+
     if (key == "Icon") {
         const auto &iconMap = qdbus_cast<QStringMap>(value);
         if (auto icon = iconMap.constFind(DesktopFileDefaultKeyLocale); icon != iconMap.cend() and !icon->isEmpty()) {
