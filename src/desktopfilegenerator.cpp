@@ -49,7 +49,7 @@ int DesktopFileGenerator::processMainGroupLocaleEntry(DesktopEntry::container_ty
         const auto &genericNameMap = qdbus_cast<QStringMap>(value);
         if (genericNameMap.isEmpty()) {
             qDebug() << "GenericName's type mismatch:" << genericNameMap;
-            return -1;
+            return 1;
         }
 
         mainEntry->insert("GenericName", QVariant::fromValue(genericNameMap));
