@@ -1,3 +1,11 @@
+dde-application-manager (1.2.29) unstable; urgency=medium
+
+  * fix: when reboot,none-autostart app is incorrectly set to a auto-start icon 
+  * feat: Add GenericName handling to DesktopFileGenerator 
+  * fix: return value for empty GenericName map in desktop file generator 
+
+ -- Wu Jiangyu <wujiangyu@uniontech.com>  Thu, 05 Jun 2025 16:27:04 +0800
+
 dde-application-manager (1.2.28) unstable; urgency=medium
 
   * revert the change that validate and remove broken desktop file symlinks
