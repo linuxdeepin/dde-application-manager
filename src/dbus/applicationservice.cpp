@@ -420,7 +420,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
             }
 
             newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
-            newCommands.push_front(QString{R"(--unitName=DDE-%1@%2.service)"}.arg(this->id(), instanceRandomUUID));
+            newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(escapeApplicationId(this->id()), instanceRandomUUID));
 
             QProcess process;
             qDebug().noquote() << "launcher :" << m_launcher << "run with commands:" << newCommands;
