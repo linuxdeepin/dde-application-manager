@@ -1,3 +1,9 @@
+dde-application-manager (1.2.30) unstable; urgency=medium
+
+  * fix: Fix unit name error when launch with parameters
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 12 Jun 2025 20:56:12 +0800
+
 dde-application-manager (1.2.29) unstable; urgency=medium
 
   * fix: when reboot,none-autostart app is incorrectly set to a auto-start icon 
