@@ -34,6 +34,8 @@
 #include <wordexp.h>
 #include <DConfig>
 
+using namespace Qt::Literals::StringLiterals;
+
 static inline void appendEnvs(const QVariant &var, QStringList &envs)
 {
     if (var.canConvert<QStringList>()) {
@@ -1248,6 +1250,10 @@ void ApplicationService::unescapeEens(QVariantMap &options) noexcept
     QStringList result;
     auto envs = options["env"];
     for (const QString &var : envs.toStringList()) {
+        if (var.startsWith(u"DSG_APP_ID="_s)) {
+            result << var;
+            continue;
+        }
         wordexp_t p;
         if (wordexp(var.toStdString().c_str(), &p, 0) == 0) {
             for (size_t i = 0; i < p.we_wordc; i++) {
