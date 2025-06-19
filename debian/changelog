@@ -1,3 +1,9 @@
+dde-application-manager (1.2.31) unstable; urgency=medium
+
+  * fix: spaces in desktop id can cause app failed to launch
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 19 Jun 2025 10:12:23 +0800
+
 dde-application-manager (1.2.30) unstable; urgency=medium
 
   * fix: Fix unit name error when launch with parameters
