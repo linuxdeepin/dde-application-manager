@@ -69,8 +69,8 @@ install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/debFix.sh
             WORLD_READ WORLD_EXECUTE
 )
 
-dtk_add_config_meta_files(APPID ${APPLICATION_SERVICEID}
-    FILES
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.am.json
-    ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.application-manager.json
-)
+# dtk_add_config_meta_files(APPID ${APPLICATION_SERVICEID}
+#     FILES
+#     ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.am.json
+#     ${CMAKE_CURRENT_LIST_DIR}/dsg/configs/dde-application-manager/org.deepin.dde.application-manager.json
+# )

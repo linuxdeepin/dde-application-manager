@@ -23,7 +23,7 @@ set(DDE_AM_USE_DEBUG_DBUS_NAME OFF CACHE BOOL "build a dbus service using a diff
 set(PROFILING_MODE OFF CACHE BOOL "run a valgrind performance profiling.")
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
-find_package(Dtk6 REQUIRED COMPONENTS Core)
+# find_package(Dtk6 REQUIRED COMPONENTS Core)
 find_package(Threads REQUIRED)
 
 set(APP_LAUNCH_HELPER_BIN app-launch-helper)
