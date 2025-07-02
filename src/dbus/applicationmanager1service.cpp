@@ -580,22 +580,7 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
 
     Q_ASSERT_X(static_cast<bool>(m_identifier), "Identify", "Broken Identifier.");
 
-    auto pid = getPidFromPidFd(pidfd);
-    if (pid == 0) {
-        safe_sendErrorReply(QDBusError::Failed, "pid is invalid");
-        return {};
-    }
-
-    const auto ret = m_identifier->Identify(pid);
-    
-    // Verify that the pidfd still refers to the same process to avoid timing issues
-    // where the process exits and the PID is reused by another process
-    if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
-        const int errorCode = errno;
-        qWarning() << "pidfd_send_signal failed with errno:" << errorCode << ", description:" << strerror(errorCode);
-        safe_sendErrorReply(QDBusError::Failed, "pidfd is no longer valid (process may have exited)");
-        return {};
-    }
+    const auto ret = m_identifier->Identify(pidfd);
     
     if (ret.ApplicationId.isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, "Identify failed.");
