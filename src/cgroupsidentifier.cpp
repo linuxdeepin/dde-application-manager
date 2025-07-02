@@ -10,85 +10,31 @@
 
 IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
 {
-    // Extract PID from pidfd
-    auto pid = getPidFromPidFd(pidfd);
-    if (pid == 0) {
-        qWarning() << "Failed to extract PID from pidfd";
-        return {};
-    }
-
-    // Perform identification using PID
-    auto AppCgroupPath = QString("/proc/%1/cgroup").arg(pid);
-    QFile AppCgroupFile{AppCgroupPath};
-    if (!AppCgroupFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        qWarning() << "open " << AppCgroupPath << "failed: " << AppCgroupFile.errorString();
-        return {};
-    }
-
-    auto UnitStr = parseCGroupsPath(AppCgroupFile);
-
-    if (UnitStr.isEmpty()) {
-        qWarning() << "process CGroups file failed.";
-        return {};
-    }
-
-    auto [appId, launcher, InstanceId] = processUnitName(UnitStr);
+    // Get cgroup information using new approach
+    auto [cgroupInode, cgroupPath] = getCGroupInfoFromPidFd(pidfd);
     
-    // Verify that the pidfd still refers to the same process to avoid timing issues
-    // where the process exits and the PID is reused by another process
-    if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
-        const int errorCode = errno;
-        qWarning() << "pidfd_send_signal failed with errno:" << errorCode << ", description:" << strerror(errorCode);
-        qWarning() << "pidfd is no longer valid (process may have exited)";
-        return {};
-    }
-    
-    return {std::move(appId), std::move(InstanceId)};
-}
-
-QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
-{
-    QString content = cgroupFile.readAll();
-    if (content.isEmpty()) {
+    if (cgroupPath.isEmpty()) {
+        qWarning() << "Failed to get cgroup information from pidfd";
         return {};
     }
 
-    QTextStream stream{&content};
-    stream.setEncoding(QStringConverter::Utf8);
-
-    QString CGP;
-    while (!stream.atEnd()) {
-        auto line = stream.readLine();
-        auto firstColon = line.indexOf(':');
-        auto secondColon = line.indexOf(':', firstColon + 1);
-        auto subSystemd = QStringView(line.constBegin() + firstColon + 1, secondColon - firstColon - 1);
-        if (subSystemd.isEmpty()) {  // cgroup v2
-            CGP = line.last(line.size() - secondColon - 1);
-            break;
-        }
-
-        if (subSystemd == QString{"name=systemd"}) {         // cgroup v1
-            CGP = line.last(line.size() - secondColon - 1);  // shouldn't break, maybe v1 and v2 exists at the same time.
-        }
-    }
-
-    if (CGP.isEmpty()) {
-        qWarning() << "no systemd informations found.";
+    auto cgroupSlices = cgroupPath.split('/', Qt::SkipEmptyParts);
+    if (cgroupSlices.isEmpty()) {
+        qCritical() << "invalid cgroups path, abort.";
         return {};
     }
 
-    auto CGPSlices = CGP.split('/', Qt::SkipEmptyParts);
-    if (CGPSlices.isEmpty()) {
-        qCritical() << "invalid cgroups path,abort.";
-        return {};
-    }
-
-    if (CGPSlices.first() != "user.slice") {
+    if (cgroupSlices.first() != "user.slice") {
         qWarning() << "unrecognized process.";
         return {};
     }
 
-    auto userSlice = CGPSlices.at(1);
+    if (cgroupSlices.size() < 2) {
+        qWarning() << "couldn't detect uid.";
+        return {};
+    }
+    
+    auto userSlice = cgroupSlices.at(1);
     if (userSlice.isEmpty()) {
         qWarning() << "couldn't detect uid.";
         return {};
@@ -105,10 +51,25 @@ QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
         return {};
     }
 
-    auto appInstance = CGPSlices.last();
+    auto appInstance = cgroupSlices.last();
     if (appInstance.isEmpty()) {
         qWarning() << "get AppId failed.";
         return {};
     }
-    return appInstance;
+    
+    auto [appId, launcher, instanceId] = processUnitName(appInstance);
+    
+    // For kernels without PIDFD_GET_INFO support, perform comprehensive validation
+    // at the end to ensure pidfd is still valid when we return the result
+    if (cgroupInode == 0) {
+        // Verify that the pidfd still refers to the same process
+        if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
+            const int errorCode = errno;
+            qWarning() << "pidfd_send_signal failed with errno:" << errorCode << ", description:" << strerror(errorCode);
+            qWarning() << "pidfd is no longer valid (process may have exited)";
+            return {};
+        }
+    }
+    
+    return {std::move(appId), std::move(instanceId)};
 }

@@ -12,9 +12,6 @@ class CGroupsIdentifier : public Identifier
 {
 public:
     IdentifyRet Identify(const QDBusUnixFileDescriptor &pidfd) override;
-
-private:
-    [[nodiscard]] static QString parseCGroupsPath(QFile &file) noexcept;
 };
 
 #endif
