@@ -591,6 +591,8 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     // Verify that the pidfd still refers to the same process to avoid timing issues
     // where the process exits and the PID is reused by another process
     if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
+        const int errorCode = errno;
+        qWarning() << "pidfd_send_signal failed with errno:" << errorCode << ", description:" << strerror(errorCode);
         safe_sendErrorReply(QDBusError::Failed, "pidfd is no longer valid (process may have exited)");
         return {};
     }
