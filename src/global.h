@@ -24,6 +24,7 @@
 #include <QLoggingCategory>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <signal.h>
 #include "constant.h"
 #include "config.h"
 
@@ -655,6 +656,11 @@ inline QString getObjectPathFromAppId(const QString &appId)
 inline int pidfd_open(pid_t pid, uint flags)
 {
     return syscall(SYS_pidfd_open, pid, flags);
+}
+
+inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags)
+{
+    return syscall(SYS_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
 #define safe_sendErrorReply                                                                                                      \
