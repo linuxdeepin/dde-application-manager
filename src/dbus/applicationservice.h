@@ -84,6 +84,9 @@ public:
     [[nodiscard]] bool isAutoStart() const noexcept;
     void setAutoStart(bool autostart) noexcept;
 
+    Q_PROPERTY(bool StartupNotify READ startupNotify NOTIFY startupNotifyChanged)
+    [[nodiscard]] bool startupNotify() const noexcept;
+
     Q_PROPERTY(QStringList MimeTypes READ mimeTypes WRITE setMimeTypes)
     [[nodiscard]] QStringList mimeTypes() const noexcept;
     void setMimeTypes(const QStringList &value) noexcept;
@@ -180,6 +183,7 @@ Q_SIGNALS:
     void xDeepinCreatedByChanged();
     void execsChanged();
     void xCreatedByChanged();
+    void startupNotifyChanged();
 
 private:
     friend class ApplicationManager1Service;
