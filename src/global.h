@@ -25,7 +25,6 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <signal.h>
-#include <linux/types.h>
 #include "constant.h"
 #include "config.h"
 
@@ -662,111 +661,6 @@ inline int pidfd_open(pid_t pid, uint flags)
 inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags)
 {
     return syscall(SYS_pidfd_send_signal, pidfd, sig, info, flags);
-}
-
-// PIDFD_GET_INFO syscall support (Linux 6.9+)
-#ifndef SYS_pidfd_get_info
-#define SYS_pidfd_get_info 462
-#endif
-
-struct pidfd_info {
-    __u64 pid;
-    __u64 tgid;
-    __u64 ppid;
-    __u64 sid;
-    __u64 pgid;
-    __u64 starttime;
-    __u64 cgroup_id;
-    char comm[16];
-};
-
-inline int pidfd_get_info(int pidfd, struct pidfd_info *info, size_t info_size)
-{
-    return syscall(SYS_pidfd_get_info, pidfd, info, info_size);
-}
-
-// Get cgroup inode from pidfd using PIDFD_GET_INFO if available, fallback to PID-based approach
-inline std::pair<ino_t, QString> getCGroupInfoFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
-{
-    // Try PIDFD_GET_INFO first (Linux 6.9+)
-    struct pidfd_info info{};
-    if (pidfd_get_info(pidfd.fileDescriptor(), &info, sizeof(info)) == 0) {
-        // Successfully got cgroup_id (inode) directly from pidfd
-        // We still need to get the cgroup path, so let's read from proc using the pid
-        auto pid = static_cast<uint>(info.pid);
-        auto cgroupPath = QString("/proc/%1/cgroup").arg(pid);
-        QFile cgroupFile{cgroupPath};
-        if (cgroupFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-            auto content = cgroupFile.readAll();
-            QTextStream stream{&content};
-            stream.setEncoding(QStringConverter::Utf8);
-            
-            QString CGP;
-            while (!stream.atEnd()) {
-                auto line = stream.readLine();
-                auto firstColon = line.indexOf(':');
-                auto secondColon = line.indexOf(':', firstColon + 1);
-                auto subSystemd = QStringView(line.constBegin() + firstColon + 1, secondColon - firstColon - 1);
-                if (subSystemd.isEmpty()) {  // cgroup v2
-                    CGP = line.last(line.size() - secondColon - 1);
-                    break;
-                }
-                if (subSystemd == QString{"name=systemd"}) {         // cgroup v1
-                    CGP = line.last(line.size() - secondColon - 1);
-                }
-            }
-            
-            if (!CGP.isEmpty()) {
-                return {static_cast<ino_t>(info.cgroup_id), CGP};
-            }
-        }
-        qWarning() << "PIDFD_GET_INFO succeeded but failed to read cgroup path for pid" << pid;
-        return {0, {}};
-    }
-    
-    // Fallback to PID-based approach for older kernels
-    auto pid = getPidFromPidFd(pidfd);
-    if (pid == 0) {
-        return {0, {}};
-    }
-    
-    auto cgroupPath = QString("/proc/%1/cgroup").arg(pid);
-    QFile cgroupFile{cgroupPath};
-    if (!cgroupFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        return {0, {}};
-    }
-    
-    auto content = cgroupFile.readAll();
-    QTextStream stream{&content};
-    stream.setEncoding(QStringConverter::Utf8);
-    
-    QString CGP;
-    while (!stream.atEnd()) {
-        auto line = stream.readLine();
-        auto firstColon = line.indexOf(':');
-        auto secondColon = line.indexOf(':', firstColon + 1);
-        auto subSystemd = QStringView(line.constBegin() + firstColon + 1, secondColon - firstColon - 1);
-        if (subSystemd.isEmpty()) {  // cgroup v2
-            CGP = line.last(line.size() - secondColon - 1);
-            break;
-        }
-        if (subSystemd == QString{"name=systemd"}) {         // cgroup v1
-            CGP = line.last(line.size() - secondColon - 1);
-        }
-    }
-    
-    if (CGP.isEmpty()) {
-        return {0, {}};
-    }
-    
-    // Get cgroup inode
-    auto cgroupMountPath = QString("/sys/fs/cgroup%1").arg(CGP);
-    struct stat statbuf;
-    if (stat(cgroupMountPath.toLocal8Bit().constData(), &statbuf) == 0) {
-        return {statbuf.st_ino, CGP};
-    }
-    
-    return {0, CGP}; // Return path even if we can't get inode
 }
 
 #define safe_sendErrorReply                                                                                                      \
