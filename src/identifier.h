@@ -6,6 +6,7 @@
 #define IDENTIFIER_H
 
 #include <QString>
+#include <QDBusUnixFileDescriptor>
 #include <unistd.h>
 
 struct IdentifyRet
@@ -18,7 +19,7 @@ class Identifier
 {
 public:
     virtual ~Identifier() = default;
-    virtual IdentifyRet Identify(pid_t pid) = 0;
+    virtual IdentifyRet Identify(const QDBusUnixFileDescriptor &pidfd) = 0;
 };
 
 #endif

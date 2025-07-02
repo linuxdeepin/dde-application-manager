@@ -8,8 +8,16 @@
 #include <QString>
 #include <QDebug>
 
-IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
+IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
 {
+    // Extract PID from pidfd
+    auto pid = getPidFromPidFd(pidfd);
+    if (pid == 0) {
+        qWarning() << "Failed to extract PID from pidfd";
+        return {};
+    }
+
+    // Perform identification using PID
     auto AppCgroupPath = QString("/proc/%1/cgroup").arg(pid);
     QFile AppCgroupFile{AppCgroupPath};
     if (!AppCgroupFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
@@ -25,6 +33,16 @@ IdentifyRet CGroupsIdentifier::Identify(pid_t pid)
     }
 
     auto [appId, launcher, InstanceId] = processUnitName(UnitStr);
+    
+    // Verify that the pidfd still refers to the same process to avoid timing issues
+    // where the process exits and the PID is reused by another process
+    if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
+        const int errorCode = errno;
+        qWarning() << "pidfd_send_signal failed with errno:" << errorCode << ", description:" << strerror(errorCode);
+        qWarning() << "pidfd is no longer valid (process may have exited)";
+        return {};
+    }
+    
     return {std::move(appId), std::move(InstanceId)};
 }
 
