@@ -88,6 +88,11 @@ void Launcher::setLaunchedType(LaunchedType type)
     m_launchedType = type;
 }
 
+void Launcher::setEnvironmentVariables(const QStringList &envVars)
+{
+    m_environmentVariables = envVars;
+}
+
 DExpected<void> Launcher::run()
 {
     if (auto value = launch(); !value)
@@ -105,10 +110,17 @@ DExpected<void> Launcher::launch()
     auto con = QDBusConnection::sessionBus();
     auto msg = QDBusMessage::createMethodCall(
         DDEApplicationManager1ServiceName, m_path, ApplicationInterface, "Launch");
+    
+    // Build options map
+    QVariantMap options;
+    if (!m_environmentVariables.isEmpty()) {
+        options["env"] = QVariant::fromValue(m_environmentVariables);
+    }
+    
     const QList<QVariant> arguments {
         m_action,
         QStringList{},
-        QVariantMap{}
+        options
     };
     msg.setArguments(arguments);
     auto reply = con.call(msg);

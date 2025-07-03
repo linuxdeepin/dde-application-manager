@@ -68,6 +68,9 @@ install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/debFix.sh
             GROUP_READ GROUP_EXECUTE
             WORLD_READ WORLD_EXECUTE
 )
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/bash-completion/dde-am
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions
+)
 
 dtk_add_config_meta_files(APPID ${APPLICATION_SERVICEID}
     FILES

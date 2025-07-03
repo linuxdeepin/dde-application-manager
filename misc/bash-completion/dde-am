@@ -1,0 +1,17 @@
+# dde-am completion
+# SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+_comp_dde-am() {
+  local keywords=("-h" "--help" "--list" "--by-user" "-e" "--env" "--action")
+  local cur
+  _comp_initialize
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '"${keywords[@]}"' -- "${cur}") )
+  else
+    COMPREPLY=( $( dde-am --list 2>&1 | grep -e "^${cur}.*$" | sort ) )
+  fi
+}
+complete -F _comp_dde-am dde-am
+
+# ex: filetype=bash
