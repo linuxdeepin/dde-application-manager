@@ -1,3 +1,11 @@
+dde-application-manager (1.2.32) unstable; urgency=medium
+
+  * fix: add hardening flags to Debian build rules
+  * fix: Fix timing issue in ApplicationManager1Service::Identify using
+    pidfd_send_signal validation
+
+ -- WuJiangYu <wujiangyu@uniontech.com>  Thu, 03 Jul 2025 19:54:43 +0800
+
 dde-application-manager (1.2.31) unstable; urgency=medium
 
   * fix: spaces in desktop id can cause app failed to launch
