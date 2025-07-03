@@ -674,6 +674,15 @@ bool ApplicationService::terminal() const noexcept
     return false;
 }
 
+bool ApplicationService::startupNotify() const noexcept
+{
+    auto val = findEntryValue(DesktopFileEntryKey, "StartupNotify", EntryValueType::String);
+    if (!val.isNull()) {
+        return val.toBool();
+    }
+    return false;
+}
+
 QString ApplicationService::startupWMClass() const noexcept
 {
     auto value = findEntryValue(DesktopFileEntryKey, "StartupWMClass", EntryValueType::String);
@@ -1015,6 +1024,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit xDeepinCreatedByChanged();
     emit execsChanged();
     emit xCreatedByChanged();
+    emit startupNotifyChanged();
 }
 
 std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &str) noexcept

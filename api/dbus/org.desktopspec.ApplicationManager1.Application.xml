@@ -75,6 +75,13 @@
                 value="Indicate this application should launch by terminal or not."
             />
         </property>
+        
+        <property name="StartupNotify" type="b" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Indicate this application should launch with startup notification or not."
+            />
+        </property>
 
         <property name="Environ" type="s" access="readwrite">
             <annotation
