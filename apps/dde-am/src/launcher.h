@@ -17,6 +17,7 @@ public:
     void setAction(const QString &action);
     void setLaunchedType(LaunchedType type);
     void setEnvironmentVariables(const QStringList &envVars);
+    void setFields(const QStringList &fields); // 新增
     Dtk::Core::DExpected<void> run();
 
     static Dtk::Core::DExpected<QStringList> appIds();
@@ -29,4 +30,5 @@ private:
     QString m_action;
     LaunchedType m_launchedType = Unknown;
     QStringList m_environmentVariables;
+    QStringList m_fields; // 新增
 };
