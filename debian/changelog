@@ -1,3 +1,9 @@
+dde-application-manager (1.2.33) unstable; urgency=medium
+
+  * feat: update dde-am tool
+
+ -- YeShanShan <yeshanshan@uniontech.com>  Thu, 10 Jul 2025 21:06:51 +0800
+
 dde-application-manager (1.2.32) unstable; urgency=medium
 
   * fix: add hardening flags to Debian build rules
