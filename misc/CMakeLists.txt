@@ -30,7 +30,7 @@ install(FILES ${SYSTEMD_USER_FILE} DESTINATION ${SERVICE_DEST_PATH})
 install(FILES ${SYSTEMD_USER_DROP_IN_FILE} DESTINATION ${SERVICE_DEST_PATH}/app-DDE-.service.d)
 
 # create a symlink to dde-session
-install_symlink(org.desktopspec.ApplicationManager1.service dde-session-initialized.target.wants)
+install_symlink(org.desktopspec.ApplicationManager1.service dde-session-core.target.wants)
 
 # dde-autostart service
 configure_file(
