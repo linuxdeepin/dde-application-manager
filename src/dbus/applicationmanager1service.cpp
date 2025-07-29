@@ -726,6 +726,14 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
+    //传入的desktop文件内容为空的时候直接返回。
+    QString errMsg;
+    auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
+    if (fileContent.isEmpty() or !errMsg.isEmpty()) {
+        safe_sendErrorReply(QDBusError::Failed, errMsg);
+        return {};
+    }
+
     QDir xdgDataHome;
     QString dir{getXDGDataHome() + "/applications"};
     if (!xdgDataHome.mkpath(dir)) {
@@ -733,25 +741,37 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
+    //判断当前是否已经存在了desktop文件
     xdgDataHome.setPath(dir);
     const auto &filePath = xdgDataHome.filePath(name);
-
-    if (QFileInfo info{filePath}; info.exists() and info.isFile()) {
-        safe_sendErrorReply(QDBusError::Failed, QString{"file already exists:%1"}.arg(info.absoluteFilePath()));
-        return {};
-    }
-
     QFile file{filePath};
-    if (!file.open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
-        safe_sendErrorReply(QDBusError::Failed, file.errorString());
-        return {};
+    const auto fileExists = file.exists();
+    bool shouldRewrite = false;
+
+    if (fileExists) {
+        ParserError parseErr{ParserError::NoError};
+        //判断desktop文件内容是否合法
+        auto existingDesktopFile = DesktopFile::searchDesktopFileByPath(filePath, parseErr);
+        if (existingDesktopFile) {
+            //解析当前已经存在的desktop文件内容
+            DesktopEntry entry;
+            ParserError entryErr = entry.parse(existingDesktopFile.value());
+            if (entryErr != ParserError::NoError) {
+                qWarning() << "parse existing desktop file has error:" << entryErr;
+                shouldRewrite = true;
+            }
+        }
+    }
+    // 根据情况选择打开模式
+    QIODevice::OpenMode openMode = QFile::WriteOnly | QFile::Text;
+    if (fileExists && shouldRewrite) {
+        openMode |= QFile::Truncate;  // 清空现有内容
+    } else if (!fileExists) {
+        openMode |= QFile::NewOnly;   // 只创建新文件
     }
 
-    QString errMsg;
-    auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
-    if (fileContent.isEmpty() or !errMsg.isEmpty()) {
-        file.remove();
-        safe_sendErrorReply(QDBusError::Failed, errMsg);
+    if (!file.open(openMode)) {
+        safe_sendErrorReply(QDBusError::Failed, file.errorString());
         return {};
     }
 
