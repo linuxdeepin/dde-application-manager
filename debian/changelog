@@ -1,3 +1,10 @@
+dde-application-manager (1.2.34) unstable; urgency=medium
+
+  * fix: improve handling of existing desktop files
+  * fix: add PartOf directive to systemd service override
+
+ -- Wang Zichong <wangzichong@deepin.org>  Thu, 31 Jul 2025 20:26:08 +0800
+
 dde-application-manager (1.2.33) unstable; urgency=medium
 
   * feat: update dde-am tool
