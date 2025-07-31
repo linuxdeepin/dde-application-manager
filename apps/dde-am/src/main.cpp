@@ -56,10 +56,40 @@ int main(int argc, char *argv[])
     QCommandLineOption envOption(QStringList() << "e" << "env",
                                 "Set environment variable, format: NAME=VALUE (can be used multiple times)", "env");
     parser.addOption(envOption);
+    QCommandLineOption fieldsOption(QStringList() << "f" << "fields",
+                                   "Set launch fields, can be used multiple times", "field");
+    parser.addOption(fieldsOption);
     
     parser.addPositionalArgument("appId", "Application's ID, .desktop file path, or URI (e.g.: file:///path/to/app.desktop).");;
 
-    parser.process(app);
+    // 优雅地处理 -- 分隔符
+    QStringList args;
+    for (int i = 1; i < argc; ++i) {
+        args << QString::fromLocal8Bit(argv[i]);
+    }
+
+    auto argsSplittorPos = args.indexOf(QStringLiteral("--"));
+    QStringList arguments;
+    QStringList fieldsAfterDoubleDash;
+
+    if (argsSplittorPos != -1) {
+        while (argsSplittorPos > 0) {
+            arguments << args.takeFirst();
+            argsSplittorPos--;
+        }
+        args.removeFirst(); // 移除 "--"
+        fieldsAfterDoubleDash = args; // 剩余的就是 fields
+    } else {
+        arguments = args;
+    }
+
+    // 使用处理过的参数解析
+    if (!parser.parse(arguments)) {
+        qDebug() << "Parse error:" << parser.errorText();
+        parser.showHelp();
+        return 1;
+    }
+    
     if (parser.isSet(listOption)) {
         const auto apps = Launcher::appIds();
         if (!apps) {
@@ -75,23 +105,64 @@ int main(int argc, char *argv[])
     QString appId;
     QString action;
     QStringList envVars;
+    QStringList fields;
+    
+    // 处理 -- 之后的参数作为 fields
+    if (!fieldsAfterDoubleDash.isEmpty()) {
+        fields.append(fieldsAfterDoubleDash);
+    }
     
     // Handle environment variables - prioritize -e/--env option
     if (parser.isSet(envOption)) {
         envVars.append(parser.values(envOption));
     }
+    // Handle fields - prioritize -f/--fields option
+    if (parser.isSet(fieldsOption)) {
+        fields.append(parser.values(fieldsOption));
+    }
     
-    auto arguments = parser.positionalArguments();
+    // 从处理前的参数中获取第一个位置参数（appId）
     QString inputArg;
     if (!arguments.isEmpty()) {
-        inputArg = arguments.takeFirst();
-        appId = getAppIdFromInput(inputArg);
-        // 支持 action 作为第二个位置参数
-        if (!arguments.isEmpty()) {
-            action = arguments.takeFirst();
+        // 移除所有选项参数，找到第一个位置参数
+        QStringList tempArgs = arguments;
+        
+        // 移除已知的选项及其值
+        if (parser.isSet(actionOption)) {
+            tempArgs.removeAll("-a");
+            tempArgs.removeAll("--action");
+            tempArgs.removeAll(parser.value(actionOption));
         }
-    } else {
+        if (parser.isSet(envOption)) {
+            tempArgs.removeAll("-e");
+            tempArgs.removeAll("--env");
+            for (const auto &env : parser.values(envOption)) {
+                tempArgs.removeAll(env);
+            }
+        }
+        if (parser.isSet(fieldsOption)) {
+            tempArgs.removeAll("-f");
+            tempArgs.removeAll("--fields");
+            for (const auto &field : parser.values(fieldsOption)) {
+                tempArgs.removeAll(field);
+            }
+        }
+        tempArgs.removeAll("--by-user");
+        tempArgs.removeAll("--list");
+        
+        if (!tempArgs.isEmpty()) {
+            inputArg = tempArgs.first();
+            appId = getAppIdFromInput(inputArg);
+            // 如果有第二个参数，作为 action
+            if (tempArgs.size() > 1) {
+                action = tempArgs.at(1);
+            }
+        }
+    }
+    
+    if (inputArg.isEmpty()) {
         parser.showHelp();
+        return 1;
     }
 
     // Handle action - prioritize --action option 
@@ -122,6 +193,9 @@ int main(int argc, char *argv[])
     
     if (!envVars.isEmpty()) {
         launcher.setEnvironmentVariables(envVars);
+    }
+    if (!fields.isEmpty()) {
+        launcher.setFields(fields);
     }
 
     auto ret = launcher.run();

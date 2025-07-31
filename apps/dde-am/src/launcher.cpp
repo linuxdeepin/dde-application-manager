@@ -23,6 +23,10 @@ void registerComplexDbusType()
     qRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();
+    
+    // 确保 QStringList 被正确注册
+    qRegisterMetaType<QStringList>();
+    qDBusRegisterMetaType<QStringList>();
 }
 
 template<class T>
@@ -93,6 +97,11 @@ void Launcher::setEnvironmentVariables(const QStringList &envVars)
     m_environmentVariables = envVars;
 }
 
+void Launcher::setFields(const QStringList &fields)
+{
+    m_fields = fields;
+}
+
 DExpected<void> Launcher::run()
 {
     if (auto value = launch(); !value)
@@ -107,6 +116,8 @@ DExpected<void> Launcher::run()
 
 DExpected<void> Launcher::launch()
 {
+    registerComplexDbusType();
+    
     auto con = QDBusConnection::sessionBus();
     auto msg = QDBusMessage::createMethodCall(
         DDEApplicationManager1ServiceName, m_path, ApplicationInterface, "Launch");
@@ -119,7 +130,7 @@ DExpected<void> Launcher::launch()
     
     const QList<QVariant> arguments {
         m_action,
-        QStringList{},
+        m_fields,
         options
     };
     msg.setArguments(arguments);
