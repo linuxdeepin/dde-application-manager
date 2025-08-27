@@ -353,6 +353,7 @@ void ApplicationManager1Service::scanInstances() noexcept
 
 QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::scanAutoStart() noexcept
 {
+    qDebug() << "Autostart applications scan started";
     QHash<QSharedPointer<ApplicationService>, QString> ret;
     auto autostartDirs = getAutoStartDirs();
     std::map<QString, DesktopFile> autostartItems;
@@ -401,9 +402,26 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             auto appSource = asApplication.toString();
 
             QFileInfo sourceInfo{appSource};
-            if ((!sourceInfo.exists() or !sourceInfo.isFile()) and !file.remove()) {
-                qWarning() << "remove invalid autostart file error:" << file.error();
-                continue;
+            if (!sourceInfo.exists() or !sourceInfo.isFile()) {
+                // 检查 storage.json 中的 AutoStart 设置
+                auto storagePtr = m_storage.lock();
+                bool shouldKeepFile = false;
+                
+                if (storagePtr) {
+                    auto autoStart = storagePtr->autoStart(desktopFile.desktopId());
+                    if (autoStart) {
+                        shouldKeepFile = true;
+                    }
+                }
+                
+                if (!shouldKeepFile && !file.remove()) {
+                    qWarning() << "remove invalid autostart file error:" << file.error();
+                    continue;
+                }
+                
+                if (!shouldKeepFile) {
+                    qDebug() << "Removed invalid autostart file:" << desktopFile.sourcePath() << "because source doesn't exist:" << appSource;
+                }
             }
 
             // add original application
@@ -438,7 +456,7 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
                 ret.insert(app, realExec);
             }
 
-            app->setAutostartSource({std::move(originalSource), std::move(tmp)});
+            app->setAutostartSource({std::move(originalSource), std::move(tmp)}, true);
             continue;
         }
 
@@ -657,14 +675,13 @@ void ApplicationManager1Service::doReloadApplications()
 
     auto desktopFileDirs = getDesktopFileDirs();
     desktopFileDirs.append(getAutoStartDirs());  // detect autostart apps add/remove/update
-
     auto appIds = m_applicationList.keys();
 
     applyIteratively(
         QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
         [this, &appIds](const QFileInfo &info) -> bool {
             ParserError err{ParserError::NoError};
-            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
+            auto ret = DesktopFile::searchDesktopFileByPathFilterOwnerAutoStart(info.absoluteFilePath(), err);
             if (!ret.has_value()) {
                 return false;
             }
@@ -692,6 +709,7 @@ void ApplicationManager1Service::doReloadApplications()
         QDir::Name | QDir::DirsLast);
 
     for (const auto &appId : appIds) {
+        qDebug() << "remove application:" << appId;
         removeOneApplication(appId);
     }
 

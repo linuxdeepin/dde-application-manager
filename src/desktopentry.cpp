@@ -152,6 +152,27 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};
 }
 
+std::optional<DesktopFile> DesktopFile::searchDesktopFileByPathFilterOwnerAutoStart(const QString &desktopFilePath, ParserError &err) noexcept
+{
+    auto file = searchDesktopFileByPath(desktopFilePath, err);
+    if (!file) {
+        return std::nullopt;
+    }
+    DesktopEntry tmp;
+    if (tmp.parse(file.value()) != ParserError::NoError) {
+        qWarning() << "parse autostart file" << file.value().sourcePath() << " error:" << err;
+        err = ParserError::MismatchedFile;
+        return std::nullopt;
+    }
+    if (auto generatedSource = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource)) {
+        // 这是生成的 autostart 文件，不应在此处处理
+        err = ParserError::MismatchedFile;
+        return std::nullopt;
+    }
+    err = ParserError::NoError;
+    return file;
+}
+
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, ParserError &err) noexcept
 {
     auto XDGDataDirs = getDesktopFileDirs();

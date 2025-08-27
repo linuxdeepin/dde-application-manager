@@ -227,6 +227,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     }
 
     app->m_entry.reset(entry.release());
+
     app->m_applicationPath = QDBusObjectPath{std::move(objectPath)};
 
     // TODO: icon lookup
@@ -839,6 +840,17 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
+    // 更新顶层 AutoStart 设置
+    auto storagePtr = m_storage.lock();
+    if (storagePtr) {
+        auto appId = id();
+        if (!storagePtr->setAutoStart(appId, autostart)) {
+            qWarning() << "failed to update top-level AutoStart setting for" << appId;
+        } else {
+            qDebug() << "Updated top-level AutoStart setting for" << appId << "to" << autostart;
+        }
+    }
+
     emit autostartChanged();
 }
 
@@ -1353,7 +1365,13 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
     }
 }
 
-void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
+void ApplicationService::setAutostartSource(AutostartSource &&source, bool emitAutoStartSignal) noexcept
 {
+    if (m_autostartSource.m_filePath == source.m_filePath && m_autostartSource.m_entry == source.m_entry) {
+        return;
+    }
     m_autostartSource = std::move(source);
+    qDebug() << "set autostart source:" << m_autostartSource.m_filePath << m_autostartSource.m_entry.data() << id();
+    if (emitAutoStartSignal) 
+    emit autostartChanged();    
 }

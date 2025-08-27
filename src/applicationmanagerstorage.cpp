@@ -6,6 +6,7 @@
 #include "constant.h"
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QDir>
 #include <memory>
 
@@ -84,7 +85,7 @@ bool ApplicationManager1Storage::writeToFile() const noexcept
         qCritical() << "io error, write failed.";
         return false;
     }
-
+    qDebug() << "writeToFile success";
     return true;
 }
 
@@ -271,3 +272,65 @@ bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString
     m_data.insert(appId, app);
     return deferCommit ? true : writeToFile();
 }
+
+bool ApplicationManager1Storage::setAutoStart(const QString &appId, bool autoStart) noexcept
+{
+    if (appId.isEmpty()) {
+        qWarning() << "unexpected empty appId";
+        return false;
+    }
+
+    QJsonArray autoStartArray;
+    if (m_data.contains("AutoStart")) {
+        autoStartArray = m_data["AutoStart"].toArray();
+    }
+
+    if (autoStart) {
+        // 添加appId到数组中（如果不存在）
+        bool found = false;
+        for (const auto &item : autoStartArray) {
+            if (item.toString() == appId) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            autoStartArray.append(appId);
+        }
+    } else {
+        // 从数组中移除appId
+        for (int i = 0; i < autoStartArray.size(); ++i) {
+            if (autoStartArray[i].toString() == appId) {
+                autoStartArray.removeAt(i);
+                break;
+            }
+        }
+    }
+
+    m_data.insert("AutoStart", autoStartArray);
+    
+    qDebug() << "set AutoStart:" << appId << "=" << autoStart;
+    return writeToFile();
+}
+
+bool ApplicationManager1Storage::autoStart(const QString &appId) const noexcept
+{
+    if (appId.isEmpty()) {
+        qWarning() << "unexpected empty appId";
+        return false;
+    }
+
+    if (!m_data.contains("AutoStart")) {
+        return false;
+    }
+
+    auto autoStartArray = m_data["AutoStart"].toArray();
+    for (const auto &item : autoStartArray) {
+        if (item.toString() == appId) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+

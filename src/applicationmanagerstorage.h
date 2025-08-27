@@ -46,6 +46,9 @@ public:
     bool setFirstLaunch(bool first) noexcept;
     [[nodiscard]] bool firstLaunch() const noexcept;
 
+    [[nodiscard]] bool setAutoStart(const QString &appId, bool autoStart) noexcept;
+    [[nodiscard]] bool autoStart(const QString &appId) const noexcept;
+
     [[nodiscard]] static std::shared_ptr<ApplicationManager1Storage>
     createApplicationManager1Storage(const QString &storageDir) noexcept;
 
