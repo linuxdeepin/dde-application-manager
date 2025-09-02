@@ -43,7 +43,6 @@ struct DesktopFile
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, ParserError &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, ParserError &err) noexcept;
-    static std::optional<DesktopFile> searchDesktopFileByPathFilterOwnerAutoStart(const QString &desktopFilePath, ParserError &err) noexcept;
 
     static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;

@@ -14,7 +14,6 @@
 #include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
-#include <chrono>
 #include <unistd.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -179,7 +178,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             app->Launch({}, {}, {}, realExec);
         }
     } else {
-         constexpr auto XSettings = "org.deepin.dde.XSettings1";
+        constexpr auto XSettings = "org.deepin.dde.XSettings1";
 
         auto *watcher = new (std::nothrow)
             QDBusServiceWatcher{XSettings, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration, this};
@@ -202,8 +201,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
         }
 
-        auto msg =
-            QDBusMessage::createMethodCall("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
+        auto msg = QDBusMessage::createMethodCall(
+            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
         msg << XSettings;
 
         auto reply = QDBusConnection::sessionBus().call(msg);
@@ -377,7 +376,6 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
 
     for (auto &it : autostartItems) {
         auto desktopFile = std::move(it.second);
-
         DesktopFileGuard guard{desktopFile};
         if (!guard.try_open()) {
             continue;
@@ -392,7 +390,6 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             continue;
         }
 
-        QString originalSource;
         QSharedPointer<ApplicationService> app{nullptr};
         auto asApplication = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{});
         auto shouldLaunch = tmp.value(DesktopFileEntryKey, DesktopEntryHidden).value_or(DesktopEntry::Value{});
@@ -401,27 +398,10 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
         if (!asApplication.isNull()) {  // modified by application manager
             auto appSource = asApplication.toString();
 
-            QFileInfo sourceInfo{appSource};
-            if (!sourceInfo.exists() or !sourceInfo.isFile()) {
-                // 检查 storage.json 中的 AutoStart 设置
-                auto storagePtr = m_storage.lock();
-                bool shouldKeepFile = false;
-                
-                if (storagePtr) {
-                    auto autoStart = storagePtr->autoStart(desktopFile.desktopId());
-                    if (autoStart) {
-                        shouldKeepFile = true;
-                    }
-                }
-                
-                if (!shouldKeepFile && !file.remove()) {
-                    qWarning() << "remove invalid autostart file error:" << file.error();
-                    continue;
-                }
-                
-                if (!shouldKeepFile) {
-                    qDebug() << "Removed invalid autostart file:" << desktopFile.sourcePath() << "because source doesn't exist:" << appSource;
-                }
+            const QFileInfo sourceInfo{appSource};
+            if (!sourceInfo.exists() || !sourceInfo.isFile()) {
+                qWarning() << "autostart file" << appSource << "doesn't exist, skip.";
+                continue;
             }
 
             // add original application
@@ -445,18 +425,13 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
                 continue;
             }
 
-            originalSource = appSource;
-        }
-
-        originalSource = originalSource.isNull() ? desktopFile.sourcePath() : originalSource;
-        if (app) {
+            app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
             if (autostartFlag) {
                 auto realExec = tmp.value(DesktopFileEntryKey, "Exec").value_or(QString{""}).toString();
                 qInfo() << "launch autostart application " << app->id() << " by " << realExec;
                 ret.insert(app, realExec);
             }
 
-            app->setAutostartSource({std::move(originalSource), std::move(tmp)}, true);
             continue;
         }
 
@@ -472,18 +447,20 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
                 qInfo() << "launch exist autostart application " << existApp->id() << " by " << realExec;
                 ret.insert(existApp, realExec);
             }
-            existApp->setAutostartSource({std::move(originalSource), std::move(tmp)});
+
+            existApp->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
             continue;
         }
 
         guard.close();
         // new application
+        auto originalSource = desktopFile.sourcePath();
         app = addApplication(std::move(desktopFile));
         if (!app) {
             qWarning() << "add autostart application failed, skip.";
             continue;
         }
-        app->setAutostartSource({std::move(originalSource), {}});
+        app->setAutostartSource({originalSource, {}});
 
         if (autostartFlag) {
             qInfo() << "launch new autostart application " << app->id();
@@ -599,7 +576,6 @@ QString ApplicationManager1Service::Identify(const QDBusUnixFileDescriptor &pidf
     Q_ASSERT_X(static_cast<bool>(m_identifier), "Identify", "Broken Identifier.");
 
     const auto ret = m_identifier->Identify(pidfd);
-    
     if (ret.ApplicationId.isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, "Identify failed.");
         return {};
@@ -674,23 +650,20 @@ void ApplicationManager1Service::doReloadApplications()
     qInfo() << "reload applications.";
 
     auto desktopFileDirs = getDesktopFileDirs();
-    desktopFileDirs.append(getAutoStartDirs());  // detect autostart apps add/remove/update
     auto appIds = m_applicationList.keys();
 
     applyIteratively(
         QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
         [this, &appIds](const QFileInfo &info) -> bool {
             ParserError err{ParserError::NoError};
-            auto ret = DesktopFile::searchDesktopFileByPathFilterOwnerAutoStart(info.absoluteFilePath(), err);
+            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
             if (!ret.has_value()) {
                 return false;
             }
 
             auto file = std::move(ret).value();
-
-            QSharedPointer<ApplicationService> app = m_applicationList.value(file.desktopId());
-
-            if (app and appIds.contains(app->id())) {
+            auto app = m_applicationList.value(file.desktopId());
+            if (app && appIds.contains(app->id())) {
                 // Can emit correct remove signal when uninstalling applications
                 if (ApplicationFilter::tryExecCheck(*(app.data()->m_entry))) {
                     qDebug() << info.absolutePath() << "Checked TryExec failed and will be removed";
@@ -715,7 +688,6 @@ void ApplicationManager1Service::doReloadApplications()
 
     m_mimeManager->reset();
     scanMimeInfos();
-
     scanAutoStart();
 }
 
@@ -744,7 +716,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    //传入的desktop文件内容为空的时候直接返回。
+    // 传入的desktop文件内容为空的时候直接返回。
     QString errMsg;
     auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
     if (fileContent.isEmpty() or !errMsg.isEmpty()) {
@@ -759,7 +731,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    //判断当前是否已经存在了desktop文件
+    // 判断当前是否已经存在了desktop文件
     xdgDataHome.setPath(dir);
     const auto &filePath = xdgDataHome.filePath(name);
     QFile file{filePath};
@@ -768,10 +740,10 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
 
     if (fileExists) {
         ParserError parseErr{ParserError::NoError};
-        //判断desktop文件内容是否合法
+        // 判断desktop文件内容是否合法
         auto existingDesktopFile = DesktopFile::searchDesktopFileByPath(filePath, parseErr);
         if (existingDesktopFile) {
-            //解析当前已经存在的desktop文件内容
+            // 解析当前已经存在的desktop文件内容
             DesktopEntry entry;
             ParserError entryErr = entry.parse(existingDesktopFile.value());
             if (entryErr != ParserError::NoError) {
@@ -785,7 +757,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     if (fileExists && shouldRewrite) {
         openMode |= QFile::Truncate;  // 清空现有内容
     } else if (!fileExists) {
-        openMode |= QFile::NewOnly;   // 只创建新文件
+        openMode |= QFile::NewOnly;  // 只创建新文件
     }
 
     if (!file.open(openMode)) {
@@ -826,13 +798,11 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     }
 
     m_mimeManager->updateMimeCache(dir);
-
     return appId;
 }
 
-
 void ApplicationManager1Service::deleteUserApplication(const QString &app_id) noexcept
-{ 
+{
     if (app_id.isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, "app id name is empty.");
         return;
@@ -846,29 +816,27 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
     }
 
     xdgDataHome.setPath(dir);
-    const auto &filePath = xdgDataHome.filePath(app_id+".desktop");
+    const auto &filePath = xdgDataHome.filePath(app_id + ".desktop");
 
     if (QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"file not exists:%1"}.arg(info.absoluteFilePath()));
         return;
     }
 
-/*
-    auto apps = findApplicationsByIds({app_id});
-    if (apps.isEmpty()) {
-        qWarning() << "we can't find corresponding application in ApplicationManagerService.";
-    }
+    /*
+        auto apps = findApplicationsByIds({app_id});
+        if (apps.isEmpty()) {
+            qWarning() << "we can't find corresponding application in ApplicationManagerService.";
+        }
 
-    for (const auto &app : apps) {
-        app->setMimeTypes({});
-    }
-*/
+        for (const auto &app : apps) {
+            app->setMimeTypes({});
+        }
+    */
     if (!QFile::remove(filePath)) {
         safe_sendErrorReply(QDBusError::Failed, "remove file failed.");
         return;
     }
 
     m_mimeManager->updateMimeCache(dir);
-
-    return;
 }

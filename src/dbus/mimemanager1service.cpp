@@ -5,7 +5,7 @@
 
 #include "dbus/mimemanager1adaptor.h"
 #include "applicationmanager1service.h"
-#include "applicationservice.h"
+#include "applicationservice.h"  // IWYU pragma: keep
 #include "constant.h"
 
 MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)

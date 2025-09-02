@@ -202,7 +202,7 @@ private:
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
-    void setAutostartSource(AutostartSource &&source, bool emitAutoStartSignal = false) noexcept;
+    void setAutostartSource(AutostartSource &&source) noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }

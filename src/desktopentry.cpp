@@ -4,16 +4,16 @@
 
 #include "desktopentry.h"
 #include "desktopfileparser.h"
-#include <QFileInfo>
 #include <QDir>
-#include <algorithm>
-#include <QRegularExpression>
 #include <QDirIterator>
+#include <QFileInfo>
+#include <QLoggingCategory>
+#include <QRegularExpression>
 #include <QStringView>
 #include <QVariant>
-#include <iostream>
-#include <chrono>
-#include <cstdio>
+#include <algorithm>
+
+Q_LOGGING_CATEGORY(logDesktopEntry, "am.desktopentry")
 
 QString DesktopFile::sourcePath() const noexcept
 {
@@ -33,16 +33,16 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
     }
 
     if (auto name = it->find("Name"); name == it->end()) {
-        qWarning() << "No Name.";
+        qCWarning(logDesktopEntry) << "No Name entry";
         return false;
     }
 
     auto type = it->find("Type");
     if (type == it->end()) {
-        qWarning() << "No Type.";
+        qCWarning(logDesktopEntry) << "No Type entry";
         for (auto tmp = it->constKeyValueBegin(); tmp != it->constKeyValueEnd(); ++tmp) {
             const auto &[k, v] = *tmp;
-            qInfo() << "key:" << k << "value:" << v;
+            qCDebug(logDesktopEntry) << "key:" << k << "value:" << v;
         }
         return false;
     }
@@ -52,7 +52,7 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
         return false;
     }
     if (typeStr == "Link") {
-        if (it->find("URL") == it->end()) {
+        if (!it->contains("URL")) {
             return false;
         }
     }
@@ -64,7 +64,7 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_p
 {
     auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*temporaryFile});
     if (mtime == 0) {
-        qWarning() << "create temporary file failed.";
+        qCWarning(logDesktopEntry) << "create temporary file failed.";
         return std::nullopt;
     }
     return DesktopFile{std::move(temporaryFile), "", mtime, ctime};
@@ -76,8 +76,8 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
     auto tempFile = std::make_unique<QFile>(QString{userTmp + QUuid::createUuid().toString(QUuid::Id128) + ".desktop"});
 
     if (!tempFile->open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
-        qWarning() << "failed to create temporary desktop file:" << QFileInfo{*tempFile}.absoluteFilePath()
-                   << tempFile->errorString();
+        qCWarning(logDesktopEntry) << "failed to create temporary desktop file:" << QFileInfo{*tempFile}.absoluteFilePath()
+                                   << tempFile->errorString();
         return std::nullopt;
     }
 
@@ -85,7 +85,7 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
     auto writeByte = tempFile->write(content);
 
     if (writeByte == -1 || writeByte != content.length()) {
-        qWarning() << "write to temporary file failed:" << tempFile->errorString();
+        qCWarning(logDesktopEntry) << "write to temporary file failed:" << tempFile->errorString();
         return std::nullopt;
     }
 
@@ -99,14 +99,14 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     decltype(auto) desktopSuffix = ".desktop";
 
     if (!desktopFile.endsWith(desktopSuffix)) {
-        qWarning() << "file isn't a desktop file:" << desktopFile;
+        qCWarning(logDesktopEntry) << "file isn't a desktop file:" << desktopFile;
         err = ParserError::MismatchedFile;
         return std::nullopt;
     }
 
     QFileInfo fileinfo{desktopFile};
     if (!fileinfo.isAbsolute() or !fileinfo.exists()) {
-        qWarning() << "desktop file not found.";
+        qCWarning(logDesktopEntry) << "desktop file not found.";
         err = ParserError::NotFound;
         return std::nullopt;
     }
@@ -152,27 +152,6 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};
 }
 
-std::optional<DesktopFile> DesktopFile::searchDesktopFileByPathFilterOwnerAutoStart(const QString &desktopFilePath, ParserError &err) noexcept
-{
-    auto file = searchDesktopFileByPath(desktopFilePath, err);
-    if (!file) {
-        return std::nullopt;
-    }
-    DesktopEntry tmp;
-    if (tmp.parse(file.value()) != ParserError::NoError) {
-        qWarning() << "parse autostart file" << file.value().sourcePath() << " error:" << err;
-        err = ParserError::MismatchedFile;
-        return std::nullopt;
-    }
-    if (auto generatedSource = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource)) {
-        // 这是生成的 autostart 文件，不应在此处处理
-        err = ParserError::MismatchedFile;
-        return std::nullopt;
-    }
-    err = ParserError::NoError;
-    return file;
-}
-
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, ParserError &err) noexcept
 {
     auto XDGDataDirs = getDesktopFileDirs();
@@ -209,7 +188,7 @@ ParserError DesktopEntry::parse(const DesktopFile &file) noexcept
     DesktopFileGuard guard{file};
 
     if (!guard.try_open()) {
-        qWarning() << file.sourcePath() << "can't open.";
+        qCWarning(logDesktopEntry) << file.sourcePath() << "can't open.";
         return ParserError::OpenFailed;
     }
 
@@ -239,7 +218,7 @@ ParserError DesktopEntry::parse(QTextStream &stream) noexcept
     }
 
     if (!checkMainEntryValidation()) {
-        qWarning() << "invalid MainEntry, abort.";
+        qCWarning(logDesktopEntry) << "invalid MainEntry, abort.";
         err = ParserError::MissingInfo;
     }
 
@@ -258,13 +237,13 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
 {
     const auto &destGroup = group(groupKey);
     if (!destGroup) {
-        qDebug() << "group " << groupKey << " can't be found.";
+        qCDebug(logDesktopEntry) << "group " << groupKey << " can't be found.";
         return std::nullopt;
     }
 
     auto it = destGroup->find(valueKey);
     if (it == destGroup->cend()) {
-        qDebug() << "value " << valueKey << " can't be found.";
+        qCDebug(logDesktopEntry) << "value " << valueKey << " can't be found.";
         return std::nullopt;
     }
     return *it;
@@ -338,7 +317,7 @@ QString toString(const DesktopEntry::Value &value) noexcept
     }
 
     if (str.isEmpty()) {
-        qWarning() << "value not found.";
+        qCWarning(logDesktopEntry) << "failed to convert value to string.";
         return {};
     }
 
