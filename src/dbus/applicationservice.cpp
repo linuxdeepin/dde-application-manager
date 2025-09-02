@@ -4,24 +4,26 @@
 
 #include "dbus/applicationservice.h"
 #include "APPobjectmanager1adaptor.h"
+#include "applicationadaptor.h"
 #include "applicationchecker.h"
 #include "applicationmanagerstorage.h"
+#include "config.h"
 #include "constant.h"
-#include "global.h"
-#include "iniParser.h"
-#include "propertiesForwarder.h"
 #include "dbus/instanceadaptor.h"
-#include "launchoptions.h"
 #include "desktopentry.h"
 #include "desktopfileparser.h"
-#include "config.h"
-#include <QUuid>
-#include <QStringList>
+#include "global.h"
+#include "iniParser.h"
+#include "launchoptions.h"
+#include "propertiesForwarder.h"
+#include <DConfig>
 #include <QList>
-#include <QUrl>
-#include <QRegularExpression>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QStandardPaths>
+#include <QStringList>
+#include <QUrl>
+#include <QUuid>
 #include <algorithm>
 #include <new>
 #include <qcontainerfwd.h>
@@ -32,7 +34,6 @@
 #include <qtmetamacros.h>
 #include <utility>
 #include <wordexp.h>
-#include <DConfig>
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -217,7 +218,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     auto error = entry->parse(sourceStream);
 
     if (error != ParserError::NoError) {
-        qWarning() << "parse failed:" << error << app->desktopFileSource().sourcePath();
+        qDebug() << "parse failed:" << error << app->desktopFileSource().sourcePath();
         return nullptr;
     }
 
@@ -422,7 +423,8 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
             }
 
             newCommands.push_front(QString{"--SourcePath=%1"}.arg(m_desktopSource.sourcePath()));
-            newCommands.push_front(QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(escapeApplicationId(this->id()), instanceRandomUUID));
+            newCommands.push_front(
+                QString{R"(--unitName=app-DDE-%1@%2.service)"}.arg(escapeApplicationId(this->id()), instanceRandomUUID));
 
             QProcess process;
             qDebug().noquote() << "launcher :" << m_launcher << "run with commands:" << newCommands;
@@ -1356,4 +1358,5 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
 void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
 {
     m_autostartSource = std::move(source);
+    emit autostartChanged();
 }

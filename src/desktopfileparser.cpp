@@ -4,10 +4,13 @@
 
 #include <QRegularExpression>
 #include <QStringBuilder>
+#include <QLoggingCategory>
 
 #include "desktopfileparser.h"
 #include "constant.h"
 #include "global.h"
+
+Q_LOGGING_CATEGORY(logDesktopFileParser, "am.desktopfileparser")
 
 namespace {
 bool isInvalidLocaleString(const QString &str) noexcept
@@ -30,7 +33,7 @@ bool isInvalidLocaleString(const QString &str) noexcept
 
 bool isLocaleString(const QString &key) noexcept
 {
-    static QSet<QString> localeSet{"Name", "GenericName", "Comment", "Keywords"};
+    static const QSet<QString> localeSet{"Name", "GenericName", "Comment", "Keywords"};
     return localeSet.contains(key);
 }
 
@@ -50,7 +53,7 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
         }
 
         if (groups.keys().first() != DesktopFileEntryKey) {
-            qWarning() << "There should be nothing preceding "
+            qCWarning(logDesktopFileParser) << "There should be nothing preceding "
                           "'Desktop Entry' group in the desktop entry file "
                           "but possibly one or more comments.";
             return ParserError::InvalidFormat;
@@ -58,7 +61,7 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
     }
 
     if (!m_line.isEmpty()) {
-        qCritical() << "Something is wrong in Desktop file parser, check logic.";
+        qCCritical(logDesktopFileParser) << "Something is wrong in Desktop file parser, check logic.";
         return ParserError::InternalError;
     }
 
@@ -70,7 +73,7 @@ ParserError DesktopFileParser::addGroup(Groups &ret) noexcept
 {
     skip();
     if (!m_line.startsWith('[')) {
-        qWarning() << "Invalid desktop file format: unexpected line:" << m_line;
+        qCDebug(logDesktopFileParser) << "Invalid desktop file format: unexpected line:" << m_line;
         return ParserError::InvalidFormat;
     }
 
@@ -80,12 +83,12 @@ ParserError DesktopFileParser::addGroup(Groups &ret) noexcept
     auto groupHeader = m_line.sliced(1, m_line.size() - 2).trimmed();
 
     if (groupHeader.contains('[') || groupHeader.contains(']') || hasNonAsciiAndControlCharacters(groupHeader)) {
-        qWarning() << "group header invalid:" << m_line;
+        qCDebug(logDesktopFileParser) << "group header invalid:" << m_line;
         return ParserError::InvalidFormat;
     }
 
-    if (ret.find(groupHeader) != ret.end()) {
-        qWarning() << "duplicated group header detected:" << groupHeader;
+    if (ret.contains(groupHeader)) {
+        qCDebug(logDesktopFileParser) << "duplicated group header detected:" << groupHeader;
         return ParserError::InvalidFormat;
     }
 
@@ -111,7 +114,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     m_line.clear();
     auto splitCharIndex = line.indexOf('=');
     if (splitCharIndex == -1) {
-        qWarning() << "invalid line in desktop file, skip it:" << line;
+        qCDebug(logDesktopFileParser) << "invalid line in desktop file, skip it:" << line;
         return ParserError::NoError;
     }
     auto keyStr = line.first(splitCharIndex).trimmed();
@@ -122,10 +125,10 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     // NOTE:
     // We are process "localized keys" here, for usage check:
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#localized-keys
-    qsizetype localeBegin = keyStr.indexOf('[');
-    qsizetype localeEnd = keyStr.lastIndexOf(']');
+    const qsizetype localeBegin = keyStr.indexOf('[');
+    const qsizetype localeEnd = keyStr.lastIndexOf(']');
     if ((localeBegin == -1 && localeEnd != -1) || (localeBegin != -1 && localeEnd == -1)) {
-        qWarning() << "unmatched [] detected in desktop file, skip this line: " << line;
+        qCDebug(logDesktopFileParser) << "unmatched [] detected in desktop file, skip this line: " << line;
         return ParserError::NoError;
     }
 
@@ -144,29 +147,29 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     // NOTE: https://stackoverflow.com/a/25583104
     thread_local const QRegularExpression re = _re;
     if (re.match(key).hasMatch()) {
-        qWarning() << "invalid key name:" << key << ", skip this line:" << line;
+        qCDebug(logDesktopFileParser) << "invalid key name:" << key << ", skip this line:" << line;
         return ParserError::NoError;
     }
 
     if (localeStr != DesktopFileDefaultKeyLocale and !isInvalidLocaleString(localeStr)) {
-        qWarning().noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
+        qCDebug(logDesktopFileParser).noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
         return ParserError::NoError;
     }
 
     if (auto keyIt = group->find(key); keyIt != group->end()) {
         if (!isLocaleString(key)) {
-            qWarning() << "duplicate key:" << key << "skip.";
+            qCDebug(logDesktopFileParser) << "duplicate key:" << key << "skip.";
             return ParserError::NoError;
         }
 
         if (!keyIt->canConvert<QStringMap>()) {
-            qWarning() << "underlying type of value is invalid, raw value:" << *keyIt << "skip";
+            qCDebug(logDesktopFileParser) << "underlying type of value is invalid, raw value:" << *keyIt << "skip";
             return ParserError::NoError;
         }
 
         auto localeMap = keyIt->value<QStringMap>();
-        if (localeMap.find(localeStr) != localeMap.end()) {
-            qWarning() << "duplicate locale key:" << key << "skip.";
+        if (localeMap.contains(localeStr)) {
+            qCDebug(logDesktopFileParser) << "duplicate locale key:" << key << "skip.";
             return ParserError::NoError;
         }
 
@@ -210,7 +213,7 @@ QString toString(const DesktopFileParser::Groups &map)
                 const auto &rawVal = value.value<QString>();
                 ret.append(key % '=' % rawVal % '\n');
             } else {
-                qWarning() << "value type mismatch:" << value;
+                qCDebug(logDesktopFileParser) << "value type mismatch:" << value;
             }
         }
         ret.append('\n');
