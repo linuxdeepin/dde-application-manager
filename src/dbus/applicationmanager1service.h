@@ -54,7 +54,7 @@ public:
     [[nodiscard]] MimeManager1Service &mimeManager() noexcept { return *m_mimeManager; }
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
-    [[nodiscard]] const QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
+    [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
 
 public Q_SLOTS:
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
