@@ -1,3 +1,10 @@
+dde-application-manager (1.2.35) unstable; urgency=medium
+
+  * fix(autostart): Simplify autostart validation and improve
+    reliability
+
+ -- wujiangyu <wujiangyu@uniontech.com>  Thu, 04 Sep 2025 17:34:29 +0800
+
 dde-application-manager (1.2.34) unstable; urgency=medium
 
   * fix: improve handling of existing desktop files
