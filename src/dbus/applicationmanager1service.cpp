@@ -6,6 +6,7 @@
 #include "dbus/applicationmanager1adaptor.h"
 #include "applicationservice.h"
 #include "dbus/AMobjectmanager1adaptor.h"
+#include "global.h"
 #include "systemdsignaldispatcher.h"
 #include "propertiesForwarder.h"
 #include "applicationHooks.h"
@@ -651,6 +652,7 @@ void ApplicationManager1Service::doReloadApplications()
     qInfo() << "reload applications.";
 
     auto desktopFileDirs = getDesktopFileDirs();
+    desktopFileDirs.append(getXDGSystemDirs());  
     auto appIds = m_applicationList.keys();
 
     applyIteratively(

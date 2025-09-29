@@ -396,6 +396,11 @@ inline QString getXDGDataHome()
     return XDGDataHome;
 }
 
+inline QStringList getXDGSystemDirs()
+{
+    return QStringList{"/etc/xdg/autostart"};
+}
+
 inline QStringList getXDGDataDirs()
 {
     auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
