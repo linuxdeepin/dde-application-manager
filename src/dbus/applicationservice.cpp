@@ -15,6 +15,7 @@
 #include "global.h"
 #include "iniParser.h"
 #include "launchoptions.h"
+#include "prelaunchsplashhelper.h"
 #include "propertiesForwarder.h"
 #include <DConfig>
 #include <QList>
@@ -34,6 +35,7 @@
 #include <qtmetamacros.h>
 #include <utility>
 #include <wordexp.h>
+#include <QLoggingCategory>
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -317,6 +319,18 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
             safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
+    }
+
+    // Notify the compositor to show a splash screen if in a Wayland session.
+    if (auto *am = parent()) {
+        if (auto *helper = am->splashHelper()) {
+            qCInfo(amPrelaunchSplash) << "Show prelaunch splash request" << id();
+            helper->show(id());
+        } else {
+            qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (no helper instance)" << id();
+        }
+    } else {
+        qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
     }
 
     optionsMap.remove("_hooks");  // this is internal property, user shouldn't pass it to Application Manager
