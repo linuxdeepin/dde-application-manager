@@ -4,6 +4,7 @@ add_executable(${BIN_NAME} main.cpp utils.cpp)
 
 target_link_libraries(${BIN_NAME} PRIVATE
     dde_am_static
+    Qt6::Gui
 )
 
 target_include_directories(${BIN_NAME} PRIVATE

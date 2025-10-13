@@ -11,6 +11,7 @@ add_executable(${BIN_NAME} ${TESTS})
 
 target_include_directories(${BIN_NAME} PRIVATE
     ${PROJECT_BINARY_DIR}/
+    ${PROJECT_BINARY_DIR}/src/dbus
 )
 
 target_link_libraries(${BIN_NAME} PRIVATE

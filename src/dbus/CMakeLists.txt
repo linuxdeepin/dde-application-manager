@@ -15,6 +15,11 @@ qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.deskto
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.ObjectManager1.xml dbus/applicationservice.h ApplicationService APPobjectmanager1adaptor APPObjectManagerAdaptor)
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.MimeManager1.xml dbus/mimemanager1service.h MimeManager1Service)
 
+qt_generate_wayland_protocol_client_sources(dde_am_dbus 
+    FILES
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-v1.xml
+)
+
 target_sources(dde_am_dbus PRIVATE
     ${dde_am_dbus_SOURCE}
 )
@@ -24,6 +29,7 @@ target_link_libraries(
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::DBus
     Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::WaylandClient
     Dtk6::Core
 )
 
@@ -31,4 +37,5 @@ target_include_directories(
     dde_am_dbus PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_BINARY_DIR}/..
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
