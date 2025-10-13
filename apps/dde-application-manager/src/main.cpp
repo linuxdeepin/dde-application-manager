@@ -4,7 +4,7 @@
 
 #include "global.h"
 #include <QDBusConnection>
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QDir>
 #include "dbus/applicationmanager1service.h"
 #include "cgroupsidentifier.h"
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 #ifdef PROFILING_MODE
     auto start = std::chrono::high_resolution_clock::now();
 #endif
-    QCoreApplication app{argc, argv};
+    QGuiApplication app{argc, argv};
 
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
@@ -59,6 +59,6 @@ int main(int argc, char *argv[])
     qCInfo(DDEAMProf) << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms";
     return 0;
 #else
-    return QCoreApplication::exec();
+    return QGuiApplication::exec();
 #endif
 }
