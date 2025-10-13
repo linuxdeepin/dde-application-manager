@@ -22,9 +22,10 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "Whether to build examples or not.")
 set(DDE_AM_USE_DEBUG_DBUS_NAME OFF CACHE BOOL "build a dbus service using a different bus name for debug.")
 set(PROFILING_MODE OFF CACHE BOOL "run a valgrind performance profiling.")
 
-find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent WaylandClient Gui)
 find_package(Dtk6 REQUIRED COMPONENTS Core)
 find_package(Threads REQUIRED)
+find_package(TreelandProtocols REQUIRED)
 
 set(APP_LAUNCH_HELPER_BIN app-launch-helper)
 set(APP_UPDATE_NOTIFIER_BIN app-update-notifier)

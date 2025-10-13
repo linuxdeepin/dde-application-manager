@@ -21,6 +21,7 @@
 #include "desktopentry.h"
 #include "identifier.h"
 #include "compatibilitymanager.h"
+#include "prelaunchsplashhelper.h"
 
 class ApplicationService;
 
@@ -55,6 +56,7 @@ public:
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
+    [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.data(); }
 
 public Q_SLOTS:
     QDBusObjectPath executeCommand(const QString &program,
@@ -90,6 +92,7 @@ private:
     QTimer m_reloadTimer;
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
     QSharedPointer<CompatibilityManager> m_compatibilityManager{nullptr};
+    QScopedPointer<PrelaunchSplashHelper> m_splashHelper;
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
