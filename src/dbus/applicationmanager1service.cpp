@@ -12,6 +12,8 @@
 #include "applicationHooks.h"
 #include "desktopfilegenerator.h"
 #include <QFile>
+#include <QGuiApplication>
+#include <QLoggingCategory>
 #include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
@@ -24,6 +26,19 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
 {
+    // Initialize prelaunch splash helper only if current Qt platform plugin is Wayland.*
+    // This avoids relying on environment variables and private Qt headers.
+    const QString platform = QGuiApplication::platformName();
+    const bool isWayland = platform.startsWith("wayland", Qt::CaseInsensitive);
+    if (isWayland) {
+        m_splashHelper.reset(new (std::nothrow) PrelaunchSplashHelper());
+        if (!m_splashHelper) {
+            qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper (platform=" << platform << ")";
+        } else {
+            qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized (platform=" << platform << ")";
+        }
+    }
+
     using namespace std::chrono_literals;
     m_reloadTimer.setInterval(50);
     m_reloadTimer.setSingleShot(true);
