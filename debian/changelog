@@ -1,3 +1,9 @@
+dde-application-manager (1.2.36-1splashscreen0) unstable; urgency=medium
+
+  * feat: add Wayland prelaunch splash screen support
+
+ -- rewine <luhongxu@uniontech.com>  Wed, 15 Oct 2025 14:34:39 +0800
+
 dde-application-manager (1.2.36) unstable; urgency=medium
 
   * feat: add system autostart directory support
