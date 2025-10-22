@@ -396,11 +396,6 @@ inline QString getXDGDataHome()
     return XDGDataHome;
 }
 
-inline QStringList getXDGSystemDirs()
-{
-    return QStringList{"/etc/xdg/autostart"};
-}
-
 inline QStringList getXDGDataDirs()
 {
     auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
@@ -410,26 +405,28 @@ inline QStringList getXDGDataDirs()
         XDGDataDirs.append("/usr/share");
     }
 
-    auto XDGDataHome = getXDGDataHome();
-    if (XDGDataDirs.contains(XDGDataHome)) {
-        XDGDataDirs.removeAll(XDGDataHome);
-    }
-
-    XDGDataDirs.push_front(XDGDataHome);
     return XDGDataDirs;
+}
+
+inline QStringList getXDGDataMergedDirs()
+{
+    QStringList merged;
+    merged.append(getXDGDataHome());
+    merged.append(getXDGDataDirs());
+    return merged;
 }
 
 inline QStringList getDesktopFileDirs()
 {
-    auto XDGDataDirs = getXDGDataDirs();
-    std::for_each(XDGDataDirs.begin(), XDGDataDirs.end(), [](QString &str) {
+    auto desktopFileDirs = getXDGDataMergedDirs();
+    std::for_each(desktopFileDirs.begin(), desktopFileDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {
             str.append(QDir::separator());
         }
         str.append("applications");
     });
 
-    return XDGDataDirs;
+    return desktopFileDirs;
 }
 
 inline QString getXDGConfigHome()
@@ -449,27 +446,35 @@ inline QStringList getXDGConfigDirs()
         XDGConfigDirs.append("/etc/xdg");
     }
 
-    auto XDGConfigHome = getXDGConfigHome();
-
-    if (XDGConfigDirs.constFirst() != XDGConfigHome) {
-        XDGConfigDirs.removeAll(XDGConfigHome);
-        XDGConfigDirs.push_front(std::move(XDGConfigHome));  //  guarantee XDG_CONFIG_HOME is first element.
-    }
-
     return XDGConfigDirs;
+}
+
+inline QStringList getXDGConfigMergedDirs()
+{
+    QStringList merged;
+    merged.append(getXDGConfigHome());
+    merged.append(getXDGConfigDirs());
+    return merged;
 }
 
 inline QStringList getAutoStartDirs()
 {
-    auto XDGConfigDirs = getXDGConfigDirs();
-    std::for_each(XDGConfigDirs.begin(), XDGConfigDirs.end(), [](QString &str) {
+    auto autostartDirs = getXDGConfigMergedDirs();
+    std::for_each(autostartDirs.begin(), autostartDirs.end(), [](QString &str) {
         if (!str.endsWith(QDir::separator())) {
             str.append(QDir::separator());
         }
         str.append("autostart");
     });
 
-    return XDGConfigDirs;
+    return autostartDirs;
+}
+
+inline QStringList getMimeDirs()
+{
+    auto mimeDirs = getXDGConfigMergedDirs();
+    mimeDirs.append(getDesktopFileDirs());
+    return mimeDirs;
 }
 
 inline QString getCurrentDesktop()

@@ -10,17 +10,16 @@ constexpr std::array<char, 9> desktopSuffix{u8".desktop"};
 QStringList getListFiles() noexcept
 {
     QStringList files;
-    auto configDirs = getXDGConfigDirs();
-    auto dataDirs = getXDGDataDirs();
-    auto desktop = getCurrentDesktop().toLower();
+    const auto &mimeDirs = getMimeDirs();
+    const auto &desktop = getCurrentDesktop().toLower();
 
     auto appendListFile = [&files, &desktop](const QString &dir) {
-        QFileInfo cur{dir};
-        if (!cur.exists() or !cur.isDir()) {
+        const QFileInfo cur{dir};
+        if (!cur.exists() || !cur.isDir()) {
             return;
         }
 
-        QDir tmp{cur.absoluteFilePath()};
+        const QDir tmp{cur.absoluteFilePath()};
         auto desktopList = tmp.filePath(QString{"%1-mimeapps.list"}.arg(desktop));
         if (QFileInfo::exists(desktopList)) {
             files.append(desktopList);
@@ -32,8 +31,7 @@ QStringList getListFiles() noexcept
         }
     };
 
-    std::for_each(configDirs.cbegin(), configDirs.cend(), appendListFile);
-    std::for_each(dataDirs.cbegin(), dataDirs.cend(), appendListFile);
+    std::for_each(mimeDirs.cbegin(), mimeDirs.cend(), appendListFile);
     std::reverse(files.begin(), files.end());
     return files;
 }

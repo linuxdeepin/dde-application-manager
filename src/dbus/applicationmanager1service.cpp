@@ -287,10 +287,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
 
 void ApplicationManager1Service::scanMimeInfos() noexcept
 {
-    QStringList dirs;
-    dirs.append(getXDGConfigDirs());
-    dirs.append(getDesktopFileDirs());
-
+    const auto& dirs = getMimeDirs();
     for (const auto &dir : dirs) {
         auto info = MimeInfo::createMimeInfo(dir);
         if (info) {
@@ -475,7 +472,7 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
 
 void ApplicationManager1Service::loadHooks() noexcept
 {
-    auto hookDirs = getXDGDataDirs();
+    auto hookDirs = getXDGDataMergedDirs();
     std::for_each(hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(ApplicationManagerHookDir); });
     QHash<QString, ApplicationHook> hooks;
 
@@ -652,7 +649,7 @@ void ApplicationManager1Service::doReloadApplications()
     qInfo() << "reload applications.";
 
     auto desktopFileDirs = getDesktopFileDirs();
-    desktopFileDirs.append(getXDGSystemDirs());  
+    desktopFileDirs.append(getXDGConfigDirs());
     auto appIds = m_applicationList.keys();
 
     applyIteratively(
