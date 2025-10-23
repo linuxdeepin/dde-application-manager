@@ -1,3 +1,11 @@
+dde-application-manager (1.2.37) unstable; urgency=medium
+
+  * refactor: unify XDG directory path handling with merged directory
+    functions
+  * chore: update license from LGPL to GPL
+
+ -- wujiangyu <wujiangyu@uniontech.com>  Thu, 23 Oct 2025 16:00:06 +0800
+
 dde-application-manager (1.2.36) unstable; urgency=medium
 
   * feat: add system autostart directory support
