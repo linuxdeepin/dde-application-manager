@@ -27,17 +27,23 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
 {
-    // Initialize prelaunch splash helper only if current Qt platform plugin is Wayland.*
-    // This avoids relying on environment variables and private Qt headers.
-    const QString platform = QGuiApplication::platformName();
-    const bool isWayland = platform.startsWith("wayland", Qt::CaseInsensitive);
+    // Initialize prelaunch splash helper only when running on Wayland.
+    bool isWayland = false;
+    if (auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
+        if (app->nativeInterface<QNativeInterface::QWaylandApplication>() != nullptr) {
+            isWayland = true;
+        }
+    }
+
     if (isWayland) {
         m_splashHelper.reset(new (std::nothrow) PrelaunchSplashHelper());
         if (!m_splashHelper) {
-            qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper (platform=" << platform << ")";
+            qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper.";
         } else {
-            qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized (platform=" << platform << ")";
+            qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
         }
+    } else {
+        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper.";
     }
 
     using namespace std::chrono_literals;
