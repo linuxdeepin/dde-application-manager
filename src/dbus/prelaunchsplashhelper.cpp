@@ -5,6 +5,7 @@
 #include "prelaunchsplashhelper.h"
 
 #include <QLoggingCategory>
+#include <QString>
 
 Q_LOGGING_CATEGORY(amPrelaunchSplash, "dde.am.prelaunch.splash")
 
@@ -23,6 +24,8 @@ void PrelaunchSplashHelper::show(const QString &appId)
     }
 
     // Send the create_splash request to the compositor.
-    create_splash(appId);
-    qCInfo(amPrelaunchSplash) << "Sent create_splash for" << appId;
+    // New protocol requires a sandbox engine name as first parameter.
+    // Pass a stable identifier for this client.
+    create_splash(appId, QLatin1String("dde-application-manager"));
+    qCInfo(amPrelaunchSplash) << "Sent create_splash for" << appId << "sandboxEngine=dde-application-manager";
 }
