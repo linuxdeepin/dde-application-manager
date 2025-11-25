@@ -72,6 +72,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void doReloadApplications();
+
 private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
@@ -87,7 +88,7 @@ private:
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
     void scanInstances() noexcept;
-    QHash<QSharedPointer<ApplicationService>, QString> scanAutoStart() noexcept;
+    void updateAutostartStatus() noexcept;
     void loadHooks() noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);

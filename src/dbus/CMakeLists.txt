@@ -25,6 +25,7 @@ target_link_libraries(
     Qt${QT_VERSION_MAJOR}::DBus
     Qt${QT_VERSION_MAJOR}::Concurrent
     Dtk6::Core
+    dde_am_utils
 )
 
 target_include_directories(
