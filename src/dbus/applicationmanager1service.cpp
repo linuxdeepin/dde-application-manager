@@ -87,6 +87,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             if (!app) {
                 return;
             }
+            void updateAutostartStatus() noexcept;
 
             // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
             // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
@@ -136,9 +137,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     scanApplications();
 
-    auto needLaunch = scanAutoStart();
-
     scanInstances();
+
+    updateAutostartStatus();
 
     auto storagePtr = m_storage.lock();
     if (!storagePtr->setFirstLaunch(false)) {
@@ -172,51 +173,6 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
         flag.write(sessionId, sessionId.size());
-    }
-    auto value = QString::fromLocal8Bit(qgetenv("XDG_SESSION_TYPE"));
-    if (!value.isEmpty() && value == QString::fromLocal8Bit("wayland")) {
-        for (const auto &[app, realExec] : needLaunch.asKeyValueRange()) {
-            app->Launch({}, {}, {}, realExec);
-        }
-    } else {
-        constexpr auto XSettings = "org.deepin.dde.XSettings1";
-
-        auto *watcher = new (std::nothrow)
-            QDBusServiceWatcher{XSettings, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration, this};
-
-        auto *sigCon = new (std::nothrow) QMetaObject::Connection{};
-
-        auto singleSlot = [watcher, sigCon, autostartMap = std::move(needLaunch)]() {
-            QObject::disconnect(*sigCon);
-            delete sigCon;
-            qDebug() << XSettings << "is registered.";
-
-            for (const auto &[app, realExec] : autostartMap.asKeyValueRange()) {
-                app->Launch({}, {}, {}, realExec);
-            }
-
-            watcher->deleteLater();
-        };
-
-        if (watcher != nullptr) {
-            *sigCon = connect(watcher, &QDBusServiceWatcher::serviceRegistered, singleSlot);
-        }
-
-        auto msg = QDBusMessage::createMethodCall(
-            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner");
-        msg << XSettings;
-
-        auto reply = QDBusConnection::sessionBus().call(msg);
-        if (reply.type() != QDBusMessage::ReplyMessage) {
-            qWarning() << "call org.freedesktop.DBus::NameHasOwner failed, skip autostart:" << reply.errorMessage();
-            // The connection should not be deleted, failure to call org.freedesktop.DBus::NameHasOwner does not mean that the
-            // XSettings service is invalid.
-            return;
-        }
-
-        if (reply.arguments().first().toBool()) {
-            singleSlot();
-        }
     }
 }
 
@@ -287,7 +243,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
 
 void ApplicationManager1Service::scanMimeInfos() noexcept
 {
-    const auto& dirs = getMimeDirs();
+    const auto &dirs = getMimeDirs();
     for (const auto &dir : dirs) {
         auto info = MimeInfo::createMimeInfo(dir);
         if (info) {
@@ -348,9 +304,8 @@ void ApplicationManager1Service::scanInstances() noexcept
     }
 }
 
-QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::scanAutoStart() noexcept
+void ApplicationManager1Service::updateAutostartStatus() noexcept
 {
-    QHash<QSharedPointer<ApplicationService>, QString> ret;
     auto autostartDirs = getAutoStartDirs();
     std::map<QString, DesktopFile> autostartItems;
 
@@ -389,8 +344,6 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
 
         QSharedPointer<ApplicationService> app{nullptr};
         auto asApplication = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{});
-        auto shouldLaunch = tmp.value(DesktopFileEntryKey, DesktopEntryHidden).value_or(DesktopEntry::Value{});
-        auto autostartFlag = shouldLaunch.isNull() || (shouldLaunch.toString().compare("true", Qt::CaseInsensitive) != 0);
 
         if (!asApplication.isNull()) {  // modified by application manager
             auto appSource = asApplication.toString();
@@ -423,13 +376,6 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             }
 
             app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
-            if (autostartFlag) {
-                auto val = tmp.value(DesktopFileEntryKey, "Exec").value_or(DesktopEntry::Value{});
-                auto realExec = val.isNull() ? QString{} : val.toString();
-                qInfo() << "launch autostart application " << app->id() << " by " << realExec;
-                ret.insert(app, realExec);
-            }
-
             continue;
         }
 
@@ -440,13 +386,6 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
         }
 
         if (auto existApp = m_applicationList.value(desktopFile.desktopId()); existApp) {
-            if (autostartFlag) {
-                auto val = tmp.value(DesktopFileEntryKey, "Exec").value_or(DesktopEntry::Value{});
-                auto realExec = val.isNull() ? QString{} : val.toString();
-                qInfo() << "launch exist autostart application " << existApp->id() << " by " << realExec;
-                ret.insert(existApp, realExec);
-            }
-
             existApp->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
             continue;
         }
@@ -460,14 +399,7 @@ QHash<QSharedPointer<ApplicationService>, QString> ApplicationManager1Service::s
             continue;
         }
         app->setAutostartSource({originalSource, {}});
-
-        if (autostartFlag) {
-            qInfo() << "launch new autostart application " << app->id();
-            ret.insert(app, {});
-        }
     }
-
-    return ret;
 }
 
 void ApplicationManager1Service::loadHooks() noexcept
@@ -687,7 +619,7 @@ void ApplicationManager1Service::doReloadApplications()
 
     m_mimeManager->reset();
     scanMimeInfos();
-    scanAutoStart();
+    updateAutostartStatus();
 }
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
