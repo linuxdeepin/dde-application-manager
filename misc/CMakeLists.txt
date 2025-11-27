@@ -41,6 +41,14 @@ configure_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/dde-autostart.service DESTINATION ${SERVICE_DEST_PATH})
 install_symlink(dde-autostart.service dde-session.target.wants)
 
+configure_file(
+    systemd/user/dde-autostart@quick-login.service.in
+    systemd/user/dde-autostart@quick-login.service
+    @ONLY
+)
+# just install file, not install symlink, because it will be executed by quick-login
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/systemd/user/dde-autostart@quick-login.service DESTINATION ${SERVICE_DEST_PATH})
+
 # # dbus activate
 configure_file(
     dbus/org.desktopspec.ApplicationManager1.service.in
