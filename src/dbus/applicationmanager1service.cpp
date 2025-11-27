@@ -12,6 +12,8 @@
 #include "applicationHooks.h"
 #include "desktopfilegenerator.h"
 #include <QFile>
+#include <QGuiApplication>
+#include <QLoggingCategory>
 #include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
@@ -24,6 +26,25 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
 {
+    // Initialize prelaunch splash helper only when running on Wayland.
+    bool isWayland = false;
+    if (auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
+        if (app->nativeInterface<QNativeInterface::QWaylandApplication>() != nullptr) {
+            isWayland = true;
+        }
+    }
+
+    if (isWayland) {
+        m_splashHelper.reset(new (std::nothrow) PrelaunchSplashHelper());
+        if (!m_splashHelper) {
+            qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper.";
+        } else {
+            qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
+        }
+    } else {
+        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper.";
+    }
+
     using namespace std::chrono_literals;
     m_reloadTimer.setInterval(50);
     m_reloadTimer.setSingleShot(true);
