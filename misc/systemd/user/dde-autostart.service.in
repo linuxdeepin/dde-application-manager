@@ -9,6 +9,8 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
+# 在快速登录模式下跳过，由 quick-login 的 OnSuccess 触发专用版本
+ExecCondition=/bin/sh -c '[ "$DDE_QUICKLOGIN" != "true" ]'
 ExecStart=@CMAKE_INSTALL_PREFIX@/@AM_LIBEXEC_DIR@/dde-autostart
 Restart=on-failure
 
