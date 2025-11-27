@@ -150,6 +150,7 @@ bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
 bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
 QString unescape(const QString &str, bool shellMode = false) noexcept;
+QString escapeForWordexp(const QString &str) noexcept;
 
 QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept;
 

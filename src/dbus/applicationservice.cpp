@@ -1027,6 +1027,9 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
         return std::nullopt;
     }
 
+    // Escape $ characters to prevent wordexp from interpreting them as special sequences
+    auto escapedForWordexp = escapeForWordexp(unescapedStr);
+
     auto deleter = [](wordexp_t *word) {
         wordfree(word);
         delete word;
@@ -1038,7 +1041,7 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
         return std::nullopt;
     }
 
-    if (auto ret = wordexp(unescapedStr.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
+    if (auto ret = wordexp(escapedForWordexp.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
         if (ret != 0) {
             QString errMessage;
             switch (ret) {
