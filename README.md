@@ -36,6 +36,31 @@ $ cmake --build build -j`nproc`
 sudo cmake --install build
 ```
 
+## Package Manager Integration
+
+**⚠️ Important for Package Maintainers and Porters**
+
+DDE Application Manager requires a **package manager hook** to automatically detect application installations, updates, and removals. Without this hook, the application list in the desktop environment will NOT automatically update when users install or remove applications.
+
+The hook triggers a D-Bus service (`app-update-notifier`) that notifies the application manager to reload the application list. This ensures the launcher, application menu, and other desktop components stay synchronized with installed packages.
+
+### Quick Setup
+
+For **Debian/Ubuntu** systems, the dpkg hook is automatically installed to:
+```
+/etc/dpkg/dpkg.cfg.d/am-update-hook
+```
+
+For **other distributions** (Fedora, Arch Linux, openSUSE, etc.), you need to configure the appropriate package manager hook. See the detailed guide:
+
+📖 **[Package Manager Hook Guide](docs/package-manager-hook.md)**
+
+This guide includes:
+- Architecture and workflow explanation
+- Hook configurations for different package managers (dpkg, RPM, Pacman, etc.)
+- Testing and troubleshooting instructions
+- Verification checklist for package maintainers
+
 ## Getting help
 
 * [Matrix](https://matrix.to/#/#deepin-community:matrix.org)
