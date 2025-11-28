@@ -306,6 +306,18 @@ QString unescape(const QString &str, bool shellMode) noexcept
     return unescapedStr;
 }
 
+QString escapeForWordexp(const QString &str) noexcept
+{
+    QString escapedStr;
+    for (const QChar &c : str) {
+        if (c == '$') {
+            escapedStr.append('\\');
+        }
+        escapedStr.append(c);
+    }
+    return escapedStr;
+}
+
 QString toString(const DesktopEntry::Value &value) noexcept
 {
     QString str;

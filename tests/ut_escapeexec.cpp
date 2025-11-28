@@ -45,3 +45,47 @@ TEST(UnescapeExec, blankSpace)
         EXPECT_EQ(ApplicationService::unescapeExecArgs(testCase.first), testCase.second);
     }
 }
+
+TEST(UnescapeExec, dollarSignEscape)
+{
+    // Test that $$ in file paths is preserved and not interpreted as process ID
+    QList<std::pair<QString, QList<QString>>> testCases{
+        {
+            R"(/path/to/file$$name.txt)",
+            {
+                "/path/to/file$$name.txt",
+            },
+        },
+        {
+            R"(/home/user/document$$2023.pdf)",
+            {
+                "/home/user/document$$2023.pdf",
+            },
+        },
+        {
+            R"($$double-dollar-test)",
+            {
+                "$$double-dollar-test",
+            },
+        },
+        {
+            R"(/mixed/path$$with/normal/parts.txt)",
+            {
+                "/mixed/path$$with/normal/parts.txt",
+            },
+        },
+        {
+            R"(/usr/bin/app --file=/path/with$$dollars.txt --other=normal)",
+            {
+                "/usr/bin/app",
+                "--file=/path/with$$dollars.txt",
+                "--other=normal",
+            },
+        },
+    };
+
+    for (auto &testCase : testCases) {
+        auto result = ApplicationService::unescapeExecArgs(testCase.first);
+        EXPECT_EQ(result, testCase.second) << "Failed for input: " << testCase.first.toStdString();
+    }
+}

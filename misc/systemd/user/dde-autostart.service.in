@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[Unit]
+Description=Deepin Desktop Autostart
+After=dde-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+# 在快速登录模式下跳过，由 quick-login 的 OnSuccess 触发专用版本
+ExecCondition=/bin/sh -c '[ "$DDE_QUICKLOGIN" != "true" ]'
+ExecStart=@CMAKE_INSTALL_PREFIX@/@AM_LIBEXEC_DIR@/dde-autostart
+Restart=on-failure
+
+[Install]
+WantedBy=dde-session.target

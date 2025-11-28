@@ -1,3 +1,10 @@
+dde-application-manager (1.2.38) unstable; urgency=medium
+
+  * feat: support quick login autostart
+  * feat: implement dde-autostart service
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Thu, 27 Nov 2025 17:26:36 +0800
+
 dde-application-manager (1.2.37) unstable; urgency=medium
 
   * refactor: unify XDG directory path handling with merged directory
