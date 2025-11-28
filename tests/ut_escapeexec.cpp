@@ -5,6 +5,22 @@
 #include "dbus/applicationservice.h"
 #include <gtest/gtest.h>
 #include <QString>
+#include <QTextStream>
+
+QT_BEGIN_NAMESPACE
+void PrintTo(const QStringList& list, ::std::ostream* os) {
+    *os << "QStringList(";
+    bool first = true;
+    for (const QString& s : list) {
+        if (!first) {
+            *os << ", ";
+        }
+        *os << "\"" << qPrintable(s) << "\""; // Enclose each QString in quotes
+        first = false;
+    }
+    *os << ")";
+}
+QT_END_NAMESPACE
 
 TEST(UnescapeExec, blankSpace)
 {
@@ -12,7 +28,7 @@ TEST(UnescapeExec, blankSpace)
         {
             R"(/usr/bin/hello\sworld --arg1=val1 -h --str="rrr ggg bbb")",
             {
-                "/usr/bin/hello world",
+                R"(/usr/bin/hello\sworld)",
                 "--arg1=val1",
                 "-h",
                 "--str=rrr ggg bbb",
@@ -48,37 +64,43 @@ TEST(UnescapeExec, blankSpace)
 
 TEST(UnescapeExec, dollarSignEscape)
 {
-    // Test that $$ in file paths is preserved and not interpreted as process ID
     QList<std::pair<QString, QList<QString>>> testCases{
         {
-            R"(/path/to/file$$name.txt)",
+            R"(/path/to/file$name.txt)",  // Input: 1 $
             {
-                "/path/to/file$$name.txt",
+                "/path/to/file$$name.txt",  // Output: 2 $
             },
         },
         {
-            R"(/home/user/document$$2023.pdf)",
+            R"(/path/to/file$$name.txt)",  // Input: 2 $
             {
-                "/home/user/document$$2023.pdf",
+                "/path/to/file$$$$name.txt",  // Output: 4 $
             },
         },
         {
-            R"($$double-dollar-test)",
+            R"(/home/user/document$$2023.pdf)",  // Input: 2 $
             {
-                "$$double-dollar-test",
+                "/home/user/document$$$$2023.pdf",  // Output: 4 $
             },
         },
         {
-            R"(/mixed/path$$with/normal/parts.txt)",
-            {
-                "/mixed/path$$with/normal/parts.txt",
-            },
-        },
-        {
-            R"(/usr/bin/app --file=/path/with$$dollars.txt --other=normal)",
+            R"(/usr/bin/app $$double-dollar-test)",  // Input: 2 $
             {
                 "/usr/bin/app",
-                "--file=/path/with$$dollars.txt",
+                "$$$$double-dollar-test",  // Output: 4 $
+            },
+        },
+        {
+            R"(/mixed/path$$with/normal/parts.txt)",  // Input: 2 $
+            {
+                "/mixed/path$$$$with/normal/parts.txt",  // Output: 4 $
+            },
+        },
+        {
+            R"(/usr/bin/app --file=/path/with$$dollars.txt --other=normal)",  // Input: 2 $
+            {
+                "/usr/bin/app",
+                "--file=/path/with$$$$dollars.txt",  // Output: 4 $
                 "--other=normal",
             },
         },

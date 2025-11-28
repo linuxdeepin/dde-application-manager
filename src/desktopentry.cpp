@@ -259,7 +259,7 @@ void DesktopEntry::insert(const QString &key, const QString &valueKey, Value &&v
     outer->insert(valueKey, val);
 }
 
-QString unescape(const QString &str, bool shellMode) noexcept
+QString unescape(const QString &str, bool systemdMode) noexcept
 {
     QString unescapedStr;
     for (qsizetype i = 0; i < str.size(); ++i) {
@@ -294,8 +294,11 @@ QString unescape(const QString &str, bool shellMode) noexcept
             ++i;
             break;
         case 's': {
-            if (shellMode) {  // for wordexp
-                unescapedStr.append('\\');
+            if (systemdMode) {
+                // systemd support \s, simply skip it
+                // https://www.freedesktop.org/software/systemd/man/latest/systemd.syntax.html#Quoting
+                unescapedStr.append(c);
+                continue;
             }
             unescapedStr.append(' ');
             ++i;
@@ -306,12 +309,15 @@ QString unescape(const QString &str, bool shellMode) noexcept
     return unescapedStr;
 }
 
-QString escapeForWordexp(const QString &str) noexcept
+// https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Command%20lines
+// Doc: To pass a literal dollar sign, use "$$".
+QString escapeForSystemd(const QString &str) noexcept
 {
     QString escapedStr;
-    for (const QChar &c : str) {
+    for (qsizetype i = 0; i < str.size(); ++i) {
+        QChar c = str.at(i);
         if (c == '$') {
-            escapedStr.append('\\');
+            escapedStr.append('$');
         }
         escapedStr.append(c);
     }

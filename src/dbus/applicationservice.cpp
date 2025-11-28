@@ -1027,53 +1027,13 @@ std::optional<QStringList> ApplicationService::unescapeExecArgs(const QString &s
         return std::nullopt;
     }
 
-    // Escape $ characters to prevent wordexp from interpreting them as special sequences
-    auto escapedForWordexp = escapeForWordexp(unescapedStr);
+    QStringList cmdArgs = QProcess::splitCommand(unescapedStr);
 
-    auto deleter = [](wordexp_t *word) {
-        wordfree(word);
-        delete word;
-    };
-
-    std::unique_ptr<wordexp_t, decltype(deleter)> words{new (std::nothrow) wordexp_t{0, nullptr, 0}, deleter};
-    if (words == nullptr) {
-        qCritical() << "couldn't new wordexp_t";
-        return std::nullopt;
+    for (auto &arg : cmdArgs) {
+        arg = escapeForSystemd(arg);
     }
 
-    if (auto ret = wordexp(escapedForWordexp.toLocal8Bit(), words.get(), WRDE_SHOWERR); ret != 0) {
-        if (ret != 0) {
-            QString errMessage;
-            switch (ret) {
-            case WRDE_BADCHAR:
-                errMessage = "BADCHAR";
-                break;
-            case WRDE_BADVAL:
-                errMessage = "BADVAL";
-                break;
-            case WRDE_CMDSUB:
-                errMessage = "CMDSUB";
-                break;
-            case WRDE_NOSPACE:
-                errMessage = "NOSPACE";
-                break;
-            case WRDE_SYNTAX:
-                errMessage = "SYNTAX";
-                break;
-            default:
-                errMessage = "unknown";
-            }
-            qWarning() << "wordexp error: " << errMessage;
-            return std::nullopt;
-        }
-    }
-
-    QStringList execList;
-    for (std::size_t i = 0; i < words->we_wordc; ++i) {
-        execList.emplace_back(words->we_wordv[i]);
-    }
-
-    return execList;
+    return cmdArgs;
 }
 
 LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fields) noexcept
