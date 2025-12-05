@@ -57,6 +57,12 @@ public:
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
 
 public Q_SLOTS:
+    QDBusObjectPath executeCommand(const QString &program,
+                          const QStringList &arguments,
+                          const QString &type,
+                          const QString &runId,
+                          const QMap<QString, QString> &envVars,
+                          const QString &workdir) noexcept;
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
                      QDBusObjectPath &instance,
                      ObjectInterfaceMap &application_instance_info) const noexcept;
