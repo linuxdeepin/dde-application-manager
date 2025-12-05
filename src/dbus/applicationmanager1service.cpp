@@ -771,3 +771,113 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
 
     m_mimeManager->updateMimeCache(dir);
 }
+
+QString ApplicationManager1Service::executeCommand(const QString &program,
+                                                  const QStringList &arguments,
+                                                  const QString &type,
+                                                  const QString &runId,
+                                                  const QMap<QString, QString> &envVars,
+                                                  const QString &workdir) noexcept
+{
+    // Validate required parameters
+    if (program.isEmpty()) {
+        safe_sendErrorReply(QDBusError::Failed, "program path cannot be empty.");
+        return {};
+    }
+
+    // Validate execution type
+    const QStringList validTypes = {"shortcut", "script", "portablebinary"};
+    if (!validTypes.contains(type)) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Invalid type '%1'. Must be one of: shortcut, script, portablebinary"}.arg(type));
+        return {};
+    }
+
+    // Check if program exists and is executable
+    QFileInfo programInfo(program);
+    if (!programInfo.exists()) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' does not exist."}.arg(program));
+        return {};
+    }
+    if (!programInfo.isExecutable()) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' is not executable."}.arg(program));
+        return {};
+    }
+
+    // Generate runId if not provided (empty string)
+    QString actualRunId = runId;
+    if (actualRunId.isEmpty()) {
+        // Escape the program path to create a valid runId
+        actualRunId = program;
+        actualRunId.replace("/", "_");
+        actualRunId.replace(".", "_");
+        actualRunId.replace("-", "_");
+        if (actualRunId.startsWith("_")) {
+            actualRunId = actualRunId.mid(1);
+        }
+    }
+
+    // Generate random component for systemd unit name
+    QString randomComponent = QUuid::createUuid().toString(QUuid::Id128).mid(1, 8);
+
+    // Construct systemd unit name according to specification
+    QString unitName = QString{"app-DDE-tmp.%1.%2@%3.service"}.arg(type).arg(actualRunId).arg(randomComponent);
+
+    // Prepare the command line
+    QStringList commandLine;
+    commandLine << program;
+    commandLine << arguments;
+
+    // Prepare environment variables
+    QStringList environment;
+    QProcessEnvironment systemEnv = QProcessEnvironment::systemEnvironment();
+
+    // Add system environment variables
+    for (const QString &key : systemEnv.keys()) {
+        environment << QString{"%1=%2"}.arg(key).arg(systemEnv.value(key));
+    }
+
+    // Add custom environment variables
+    for (auto it = envVars.constBegin(); it != envVars.constEnd(); ++it) {
+        environment << QString{"%1=%2"}.arg(it.key()).arg(it.value());
+    }
+
+    // Create systemd service properties
+    QVariantMap serviceProperties;
+    serviceProperties["Type"] = "simple";
+    serviceProperties["ExecStart"] = commandLine.join(" ");
+    serviceProperties["Environment"] = environment;
+
+    if (!workdir.isEmpty()) {
+        QDir workDir(workdir);
+        if (workDir.exists()) {
+            serviceProperties["WorkingDirectory"] = workdir;
+        } else {
+            qWarning() << "Working directory" << workdir << "does not exist, using default";
+        }
+    }
+
+    // Set up proper user session context
+    serviceProperties["User"] = QString::number(getuid());
+    serviceProperties["PAMName"] = "login";
+    serviceProperties["KillMode"] = "mixed";
+    serviceProperties["Restart"] = "no";
+
+    // Call systemd to start the service
+    auto &conn = ApplicationManager1DBus::instance().globalDestBus();
+    auto msg = QDBusMessage::createMethodCall(SystemdService,
+                                              SystemdObjectPath,
+                                              SystemdInterfaceName,
+                                              "StartTransientUnit");
+
+    msg.setArguments({unitName, "replace", serviceProperties});
+
+    auto reply = conn.call(msg);
+    if (reply.type() == QDBusMessage::ErrorMessage) {
+        qCritical() << "Failed to start transient unit:" << reply.errorMessage();
+        safe_sendErrorReply(QDBusError::Failed, QString{"Failed to start service: %1"}.arg(reply.errorMessage()));
+        return {};
+    }
+
+    qInfo() << "Successfully started transient unit:" << unitName;
+    return unitName;
+}
