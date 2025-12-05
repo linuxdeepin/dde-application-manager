@@ -47,6 +47,75 @@ struct SystemdUnitDBusMessage
     QDBusObjectPath objectPath;
 };
 
+// --- Systemd D-Bus 类型定义开始 ---
+
+// 对应 Systemd ExecStart 的结构: (path, argv, ignore_failure) -> (sasb)
+struct SystemdExecCommand {
+    QString path;
+    QStringList args;
+    bool unclean; // 是否忽略错误
+};
+Q_DECLARE_METATYPE(SystemdExecCommand)
+
+// 对应 Systemd 属性结构: (name, value) -> (sv)
+struct SystemdProperty {
+    QString name;
+    QDBusVariant value; // 使用 QDBusVariant 来明确这是一个 Variant 容器
+};
+Q_DECLARE_METATYPE(SystemdProperty)
+
+// 对应 Systemd 辅助单元结构 (Aux Unit): (name, properties) -> (sa(sv))
+// StartTransientUnit 的第4个参数需要这个类型的数组，即使它是空的
+struct SystemdAux {
+    QString name;
+    QList<SystemdProperty> properties;
+};
+Q_DECLARE_METATYPE(SystemdAux)
+
+// 序列化操作符重载
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdExecCommand &cmd) {
+    arg.beginStructure();
+    arg << cmd.path << cmd.args << cmd.unclean;
+    arg.endStructure();
+    return arg;
+}
+
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdExecCommand &cmd) {
+    arg.beginStructure();
+    arg >> cmd.path >> cmd.args >> cmd.unclean;
+    arg.endStructure();
+    return arg;
+}
+
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdProperty &prop) {
+    arg.beginStructure();
+    arg << prop.name << prop.value;
+    arg.endStructure();
+    return arg;
+}
+
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdProperty &prop) {
+    arg.beginStructure();
+    arg >> prop.name >> prop.value;
+    arg.endStructure();
+    return arg;
+}
+
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdAux &aux) {
+    arg.beginStructure();
+    arg << aux.name << aux.properties;
+    arg.endStructure();
+    return arg;
+}
+
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdAux &aux) {
+    arg.beginStructure();
+    arg >> aux.name >> aux.properties;
+    arg.endStructure();
+    return arg;
+}
+// --- Systemd D-Bus 类型定义结束 ---
+
 inline const QDBusArgument &operator>>(const QDBusArgument &argument, QStringMap &map)
 {
     argument.beginMap();

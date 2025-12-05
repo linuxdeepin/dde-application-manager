@@ -15,6 +15,7 @@
 #include <QHash>
 #include <QDBusMessage>
 #include <QStringBuilder>
+#include <DUtil>
 #include <unistd.h>
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -770,4 +771,115 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
     }
 
     m_mimeManager->updateMimeCache(dir);
+}
+
+QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &program,
+                                                  const QStringList &arguments,
+                                                  const QString &type,
+                                                  const QString &runId,
+                                                  const QMap<QString, QString> &envVars,
+                                                  const QString &workdir) noexcept
+{
+    // Validate required parameters
+    if (program.isEmpty()) {
+        safe_sendErrorReply(QDBusError::Failed, "program path cannot be empty.");
+        return {};
+    }
+
+    // Validate execution type
+    const QStringList validTypes = {"shortcut", "script", "portablebinary"};
+    if (!validTypes.contains(type)) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Invalid type '%1'. Must be one of: shortcut, script, portablebinary"}.arg(type));
+        return {};
+    }
+
+    // Check if program exists and is executable
+    QFileInfo programInfo(program);
+    if (!programInfo.exists()) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' does not exist."}.arg(program));
+        return {};
+    }
+    if (!programInfo.isExecutable()) {
+        safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' is not executable."}.arg(program));
+        return {};
+    }
+
+    // Generate runId if not provided (empty string)
+    QString actualRunId = runId;
+    if (actualRunId.isEmpty()) {
+        // Escape the program path to create a valid runId
+        actualRunId = program;
+    }
+    actualRunId = DUtil::escapeToObjectPath(actualRunId);
+
+    // Generate random component for systemd unit name
+    QString randomComponent = QUuid::createUuid().toString(QUuid::Id128).mid(1, 8);
+
+    // Construct systemd unit name according to specification
+    QString unitName = QString{"app-DDE-tmp.%1.%2@%3.service"}.arg(type).arg(actualRunId).arg(randomComponent);
+
+    // Prepare the command line
+    QStringList commandLine;
+    commandLine << program;
+    commandLine << arguments;
+
+    // Add system environment variables
+    QStringList environment;
+    QProcessEnvironment systemEnv = QProcessEnvironment::systemEnvironment();
+    for (const QString &key : systemEnv.keys()) {
+        environment << QString{"%1=%2"}.arg(key).arg(systemEnv.value(key));
+    }
+    for (auto it = envVars.constBegin(); it != envVars.constEnd(); ++it) {
+        environment << QString{"%1=%2"}.arg(it.key()).arg(it.value());
+    }
+
+    QList<SystemdProperty> properties;
+    // 1. Property: Description
+    properties.append({ "Description", QDBusVariant(QString("Run: %1").arg(program)) });
+
+    // 2. Property: ExecStart (Type: a(sasb))
+    // Systemd 要求 ExecStart 是一个结构体数组，因为一个服务可以有多个 ExecStart 命令
+    SystemdExecCommand execCmd;
+    execCmd.path = program;     // 二进制路径
+    execCmd.args = commandLine; // 完整参数列表 (argv)
+    execCmd.unclean = false;    // 是否忽略非零返回值
+    
+    QList<SystemdExecCommand> execStartList;
+    execStartList << execCmd;
+    properties.append({ "ExecStart", QDBusVariant(QVariant::fromValue(execStartList)) });
+
+    // 3. Property: Environment (Type: as)
+    properties.append({ "Environment", QDBusVariant(environment) });
+
+    // 4. Property: WorkingDirectory (Type: s)
+    if (!workdir.isEmpty()) {
+        properties.append({ "WorkingDirectory", QDBusVariant(workdir) });
+    }
+
+    // Call systemd to start the service
+    // StartTransientUnit signature: (s, s, a(sv), a(sa(sv)))
+    // args: unit_name, mode("replace"), properties, aux_units
+
+    QDBusConnection conn = QDBusConnection::sessionBus();
+    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1", // Service
+                                              "/org/freedesktop/systemd1", // Path
+                                              "org.freedesktop.systemd1.Manager", // Interface
+                                              "StartTransientUnit");
+
+    msg.setArguments({
+        unitName,                           // arg1: name
+        "replace",                          // arg2: mode
+        QVariant::fromValue(properties),    // arg3: properties a(sv)
+        QVariant::fromValue(QList<SystemdAux>()) // arg4: aux units (empty)
+    });
+
+    auto reply = conn.asyncCall(msg);
+    qInfo() << "Request sent to start transient unit (Async):" << unitName;
+
+    // TODO: the return value is currently empty, it's reserved for future use if we plan to make the spawned process as an AM-managed instance
+    // At that moment, we should:
+    // 1. Add a new API to JobManager1Service to allow add/start a new job without providing an application D-Bus path
+    // 2. Use JobManager1Service::addJob to add a new job and run it, like what we do in ApplicationService::Launch()
+    // 3. Return the object path that the new JobManager service offered.
+    return {};
 }

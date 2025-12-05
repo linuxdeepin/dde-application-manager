@@ -52,5 +52,34 @@
                 value="Delete a user application by app_id."
             />
         </method>
+        <method name="executeCommand">
+            <arg type="s" name="program" direction="in" />
+            <arg type="as" name="arguments" direction="in" />
+            <arg type="s" name="type" direction="in" />
+            <arg type="s" name="runId" direction="in" />
+            <arg type="a{ss}" name="envVars" direction="in" />
+            <arg type="s" name="workdir" direction="in" />
+            <arg type="o" name="instancePath" direction="out" />
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QStringList" />
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In4" value="QStringMap" />
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Execute a non-system application with the specified parameters.
+                       This method creates a systemd service to run the command with proper cgroup management.
+
+                       Parameters:
+                       - program: Full path to the executable
+                       - arguments: List of command line arguments (optional)
+                       - type: Execution type, must be one of: 'shortcut', 'script', 'portablebinary'
+                       - runId: Fake app ID for identification (optional, defaults to escaped program path)
+                       - envVars: Custom environment variables (optional)
+                       - workdir: Working directory (optional)
+
+                       Returns:
+                       - instancePath: The instance object path on DBus. It's currently empty and reserved for future use.
+
+                       The systemd unit will be created with cgroup: app-DDE-tmp.{type}.{runId}@{random}.service"
+            />
+        </method>
     </interface>
 </node>

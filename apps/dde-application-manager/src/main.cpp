@@ -26,6 +26,12 @@ void registerComplexDbusType()
     qRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();
+    qDBusRegisterMetaType<SystemdExecCommand>();
+    qDBusRegisterMetaType<QList<SystemdExecCommand>>();
+    qDBusRegisterMetaType<SystemdProperty>();
+    qDBusRegisterMetaType<QList<SystemdProperty>>();
+    qDBusRegisterMetaType<SystemdAux>();
+    qDBusRegisterMetaType<QList<SystemdAux>>();
 }
 }  // namespace
 
