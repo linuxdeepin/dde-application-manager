@@ -7,9 +7,17 @@
 
 #include <QObject>
 #include <QtWaylandClient/QWaylandClientExtension>
+#include <QIcon>
 #include <QLoggingCategory>
+#include <QPixmap>
+#include <memory>
 
 #include "qwayland-treeland-prelaunch-splash-v1.h"
+// Wayland C types
+struct wl_buffer;
+namespace QtWaylandClient {
+class QWaylandShmBuffer;
+}
 
 Q_DECLARE_LOGGING_CATEGORY(amPrelaunchSplash)
 class PrelaunchSplashHelper
@@ -19,8 +27,14 @@ class PrelaunchSplashHelper
     Q_OBJECT
 public:
     explicit PrelaunchSplashHelper();
+    ~PrelaunchSplashHelper();
+    void show(const QString &appId, const QString &iconName);
 
-    void show(const QString &appId);
+private:
+    wl_buffer *buildIconBuffer(const QIcon &icon);
+    wl_buffer *createBufferFromPixmap(const QPixmap &pixmap);
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 };
 
 #endif // PRELAUNCHSPLASHHELPER_H
