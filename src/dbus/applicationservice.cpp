@@ -324,8 +324,10 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     // Notify the compositor to show a splash screen if in a Wayland session.
     if (auto *am = parent()) {
         if (auto *helper = am->splashHelper()) {
-            qCInfo(amPrelaunchSplash) << "Show prelaunch splash request" << id();
-            helper->show(id());
+            const auto iconVar = findEntryValue(DesktopFileEntryKey, "Icon", EntryValueType::IconString);
+            const QString iconName = iconVar.isNull() ? QString{} : iconVar.toString();
+            qCInfo(amPrelaunchSplash) << "Show prelaunch splash request" << id() << "icon" << iconName;
+            helper->show(id(), iconName);
         } else {
             qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (no helper instance)" << id();
         }
