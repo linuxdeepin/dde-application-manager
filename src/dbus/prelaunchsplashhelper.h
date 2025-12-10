@@ -43,10 +43,12 @@ public:
      * iconName may be a theme name or absolute path; empty means no icon.
      */
     void show(const QString &appId, const QString &iconName);
+    static void bufferRelease(void *data, wl_buffer *buffer);
 
 private:
     wl_buffer *buildIconBuffer(const QIcon &icon);
     wl_buffer *createBufferFromPixmap(const QPixmap &pixmap);
+    void handleBufferRelease(wl_buffer *buffer);
 
     std::vector<std::unique_ptr<QtWaylandClient::QWaylandShmBuffer>> m_iconBuffers;  // keep alive until compositor releases
 };
