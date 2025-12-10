@@ -15,6 +15,10 @@ qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.deskto
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.ObjectManager1.xml dbus/applicationservice.h ApplicationService APPobjectmanager1adaptor APPObjectManagerAdaptor)
 qt_add_dbus_adaptor(dde_am_dbus_SOURCE ${PROJECT_SOURCE_DIR}/api/dbus/org.desktopspec.MimeManager1.xml dbus/mimemanager1service.h MimeManager1Service)
 
+if (NOT DEFINED TREELAND_PROTOCOLS_DATA_DIR)
+    message(FATAL_ERROR "TREELAND_PROTOCOLS_DATA_DIR not set by TreelandProtocols package")
+endif()
+
 qt_generate_wayland_protocol_client_sources(dde_am_dbus
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-v1.xml
@@ -40,5 +44,4 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_BINARY_DIR}/..
     ${CMAKE_CURRENT_BINARY_DIR}
-    $<TARGET_PROPERTY:Qt${QT_VERSION_MAJOR}::WaylandClientPrivate,INTERFACE_INCLUDE_DIRECTORIES>
 )

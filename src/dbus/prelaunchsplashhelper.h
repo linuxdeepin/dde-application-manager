@@ -11,6 +11,7 @@
 #include <QLoggingCategory>
 #include <QPixmap>
 #include <memory>
+#include <vector>
 
 #include "qwayland-treeland-prelaunch-splash-v1.h"
 // Wayland C types
@@ -20,6 +21,14 @@ class QWaylandShmBuffer;
 }
 
 Q_DECLARE_LOGGING_CATEGORY(amPrelaunchSplash)
+
+/**
+ * @brief Helper for sending prelaunch splash requests over Wayland.
+ *
+ * Creates wl_buffers from application icons using shared memory buffers and
+ * sends them to the compositor via treeland_prelaunch_splash_manager_v1.
+ * Not thread-safe; use from the Qt GUI thread.
+ */
 class PrelaunchSplashHelper
     : public QWaylandClientExtensionTemplate<PrelaunchSplashHelper>
     , public QtWayland::treeland_prelaunch_splash_manager_v1
@@ -28,13 +37,18 @@ class PrelaunchSplashHelper
 public:
     explicit PrelaunchSplashHelper();
     ~PrelaunchSplashHelper();
+
+    /**
+     * Show a prelaunch splash for the given app id and icon name.
+     * iconName may be a theme name or absolute path; empty means no icon.
+     */
     void show(const QString &appId, const QString &iconName);
 
 private:
     wl_buffer *buildIconBuffer(const QIcon &icon);
     wl_buffer *createBufferFromPixmap(const QPixmap &pixmap);
-    struct Impl;
-    std::unique_ptr<Impl> m_impl;
+
+    std::vector<std::unique_ptr<QtWaylandClient::QWaylandShmBuffer>> m_iconBuffers;  // keep alive until compositor releases
 };
 
 #endif // PRELAUNCHSPLASHHELPER_H

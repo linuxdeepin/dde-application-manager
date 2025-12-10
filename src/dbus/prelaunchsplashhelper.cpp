@@ -6,23 +6,18 @@
 
 #include <QGuiApplication>
 #include <QLoggingCategory>
+#include <QMessageLogger>
 #include <QPainter>
 #include <QtWaylandClient/private/qwaylanddisplay_p.h>
-#include <QtWaylandClient/private/qwaylandshmbackingstore_p.h>
 #include <QtWaylandClient/private/qwaylandintegration_p.h>
+#include <QtWaylandClient/private/qwaylandshmbackingstore_p.h>
 #include <algorithm>
 #include <cmath>
-#include <qloggingcategory.h>
 
 Q_LOGGING_CATEGORY(amPrelaunchSplash, "dde.am.prelaunch.splash")
 
-struct PrelaunchSplashHelper::Impl {
-    std::vector<std::unique_ptr<QtWaylandClient::QWaylandShmBuffer>> iconBuffers;
-};
-
 PrelaunchSplashHelper::PrelaunchSplashHelper()
     : QWaylandClientExtensionTemplate<PrelaunchSplashHelper>(1)
-    , m_impl(std::make_unique<Impl>())
 {
 }
 
@@ -72,7 +67,7 @@ wl_buffer *PrelaunchSplashHelper::createBufferFromPixmap(const QPixmap &pixmap)
     painter.drawPixmap(targetRect, pixmap, pixmap.rect());
 
     auto *wlBuf = buffer->buffer();
-    m_impl->iconBuffers.emplace_back(std::move(buffer));
+    m_iconBuffers.emplace_back(std::move(buffer));
     return wlBuf;
 }
 
@@ -103,8 +98,6 @@ void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
         return;
     }
 
-    m_impl->iconBuffers.clear();
-
     QIcon icon;
     if (!iconName.isEmpty()) {
         if (iconName.contains('/')) {
@@ -114,6 +107,7 @@ void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
         }
     }
 
+    // Keep previously sent buffers alive; compositor releases them asynchronously.
     wl_buffer *buffer = buildIconBuffer(icon);
     create_splash(appId, QStringLiteral("dde-application-manager"), buffer);
     qCInfo(amPrelaunchSplash, "Sent create_splash for %s %s", qPrintable(appId), buffer ? "with icon buffer" : "without icon buffer");
