@@ -1,3 +1,11 @@
+dde-application-manager (1.2.39) unstable; urgency=medium
+
+  * feat: api for run non-app commands
+  * docs: add package manager hook documentation and security fixes
+  * fix: avoid wordexp escape two dollar sign in file name
+
+ -- YeShanShan <yeshanshan@uniontech.com>  Thu, 11 Dec 2025 20:32:13 +0800
+
 dde-application-manager (1.2.38) unstable; urgency=medium
 
   * feat: support quick login autostart
