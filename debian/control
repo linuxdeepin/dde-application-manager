@@ -11,6 +11,9 @@ Build-Depends: debhelper-compat ( =12), cmake,
  libdtk6core-dev,
  treeland-protocols,
  qt6-wayland-dev,
+ qt6-base-private-dev,
+ qt6-wayland-private-dev,
+ libxkbcommon-dev,
 Standards-Version: 4.5.0
 Homepage: https://github.com/linuxdeepin/dde-application-manager
 
