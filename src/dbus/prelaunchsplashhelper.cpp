@@ -28,7 +28,7 @@ static const struct wl_buffer_listener kBufferListener = {
     PrelaunchSplashHelper::bufferRelease,
 };
 
-wl_buffer *PrelaunchSplashHelper::createBufferWithPainter(int iconSize, qreal devicePixelRatio, const QIcon &icon)
+wl_buffer *PrelaunchSplashHelper::createBufferWithPainter(const QSize &iconSize, qreal devicePixelRatio, const QIcon &icon)
 {
     auto *waylandIntegration = integration();
     auto *waylandDisplay = waylandIntegration ? waylandIntegration->display() : nullptr;
@@ -37,17 +37,18 @@ wl_buffer *PrelaunchSplashHelper::createBufferWithPainter(int iconSize, qreal de
         return nullptr;
     }
 
-    const int pixelSize = std::lround(iconSize * devicePixelRatio);
-    const QSize squareSize{pixelSize, pixelSize};
+    const int pixelWidth = std::lround(iconSize.width() * devicePixelRatio);
+    const int pixelHeight = std::lround(iconSize.height() * devicePixelRatio);
+    const QSize bufferSize{pixelWidth, pixelHeight};
     auto buffer = std::make_unique<QtWaylandClient::QWaylandShmBuffer>(
-        waylandDisplay, squareSize, QImage::Format_ARGB32_Premultiplied, devicePixelRatio);
+        waylandDisplay, bufferSize, QImage::Format_ARGB32_Premultiplied, devicePixelRatio);
     if (!buffer->image()) {
         qCWarning(amPrelaunchSplash, "%s", "Failed to allocate shm buffer for splash icon");
         return nullptr;
     }
 
     const QSize logicalImageSize = buffer->image()->size() / buffer->image()->devicePixelRatio();
-    QRect targetRect(QPoint(0, 0), QSize{iconSize, iconSize});
+    QRect targetRect(QPoint(0, 0), iconSize);
     targetRect.moveCenter(QRect(QPoint(0, 0), logicalImageSize).center());
     QPainter painter(buffer->image());
     painter.setCompositionMode(QPainter::CompositionMode_Source);
@@ -69,25 +70,24 @@ wl_buffer *PrelaunchSplashHelper::buildIconBuffer(const QIcon &icon)
 
     QList<QSize> sizes = icon.availableSizes();
 
-    QSize chosen(0,0);
+    QSize iconSize(0, 0);
     // Pick the size closest to 128x128, prefer larger sizes
     for (const QSize &size : sizes) {
         if (size.width() == 128) {
-            chosen = size;
+            iconSize = size;
             break;
         }
         if (size.width() > 128) {
-            chosen = size.width() < chosen.width() || chosen.width() == 0 ? size : chosen;
+            iconSize = (iconSize.width() == 0 || size.width() < iconSize.width()) ? size : iconSize;
             continue;
         }
-        chosen = size.width() > chosen.width() ? size : chosen;
-    };
-
-    if (chosen.isEmpty()) {
-        chosen = QSize(128, 128);
+        iconSize = size.width() > iconSize.width() ? size : iconSize;
     }
 
-    const int iconSize = chosen.width();
+    if (iconSize.isEmpty()) {
+        iconSize = QSize(128, 128);
+    }
+
     const qreal dpr = qApp ? qApp->devicePixelRatio() : 1.0;
 
     return createBufferWithPainter(iconSize, dpr, icon);
@@ -100,7 +100,15 @@ void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
         return;
     }
 
-    QIcon icon = QIcon::fromTheme(iconName);
+    QIcon icon;
+    if (iconName.isEmpty()) {
+        qCWarning(amPrelaunchSplash, "%s", "Icon name empty; splash will be sent without icon buffer");
+    } else {
+        icon = QIcon::fromTheme(iconName);
+        if (icon.isNull()) {
+            qCWarning(amPrelaunchSplash, "Icon not found in theme: %s", qPrintable(iconName));
+        }
+    }
 
     // Keep previously sent buffers alive; compositor releases them asynchronously.
     wl_buffer *buffer = buildIconBuffer(icon);
@@ -118,7 +126,7 @@ void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
 void PrelaunchSplashHelper::handleBufferRelease(wl_buffer *buffer)
 {
     auto it = std::find_if(m_iconBuffers.begin(), m_iconBuffers.end(), [buffer](const auto &holder) {
-        return holder && holder->buffer() == buffer;
+        return holder->buffer() == buffer;
     });
 
     if (it != m_iconBuffers.end()) {
