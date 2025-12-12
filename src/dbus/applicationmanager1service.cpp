@@ -43,7 +43,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
             qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
         }
     } else {
-        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper.";
+        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (not running on Wayland)";
     }
 
     using namespace std::chrono_literals;

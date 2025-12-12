@@ -47,7 +47,7 @@ public:
 
 private:
     wl_buffer *buildIconBuffer(const QIcon &icon);
-    wl_buffer *createBufferFromPixmap(const QPixmap &pixmap);
+    wl_buffer *createBufferWithPainter(int iconSize, qreal devicePixelRatio, const QIcon &icon);
     void handleBufferRelease(wl_buffer *buffer);
 
     std::vector<std::unique_ptr<QtWaylandClient::QWaylandShmBuffer>> m_iconBuffers;  // keep alive until compositor releases
