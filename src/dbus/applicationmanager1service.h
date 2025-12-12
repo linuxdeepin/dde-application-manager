@@ -56,7 +56,7 @@ public:
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
-    [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.data(); }
+    [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.get(); }
 
 public Q_SLOTS:
     QDBusObjectPath executeCommand(const QString &program,
@@ -84,15 +84,15 @@ private Q_SLOTS:
 private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
-    QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};
-    QScopedPointer<JobManager1Service> m_jobManager{nullptr};
+    std::unique_ptr<MimeManager1Service> m_mimeManager{nullptr};
+    std::unique_ptr<JobManager1Service> m_jobManager{nullptr};
     QStringList m_hookElements;
     QStringList m_systemdPathEnv;
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
     QSharedPointer<CompatibilityManager> m_compatibilityManager{nullptr};
-    QScopedPointer<PrelaunchSplashHelper> m_splashHelper;
+    std::unique_ptr<PrelaunchSplashHelper> m_splashHelper{nullptr};
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
