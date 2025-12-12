@@ -84,8 +84,8 @@ private Q_SLOTS:
 private:
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
-    std::unique_ptr<MimeManager1Service> m_mimeManager{nullptr};
-    std::unique_ptr<JobManager1Service> m_jobManager{nullptr};
+    QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};
+    QScopedPointer<JobManager1Service> m_jobManager{nullptr};
     QStringList m_hookElements;
     QStringList m_systemdPathEnv;
     QFileSystemWatcher m_watcher;
