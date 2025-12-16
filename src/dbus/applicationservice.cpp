@@ -283,6 +283,11 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         execStr = realExec;
     }
 
+    auto workDir = m_entry->value(DesktopFileEntryKey, "Path");
+    if (workDir && !optionsMap.contains(setWorkingPathLaunchOption::key())) {
+        optionsMap.insert(setWorkingPathLaunchOption::key(), workDir->toString());
+    }
+
     while (execStr.isEmpty() and !action.isEmpty() and !supportedActions.isEmpty()) {  // break trick
         if (auto index = supportedActions.indexOf(action); index == -1) {
             qWarning() << "can't find " << action << " in supported actions List. application will use default action to launch.";
