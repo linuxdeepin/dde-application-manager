@@ -1,3 +1,19 @@
+dde-application-manager (1.2.40) unstable; urgency=medium
+
+  * fix: remove DPKG_EXPORT_BUILDFLAGS flag
+  * feat: support Path key in desktop file
+  * fix: address multiple code review issues
+  * refactor: migrate from QScopedPointer to std::unique_ptr
+  * chore: update build dependencies for wayland support
+  * fix: add wayland buffer release handling
+  * fix: improve prelaunch splash helper memory management
+  * feat: add application icon support to prelaunch splash
+  * refactor: improve Wayland detection and splash protocol
+  * chore: add qt6-wayland-dev to build dependencies
+  * feat: add Wayland prelaunch splash screen support
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 18 Dec 2025 19:47:08 +0800
+
 dde-application-manager (1.2.39) unstable; urgency=medium
 
   * feat: api for run non-app commands
