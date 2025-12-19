@@ -7,5 +7,7 @@ Description=Deepin Desktop Autostart (after quick login)
 CollectMode=inactive-or-failed
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
+ExecCondition=/bin/sh -c '[ "$DDE_QUICKLOGIN" = "true" ]'
 ExecStart=@CMAKE_INSTALL_PREFIX@/@AM_LIBEXEC_DIR@/dde-autostart
