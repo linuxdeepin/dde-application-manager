@@ -1,3 +1,9 @@
+dde-application-manager (1.2.41) unstable; urgency=medium
+
+  * fix: Avoid autostart service being executed twice
+
+ -- zhaoyingzhen <zhaoyingzhen@uniontech.com>  Fri, 19 Dec 2025 14:25:06 +0800
+
 dde-application-manager (1.2.40) unstable; urgency=medium
 
   * fix: remove DPKG_EXPORT_BUILDFLAGS flag
