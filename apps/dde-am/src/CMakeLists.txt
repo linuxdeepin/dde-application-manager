@@ -2,6 +2,7 @@ set(BIN_NAME dde-am)
 
 add_executable(${BIN_NAME} main.cpp
     launcher.h launcher.cpp
+    commandexecutor.h commandexecutor.cpp
 )
 
 target_link_libraries(${BIN_NAME} PRIVATE
