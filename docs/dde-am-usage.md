@@ -48,7 +48,17 @@ dde-am deepin-terminal quake-mode
 dde-am --by-user dde-calendar
 ```
 
-### 7. List all available app IDs
+### 7. Execute arbitrary command
+
+```bash
+# Execute a command with arguments
+dde-am -c /usr/bin/ls -- -l -h
+
+# Execute a script with specific options
+dde-am -c /path/to/script.sh --type script --workdir /home/user --run-id my-script
+```
+
+### 8. List all available app IDs
 
 ```bash
 dde-am --list
@@ -60,6 +70,10 @@ dde-am --list
 - `-e, --env <env>`: Set environment variable, format: NAME=VALUE (can be used multiple times)
 - `--by-user`: Mark as launched by user (useful for counting launched times)
 - `--list`: List all available app IDs
+- `-c, --command <program>`: Execute a command
+- `--type <type>`: Type of execution (shortcut, script, portablebinary). Default: portablebinary
+- `--run-id <runId>`: Run ID for the execution
+- `--workdir <dir>`: Working directory for the execution
 - `--help`: Show help information
 
 ## Features
