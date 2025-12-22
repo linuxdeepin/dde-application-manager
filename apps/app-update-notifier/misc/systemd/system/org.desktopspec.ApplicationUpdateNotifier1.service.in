@@ -11,3 +11,9 @@ User=deepin-daemon
 Group=deepin-daemon
 BusName=org.desktopspec.ApplicationUpdateNotifier1
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/deepin/application-manager/app-update-notifier
+
+# Security hardening
+ProtectSystem=strict
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=yes
