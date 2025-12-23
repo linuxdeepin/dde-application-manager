@@ -804,25 +804,25 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // Validate required parameters
     if (program.isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, "program path cannot be empty.");
-        return {};
+        return QDBusObjectPath("/");
     }
 
     // Validate execution type
     const QStringList validTypes = {"shortcut", "script", "portablebinary"};
     if (!validTypes.contains(type)) {
         safe_sendErrorReply(QDBusError::Failed, QString{"Invalid type '%1'. Must be one of: shortcut, script, portablebinary"}.arg(type));
-        return {};
+        return QDBusObjectPath("/");
     }
 
     // Check if program exists and is executable
     QFileInfo programInfo(program);
     if (!programInfo.exists()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' does not exist."}.arg(program));
-        return {};
+        return QDBusObjectPath("/");
     }
     if (!programInfo.isExecutable()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"Program '%1' is not executable."}.arg(program));
-        return {};
+        return QDBusObjectPath("/");
     }
 
     // Generate runId if not provided (empty string)
@@ -902,5 +902,5 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // 1. Add a new API to JobManager1Service to allow add/start a new job without providing an application D-Bus path
     // 2. Use JobManager1Service::addJob to add a new job and run it, like what we do in ApplicationService::Launch()
     // 3. Return the object path that the new JobManager service offered.
-    return {};
+    return QDBusObjectPath("/");
 }
