@@ -13,6 +13,8 @@
 #include <map>
 #include <list>
 #include <thread>
+#include <filesystem>
+#include <cctype>
 #include "constant.h"
 #include "types.h"
 #include "variantValue.h"
@@ -187,6 +189,30 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::list<std::
     int ret;
     if (!props.empty()) {
         for (auto [key, value] : props) {
+            const std::list<std::string_view> *valuePtr = &value;
+            std::list<std::string_view> normalizedValue;
+            std::vector<std::string> normalizedStorage;
+
+            if (key == "ExecSearchPath") {
+                for (const auto &v : value) {
+                    std::filesystem::path p{std::string{v}};
+                    if (!p.is_absolute()) {
+                        sd_journal_print(LOG_INFO, "ExecSearchPath ignoring relative path: %s", std::string{v}.c_str());
+                        continue;
+                    }
+                    normalizedStorage.emplace_back(p.lexically_normal().string());
+                }
+
+                normalizedValue.assign(normalizedStorage.begin(), normalizedStorage.end());
+
+                if (normalizedValue.empty()) {
+                    sd_journal_print(LOG_WARNING, "ExecSearchPath normalized to empty, skipping property");
+                    continue;
+                }
+
+                valuePtr = &normalizedValue;
+            }
+
             std::string keyStr{key};
             if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
                 sd_journal_perror("open struct of properties failed.");
@@ -198,7 +224,7 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::list<std::
                 return ret;
             }
 
-            if (ret = appendPropValue(msg, getPropType(key), value); ret < 0) {
+            if (ret = appendPropValue(msg, getPropType(key), *valuePtr); ret < 0) {
                 sd_journal_perror("append value of property failed.");
                 return ret;
             }
