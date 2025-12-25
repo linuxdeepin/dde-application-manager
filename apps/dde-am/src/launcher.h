@@ -16,6 +16,7 @@ public:
     void setPath(const QString &path);
     void setAction(const QString &action);
     void setLaunchedType(LaunchedType type);
+    void setAutostart(bool autostart);
     void setEnvironmentVariables(const QStringList &envVars);
     Dtk::Core::DExpected<void> run();
 
@@ -28,5 +29,6 @@ private:
     QString m_path;
     QString m_action;
     LaunchedType m_launchedType = Unknown;
+    bool m_autostart = false;
     QStringList m_environmentVariables;
 };

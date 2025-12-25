@@ -327,7 +327,11 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
 
     // Notify the compositor to show a splash screen if in a Wayland session.
-    if (auto *am = parent()) {
+    // Suppress splash for system autostart launches.
+    const bool isAutostartLaunch = optionsMap.contains("_autostart") && optionsMap.value("_autostart").toBool();
+    if (isAutostartLaunch) {
+        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (autostart)" << id();
+    } else if (auto *am = parent()) {
         if (auto *helper = am->splashHelper()) {
             const auto iconVar = findEntryValue(DesktopFileEntryKey, "Icon", EntryValueType::IconString);
             const QString iconName = iconVar.isNull() ? QString{} : iconVar.toString();
@@ -340,7 +344,9 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
     }
 
-    optionsMap.remove("_hooks");  // this is internal property, user shouldn't pass it to Application Manager
+    // Those are internal properties, user shouldn't pass them to Application Manager
+    optionsMap.remove("_autostart");
+    optionsMap.remove("_hooks");
     if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
         optionsMap.insert("_hooks", hooks);
     }
