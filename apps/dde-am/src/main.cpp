@@ -50,6 +50,9 @@ int main(int argc, char *argv[])
     QCommandLineOption launchedByUserOption("by-user",
                                             "Launched by user, it's useful for counting launched times.");
     parser.addOption(launchedByUserOption);
+    QCommandLineOption autostartOption("autostart",
+                                       "Launched by system autostart. Suppress prelaunch splash.");
+    parser.addOption(autostartOption);
     QCommandLineOption actionOption(QStringList() << "a" << "action",
                                    "Specify action identifier for the application", "action");
     parser.addOption(actionOption);
@@ -102,6 +105,8 @@ int main(int argc, char *argv[])
     Launcher launcher;
     if (parser.isSet(launchedByUserOption))
         launcher.setLaunchedType(Launcher::ByUser);
+    if (parser.isSet(autostartOption))
+        launcher.setAutostart(true);
 
     QString appPath;
     if (!appId.isEmpty()) {

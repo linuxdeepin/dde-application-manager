@@ -116,6 +116,10 @@ DExpected<void> Launcher::launch()
     if (!m_environmentVariables.isEmpty()) {
         options["env"] = QVariant::fromValue(m_environmentVariables);
     }
+    // Mark autostart launches so AM can suppress splash
+    if (m_autostart) {
+        options["_autostart"] = true;
+    }
     
     const QList<QVariant> arguments {
         m_action,
@@ -159,4 +163,9 @@ QString Launcher::appId() const
     const auto id = endIndex <= -1 ? m_path.mid(startIndex + 1) :
                                      m_path.sliced(startIndex + 1, endIndex - (startIndex + 1));
     return unescapeFromObjectPath(id);
+}
+
+void Launcher::setAutostart(bool autostart)
+{
+    m_autostart = autostart;
 }

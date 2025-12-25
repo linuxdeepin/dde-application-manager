@@ -25,7 +25,8 @@ void launchApplication(const DesktopFile &file, const DesktopEntry &entry)
     // ensuring proper environment setup and systemd scope wrapping.
     QString program = "/usr/bin/dde-am";
     QStringList args;
-    args << file.sourcePath();
+    // Mark this launch as autostart to suppress splash in AM
+    args << "--autostart" << file.sourcePath();
 
     if (!QProcess::startDetached(program, args)) {
         qWarning() << "Failed to launch" << file.desktopId() << "by" << program << "args:" << args;
