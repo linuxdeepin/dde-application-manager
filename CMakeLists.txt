@@ -23,6 +23,9 @@ set(DDE_AM_USE_DEBUG_DBUS_NAME OFF CACHE BOOL "build a dbus service using a diff
 set(PROFILING_MODE OFF CACHE BOOL "run a valgrind performance profiling.")
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Concurrent WaylandClient Gui)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 COMPONENTS WaylandClientPrivate REQUIRED)
+endif()
 find_package(Dtk6 REQUIRED COMPONENTS Core)
 find_package(Threads REQUIRED)
 find_package(TreelandProtocols REQUIRED)
