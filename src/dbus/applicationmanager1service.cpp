@@ -47,7 +47,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     }
 
     using namespace std::chrono_literals;
-    m_reloadTimer.setInterval(50);
+    m_reloadTimer.setInterval(500);
     m_reloadTimer.setSingleShot(true);
     connect(&m_reloadTimer, &QTimer::timeout, this, &ApplicationManager1Service::doReloadApplications);
 }
