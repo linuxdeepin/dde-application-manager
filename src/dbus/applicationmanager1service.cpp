@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include "applicationadaptor.h"
@@ -272,6 +272,13 @@ void ApplicationManager1Service::scanMimeInfos() noexcept
             m_mimeManager->appendMimeInfo(std::move(info).value());
         }
     }
+}
+
+void ApplicationManager1Service::reloadMimeInfos() noexcept
+{
+    m_mimeManager->reset();
+    scanMimeInfos();
+    emit m_mimeManager->MimeInfoReloaded();
 }
 
 void ApplicationManager1Service::scanApplications() noexcept
@@ -639,8 +646,7 @@ void ApplicationManager1Service::doReloadApplications()
         removeOneApplication(appId);
     }
 
-    m_mimeManager->reset();
-    scanMimeInfos();
+    reloadMimeInfos();
     updateAutostartStatus();
 }
 

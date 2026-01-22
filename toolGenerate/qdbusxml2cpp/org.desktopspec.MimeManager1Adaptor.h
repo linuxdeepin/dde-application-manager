@@ -51,6 +51,9 @@ class MimeManager1Adaptor: public QDBusAbstractAdaptor
 "      <arg direction=\"out\" type=\"a{oa{sa{sv}}}\" name=\"applications_and_properties\"/>\n"
 "      <annotation value=\"ObjectMap\" name=\"org.qtproject.QtDBus.QtTypeName.Out0\"/>\n"
 "    </method>\n"
+"    <signal name=\"MimeInfoReloaded\">\n"
+"      <annotation value=\"Signal emitted when the mime infos are reloaded.\" name=\"org.freedesktop.DBus.Description\"/>\n"
+"    </signal>\n"
 "  </interface>\n"
         "")
 public:
@@ -64,6 +67,7 @@ public Q_SLOTS: // METHODS
     void setDefaultApplication(const QStringMap &defaultApps);
     void unsetDefaultApplication(const QStringList &mimeTypes);
 Q_SIGNALS: // SIGNALS
+    void MimeInfoReloaded();
 };
 
 #endif
