@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -41,6 +41,7 @@ public:
     [[nodiscard]] QList<QDBusObjectPath> list() const;
 
     void initService(QDBusConnection &connection) noexcept;
+    void reloadMimeInfos() noexcept;
     QSharedPointer<ApplicationService> addApplication(DesktopFile desktopFileSource) noexcept;
     void removeOneApplication(const QString &appId) noexcept;
     void removeAllApplication() noexcept;

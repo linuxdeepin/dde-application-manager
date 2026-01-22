@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -8,6 +8,9 @@
 #include <QObject>
 #include <QDBusContext>
 #include <QDBusObjectPath>
+#include <QFileSystemWatcher>
+#include <QTimer>
+
 #include "global.h"
 #include "applicationmimeinfo.h"
 
@@ -32,9 +35,20 @@ public Q_SLOTS:
     void setDefaultApplication(const QStringMap &defaultApps) noexcept;
     void unsetDefaultApplication(const QStringList &mimeTypes) noexcept;
 
+Q_SIGNALS:
+    void MimeInfoReloaded();
+
+private Q_SLOTS:
+    void onMimeAppsFileChanged(const QString &path);
+    void handleMimeAppsFileDebounced();
+
 private:
     QMimeDatabase m_database;
     std::vector<MimeInfo> m_infos;
+    QFileSystemWatcher m_mimeAppsWatcher;
+    // 内部写入标志，用于避免触发外部修改的处理
+    bool m_internalWriteInProgress{false};
+    QTimer m_mimeAppsDebounceTimer;
 };
 
 #endif

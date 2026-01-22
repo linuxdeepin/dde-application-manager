@@ -25,5 +25,11 @@
             <arg name="applications_and_properties" type="a{oa{sa{sv}}}" direction="out"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="ObjectMap"/>
         </method>
+        <signal name="MimeInfoReloaded">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Signal emitted when the mime infos are reloaded."
+            />
+        </signal>
     </interface>
 </node>

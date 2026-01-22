@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include <QProcess>
@@ -15,6 +15,21 @@ MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     if (adaptor == nullptr or !registerObjectToDBus(this, DDEApplicationManager1MimeManager1ObjectPath, MimeManager1Interface)) {
         std::terminate();
     }
+
+    // 监控用户配置目录下的 mimeapps.list 文件
+    connect(&m_mimeAppsWatcher, &QFileSystemWatcher::fileChanged, this, &MimeManager1Service::onMimeAppsFileChanged);
+
+    // 添加用户配置目录下的 mimeapps.list 文件到监控
+    QString userMimeAppsFile = getXDGConfigHome() + "/mimeapps.list";
+    if (QFileInfo::exists(userMimeAppsFile)) {
+        m_mimeAppsWatcher.addPath(userMimeAppsFile);
+    } else {
+        qWarning() << "User mimeapps.list file does not exist:" << userMimeAppsFile;
+    }
+
+    m_mimeAppsDebounceTimer.setSingleShot(true);
+    m_mimeAppsDebounceTimer.setInterval(50);
+    connect(&m_mimeAppsDebounceTimer, &QTimer::timeout, this, &MimeManager1Service::handleMimeAppsFileDebounced);
 }
 
 MimeManager1Service::~MimeManager1Service() = default;
@@ -106,12 +121,15 @@ void MimeManager1Service::setDefaultApplication(const QStringMap &defaultApps) n
         return;
     }
 
+    m_internalWriteInProgress = true;
     for (auto it = defaultApps.constKeyValueBegin(); it != defaultApps.constKeyValueEnd(); ++it) {
         userConfig->setDefaultApplication(it->first, it->second);
     }
 
     if (!userConfig->writeToFile()) {
         safe_sendErrorReply(QDBusError::Failed, "set default app failed, these config will be reset after re-login.");
+        m_internalWriteInProgress = false;
+        return;
     }
 }
 
@@ -126,12 +144,15 @@ void MimeManager1Service::unsetDefaultApplication(const QStringList &mimeTypes) 
         return;
     }
 
+    m_internalWriteInProgress = true;
     for (const auto &mime : mimeTypes) {
         userConfig->unsetDefaultApplication(mime);
     }
 
     if (!userConfig->writeToFile()) {
         safe_sendErrorReply(QDBusError::Failed, "unset default app failed, these config will be reset after re-login.");
+        m_internalWriteInProgress = false;
+        return;
     }
 }
 
@@ -155,4 +176,30 @@ void MimeManager1Service::updateMimeCache(QString dir) noexcept
         qWarning() << "Launch Application Failed";
     }
 
+}
+
+void MimeManager1Service::onMimeAppsFileChanged(const QString &path)
+{
+    if (!m_mimeAppsWatcher.files().contains(path) && QFileInfo::exists(path)) {
+        m_mimeAppsWatcher.addPath(path);
+    }
+
+    // 如果是内部写入导致的文件变化，忽略
+    if (m_internalWriteInProgress) {
+        m_internalWriteInProgress = false;
+        return;
+    }
+
+    m_mimeAppsDebounceTimer.start();
+}
+
+void MimeManager1Service::handleMimeAppsFileDebounced()
+{
+    auto *parentService = qobject_cast<ApplicationManager1Service *>(parent());
+    if (!parentService) {
+        return;
+    }
+
+    qInfo() << "Reloading MIME info due to external configuration change.";
+    parentService->reloadMimeInfos();
 }
