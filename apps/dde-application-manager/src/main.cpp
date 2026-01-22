@@ -37,6 +37,7 @@ void registerComplexDbusType()
 
 int main(int argc, char *argv[])
 {
+    setenv("DSG_APP_ID", ApplicationManagerConfig, 0);
 #ifdef PROFILING_MODE
     auto start = std::chrono::high_resolution_clock::now();
 #endif
