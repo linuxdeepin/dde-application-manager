@@ -24,4 +24,4 @@ target_compile_options(${BIN_NAME} PRIVATE
 )
 
 include(GoogleTest)
-gtest_discover_tests(${BIN_NAME} WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests)
+gtest_discover_tests(${BIN_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
