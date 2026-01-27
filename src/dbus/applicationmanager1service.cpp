@@ -88,7 +88,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
     auto unhandled = m_watcher.addPaths(getDesktopFileDirs());
-    for (const auto &dir : unhandled) {
+    for (const auto &dir : std::as_const(unhandled)) {
         qCritical() << "couldn't watch directory:" << dir;
     }
 
@@ -143,7 +143,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (ret.type() == QDBusMessage::ErrorMessage) {
         qFatal("%s", ret.errorMessage().toLocal8Bit().data());
     }
-    envToPath(qdbus_cast<QStringList>(ret.arguments().first().value<QDBusVariant>().variant()));
+    envToPath(qdbus_cast<QStringList>(ret.arguments().constFirst().value<QDBusVariant>().variant()));
 
     auto sysBus = QDBusConnection::systemBus();
     if (!sysBus.connect("org.desktopspec.ApplicationUpdateNotifier1",
@@ -232,8 +232,6 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
 {
     auto info = processUnitName(unitName);
     auto appId = std::move(info.applicationID);
-    auto launcher = std::move(info.Launcher);
-    auto instanceId = std::move(info.instanceID);
 
     if (appId.isEmpty()) {
         return;
@@ -325,10 +323,10 @@ void ApplicationManager1Service::scanInstances() noexcept
         return;
     }
 
-    auto v = result.arguments().first();
+    auto v = result.arguments().constFirst();
     QList<SystemdUnitDBusMessage> units;
     v.value<QDBusArgument>() >> units;
-    for (const auto &unit : units) {
+    for (const auto &unit : std::as_const(units)) {
         this->addInstanceToApplication(unit.name, unit.objectPath);
     }
 }
@@ -460,8 +458,8 @@ void ApplicationManager1Service::loadHooks() noexcept
 QList<QDBusObjectPath> ApplicationManager1Service::list() const
 {
     QList<QDBusObjectPath> paths;
-    for (const auto &appId : m_applicationList.keys())
-        paths << QDBusObjectPath{getObjectPathFromAppId(appId)};
+    for (auto it = m_applicationList.constBegin(); it != m_applicationList.constEnd(); ++it)
+        paths << QDBusObjectPath{getObjectPathFromAppId(it.key())};
 
     return paths;
 }
@@ -502,7 +500,7 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
 void ApplicationManager1Service::removeOneApplication(const QString &appId) noexcept
 {
     auto objectPath = QDBusObjectPath{getObjectPathFromAppId(appId)};
-    if (auto it = m_applicationList.find(appId); it != m_applicationList.cend()) {
+    if (auto it = m_applicationList.constFind(appId); it != m_applicationList.cend()) {
         emit InterfacesRemoved(objectPath, getChildInterfacesFromObject(it->data()));
         if (auto ptr = m_storage.lock(); ptr) {
             if (!ptr->deleteApplication(appId)) {
@@ -519,8 +517,8 @@ void ApplicationManager1Service::removeOneApplication(const QString &appId) noex
 
 void ApplicationManager1Service::removeAllApplication() noexcept
 {
-    for (const auto &appId : m_applicationList.keys()) {
-        removeOneApplication(appId);
+    for (auto it = m_applicationList.constBegin(); it != m_applicationList.constEnd(); ++it) {
+        removeOneApplication(it.key());
     }
 }
 
@@ -642,7 +640,7 @@ void ApplicationManager1Service::doReloadApplications()
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    for (const auto &appId : appIds) {
+    for (const auto &appId : std::as_const(appIds)) {
         removeOneApplication(appId);
     }
 
@@ -843,7 +841,7 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     QString randomComponent = QUuid::createUuid().toString(QUuid::Id128).mid(1, 8);
 
     // Construct systemd unit name according to specification
-    QString unitName = QString{"app-DDE-tmp.%1.%2@%3.service"}.arg(type).arg(actualRunId).arg(randomComponent);
+    QString unitName = QString{"app-DDE-tmp.%1.%2@%3.service"}.arg(type, actualRunId, randomComponent);
 
     // Prepare the command line
     QStringList commandLine;
@@ -853,11 +851,12 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // Add system environment variables
     QStringList environment;
     QProcessEnvironment systemEnv = QProcessEnvironment::systemEnvironment();
-    for (const QString &key : systemEnv.keys()) {
-        environment << QString{"%1=%2"}.arg(key).arg(systemEnv.value(key));
+    const auto &keys = systemEnv.keys();
+    for (const QString &key : std::as_const(keys)) {
+        environment << QString{"%1=%2"}.arg(key, systemEnv.value(key));
     }
     for (auto it = envVars.constBegin(); it != envVars.constEnd(); ++it) {
-        environment << QString{"%1=%2"}.arg(it.key()).arg(it.value());
+        environment << QString{"%1=%2"}.arg(it.key(), it.value());
     }
 
     QList<SystemdProperty> properties;
@@ -870,7 +869,7 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     execCmd.path = program;     // 二进制路径
     execCmd.args = commandLine; // 完整参数列表 (argv)
     execCmd.unclean = false;    // 是否忽略非零返回值
-    
+
     QList<SystemdExecCommand> execStartList;
     execStartList << execCmd;
     properties.append({ "ExecStart", QDBusVariant(QVariant::fromValue(execStartList)) });

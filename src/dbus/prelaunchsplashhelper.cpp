@@ -72,7 +72,7 @@ wl_buffer *PrelaunchSplashHelper::buildIconBuffer(const QIcon &icon)
 
     QSize iconSize(0, 0);
     // Pick the size closest to 128x128, prefer larger sizes
-    for (const QSize &size : sizes) {
+    for (const QSize &size : std::as_const(sizes)) {
         if (size.width() == 128) {
             iconSize = size;
             break;

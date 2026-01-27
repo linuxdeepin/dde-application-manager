@@ -124,17 +124,19 @@ ParserError CompatibilityManager::parse(QFile &file) noexcept{
     }
 
     auto obj = json.object();
-    for (const QString &desktopId : obj.keys()) {
-        auto existDesktopId = m_compatibilityConfig.find(desktopId);
-        if(existDesktopId != m_compatibilityConfig.end()){
-            qWarning() << "the desktop id : "<<desktopId<<"exist skip";
+    for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
+        const auto &desktopId = it.key();
+        auto existDesktopId = m_compatibilityConfig.constFind(desktopId);
+        if(existDesktopId != m_compatibilityConfig.cend()){
+            qWarning() << "the desktop id : "<< it.key() <<"exist skip";
             continue;
         }
         auto desktopEntry = obj[desktopId].toObject();
 
         // 处理 Desktop Entry
         CompatibilityDesktopEntry compatibilityEntry;
-        for(auto entryId : desktopEntry.keys()){
+        const auto& keys = desktopEntry.keys();
+        for(const auto &entryId : std::as_const(keys)){
             if(!entryId.startsWith(DesktopFileEntryKey) && !entryId.startsWith(DesktopFileActionKey)){
                 qWarning() << "parse entry : "<<entryId<<" fail";
                 return ParserError::MissingInfo;
@@ -145,13 +147,13 @@ ParserError CompatibilityManager::parse(QFile &file) noexcept{
             auto envArray = entry[DesktopEntryEnv].toArray();
 
             QStringList env;
-            for (const QJsonValue &envJson : envArray) {
+            for (const auto &envJson : std::as_const(envArray)) {
                 env.push_back(envJson.toString());
             }
 
             //auto tub = std::make_tuple(exec,std::move(env.join("; ") + ";"));
             auto tub = std::make_tuple(exec,env);
-            compatibilityEntry.insert(entryId,std::move(tub));
+            compatibilityEntry.insert(entryId,tub);
             qInfo()<<"insert desktop id : " << entryId <<", with Exec : "<< exec << "and Env : "<<env;
         }
 

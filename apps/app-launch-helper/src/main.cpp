@@ -2,32 +2,26 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include <numeric>
-#include <unordered_map>
-#include <vector>
-#include <deque>
-#include <memory>
-#include <iostream>
-#include <algorithm>
-#include <cstdlib>
-#include <map>
-#include <list>
-#include <thread>
-#include <filesystem>
-#include <cctype>
 #include "constant.h"
 #include "types.h"
 #include "variantValue.h"
+#include <algorithm>
+#include <cstdlib>
+#include <deque>
+#include <filesystem>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 
 namespace {
 
-ExitCode fromString(const std::string &str)
+ExitCode fromString(std::string_view str)
 {
     if (str == "done") {
         return ExitCode::Done;
     }
 
-    if (str == "canceled" or str == "timeout" or str == "failed" or str == "dependency" or str == "skipped") {
+    if (str == "canceled" || str == "timeout" || str == "failed" || str == "dependency" || str == "skipped") {
         return ExitCode::SystemdError;
     }
 
@@ -44,10 +38,10 @@ ExitCode fromString(const std::string &str)
 
 ExitCode fromString(const char *str)
 {
-    if (!str) {
+    if (str == nullptr) {
         return ExitCode::Waiting;
     }
-    std::string tmp{str};
+    const std::string tmp{str};
     return fromString(tmp);
 }
 
@@ -62,7 +56,7 @@ ExitCode fromString(const char *str)
 
 int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 {
-    int ret;
+    int ret{0};
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
         sd_journal_perror("open struct of ExecStart failed.");
@@ -99,7 +93,7 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
         return ret;
     }
 
-    for (auto execArg : execArgs) {
+    for (const auto &execArg : execArgs) {
         if (ret = sd_bus_message_append(msg, "s", execArg.data()); ret < 0) {
             sd_journal_perror("append args of execStart failed.");
             return ret;
@@ -147,16 +141,16 @@ DBusValueType getPropType(std::string_view key)
                                                                    {"WorkingDirectory", DBusValueType::String},
                                                                    {"ExecSearchPath", DBusValueType::ArrayOfString}};
 
-    if (auto it = map.find(key); it != map.cend()) {
+    if (const auto it = map.find(key); it != map.cend()) {
         return it->second;
     }
 
     return DBusValueType::String;  // fallback to string
 }
 
-int appendPropValue(msg_ptr &msg, DBusValueType type, const std::list<std::string_view> &value)
+int appendPropValue(msg_ptr &msg, DBusValueType type, const std::vector<std::string> &value)
 {
-    int ret;
+    int ret{0};
 
     auto handler = creatValueHandler(msg, type);
     if (handler == nullptr) {
@@ -184,47 +178,42 @@ int appendPropValue(msg_ptr &msg, DBusValueType type, const std::list<std::strin
     return 0;
 }
 
-int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::list<std::string_view>> &props)
+int processKVPair(msg_ptr &msg, std::unordered_map<std::string_view, std::vector<std::string>> &props)
 {
-    int ret;
+    int ret{0};
     if (!props.empty()) {
-        for (auto [key, value] : props) {
-            const std::list<std::string_view> *valuePtr = &value;
-            std::list<std::string_view> normalizedValue;
-            std::vector<std::string> normalizedStorage;
-
+        for (auto &[key, value] : props) {
             if (key == "ExecSearchPath") {
+                std::vector<std::string> normalizedValue;
                 for (const auto &v : value) {
-                    std::filesystem::path p{std::string{v}};
+                    const std::filesystem::path p{std::string{v}};
                     if (!p.is_absolute()) {
                         sd_journal_print(LOG_INFO, "ExecSearchPath ignoring relative path: %s", std::string{v}.c_str());
                         continue;
                     }
-                    normalizedStorage.emplace_back(p.lexically_normal().string());
+                    normalizedValue.emplace_back(p.lexically_normal().string());
                 }
-
-                normalizedValue.assign(normalizedStorage.begin(), normalizedStorage.end());
 
                 if (normalizedValue.empty()) {
                     sd_journal_print(LOG_WARNING, "ExecSearchPath normalized to empty, skipping property");
                     continue;
                 }
 
-                valuePtr = &normalizedValue;
+                value = std::move(normalizedValue);
             }
 
-            std::string keyStr{key};
+            const std::string keyStr{key};
             if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
                 sd_journal_perror("open struct of properties failed.");
                 return ret;
             }
 
-            if (ret = sd_bus_message_append(msg, "s", keyStr.data()); ret < 0) {
+            if (ret = sd_bus_message_append(msg, "s", keyStr.c_str()); ret < 0) {
                 sd_journal_perror("append key of property failed.");
                 return ret;
             }
 
-            if (ret = appendPropValue(msg, getPropType(key), *valuePtr); ret < 0) {
+            if (ret = appendPropValue(msg, getPropType(key), value); ret < 0) {
                 sd_journal_perror("append value of property failed.");
                 return ret;
             }
@@ -241,7 +230,7 @@ int processKVPair(msg_ptr &msg, const std::map<std::string_view, std::list<std::
 std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
 {
     std::string serviceName{"internalError"};
-    std::map<std::string_view, std::list<std::string_view>> props;
+    std::unordered_map<std::string_view, std::vector<std::string>> props;
 
     while (!cmdLines.empty()) {  // NOTE: avoid stl exception
         auto str = cmdLines.front();
@@ -280,7 +269,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
                 continue;
             }
 
-            props[key].push_back(kvStr.substr(splitIndex + 1));
+            props[key].emplace_back(kvStr.substr(splitIndex + 1));
             cmdLines.pop_front();
             continue;
         }
@@ -290,7 +279,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
     }
 
     // Processing of the binary file and its parameters that am want to launch
-    auto &execArgs = cmdLines;
+    const auto &execArgs = cmdLines;
     if (execArgs.empty()) {
         sd_journal_print(LOG_ERR, "param exec is empty.");
         serviceName = "invalidInput";
@@ -302,8 +291,8 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
         return serviceName;
     }
 
-    int ret;
-    if (ret = sd_bus_message_append(msg, "s", props["unitName"].front().data()); ret < 0) {  // unitName
+    int ret{0};
+    if (ret = sd_bus_message_append(msg, "s", props["unitName"].front().c_str()); ret < 0) {  // unitName
         sd_journal_perror("append unitName failed.");
         return serviceName;
     }
@@ -368,7 +357,7 @@ std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
 
 int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
 {
-    int ret;
+    int ret{0};
     if (ret = sd_bus_error_is_set(ret_error); ret != 0) {
         sd_journal_print(LOG_ERR, "JobRemoved error: [%s,%s]", ret_error->name, ret_error->message);
     } else {
@@ -385,7 +374,7 @@ int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
         }
     }
 
-    if (ret_error and ret_error->_need_free) {
+    if (ret_error != nullptr && ret_error->_need_free != 0) {
         sd_bus_error_free(ret_error);
     }
 
@@ -394,7 +383,7 @@ int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_erro
 
 int process_dbus_message(sd_bus *bus)
 {
-    int ret;
+    int ret{0};
     ret = sd_bus_process(bus, nullptr);
     if (ret < 0) {
         sd_journal_print(LOG_ERR, "event loop error.");
@@ -422,7 +411,7 @@ int main(int argc, const char *argv[])
     sd_bus_message *msg{nullptr};
     sd_bus *bus{nullptr};
     std::string serviceId;
-    int ret;
+    int ret{0};
 
     if (ret = sd_bus_open_user(&bus); ret < 0) {
         sd_journal_perror("Failed to connect to user bus.");
@@ -476,12 +465,12 @@ int main(int argc, const char *argv[])
     sd_bus_message_unref(reply);
 
     while (true) {  // wait for jobRemoved
-        int ret = process_dbus_message(bus);
+        const auto ret = process_dbus_message(bus);
         if (ret < 0) {
             releaseRes(error, msg, bus, ExitCode::InternalError);
         }
 
-        if (resultData.removedFlag) {
+        if (resultData.removedFlag != 0) {
             break;
         }
     }

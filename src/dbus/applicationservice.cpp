@@ -56,11 +56,11 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     if (!env.isEmpty())
         envs.append(env);
 
-    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.cend()) {
+    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.end()) {
         appendEnvs(*it, envs);
     }
 
-    if (auto it = runtimeOptions.find("unsetEnv"); it != runtimeOptions.cend()) {
+    if (auto it = runtimeOptions.find("unsetEnv"); it != runtimeOptions.end()) {
         appendEnvs(*it, unsetEnvs);
     }
 
@@ -86,10 +86,9 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 
 void ApplicationService::processCompatibility(const QString &action, QVariantMap &options, QString &execStr)
 {
-    QString tempExecStr = execStr;
     auto compatibilityManager = parent()->getCompatibilityManager();
 
-    auto getExec = [action, compatibilityManager](QString desktopID) -> QString {
+    auto getExec = [action, compatibilityManager](const QString& desktopID) -> QString {
         std::optional<QString> execValue;
         if (!action.isEmpty()) {
             const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
@@ -99,7 +98,7 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
         }
 
         if (!execValue.has_value() || execValue->isEmpty()) {
-            return QString();
+            return {};
         }
         return execValue.value();
     };
@@ -107,7 +106,7 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
     auto addEnv = [this, &options, compatibilityManager]() {
         auto envValue = compatibilityManager->getEnv(m_desktopSource.desktopId(), DesktopFileEntryKey);
         if (!envValue.isEmpty()) {
-            if (auto it = options.find("env"); it != options.cend()) {
+            if (auto it = options.find("env"); it != options.end()) {
                 auto value = it->toStringList();
                 value.append(envValue);
                 options.insert("env", value);
@@ -123,8 +122,6 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
         addEnv();
         qInfo() << "get compatibility : " << m_desktopSource.desktopId() << " Exec : " << execStr;
     }
-
-    return;
 }
 
 ApplicationService::ApplicationService(DesktopFile source,
@@ -575,7 +572,7 @@ PropMap ApplicationService::actionName() const noexcept
     const auto &actionList = actions();
 
     for (const auto &action : actionList) {
-        auto rawActionKey = DesktopFileActionKey % action;
+        const QString rawActionKey = DesktopFileActionKey % action;
         auto value = m_entry->value(rawActionKey, "Name");
         if (!value.has_value()) {
             continue;
@@ -617,8 +614,8 @@ QStringMap ApplicationService::genericName() const noexcept
 QStringMap ApplicationService::icons() const noexcept
 {
     QStringMap ret;
-    auto actionList = actions();
-    for (const auto &action : actionList) {
+    const auto &actionList = actions();
+    for (const auto &action : std::as_const(actionList)) {
         auto actionKey = QString{action}.prepend(DesktopFileActionKey);
         auto value = m_entry->value(actionKey, "Icon");
         if (!value.has_value()) {
@@ -676,8 +673,8 @@ QStringMap ApplicationService::execs() const noexcept
         ret.insert(DesktopFileEntryKey, mainExec->value<QString>());
     }
 
-    auto actionList = actions();
-    for (const auto &action : actionList) {
+    const auto &actionList = actions();
+    for (const auto &action : std::as_const(actionList)) {
         auto actionKey = QString{action}.prepend(DesktopFileActionKey);
         auto value = m_entry->value(actionKey, "Exec");
         if (!value.has_value()) {
@@ -827,7 +824,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
-    QDir startDir(getAutoStartDirs().first());
+    const QDir startDir(getAutoStartDirs().constFirst());
     if (!startDir.exists() && !startDir.mkpath(startDir.path())) {
         qWarning() << "mkpath " << startDir.path() << "failed";
         safe_sendErrorReply(QDBusError::InternalError);
@@ -903,7 +900,7 @@ QStringList ApplicationService::mimeTypes() const noexcept
 
     tmp.added.removeDuplicates();
     tmp.removed.removeDuplicates();
-    for (const auto &it : tmp.removed) {
+    for (const auto &it : std::as_const(tmp.removed)) {
         tmp.added.removeOne(it);
     }
 
@@ -935,10 +932,10 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
 
     const auto &list = userInfo->appsList().rbegin();
     const auto &appId = id();
-    for (const auto &add : newAdds) {
+    for (const auto &add : std::as_const(newAdds)) {
         list->addAssociation(add, appId);
     }
-    for (const auto &remove : newRemoved) {
+    for (const auto &remove :std::as_const(newRemoved)) {
         list->removeAssociation(remove, appId);
     }
 
@@ -984,7 +981,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
 
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noexcept
 {
-    if (auto it = m_Instances.find(instance); it != m_Instances.cend()) {
+    if (auto it = m_Instances.constFind(instance); it != m_Instances.cend()) {
         emit InterfacesRemoved(instance, getChildInterfacesFromObject(it->data()));
         unregisterObjectFromDBus(instance.path());
         m_Instances.remove(instance);
@@ -993,14 +990,15 @@ void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noex
 
 void ApplicationService::removeAllInstance() noexcept
 {
-    for (const auto &instance : m_Instances.keys()) {
-        removeOneInstance(instance);
+    for (auto it = m_Instances.constBegin(); it != m_Instances.constEnd(); ++it) {
+        removeOneInstance(it.key());
     }
 }
 
 void ApplicationService::detachAllInstance() noexcept
 {
-    for (auto &instance : m_Instances.values()) {
+    for (auto it = m_Instances.constBegin(); it != m_Instances.constEnd(); ++it) {
+        const auto& instance = it.value();
         orphanedInstances.append(instance);
         instance->setProperty("Orphaned", true);
     }
@@ -1276,12 +1274,13 @@ LaunchTask ApplicationService::unescapeExec(const QString &str, QStringList fiel
 
 void ApplicationService::unescapeEens(QVariantMap &options) noexcept
 {
-    if (options.find("env") == options.end()) {
+    if (options.constFind("env") == options.cend()) {
         return;
     }
     QStringList result;
-    auto envs = options["env"];
-    for (const QString &var : envs.toStringList()) {
+    const auto &envsVar = options["env"];
+    auto envs = envsVar.toStringList();
+    for (const auto &var : std::as_const(envs)) {
         if (var.startsWith(u"DSG_APP_ID="_s)) {
             result << var;
             continue;

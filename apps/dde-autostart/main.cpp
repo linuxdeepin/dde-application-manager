@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 
         auto reply = QDBusConnection::sessionBus().call(msg);
         if (reply.type() == QDBusMessage::ReplyMessage) {
-            if (reply.arguments().first().toBool()) {
+            if (reply.arguments().constFirst().toBool()) {
                 launchSlot();
                 return 0;
             }
@@ -119,6 +119,6 @@ int main(int argc, char *argv[])
         }
 
         // Wait for signal
-        return app.exec();
+        return QCoreApplication::exec();
     }
 }

@@ -121,8 +121,8 @@ QStringList StringListLaunchOption::generateCommandLine() const noexcept
 
     QStringList ret;
     const QString ok = optionKey();
-    for (const auto &ov : list) {
-        ret << QString{"%1=%2"}.arg(ok).arg(ov);
+    for (const auto &ov : std::as_const(list)) {
+        ret << QString{"%1=%2"}.arg(ok, ov);
     }
 
     return ret;

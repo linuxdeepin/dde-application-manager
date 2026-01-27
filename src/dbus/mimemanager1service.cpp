@@ -97,7 +97,7 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
         qWarning() << "default application has been found:" << defaultAppId
                    << " but we can't find corresponding application in ApplicationManagerService.";
     } else {
-        application = apps.keys().first();
+        application = apps.constBegin().key();
     }
 
     return type;
