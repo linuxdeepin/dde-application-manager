@@ -5,10 +5,10 @@
 #ifndef INIPARSER_H
 #define INIPARSER_H
 
-#include <QTextStream>
-#include <QString>
 #include <QMap>
 #include <QRegularExpression>
+#include <QString>
+#include <QTextStream>
 
 enum class ParserError {
     NoError,
@@ -53,19 +53,19 @@ protected:
 
 inline bool hasNonAsciiAndControlCharacters(const QString &str) noexcept
 {
-    static const QRegularExpression _matchControlChars = []() {
-        QRegularExpression tmp{R"(\p{Cc})"};
+    static const auto matchControlChars = [] {
+        QRegularExpression tmp{QStringLiteral(R"(\p{Cc})")};
         tmp.optimize();
         return tmp;
     }();
-    thread_local const auto matchControlChars = _matchControlChars;
-    static const QRegularExpression _matchNonAsciiChars = []() {
-        QRegularExpression tmp{R"([^\x00-\x7f])"};
+
+    static const auto matchNonAsciiChars = [] {
+        QRegularExpression tmp{QStringLiteral(R"([^\x00-\x7f])")};
         tmp.optimize();
         return tmp;
     }();
-    thread_local const auto matchNonAsciiChars = _matchNonAsciiChars;
-    return str.contains(matchControlChars) and str.contains(matchNonAsciiChars);
+
+    return str.contains(matchControlChars) && str.contains(matchNonAsciiChars);
 }
 
 inline QDebug operator<<(QDebug debug, const ParserError &v)

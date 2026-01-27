@@ -5,18 +5,18 @@
 #ifndef JOBMANAGER1SERVICE_H
 #define JOBMANAGER1SERVICE_H
 
-#include <QObject>
-#include <QMap>
-#include <QDBusObjectPath>
-#include <QSharedPointer>
-#include <QMutex>
-#include <QMutexLocker>
-#include <QtConcurrent>
-#include <QDBusError>
-#include <QFuture>
-#include <QUuid>
 #include "global.h"
 #include "dbus/jobadaptor.h"
+#include <QDBusError>
+#include <QDBusObjectPath>
+#include <QFuture>
+#include <QMap>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QObject>
+#include <QSharedPointer>
+#include <QUuid>
+#include <QtConcurrentMap>
 
 class ApplicationManager1Service;
 
@@ -90,13 +90,14 @@ public:
             }
 
             QString result{job->status()};
-            for (const auto &val : future.result()) {
+            const auto &vals = future.result();
+            for (const auto &val : vals) {
                 if (val.metaType().id() == QMetaType::fromType<QDBusError>().id()) {
                     result = "failed";
                 }
                 break;
             }
-            emit JobRemoved(path, result, future.result());
+            emit JobRemoved(path, result, vals);
             return value;
         };
 

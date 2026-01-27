@@ -15,18 +15,18 @@ Q_LOGGING_CATEGORY(logDesktopFileParser, "am.desktopfileparser")
 namespace {
 bool isInvalidLocaleString(const QString &str) noexcept
 {
-    constexpr auto Language = R"((?:[a-z]+))";        // language of locale postfix. eg.(en, zh)
-    constexpr auto Country = R"((?:_[A-Z]+))";        // country of locale postfix. eg.(US, CN)
-    constexpr auto Encoding = R"((?:\.[0-9A-Z-]+))";  // encoding of locale postfix. eg.(UFT-8)
-    constexpr auto Modifier = R"((?:@[a-zA-Z=;]+))";  // modifier of locale postfix. eg.(euro;collation=traditional)
-    const static auto validKey = QString(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier);
     // example: https://regex101.com/r/hylOay/2
-    static const QRegularExpression _re = []() -> QRegularExpression {
-        QRegularExpression tmp{validKey};
+    static const auto _re = [] {
+        constexpr auto Language = R"((?:[a-z]+))";        // language of locale postfix. eg.(en, zh)
+        constexpr auto Country = R"((?:_[A-Z]+))";        // country of locale postfix. eg.(US, CN)
+        constexpr auto Encoding = R"((?:\.[0-9A-Z-]+))";  // encoding of locale postfix. eg.(UFT-8)
+        constexpr auto Modifier = R"((?:@[a-zA-Z=;]+))";  // modifier of locale postfix. eg.(euro;collation=traditional)
+
+        QRegularExpression tmp{QStringLiteral(R"(^%1%2?%3?%4?$)").arg(Language, Country, Encoding, Modifier)};
         tmp.optimize();
         return tmp;
     }();
-    thread_local const auto re = _re;
+    const auto re = _re;
 
     return re.match(str).hasMatch();
 }
@@ -52,10 +52,11 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
             continue;
         }
 
-        if (groups.keys().first() != DesktopFileEntryKey) {
+
+        if (groups.cbegin().key() != DesktopFileEntryKey) {
             qCWarning(logDesktopFileParser) << "There should be nothing preceding "
-                          "'Desktop Entry' group in the desktop entry file "
-                          "but possibly one or more comments.";
+                                               "'Desktop Entry' group in the desktop entry file "
+                                               "but possibly one or more comments.";
             return ParserError::InvalidFormat;
         }
     }
@@ -139,13 +140,13 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
         localeStr = keyStr.sliced(localeBegin + 1, localeEnd - localeBegin - 1);  // strip '[' and ']'
     }
 
-    static const QRegularExpression _re = []() {
-        QRegularExpression tmp{"R([^A-Za-z0-9-])"};
+    static const auto _re = [] {
+        QRegularExpression tmp{QStringLiteral(R"([^A-Za-z0-9-])")};
         tmp.optimize();
         return tmp;
     }();
     // NOTE: https://stackoverflow.com/a/25583104
-    thread_local const QRegularExpression re = _re;
+    const auto re = _re;
     if (re.match(key).hasMatch()) {
         qCDebug(logDesktopFileParser) << "invalid key name:" << key << ", skip this line:" << line;
         return ParserError::NoError;
@@ -220,7 +221,8 @@ QString toString(const DesktopFileParser::Groups &map)
     };
 
     groupToString(DesktopFileEntryKey);
-    for (const auto &groupName : map.keys()) {
+    for (auto it = map.cbegin(); it != map.cend(); ++it) {
+        const auto& groupName = it.key();
         if (groupName == DesktopFileEntryKey) {
             continue;
         }

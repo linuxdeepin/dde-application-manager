@@ -384,14 +384,20 @@ inline QString escapeToObjectPath(const QString &str)
     if (str.isEmpty()) {
         return "_";
     }
-
     auto ret = str;
-    QRegularExpression re{R"([^a-zA-Z0-9])"};
+
+    const static auto _re = [] {
+        QRegularExpression tmp{QStringLiteral(R"([^a-zA-Z0-9])")};
+        tmp.optimize();
+        return tmp;
+    }();
+    const auto re = _re;
+
     auto matcher = re.globalMatch(ret);
     while (matcher.hasNext()) {
         auto replaceList = matcher.next().capturedTexts();
         replaceList.removeDuplicates();
-        for (const auto &c : replaceList) {
+        for (const auto &c : std::as_const(replaceList)) {
             auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
             ret.replace(c, QString{R"(_%1)"}.arg(hexStr));
         }
@@ -419,14 +425,21 @@ inline QString escapeApplicationId(const QString &id)
     }
 
     auto ret = id;
-    QRegularExpression re{R"([^a-zA-Z0-9])"};
+
+    static const auto _re = [] {
+        QRegularExpression tmp{QStringLiteral(R"([^a-zA-Z0-9])")};
+        tmp.optimize();
+        return tmp;
+    }();
+    const auto re = _re;
+
     auto matcher = re.globalMatch(ret);
     while (matcher.hasNext()) {
         auto replaceList = matcher.next().capturedTexts();
         replaceList.removeDuplicates();
-        for (const auto &c : replaceList) {
+        for (const auto &c : std::as_const(replaceList)) {
             auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
-            ret.replace(c, QString{R"(\x%1)"}.arg(hexStr));
+            ret.replace(c, QStringLiteral(R"(\x%1)").arg(hexStr));
         }
     }
     return ret;
@@ -438,7 +451,7 @@ inline QString unescapeApplicationId(const QString &id)
     for (qsizetype i = 0; i < id.size(); ++i) {
         if (id[i] == '\\' and i + 3 < id.size()) {
             auto hexStr = id.sliced(i + 2, 2);
-            ret.replace(QString{R"(\x%1)"}.arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
+            ret.replace(QStringLiteral(R"(\x%1)").arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
             i += 3;
         }
     }
@@ -672,7 +685,7 @@ inline QByteArray getCurrentSessionId()
         return {};
     }
 
-    auto id = ret.arguments().first();
+    const auto &id = ret.arguments().constFirst();
     return id.value<QDBusVariant>().variant().toByteArray();
 }
 

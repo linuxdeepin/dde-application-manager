@@ -157,7 +157,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &app
     auto XDGDataDirs = getDesktopFileDirs();
     constexpr auto desktopSuffix = u8".desktop";
 
-    for (const auto &dir : XDGDataDirs) {
+    for (const auto &dir : std::as_const(XDGDataDirs)) {
         auto app = QFileInfo{dir + QDir::separator() + appId + desktopSuffix};
         while (!app.exists()) {
             auto filePath = app.absoluteFilePath();

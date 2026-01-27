@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
             return;
         }
 
-        auto appID = reply.arguments().first().toString();
+        auto appID = reply.arguments().constFirst().toString();
         if (!appID.isEmpty()) {
             qInfo() << "The capacity of process" << pid << "is:" << appID;
             return;
