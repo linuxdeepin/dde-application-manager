@@ -59,19 +59,22 @@ TEST_F(TestApplicationManager, identifyService)
     }
     using namespace std::chrono_literals;
     // for service unit
-    auto workingDir = QDir::cleanPath(QDir::current().absolutePath() + QDir::separator() + ".." + QDir::separator() + "tools");
-    QFile pidFile{workingDir + QDir::separator() + "pid.txt"};
+    auto workingDir = QDir::current();
+    ASSERT_TRUE(workingDir.cdUp());
+    ASSERT_TRUE(workingDir.cdUp());
+    ASSERT_TRUE(workingDir.cd("tools"));
+    QFile pidFile{workingDir.absoluteFilePath("pid.txt")};
     if (pidFile.exists()) {
         ASSERT_TRUE(pidFile.remove());
     }
 
     QProcess fakeServiceProc;
-    fakeServiceProc.setWorkingDirectory(workingDir);
+    fakeServiceProc.setWorkingDirectory(workingDir.absolutePath());
     auto InstanceId = InstancePath.path().split('/').last();
     fakeServiceProc.start("/usr/bin/systemd-run",
                           {{QString{R"(--unit=app-DDE-test\x2dApplication@%1.service)"}.arg(InstanceId)},
                            {"--user"},
-                           {QString{"--working-directory=%1"}.arg(workingDir)},
+                           {QString{"--working-directory=%1"}.arg(workingDir.absolutePath())},
                            {"--slice=app.slice"},
                            {"./fake-process.sh"}});
     fakeServiceProc.waitForFinished();
@@ -123,11 +126,11 @@ TEST_F(TestApplicationManager, identifyService)
                                         {{"--scope"},
                                          {QString{R"(--unit=app-DDE-test\x2dApplication-%1.scope)"}.arg(InstanceId)},
                                          {"--user"},
-                                         {QString{"--working-directory=%1"}.arg(workingDir)},
+                                         {QString{"--working-directory=%1"}.arg(workingDir.absolutePath())},
                                          {"--slice=app.slice"},
                                          {"./fake-process.sh"},
                                          {"Scope"}},
-                                        workingDir));
+                                        workingDir.absolutePath()));
 
     std::this_thread::sleep_for(500ms);
 

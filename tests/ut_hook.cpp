@@ -3,14 +3,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "applicationHooks.h"
+#include <gtest/gtest.h>
 #include <QDir>
 #include <QStringList>
-#include <gtest/gtest.h>
 
 TEST(ApplicationHookTest, load)
 {
-    auto file =
-        QDir::currentPath() + QDir::separator() + "data" + QDir::separator() + "hooks.d" + QDir::separator() + "1-test.json";
+    auto hooksDir = QDir::current();
+    ASSERT_TRUE(hooksDir.cdUp());
+    ASSERT_TRUE(hooksDir.cdUp());
+    ASSERT_TRUE(hooksDir.cd("tests/data/hooks.d"));
+
+    auto file = hooksDir.absoluteFilePath("1-test.json");
     auto hook = ApplicationHook::loadFromFile(file);
     EXPECT_TRUE(hook);
     EXPECT_EQ(hook->hookName(), QString{"1-test.json"});
