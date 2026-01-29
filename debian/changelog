@@ -1,3 +1,13 @@
+dde-application-manager (1.2.44) unstable; urgency=medium
+
+  * refactor: fix most compiler and clazy warnings
+  * test: fix relative paths in test cases
+  * fix(build): change working directory of gtest_discovery_tests
+  * fix(build): remove trailing slash in SERVICE_DEST_PATH to resolve
+    CMP0177
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 29 Jan 2026 20:22:56 +0800
+
 dde-application-manager (1.2.43) unstable; urgency=medium
 
   * fix: add MIME info change detection and reload
