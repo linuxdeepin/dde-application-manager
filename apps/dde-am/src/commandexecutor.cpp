@@ -8,6 +8,8 @@
 #include <QDBusConnection>
 #include <QDBusMetaType>
 #include <QDBusMessage>
+#include <QDir>
+#include <QStandardPaths>
 
 DCORE_USE_NAMESPACE
 
@@ -26,9 +28,27 @@ void registerComplexDbusType()
 }
 }
 
-void CommandExecutor::setProgram(const QString &program)
+bool CommandExecutor::setProgram(const QString &program)
 {
-    m_program = program;
+    if (program.isEmpty()) {
+        return false;
+    }
+
+    // am requires the command to be a full path
+    if (!QDir::isAbsolutePath(program)) {
+        QString fullPath = QStandardPaths::findExecutable(program);
+        if (fullPath.isEmpty()) {
+            qWarning() << "Cannot find executable for command:" << program << ", skipping action invocation.";
+            return false;
+        }
+
+        qDebug() << "Resolved command" << program << "to full path:" << fullPath;
+        m_program = fullPath;
+    } else {
+        m_program = program;
+    }
+
+    return true;
 }
 
 void CommandExecutor::setArguments(const QStringList &arguments)

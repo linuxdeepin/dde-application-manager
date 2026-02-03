@@ -11,7 +11,7 @@
 class CommandExecutor
 {
 public:
-    void setProgram(const QString &program);
+    bool setProgram(const QString &program);
     void setArguments(const QStringList &arguments);
     void setType(const QString &type);
     void setRunId(const QString &runId);

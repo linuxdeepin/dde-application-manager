@@ -62,7 +62,9 @@ int handleExecuteCommand(const QCommandLineParser &parser,
                          const QCommandLineOption &envOption)
 {
     CommandExecutor executor;
-    executor.setProgram(parser.value(executeOption));
+    if (!executor.setProgram(parser.value(executeOption))) {
+        return -1;
+    }
 
     if (parser.isSet(typeOption)) {
         executor.setType(parser.value(typeOption));
