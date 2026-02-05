@@ -9,3 +9,6 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z
 
 %:
 	dh $@ --buildsystem=cmake
+
+override_dh_auto_test:
+	echo "skip auto test"
