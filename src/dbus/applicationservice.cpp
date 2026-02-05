@@ -324,10 +324,14 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
 
     // Notify the compositor to show a splash screen if in a Wayland session.
-    // Suppress splash for system autostart launches.
+    // Suppress splash for system autostart launches or singleton apps with existing instances.
     const bool isAutostartLaunch = optionsMap.contains("_autostart") && optionsMap.value("_autostart").toBool();
+    const bool isSingleton = findEntryValue(DesktopFileEntryKey, "X-Deepin-Singleton", EntryValueType::Boolean).toBool();
+    const bool singletonWithInstance = isSingleton && !m_Instances.isEmpty();
     if (isAutostartLaunch) {
         qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (autostart)" << id();
+    } else if (singletonWithInstance) {
+        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (singleton with existing instance)" << id();
     } else if (auto *am = parent()) {
         if (auto *helper = am->splashHelper()) {
             const auto iconVar = findEntryValue(DesktopFileEntryKey, "Icon", EntryValueType::IconString);
