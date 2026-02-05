@@ -1,3 +1,10 @@
+dde-application-manager (1.2.45) unstable; urgency=medium
+
+  * fix: update systemd service dependencies for ApplicationManager1
+  * feat: dde-am resolve command to full path before execution
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 05 Feb 2026 19:26:36 +0800
+
 dde-application-manager (1.2.44) unstable; urgency=medium
 
   * refactor: fix most compiler and clazy warnings
