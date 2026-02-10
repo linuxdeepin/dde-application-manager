@@ -1,55 +1,55 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "variantValue.h"
-#include "constant.h"
-#include <sstream>
 
-std::unique_ptr<VariantValue> creatValueHandler(msg_ptr &msg, DBusValueType type)
+Handler creatValueHandler(msg_ptr msg, DBusValueType type) noexcept
 {
     switch (type) {
     case DBusValueType::String:
-        return std::make_unique<StringValue>(msg);
+        return StringHandler{msg};
     case DBusValueType::ArrayOfString:
-        return std::make_unique<ASValue>(msg);
+        return ASHandler{msg};
     default:
-        return nullptr;
+        return std::monostate{};
     }
 }
 
-int StringValue::openVariant() noexcept
+int StringHandler::openVariant() noexcept
 {
-    return sd_bus_message_open_container(msgRef(), SD_BUS_TYPE_VARIANT, "s");
+    return sd_bus_message_open_container(m_msg, SD_BUS_TYPE_VARIANT, "s");
 }
 
-int StringValue::closeVariant() noexcept
+int StringHandler::closeVariant() noexcept
 {
-    return sd_bus_message_close_container(msgRef());
+    return sd_bus_message_close_container(m_msg);
 }
 
-int StringValue::appendValue(std::string &&value) noexcept
+int StringHandler::appendValue(std::string_view value) noexcept
 {
-    return sd_bus_message_append(msgRef(), "s", value.data());
+    return sd_bus_message_append(m_msg, "s", value.data());
 }
 
-int ASValue::openVariant() noexcept
+int ASHandler::openVariant() noexcept
 {
-    if (int ret = sd_bus_message_open_container(msgRef(), SD_BUS_TYPE_VARIANT, "as"); ret < 0)
+    if (const auto ret = sd_bus_message_open_container(m_msg, SD_BUS_TYPE_VARIANT, "as"); ret < 0) {
         return ret;
+    }
 
-    return sd_bus_message_open_container(msgRef(), SD_BUS_TYPE_ARRAY, "s");
+    return sd_bus_message_open_container(m_msg, SD_BUS_TYPE_ARRAY, "s");
 }
 
-int ASValue::closeVariant() noexcept
+int ASHandler::closeVariant() noexcept
 {
-    if (int ret = sd_bus_message_close_container(msgRef()); ret < 0)
+    if (const auto ret = sd_bus_message_close_container(m_msg); ret < 0) {
         return ret;
+    }
 
-    return sd_bus_message_close_container(msgRef());
+    return sd_bus_message_close_container(m_msg);
 }
 
-int ASValue::appendValue(std::string &&value) noexcept
+int ASHandler::appendValue(std::string_view value) noexcept
 {
-    return sd_bus_message_append(msgRef(), "s", value.data());
+    return sd_bus_message_append(m_msg, "s", value.data());
 }

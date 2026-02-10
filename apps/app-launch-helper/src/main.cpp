@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -6,14 +6,51 @@
 #include "types.h"
 #include "variantValue.h"
 #include <algorithm>
+#include <array>
 #include <cstdlib>
-#include <deque>
 #include <filesystem>
-#include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
 namespace {
+
+// systemd escape rules:
+// https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html#Specifiers
+// https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Command%20lines
+// But we only escape:
+// 1. $
+// 2. An argument solely consisting of ";"
+// '%' is not needed, see:
+// https://github.com/systemd/systemd/blob/eefb46c83b130ccec16891c3dd89aa4f32229e80/src/core/dbus-execute.c#L1769
+void encodeArgument(std::string &arg)
+{
+    if (arg == ";") {
+        arg = R"(\;)";
+        return;
+    }
+
+    auto extra = std::count(arg.cbegin(), arg.cend(), '$');
+    if (extra == 0) {
+        return;
+    }
+
+    const auto oldSize = arg.size();
+    const auto newSize = oldSize + extra;
+    arg.resize(newSize);
+
+    auto i{oldSize};
+    auto j{newSize};
+    while (i > 0) {
+        const auto c = arg[--i];
+        if (c == '$') {
+            arg[--j] = '$';
+            arg[--j] = '$';
+        } else {
+            arg[--j] = c;
+        }
+    }
+}
 
 ExitCode fromString(std::string_view str)
 {
@@ -41,8 +78,8 @@ ExitCode fromString(const char *str)
     if (str == nullptr) {
         return ExitCode::Waiting;
     }
-    const std::string tmp{str};
-    return fromString(tmp);
+
+    return fromString(std::string_view{str});
 }
 
 [[noreturn]] void releaseRes(sd_bus_error &error, msg_ptr &msg, bus_ptr &bus, ExitCode ret)
@@ -54,8 +91,14 @@ ExitCode fromString(const char *str)
     std::exit(static_cast<int>(ret));
 }
 
-int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
+int processExecStart(msg_ptr msg,
+                     std::vector<std::string_view>::const_iterator begin,
+                     std::vector<std::string_view>::const_iterator end)
 {
+    if (begin == end) {
+        return -EINVAL;
+    }
+
     int ret{0};
 
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
@@ -83,7 +126,9 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
         return ret;
     }
 
-    if (ret = sd_bus_message_append(msg, "s", execArgs[0].data()); ret < 0) {
+    std::string buffer{*begin};
+    encodeArgument(buffer);
+    if (ret = sd_bus_message_append(msg, "s", buffer.c_str()); ret < 0) {
         sd_journal_perror("append binary of execStart failed.");
         return ret;
     }
@@ -93,8 +138,11 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
         return ret;
     }
 
-    for (const auto &execArg : execArgs) {
-        if (ret = sd_bus_message_append(msg, "s", execArg.data()); ret < 0) {
+    for (auto it = begin; it != end; ++it) {
+        buffer = *it;
+        encodeArgument(buffer);
+        sd_journal_print(LOG_INFO, "after encode: %s", buffer.c_str());
+        if (ret = sd_bus_message_append(msg, "s", buffer.c_str()); ret < 0) {
             sd_journal_perror("append args of execStart failed.");
             return ret;
         }
@@ -136,223 +184,205 @@ int processExecStart(msg_ptr &msg, const std::deque<std::string_view> &execArgs)
 
 DBusValueType getPropType(std::string_view key)
 {
-    static std::unordered_map<std::string_view, DBusValueType> map{{"Environment", DBusValueType::ArrayOfString},
-                                                                   {"UnsetEnvironment", DBusValueType::ArrayOfString},
-                                                                   {"WorkingDirectory", DBusValueType::String},
-                                                                   {"ExecSearchPath", DBusValueType::ArrayOfString}};
+    struct Entry
+    {
+        std::string_view k;
+        DBusValueType v;
+    };
 
-    if (const auto it = map.find(key); it != map.cend()) {
-        return it->second;
+    // small data just use array and linear search
+    static constexpr std::array<Entry, 4> map{Entry{"Environment", DBusValueType::ArrayOfString},
+                                              Entry{"UnsetEnvironment", DBusValueType::ArrayOfString},
+                                              Entry{"ExecSearchPath", DBusValueType::ArrayOfString},
+                                              Entry{"WorkingDirectory", DBusValueType::String}};
+
+    for (const auto &entry : map) {
+        if (entry.k == key) {
+            return entry.v;
+        }
     }
 
-    return DBusValueType::String;  // fallback to string
+    return DBusValueType::String;
 }
 
 int appendPropValue(msg_ptr &msg, DBusValueType type, const std::vector<std::string> &value)
 {
-    int ret{0};
-
     auto handler = creatValueHandler(msg, type);
-    if (handler == nullptr) {
-        sd_journal_perror("unknown type of property's variant.");
-        return -1;
-    }
+    return std::visit(
+        [&value](auto &impl) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(impl)>, std::monostate>) {
+                sd_journal_perror("unknown type of property's variant.");
+                return -1;
+            } else {
+                auto ret = impl.openVariant();
+                if (ret < 0) {
+                    sd_journal_perror("open property's variant value failed.");
+                    return ret;
+                }
 
-    if (ret = handler->openVariant(); ret < 0) {
-        sd_journal_perror("open property's variant value failed.");
-        return ret;
-    }
+                for (const auto &v : value) {
+                    ret = impl.appendValue(v);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                }
 
-    for (const auto &v : value) {
-        if (ret = handler->appendValue(std::string{v}); ret < 0) {
-            sd_journal_perror("append property's variant value failed.");
+                ret = impl.closeVariant();
+                if (ret < 0) {
+                    sd_journal_perror("close property's variant value failed.");
+                    return ret;
+                }
+
+                return 0;
+            }
+        },
+        handler);
+}
+
+int processKVPair(msg_ptr msg, std::unordered_map<std::string, std::vector<std::string>> &props)
+{
+    int ret{0};
+    for (auto &[key, value] : props) {
+        if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
+            sd_journal_perror("open struct of properties failed.");
+            return ret;
+        }
+
+        sd_journal_print(LOG_INFO, "key:%s", key.data());
+        if (ret = sd_bus_message_append(msg, "s", key.c_str()); ret < 0) {
+            sd_journal_perror("append key of property failed.");
+            return ret;
+        }
+
+        if (ret = appendPropValue(msg, getPropType(key), value); ret < 0) {
+            sd_journal_perror("append value of property failed.");
+            return ret;
+        }
+
+        if (ret = sd_bus_message_close_container(msg); ret < 0) {
+            sd_journal_perror("close struct of properties failed.");
             return ret;
         }
     }
 
-    if (ret = handler->closeVariant(); ret < 0) {
-        sd_journal_perror("close property's variant value failed.");
-        return ret;
-    }
-
     return 0;
 }
 
-int processKVPair(msg_ptr &msg, std::unordered_map<std::string_view, std::vector<std::string>> &props)
+std::optional<std::string> cmdParse(msg_ptr &msg, const std::vector<std::string_view> &cmdLines)
 {
-    int ret{0};
-    if (!props.empty()) {
-        for (auto &[key, value] : props) {
-            if (key == "ExecSearchPath") {
-                std::vector<std::string> normalizedValue;
-                for (const auto &v : value) {
-                    const std::filesystem::path p{std::string{v}};
-                    if (!p.is_absolute()) {
-                        sd_journal_print(LOG_INFO, "ExecSearchPath ignoring relative path: %s", std::string{v}.c_str());
-                        continue;
-                    }
-                    normalizedValue.emplace_back(p.lexically_normal().string());
-                }
+    std::string unitName;
+    std::unordered_map<std::string, std::vector<std::string>> props;
 
-                if (normalizedValue.empty()) {
-                    sd_journal_print(LOG_WARNING, "ExecSearchPath normalized to empty, skipping property");
-                    continue;
-                }
-
-                value = std::move(normalizedValue);
-            }
-
-            const std::string keyStr{key};
-            if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_STRUCT, "sv"); ret < 0) {
-                sd_journal_perror("open struct of properties failed.");
-                return ret;
-            }
-
-            if (ret = sd_bus_message_append(msg, "s", keyStr.c_str()); ret < 0) {
-                sd_journal_perror("append key of property failed.");
-                return ret;
-            }
-
-            if (ret = appendPropValue(msg, getPropType(key), value); ret < 0) {
-                sd_journal_perror("append value of property failed.");
-                return ret;
-            }
-
-            if (ret = sd_bus_message_close_container(msg); ret < 0) {
-                sd_journal_perror("close struct of properties failed.");
-                return ret;
-            }
-        }
-    }
-    return 0;
-}
-
-std::string cmdParse(msg_ptr &msg, std::deque<std::string_view> cmdLines)
-{
-    std::string serviceName{"internalError"};
-    std::unordered_map<std::string_view, std::vector<std::string>> props;
-
-    while (!cmdLines.empty()) {  // NOTE: avoid stl exception
-        auto str = cmdLines.front();
-        if (str.size() < 2) {
-            sd_journal_print(LOG_WARNING, "invalid option %s.", str.data());
-            cmdLines.pop_front();
-            continue;
-        }
-        if (str.substr(0, 2) != "--") {
-            sd_journal_print(LOG_INFO, "unknown option %s.", str.data());
-            cmdLines.pop_front();
-            continue;
+    size_t cursor{0};
+    const auto total{cmdLines.size()};
+    while (cursor < total) {
+        auto str = cmdLines[cursor];
+        if (str == "--") {
+            ++cursor;
+            break;
         }
 
+        if (str.size() < 3 || str.compare(0, 2, "--") != 0) {
+            sd_journal_print(LOG_WARNING, "Unknown option: %s", str.data());
+            return std::nullopt;
+        }
+
+        ++cursor;
         auto kvStr = str.substr(2);
-        if (!kvStr.empty()) {
-            const auto *it = kvStr.cbegin();
-            if (it = std::find(it, kvStr.cend(), '='); it == kvStr.cend()) {
-                sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
-                cmdLines.pop_front();
-                continue;
-            }
-            auto splitIndex = std::distance(kvStr.cbegin(), it);
-            if (++it == kvStr.cend()) {
-                sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
-                cmdLines.pop_front();
-                continue;
-            }
+        auto eqPos = kvStr.find('=');
 
-            auto key = kvStr.substr(0, splitIndex);
-            if (key == "Type") {
-                // NOTE:
-                // Systemd service type must be "exec",
-                // this should not be configured in command line arguments.
-                cmdLines.pop_front();
-                continue;
-            }
+        if (eqPos == std::string_view::npos || eqPos == 0) {
+            sd_journal_print(LOG_WARNING, "invalid k-v pair: %s", kvStr.data());
+            return std::nullopt;
+        }
 
-            props[key].emplace_back(kvStr.substr(splitIndex + 1));
-            cmdLines.pop_front();
+        std::string key{kvStr.substr(0, eqPos)};
+        if (key == "Type") {
+            // NOTE:
+            // Systemd service type must be "exec",
+            // this should not be configured in command line arguments.
+            sd_journal_print(LOG_WARNING, "Type should not be configured in command line arguments.");
             continue;
         }
 
-        cmdLines.pop_front();  // NOTE: skip "--"
-        break;
+        auto value = kvStr.substr(eqPos + 1);
+        if (key == "unitName") {
+            unitName = value;
+            continue;
+        }
+
+        if (key == "ExecSearchPath") {
+            const std::filesystem::path path{value};
+
+            if (!path.is_absolute()) {
+                sd_journal_print(LOG_WARNING, "ExecSearchPath ignoring relative path: %s", value.data());
+                continue;
+            }
+
+            props[std::move(key)].emplace_back(path.lexically_normal());
+            continue;
+        }
+
+        props[std::move(key)].emplace_back(value);
     }
 
     // Processing of the binary file and its parameters that am want to launch
-    const auto &execArgs = cmdLines;
-    if (execArgs.empty()) {
-        sd_journal_print(LOG_ERR, "param exec is empty.");
-        serviceName = "invalidInput";
-        return serviceName;
-    }
-    if (props.find("unitName") == props.cend()) {
-        sd_journal_perror("unitName doesn't exists.");
-        serviceName = "invalidInput";
-        return serviceName;
+    if (unitName.empty() || cursor >= total) {
+        sd_journal_print(LOG_ERR, "Missing unitName or execution arguments.");
+        return "invalidInput";
     }
 
     int ret{0};
-    if (ret = sd_bus_message_append(msg, "s", props["unitName"].front().c_str()); ret < 0) {  // unitName
+    if (ret = sd_bus_message_append(msg, "ss", unitName.c_str(), "replace"); ret < 0) {  // unitName and start mode
         sd_journal_perror("append unitName failed.");
-        return serviceName;
-    }
-
-    serviceName = props["unitName"].front();
-    props.erase("unitName");
-
-    if (ret = sd_bus_message_append(msg, "s", "replace"); ret < 0) {  // start mode
-        sd_journal_perror("append startMode failed.");
-        return serviceName;
+        return std::nullopt;
     }
 
     // process properties: a(sv)
     if (ret = sd_bus_message_open_container(msg, SD_BUS_TYPE_ARRAY, "(sv)"); ret < 0) {
         sd_journal_perror("open array failed.");
-        return serviceName;
+        return std::nullopt;
     }
 
-    if (ret = sd_bus_message_append(msg, "(sv)", "Type", "s", "exec"); ret < 0) {
-        sd_journal_perror("append type failed.");
-        return serviceName;
-    }
-
-    if (ret = sd_bus_message_append(msg, "(sv)", "ExitType", "s", "cgroup"); ret < 0) {
-        sd_journal_perror("append exit type failed.");
-        return serviceName;
-    }
-
-    if (ret = sd_bus_message_append(msg, "(sv)", "Slice", "s", "app.slice"); ret < 0) {
-        sd_journal_perror("append application slice failed.");
-        return serviceName;
-    }
-
-    if (ret = sd_bus_message_append(msg, "(sv)", "CollectMode", "s", "inactive-or-failed"); ret < 0) {
-        sd_journal_perror("append application slice failed.");
-        return serviceName;
+    if (ret = sd_bus_message_append(msg,
+                                    "(sv)(sv)(sv)(sv)",
+                                    "Type",
+                                    "s",
+                                    "exec",
+                                    "ExitType",
+                                    "s",
+                                    "cgroup",
+                                    "Slice",
+                                    "s",
+                                    "app.slice",
+                                    "CollectMode",
+                                    "s",
+                                    "inactive-or-failed");
+        ret < 0) {
+        sd_journal_perror("failed to append necessary properties.");
+        return std::nullopt;
     }
 
     if (ret = processKVPair(msg, props); ret < 0) {  // process props
-        serviceName = "invalidInput";
-        return serviceName;
+        return std::nullopt;
     }
 
-    if (ret = processExecStart(msg, execArgs); ret < 0) {
-        serviceName = "invalidInput";
-        return serviceName;
+    if (ret = processExecStart(msg, cmdLines.cbegin() + cursor, cmdLines.cend()); ret < 0) {
+        return std::nullopt;
     }
 
     if (ret = sd_bus_message_close_container(msg); ret < 0) {
         sd_journal_perror("close array failed.");
-        return serviceName;
+        return std::nullopt;
     }
 
     // append aux, it's unused for now
     if (ret = sd_bus_message_append(msg, "a(sa(sv))", 0); ret < 0) {
         sd_journal_perror("append aux failed.");
-        return serviceName;
+        return std::nullopt;
     }
 
-    return serviceName;
+    return unitName;
 }
 
 int jobRemovedReceiver(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
@@ -386,7 +416,7 @@ int process_dbus_message(sd_bus *bus)
     int ret{0};
     ret = sd_bus_process(bus, nullptr);
     if (ret < 0) {
-        sd_journal_print(LOG_ERR, "event loop error.");
+        sd_journal_perror("event loop error.");
         return ret;
     }
 
@@ -410,7 +440,6 @@ int main(int argc, const char *argv[])
     sd_bus_error error{SD_BUS_ERROR_NULL};
     sd_bus_message *msg{nullptr};
     sd_bus *bus{nullptr};
-    std::string serviceId;
     int ret{0};
 
     if (ret = sd_bus_open_user(&bus); ret < 0) {
@@ -425,20 +454,19 @@ int main(int argc, const char *argv[])
         releaseRes(error, msg, bus, ExitCode::InternalError);
     }
 
-    std::deque<std::string_view> args;
+    std::vector<std::string_view> args;
+    args.reserve(argc);
     for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);
     }
 
-    serviceId = cmdParse(msg, std::move(args));
-    if (serviceId == "internalError") {
+    auto serviceId = cmdParse(msg, args);
+    if (!serviceId) {
         releaseRes(error, msg, bus, ExitCode::InternalError);
-    } else if (serviceId == "invalidInput") {
-        releaseRes(error, msg, bus, ExitCode::InvalidInput);
     }
 
     const char *path{nullptr};
-    JobRemoveResult resultData{serviceId};
+    JobRemoveResult resultData{serviceId.value()};
 
     if (ret = sd_bus_match_signal(
             bus, nullptr, SystemdService, SystemdObjectPath, SystemdInterfaceName, "JobRemoved", jobRemovedReceiver, &resultData);
@@ -453,7 +481,7 @@ int main(int argc, const char *argv[])
         sd_journal_print(LOG_ERR, "failed to call StartTransientUnit: [%s,%s]", error.name, error.message);
         releaseRes(error, msg, bus, ExitCode::InternalError);
     } else {
-        sd_journal_print(LOG_INFO, "call StartTransientUnit successfully, service ID: %s", serviceId.c_str());
+        sd_journal_print(LOG_INFO, "call StartTransientUnit successfully, service ID: %s", serviceId->c_str());
     }
 
     if (ret = sd_bus_message_read(reply, "o", &path); ret < 0) {
