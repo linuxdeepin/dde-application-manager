@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2025-2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -22,7 +22,13 @@ PrelaunchSplashHelper::PrelaunchSplashHelper()
 {
 }
 
-PrelaunchSplashHelper::~PrelaunchSplashHelper() = default;
+PrelaunchSplashHelper::~PrelaunchSplashHelper()
+{
+    for (auto *splash : std::as_const(m_splashObjects)) {
+        splash->destroy();
+    }
+    qDeleteAll(m_splashObjects);
+}
 
 static const struct wl_buffer_listener kBufferListener = {
     PrelaunchSplashHelper::bufferRelease,
@@ -93,7 +99,7 @@ wl_buffer *PrelaunchSplashHelper::buildIconBuffer(const QIcon &icon)
     return createBufferWithPainter(iconSize, dpr, icon);
 }
 
-void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
+void PrelaunchSplashHelper::show(const QString &appId, const QString &instanceId, const QString &iconName)
 {
     if (!isActive()) {
         qCWarning(amPrelaunchSplash, "Skip prelaunch splash (extension inactive): %s", qPrintable(appId));
@@ -110,10 +116,34 @@ void PrelaunchSplashHelper::show(const QString &appId, const QString &iconName)
         }
     }
 
+    // If this instance already has a splash, skip creating a new one.
+    if (m_splashObjects.contains(instanceId)) {
+        qCInfo(amPrelaunchSplash, "Instance %s already has an active splash, skipping", qPrintable(instanceId));
+        return;
+    }
+
     // Keep previously sent buffers alive; compositor releases them asynchronously.
     wl_buffer *buffer = buildIconBuffer(icon);
-    create_splash(appId, QStringLiteral("dde-application-manager"), buffer);
-    qCInfo(amPrelaunchSplash, "Sent create_splash for %s %s", qPrintable(appId), buffer ? "with icon buffer" : "without icon buffer");
+
+    auto *splash = new QtWayland::treeland_prelaunch_splash_v2();
+    splash->init(create_splash(appId, instanceId, QStringLiteral("dde-application-manager"), buffer));
+    m_splashObjects.insert(instanceId, splash);
+    qCInfo(amPrelaunchSplash, "Sent create_splash for %s instance %s %s",
+           qPrintable(appId), qPrintable(instanceId),
+           buffer ? "with icon buffer" : "without icon buffer");
+}
+
+void PrelaunchSplashHelper::closeSplash(const QString &instanceId)
+{
+    auto *splash = m_splashObjects.take(instanceId);
+    if (!splash) {
+        qCInfo(amPrelaunchSplash, "No active splash for instance %s", qPrintable(instanceId));
+        return;
+    }
+
+    splash->destroy();
+    delete splash;
+    qCInfo(amPrelaunchSplash, "Destroyed splash for instance %s", qPrintable(instanceId));
 }
 
 /*static*/ void PrelaunchSplashHelper::bufferRelease(void *data, wl_buffer *buffer)

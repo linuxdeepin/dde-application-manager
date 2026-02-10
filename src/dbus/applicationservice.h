@@ -18,6 +18,7 @@
 #include <QFile>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QSharedPointer>
 #include <QString>
 #include <QTextStream>
@@ -197,6 +198,7 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
+    QSet<QString> m_splashInstanceIds;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
@@ -204,6 +206,8 @@ private:
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
     [[nodiscard]] LaunchTask processExec(const QString &str, const QStringList& fields, const QString& workingDir) noexcept;
+    void closeSplashForInstance(const QString &instanceId) noexcept;
+    void closeAllSplashes() noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {
