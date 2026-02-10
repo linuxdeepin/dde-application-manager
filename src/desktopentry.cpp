@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -259,63 +259,32 @@ void DesktopEntry::insert(const QString &key, const QString &valueKey, Value &&v
     outer->insert(valueKey, val);
 }
 
-QString unescape(const QString &str, bool shellMode) noexcept
+QString unescapeValue(QStringView str) noexcept
 {
-    QString unescapedStr;
-    for (qsizetype i = 0; i < str.size(); ++i) {
-        auto c = str.at(i);
-        if (c != '\\') {
-            unescapedStr.append(c);
-            continue;
-        }
+    QString out;
+    out.reserve(str.size());
 
-        switch (str.at(i + 1).toLatin1()) {
-        default:
-            unescapedStr.append(c);
-            break;
-        case 'n':
-            unescapedStr.append('\n');
-            ++i;
-            break;
-        case 't':
-            unescapedStr.append('\t');
-            ++i;
-            break;
-        case 'r':
-            unescapedStr.append('\r');
-            ++i;
-            break;
-        case '\\':
-            unescapedStr.append('\\');
-            ++i;
-            break;
-        case ';':
-            unescapedStr.append(';');
-            ++i;
-            break;
-        case 's': {
-            if (shellMode) {  // for wordexp
-                unescapedStr.append('\\');
+    for (const auto *it = str.begin(); it != str.end(); ++it) {
+        if (*it == u'\\' && (it + 1) != str.end()) {
+            const auto next = (*(++it)).unicode();
+            switch (next) {
+                case 's':  out.append(u' ');  break;
+                case 'n':  out.append(u'\n'); break;
+                case 't':  out.append(u'\t'); break;
+                case 'r':  out.append(u'\r'); break;
+                case '\\': out.append(u'\\'); break;
+                case ';':  out.append(u';');  break;
+                default:
+                    out.append(u'\\');
+                    out.append(next);
+                    break;
             }
-            unescapedStr.append(' ');
-            ++i;
-        } break;
+        } else {
+            out.append(*it);
         }
     }
 
-    return unescapedStr;
-}
-
-QString escapeForWordexp(const QString &str) noexcept
-{
-    QString escapedStr;
-    for (const QChar &c : str) {
-        if (c == '$') {
-            escapedStr.append('\\');
-        }
-        escapedStr.append(c);
-    }
-    return escapedStr;
+    return out;
 }
 
 QString toString(const DesktopEntry::Value &value) noexcept
@@ -333,7 +302,7 @@ QString toString(const DesktopEntry::Value &value) noexcept
         return {};
     }
 
-    auto unescapedStr = unescape(str);
+    auto unescapedStr = unescapeValue(str);
 
     if (hasNonAsciiAndControlCharacters(unescapedStr)) {
         return {};
@@ -347,7 +316,7 @@ QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexc
     for (auto it = localeMap.constKeyValueBegin(); it != localeMap.constKeyValueEnd(); ++it) {
         auto [a, b] = *it;
         if (QLocale{a}.name() == locale.name()) {
-            return unescape(b);
+            return unescapeValue(b);
         }
     }
 

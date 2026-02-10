@@ -1,32 +1,32 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include <QString>
-#include <QMap>
+#include "config.h"
+#include "constant.h"
+#include <QDBusArgument>
 #include <QDBusConnection>
-#include <optional>
 #include <QDBusError>
-#include <QMetaType>
-#include <QMetaClassInfo>
-#include <QLocale>
-#include <QDir>
-#include <QRegularExpression>
+#include <QDBusMessage>
 #include <QDBusObjectPath>
 #include <QDBusUnixFileDescriptor>
-#include <QDBusArgument>
-#include <QDBusMessage>
-#include <unistd.h>
-#include <QUuid>
+#include <QDir>
+#include <QLocale>
 #include <QLoggingCategory>
+#include <QMap>
+#include <QMetaClassInfo>
+#include <QMetaType>
+#include <QRegularExpression>
+#include <QString>
+#include <QUuid>
+#include <csignal> // IWYU pragma: keep
+#include <optional>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include <signal.h>
-#include "constant.h"
-#include "config.h"
+#include <unistd.h>
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 
@@ -149,7 +149,7 @@ inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<Syst
     return argument;
 }
 
-inline QString getApplicationLauncherBinary()
+inline const QString& getApplicationLauncherBinary()
 {
     static const QString bin = []() {
         auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");

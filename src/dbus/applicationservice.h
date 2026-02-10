@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -143,9 +143,7 @@ public:
                                           EntryValueType type,
                                           const QLocale &locale = getUserLocale()) const noexcept;
 
-    [[nodiscard]] LaunchTask unescapeExec(const QString &str, QStringList fields) noexcept;
-    [[nodiscard]] static std::optional<QStringList> unescapeExecArgs(const QString &str) noexcept;
-    void unescapeEens(QVariantMap &options) noexcept;
+    [[nodiscard]] static std::optional<QStringList> splitExecArguments(QStringView str) noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
@@ -205,6 +203,7 @@ private:
     void setAutostartSource(AutostartSource &&source) noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
+    [[nodiscard]] LaunchTask processExec(const QString &str, const QStringList& fields, const QString& workingDir) noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {

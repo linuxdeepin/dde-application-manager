@@ -1,16 +1,13 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include "applicationmanagerstorage.h"
+#include "cgroupsidentifier.h"
+#include "dbus/applicationmanager1service.h"
 #include "global.h"
 #include <QDBusConnection>
 #include <QGuiApplication>
-#include <QDir>
-#include "dbus/applicationmanager1service.h"
-#include "cgroupsidentifier.h"
-#include "applicationmanagerstorage.h"
-#include <chrono>
-#include <iostream>
 
 Q_LOGGING_CATEGORY(DDEAMProf, "dde.am.prof", QtInfoMsg)
 
