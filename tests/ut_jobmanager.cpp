@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -38,10 +38,10 @@ TEST_F(TestJobManager, addJob)
 
     manager.addJob(
         sourcePath.path(),
-        [](auto value) -> QVariant {
+        [](const auto &value) -> QVariant {
             EXPECT_TRUE(value.toString() == "Application");
             return QVariant::fromValue(true);
         },
-        args);
+        std::move(args));
     QThreadPool::globalInstance()->waitForDone();
 }

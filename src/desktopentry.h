@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -149,8 +149,7 @@ bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
 
 bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
-QString unescape(const QString &str, bool shellMode = false) noexcept;
-QString escapeForWordexp(const QString &str) noexcept;
+QString unescapeValue(QStringView str) noexcept;
 
 QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept;
 

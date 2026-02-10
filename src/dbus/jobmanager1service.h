@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -28,14 +28,14 @@ struct LaunchTask
     LaunchTask(LaunchTask &&) = default;
     LaunchTask &operator=(const LaunchTask &) = default;
     LaunchTask &operator=(LaunchTask &&) = default;
-    explicit operator bool() const { return !LaunchBin.isEmpty() and !command.isEmpty(); }
+    explicit operator bool() const { return !LaunchBin.isEmpty() && !command.isEmpty(); }
 
     QString LaunchBin;
     QStringList command;
     QVariantList Resources;
     bool local{false};
-    int argNum{-1};
-    int fieldLocation{-1};
+    qsizetype argNum{-1};
+    qsizetype fieldLocation{-1};
 };
 
 Q_DECLARE_METATYPE(LaunchTask)
@@ -53,16 +53,16 @@ public:
     template <typename F>
     QDBusObjectPath addJob(const QString &source, F func, QVariantList args)
     {
-        static_assert(std::is_invocable_v<F, QVariant>, "param type must be QVariant.");
+        static_assert(std::is_invocable_v<F, const QVariant&>, "param type must be satisfied with const QVariant&.");
 
-        QString objectPath =
+        const auto objectPath =
             QString{"%1/%2"}.arg(DDEApplicationManager1JobManager1ObjectPath).arg(QUuid::createUuid().toString(QUuid::Id128));
         QFuture<QVariantList> future = QtConcurrent::mappedReduced(std::move(args),
                                                                    func,
                                                                    qOverload<QVariantList::parameter_type>(&QVariantList::append),
                                                                    QVariantList{},
                                                                    QtConcurrent::ReduceOption::OrderedReduce);
-        QSharedPointer<JobService> job{new (std::nothrow) JobService{future}};
+        const QSharedPointer<JobService> job{new (std::nothrow) JobService{future}};
         if (job == nullptr) {
             qCritical() << "couldn't new JobService.";
             future.cancel();
@@ -71,7 +71,7 @@ public:
 
         auto *ptr = job.data();
         auto *adaptor = new (std::nothrow) JobAdaptor(ptr);
-        if (adaptor == nullptr or !registerObjectToDBus(ptr, objectPath, JobInterface)) {
+        if (adaptor == nullptr || !registerObjectToDBus(ptr, objectPath, JobInterface)) {
             qCritical() << "can't register job to dbus.";
             future.cancel();
             return {};
@@ -79,7 +79,7 @@ public:
 
         auto path = QDBusObjectPath{objectPath};
         {
-            QMutexLocker locker{&m_mutex};
+            const QMutexLocker locker{&m_mutex};
             m_jobs.insert(path, job);  // Insertion is always successful
         }
         emit JobNew(path, QDBusObjectPath{source});

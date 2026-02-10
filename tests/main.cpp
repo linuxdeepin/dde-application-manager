@@ -1,12 +1,12 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include <QCoreApplication>
-#include <gtest/gtest.h>
 #include "global.h"
-#include <QTimer>
+#include <gtest/gtest.h>
+#include <QCoreApplication>
 #include <QDBusMetaType>
+#include <QTimer>
 
 namespace {
 void registerComplexDbusType()  // FIXME: test shouldn't associate with DBus
