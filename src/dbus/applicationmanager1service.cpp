@@ -87,7 +87,19 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     }
 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
-    auto unhandled = m_watcher.addPaths(getDesktopFileDirs());
+
+    // Ensure all directories exist before adding watches
+    auto desktopDirs = getDesktopFileDirs();
+    for (const auto &dirPath : std::as_const(desktopDirs)) {
+        QDir dir(dirPath);
+        if (!dir.exists()) {
+            if (!dir.mkpath(dirPath)) {
+                qWarning() << "Failed to create directory:" << dirPath;
+            }
+        }
+    }
+
+    auto unhandled = m_watcher.addPaths(desktopDirs);
     for (const auto &dir : std::as_const(unhandled)) {
         qCritical() << "couldn't watch directory:" << dir;
     }
@@ -682,10 +694,23 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
     }
 
     QDir xdgDataHome;
-    QString dir{getXDGDataHome() + "/applications"};
+    QString dir{getXDGDataHome()};
+    // Ensure consistent path format (with trailing separator) to match getDesktopFileDirs()
+    if (!dir.endsWith(QDir::separator())) {
+        dir.append(QDir::separator());
+    }
+    dir.append("applications");
+    const bool dirExisted = QDir(dir).exists();
     if (!xdgDataHome.mkpath(dir)) {
         safe_sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
         return {};
+    }
+
+    // If directory is newly created, add watch for it dynamically
+    if (!dirExisted && !m_watcher.directories().contains(dir)) {
+        if (!m_watcher.addPath(dir)) {
+            qWarning() << "Failed to add watch for newly created directory:" << dir;
+        }
     }
 
     // 判断当前是否已经存在了desktop文件
