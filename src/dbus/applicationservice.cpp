@@ -118,7 +118,7 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
 {
     auto compatibilityManager = parent()->getCompatibilityManager();
 
-    auto getExec = [action, compatibilityManager](const QString& desktopID) -> QString {
+    auto getExec = [action, compatibilityManager](const QString &desktopID) -> QString {
         std::optional<QString> execValue;
         if (!action.isEmpty()) {
             const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
@@ -348,27 +348,10 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         }
     }
 
-    // Notify the compositor to show a splash screen if in a Wayland session.
     // Suppress splash for system autostart launches or singleton apps with existing instances.
     const bool isAutostartLaunch = optionsMap.contains("_autostart") && optionsMap.value("_autostart").toBool();
     const bool isSingleton = findEntryValue(DesktopFileEntryKey, "X-Deepin-Singleton", EntryValueType::Boolean).toBool();
     const bool singletonWithInstance = isSingleton && !m_Instances.isEmpty();
-    if (isAutostartLaunch) {
-        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (autostart)" << id();
-    } else if (singletonWithInstance) {
-        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (singleton with existing instance)" << id();
-    } else if (auto *am = parent()) {
-        if (auto *helper = am->splashHelper()) {
-            const auto iconVar = findEntryValue(DesktopFileEntryKey, "Icon", EntryValueType::IconString);
-            const QString iconName = iconVar.isNull() ? QString{} : iconVar.toString();
-            qCInfo(amPrelaunchSplash) << "Show prelaunch splash request" << id() << "icon" << iconName;
-            helper->show(id(), iconName);
-        } else {
-            qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (no helper instance)" << id();
-        }
-    } else {
-        qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
-    }
 
     // Those are internal properties, user shouldn't pass them to Application Manager
     optionsMap.remove("_autostart");
@@ -405,15 +388,38 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         // don't change this sequence
         cmds.push_back("deepin-terminal");
         cmds.push_back("--keep-open");
-        cmds.push_back("-e");           // run all original execution commands in deepin-terminal
+        cmds.push_back("-e");  // run all original execution commands in deepin-terminal
+    }
+
+    // Generate instance UUID early so splash and job lambda share the same id.
+    auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
+
+    // Notify the compositor to show a splash screen (after validation passes).
+    if (isAutostartLaunch) {
+        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (autostart)" << id();
+    } else if (singletonWithInstance) {
+        qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (singleton with existing instance)" << id();
+    } else if (auto *am = parent()) {
+        if (auto *helper = am->splashHelper()) {
+            const auto iconVar = findEntryValue(DesktopFileEntryKey, "Icon", EntryValueType::IconString);
+            const QString iconName = iconVar.isNull() ? QString{} : iconVar.toString();
+            qCInfo(amPrelaunchSplash) << "Show prelaunch splash request" << id() << "instance" << instanceRandomUUID << "icon"
+                                      << iconName;
+            helper->show(id(), instanceRandomUUID, iconName);
+            m_splashInstanceIds.insert(instanceRandomUUID);
+        } else {
+            qCInfo(amPrelaunchSplash) << "Skip prelaunch splash (no helper instance)" << id();
+        }
+    } else {
+        qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
     }
 
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, task = task, cmds = std::move(cmds)](const QVariant &value) mutable -> QVariant {
-            const auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
-            const auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
+        [this, task, instanceRandomUUID, cmds = std::move(cmds)](
+            const QVariant &value) -> QVariant {  // do not change it to mutable lambda
+            auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
 
             QStringList newCommands;
             const int estimatedSize = 6 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
@@ -956,7 +962,7 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
     for (const auto &add : std::as_const(newAdds)) {
         list->addAssociation(add, appId);
     }
-    for (const auto &remove :std::as_const(newRemoved)) {
+    for (const auto &remove : std::as_const(newRemoved)) {
         list->removeAssociation(remove, appId);
     }
 
@@ -1003,6 +1009,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
 void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noexcept
 {
     if (auto it = m_Instances.constFind(instance); it != m_Instances.cend()) {
+        closeSplashForInstance(it.value()->instanceId());
         emit InterfacesRemoved(instance, getChildInterfacesFromObject(it->data()));
         unregisterObjectFromDBus(instance.path());
         m_Instances.remove(instance);
@@ -1019,12 +1026,38 @@ void ApplicationService::removeAllInstance() noexcept
 void ApplicationService::detachAllInstance() noexcept
 {
     for (auto it = m_Instances.constBegin(); it != m_Instances.constEnd(); ++it) {
-        const auto& instance = it.value();
+        const auto &instance = it.value();
         orphanedInstances.append(instance);
         instance->setProperty("Orphaned", true);
     }
 
     m_Instances.clear();
+    closeAllSplashes();
+}
+
+void ApplicationService::closeSplashForInstance(const QString &instanceId) noexcept
+{
+    if (!m_splashInstanceIds.remove(instanceId)) {
+        return;
+    }
+
+    if (auto *am = parent()) {
+        if (auto *helper = am->splashHelper()) {
+            helper->closeSplash(instanceId);
+        } else {
+            qCInfo(amPrelaunchSplash) << "Skip closeSplash (no helper instance)" << id();
+        }
+    } else {
+        qCWarning(amPrelaunchSplash) << "Skip closeSplash (no parent ApplicationManager1Service)" << id();
+    }
+}
+
+void ApplicationService::closeAllSplashes() noexcept
+{
+    const auto ids = m_splashInstanceIds;
+    for (const auto &instanceId : ids) {
+        closeSplashForInstance(instanceId);
+    }
 }
 
 QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) const
@@ -1133,7 +1166,7 @@ std::optional<QStringList> ApplicationService::splitExecArguments(QStringView st
     return args;
 }
 
-LaunchTask ApplicationService::processExec(const QString &str, const QStringList& fields, const QString& dir) noexcept
+LaunchTask ApplicationService::processExec(const QString &str, const QStringList &fields, const QString &dir) noexcept
 {
     auto args = splitExecArguments(str);
     if (!args) {
@@ -1150,7 +1183,7 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
 
     LaunchTask task;
     task.LaunchBin = args->first();
-    task.command.reserve(args->size() + 2); // 2 for icon
+    task.command.reserve(args->size() + 2);  // 2 for icon
 
     const QChar percentage{u'%'};
     bool exclusiveField{false};
@@ -1198,7 +1231,7 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
                 // respect the original url, replace it to exec directly
                 QList<QUrl> resources;
                 resources.reserve(fields.size());
-                for (const auto& field : fields) {
+                for (const auto &field : fields) {
                     resources.emplace_back(QUrl::fromUserInput(field, dir, QUrl::AssumeLocalFile));
                 }
 
@@ -1273,7 +1306,8 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
             } break;
             default: {
                 // spec says:
-                // Command lines that contain a field code that is not listed in this specification are invalid and MUST NOT be processed
+                // Command lines that contain a field code that is not listed in this specification are invalid and MUST NOT be
+                // processed
                 qCritical() << "unknown field code:" << code << ", Invalid.";
                 return {};
             }
@@ -1383,4 +1417,3 @@ void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
     m_autostartSource = std::move(source);
     emit autostartChanged();
 }
-
