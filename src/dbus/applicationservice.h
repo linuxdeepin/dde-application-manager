@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023-2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -18,6 +18,7 @@
 #include <QFile>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QSharedPointer>
 #include <QString>
 #include <QTextStream>
@@ -199,12 +200,15 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
+    QSet<QString> m_splashInstanceIds;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
     void setAutostartSource(AutostartSource &&source) noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
+    void closeSplashForInstance(const QString &instanceId) noexcept;
+    void closeAllSplashes() noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }
     [[nodiscard]] const ApplicationManager1Service *parent() const
     {

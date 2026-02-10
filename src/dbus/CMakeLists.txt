@@ -21,7 +21,7 @@ endif()
 
 qt_generate_wayland_protocol_client_sources(dde_am_dbus
     FILES
-        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-v2.xml
 )
 
 target_sources(dde_am_dbus PRIVATE
