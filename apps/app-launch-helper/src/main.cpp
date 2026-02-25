@@ -271,6 +271,7 @@ int processKVPair(msg_ptr msg, std::unordered_map<std::string, std::vector<std::
 std::optional<std::string> cmdParse(msg_ptr &msg, const std::vector<std::string_view> &cmdLines)
 {
     std::string unitName;
+    std::string syslogIdentifier;
     std::unordered_map<std::string, std::vector<std::string>> props;
 
     size_t cursor{0};
@@ -308,6 +309,11 @@ std::optional<std::string> cmdParse(msg_ptr &msg, const std::vector<std::string_
         auto value = kvStr.substr(eqPos + 1);
         if (key == "unitName") {
             unitName = value;
+            continue;
+        }
+
+        if (key == "SyslogIdentifier") {
+            syslogIdentifier = value;
             continue;
         }
 
@@ -361,6 +367,18 @@ std::optional<std::string> cmdParse(msg_ptr &msg, const std::vector<std::string_
         ret < 0) {
         sd_journal_perror("failed to append necessary properties.");
         return std::nullopt;
+    }
+
+    if (!syslogIdentifier.empty()) {
+        if (ret = sd_bus_message_append(msg,
+                                        "(sv)",
+                                        "SyslogIdentifier",
+                                        "s",
+                                        syslogIdentifier.c_str());
+            ret < 0) {
+            sd_journal_perror("failed to append SyslogIdentifier property.");
+            return std::nullopt;
+        }
     }
 
     if (ret = processKVPair(msg, props); ret < 0) {  // process props
