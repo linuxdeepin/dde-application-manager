@@ -416,10 +416,11 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
             const auto objectPath = m_applicationPath.path() + "/" + instanceRandomUUID;
 
             QStringList newCommands;
-            const int estimatedSize = 5 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
+            const int estimatedSize = 6 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
             newCommands.reserve(estimatedSize);
             newCommands
                 << QStringLiteral("--unitName=app-DDE-%1@%2.service").arg(escapeApplicationId(this->id()), instanceRandomUUID);
+            newCommands << QStringLiteral("--SyslogIdentifier=%1").arg(this->id());
             newCommands << QStringLiteral("--SourcePath=%1").arg(m_desktopSource.sourcePath());
             newCommands << std::move(cmds);
 
