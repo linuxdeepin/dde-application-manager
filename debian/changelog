@@ -1,3 +1,16 @@
+dde-application-manager (1.2.46) unstable; urgency=medium
+
+  * fix: set SyslogIdentifier for pre-launch hook scripts
+  * refactor(app-launch-helper): escape arguments for systemd and
+    optimize argument parsing
+  * refactor: remove wordexp usage to prevent command injection and
+    environment variable expansion
+  * fix: suppress splash for singleton apps with existing instances
+  * fix(watch): fix path format and add watch for newly created
+    directories
+
+ -- zhangkun <zhangkun2@uniontech.com>  Fri, 27 Feb 2026 15:49:22 +0800
+
 dde-application-manager (1.2.45) unstable; urgency=medium
 
   * fix: update systemd service dependencies for ApplicationManager1
