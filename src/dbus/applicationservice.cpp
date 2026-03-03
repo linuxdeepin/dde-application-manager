@@ -76,7 +76,7 @@ void unescapeEnvs(QVariantMap &options) noexcept
     options.insert("env", result);
 }
 
-} // namespace
+}  // namespace
 
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
@@ -1098,6 +1098,8 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit xCreatedByChanged();
 }
 
+enum class SpliterState : uint8_t { Normal, InSingleQuote, InDoubleQuotes };
+
 std::optional<QStringList> ApplicationService::splitExecArguments(QStringView str) noexcept
 {
     if (str.isEmpty()) {
@@ -1108,54 +1110,72 @@ std::optional<QStringList> ApplicationService::splitExecArguments(QStringView st
     QString currentToken;
     currentToken.reserve(str.size());
 
-    bool inQuotes{false};
+    auto curState{SpliterState::Normal};
     bool hasToken{false};
 
     for (const auto *it = str.begin(); it != str.end(); ++it) {
         const auto c = *it;
 
-        if (c == u'\\') {
-            if ((it + 1) == str.end()) {
-                qWarning() << "Exec parsing error: Backslash at end of line";
-                return std::nullopt;
+        switch (curState) {
+        case SpliterState::Normal: {
+            if (c == u'\\') {
+                if (++it == str.end()) {
+                    return std::nullopt;
+                }
+
+                currentToken.append(*it);
+                hasToken = true;
+            } else if (c == u'"') {
+                curState = SpliterState::InDoubleQuotes;
+                hasToken = true;
+            } else if (c == u'\'') {
+                qWarning() << "Exec parsing: Single quote detected. "
+                              "Note: Single quotes are not part of the Desktop Entry Spec, "
+                              "supporting them for GIO/Shell compatibility.";
+                curState = SpliterState::InSingleQuote;
+                hasToken = true;
+            } else if (c.isSpace()) {
+                if (hasToken) {
+                    args.append(currentToken);
+                    currentToken.clear();
+                    hasToken = false;
+                }
+            } else {
+                currentToken.append(c);
+                hasToken = true;
             }
+        } break;
+        case SpliterState::InDoubleQuotes: {
+            if (c == u'\\') {
+                if (++it == str.end()) {
+                    return std::nullopt;
+                }
 
-            const auto next = *(++it);
-
-            if (inQuotes) {
+                const auto next = *it;
                 if (next == u'"' || next == u'\\' || next == u'$' || next == u'`') {
                     currentToken.append(next);
                 } else {
                     currentToken.append(u'\\');
                     currentToken.append(next);
                 }
+            } else if (c == u'"') {
+                curState = SpliterState::Normal;
             } else {
-                currentToken.append(next);
+                currentToken.append(c);
             }
-            hasToken = true;
-            continue;
-        }
-
-        if (c == u'"') {
-            inQuotes = !inQuotes;
-            hasToken = true;
-            continue;
-        }
-
-        if (c.isSpace() && !inQuotes) {
-            if (hasToken) {
-                args.append(currentToken);
-                currentToken.clear();
-                hasToken = false;
+        } break;
+        case SpliterState::InSingleQuote: {
+            if (c == u'\'') {
+                curState = SpliterState::Normal;
+            } else {
+                currentToken.append(c);
             }
-        } else {
-            currentToken.append(c);
-            hasToken = true;
+        } break;
         }
     }
 
-    if (inQuotes) {
-        qWarning() << "Exec parsing error: Unterminated double quote";
+    if (curState != SpliterState::Normal) {
+        qWarning() << "Exec parsing error: Unterminated quote";
         return std::nullopt;
     }
 

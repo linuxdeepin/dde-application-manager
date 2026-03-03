@@ -64,6 +64,11 @@ TEST(ApplicationServiceTest, SplitExecArguments_PassPhase2_Spec)
         {R"(myapp --icon=%i --file %f)",
          QStringList{"myapp", "--icon=%i", "--file", "%f"},
          "Field codes can be part of an argument"},
+        {
+            R"(sh -c 'if [ -e %f ]; then echo %f; fi')",
+            QStringList{"sh", "-c", "if [ -e %f ]; then echo %f; fi"},
+            "Single quotes are preserved But we should handle it because we need to compatible with GIO",
+        },
         {R"(myapp "unclosed quote)", std::nullopt, "Unclosed quote should return nullopt"},
         {R"(myapp \)", std::nullopt, "Trailing backslash is illegal"}};
 
