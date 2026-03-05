@@ -1,3 +1,11 @@
+dde-application-manager (1.2.48) unstable; urgency=medium
+
+  * feat: add DesktopSourcePath property to Application DBus interface
+  * fix: use state machine for argument parsing and support single
+    quotes
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 05 Mar 2026 20:44:04 +0800
+
 dde-application-manager (1.2.47) unstable; urgency=medium
 
   * feat: support treeland prelaunch splash manager v2
