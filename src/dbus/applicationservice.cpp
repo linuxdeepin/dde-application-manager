@@ -718,6 +718,11 @@ QString ApplicationService::X_CreatedBy() const noexcept
     return findEntryValue(DesktopFileEntryKey, "X-Created-By", EntryValueType::String).toString();
 }
 
+QString ApplicationService::desktopSourcePath() const noexcept
+{
+    return m_desktopSource.sourcePath();
+}
+
 bool ApplicationService::terminal() const noexcept
 {
     auto val = findEntryValue(DesktopFileEntryKey, "Terminal", EntryValueType::String);
@@ -1096,6 +1101,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit xDeepinCreatedByChanged();
     emit execsChanged();
     emit xCreatedByChanged();
+    emit desktopSourcePathChanged();
 }
 
 enum class SpliterState : uint8_t { Normal, InSingleQuote, InDoubleQuotes };

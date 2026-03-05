@@ -119,6 +119,9 @@ public:
     Q_PROPERTY(QString X_CreatedBy READ X_CreatedBy NOTIFY xCreatedByChanged)
     [[nodiscard]] QString X_CreatedBy() const noexcept;
 
+    Q_PROPERTY(QString DesktopSourcePath READ desktopSourcePath NOTIFY desktopSourcePathChanged)
+    [[nodiscard]] QString desktopSourcePath() const noexcept;
+
     [[nodiscard]] QDBusObjectPath findInstance(const QString &instanceId) const;
 
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
@@ -179,6 +182,7 @@ Q_SIGNALS:
     void xDeepinCreatedByChanged();
     void execsChanged();
     void xCreatedByChanged();
+    void desktopSourcePathChanged();
 
 private:
     friend class ApplicationManager1Service;
