@@ -1,3 +1,10 @@
+dde-application-manager (1.2.48+debtest2) unstable; urgency=medium
+
+  * fix: set XDG_CURRENT_DESKTOP in user unit so AM does not filter all
+    desktop entries out on Debian testing sessions
+
+ -- hao <hao@debian-testing-dde.local>  Tue, 10 Mar 2026 15:15:00 +0800
+
 dde-application-manager (1.2.48) unstable; urgency=medium
 
   * feat: add DesktopSourcePath property to Application DBus interface
