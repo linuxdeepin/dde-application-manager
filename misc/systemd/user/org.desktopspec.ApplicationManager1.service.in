@@ -20,6 +20,7 @@ Type=dbus
 BusName=org.desktopspec.ApplicationManager1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager
 Environment=QT_LOGGING_RULES="*.debug=false"
+Environment=XDG_CURRENT_DESKTOP=DDE
 # turn off PrivateUser to prevent AM can't access some directory. eg. "/persistent/linglong"
 PrivateUsers=false
 Slice=session.slice
