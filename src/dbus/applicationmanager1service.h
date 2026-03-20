@@ -93,6 +93,8 @@ private:
     QStringList m_systemdPathEnv;
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
+    bool m_isReloading{false};
+    bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
     QSharedPointer<CompatibilityManager> m_compatibilityManager{nullptr};
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper{nullptr};
