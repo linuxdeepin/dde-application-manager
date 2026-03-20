@@ -152,7 +152,7 @@ public:
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
     QDBusObjectPath
-    Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec = {});
+    Launch(const QString &action, const QStringList &fields, const QVariantMap &options);
     [[nodiscard]] ObjectMap GetManagedObjects() const;
     [[nodiscard]] bool SendToDesktop() const noexcept;
     [[nodiscard]] bool RemoveFromDesktop() const noexcept;
@@ -205,7 +205,7 @@ private:
     QSet<QString> m_splashInstanceIds;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
-    [[nodiscard]] bool autostartCheck(const QString &filePath) const noexcept;
+    [[nodiscard]] bool autostartCheck() const noexcept;
     void setAutostartSource(AutostartSource &&source) noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);

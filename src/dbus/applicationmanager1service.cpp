@@ -2,23 +2,25 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include "applicationadaptor.h"
+#include "applicationHooks.h"
 #include "applicationchecker.h"
-#include "dbus/applicationmanager1adaptor.h"
 #include "applicationservice.h"
 #include "dbus/AMobjectmanager1adaptor.h"
-#include "global.h"
-#include "systemdsignaldispatcher.h"
-#include "propertiesForwarder.h"
-#include "applicationHooks.h"
+#include "dbus/applicationmanager1adaptor.h"
 #include "desktopfilegenerator.h"
+#include "global.h"
+#include "propertiesForwarder.h"
+#include "systemdsignaldispatcher.h"
+#include <DUtil>
+#include <QDBusMessage>
 #include <QFile>
 #include <QGuiApplication>
-#include <QLoggingCategory>
 #include <QHash>
-#include <QDBusMessage>
+#include <QLoggingCategory>
 #include <QStringBuilder>
-#include <DUtil>
 #include <unistd.h>
+
+using namespace Qt::StringLiterals;
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
@@ -121,7 +123,6 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             if (!app) {
                 return;
             }
-            void updateAutostartStatus() noexcept;
 
             // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
             // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
@@ -171,9 +172,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     scanApplications();
 
-    scanInstances();
-
     updateAutostartStatus();
+
+    scanInstances();
 
     auto storagePtr = m_storage.lock();
     if (!storagePtr->setFirstLaunch(false)) {
@@ -192,21 +193,20 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         runtimePath = QString{"/run/user/%1/"}.arg(getCurrentUID());
     }
 
-    QDir runtimeDir{runtimePath};
-    const auto *filename = u8"deepin-application-manager";
-    QFile flag{runtimeDir.filePath(filename)};
+    const QDir runtimeDir{runtimePath};
+    QFile flag{runtimeDir.filePath(u"deepin-application-manager"_s)};
 
     auto sessionId = getCurrentSessionId();
     if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
         auto content = flag.read(sessionId.size());
-        if (!content.isEmpty() and !sessionId.isEmpty() and content == sessionId) {
-            return;
+        if (!content.isEmpty() && !sessionId.isEmpty() && content == sessionId) {
+            m_isNewSession = false;
         }
-        flag.close();
     }
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
         flag.write(sessionId, sessionId.size());
+        m_isNewSession = true;
     }
 }
 
@@ -295,7 +295,7 @@ void ApplicationManager1Service::scanApplications() noexcept
 {
     const auto &desktopFileDirs = getDesktopFileDirs();
 
-    std::map<QString, DesktopFile> fileMap;
+    std::unordered_map<QString, DesktopFile> fileMap;
     applyIteratively(
         QList<QDir>(desktopFileDirs.crbegin(), desktopFileDirs.crend()),
         [&fileMap](const QFileInfo &info) -> bool {
@@ -313,9 +313,9 @@ void ApplicationManager1Service::scanApplications() noexcept
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    for (auto &&[k, v] : std::move(fileMap)) {
-        if (!addApplication(std::move(v))) {
-            qWarning() << "add Application" << k << " failed, skip...";
+    for (auto &&[key, val] : std::move(fileMap)) {
+        if (!addApplication(std::move(val))) {
+            qWarning() << "add Application" << key << " failed, skip...";
         }
     }
 }
@@ -346,7 +346,7 @@ void ApplicationManager1Service::scanInstances() noexcept
 void ApplicationManager1Service::updateAutostartStatus() noexcept
 {
     auto autostartDirs = getAutoStartDirs();
-    std::map<QString, DesktopFile> autostartItems;
+    std::unordered_map<QString, DesktopFile> autostartItems;
 
     applyIteratively(
         QList<QDir>{autostartDirs.crbegin(), autostartDirs.crend()},
@@ -357,6 +357,7 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
                 qWarning() << "skip" << info.absoluteFilePath();
                 return false;
             }
+
             auto file = std::move(desktopSource).value();
             autostartItems.insert_or_assign(file.desktopId(), std::move(file));
             return false;
@@ -365,8 +366,7 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
         {"*.desktop"},
         QDir::Name | QDir::DirsLast);
 
-    for (auto &it : autostartItems) {
-        auto desktopFile = std::move(it.second);
+    for (auto &&[id, desktopFile] : std::move(autostartItems)) {
         DesktopFileGuard guard{desktopFile};
         if (!guard.try_open()) {
             continue;
@@ -377,7 +377,7 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
         DesktopEntry tmp;
         auto err = tmp.parse(stream);
         if (err != ParserError::NoError) {
-            qWarning() << "parse autostart file" << desktopFile.sourcePath() << " error:" << err;
+            qWarning() << "parse autostart file" << desktopFile.sourcePath() << "error:" << err;
             continue;
         }
 
@@ -396,12 +396,13 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
             // add original application
             auto desktopSource = DesktopFile::searchDesktopFileByPath(appSource, err);
             if (err != ParserError::NoError) {
-                qWarning() << "search autostart application failed:" << err;
+                qWarning() << "search autostart application" << appSource << "failed:" << err;
                 continue;
             }
             auto source = std::move(desktopSource).value();
 
-            if (source.desktopId().isEmpty()) {
+            auto curId = source.desktopId();
+            if (curId.isEmpty()) {
                 qWarning() << X_Deepin_GenerateSource << "is" << appSource
                            << ", but couldn't find it in applications, maybe this autostart file has been modified, skip.";
                 continue;
@@ -410,7 +411,7 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
             // add application directly, it wouldn't add the same application twice.
             app = addApplication(std::move(source));
             if (!app) {
-                qWarning() << "add autostart application failed, skip.";
+                qWarning() << "add autostart application" << curId << "failed, skip.";
                 continue;
             }
 
@@ -419,8 +420,8 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
         }
 
         // maybe some application generate autostart desktop by itself
-        if (ApplicationFilter::tryExecCheck(tmp) or ApplicationFilter::showInCheck(tmp)) {
-            qInfo() << "autostart application couldn't pass check.";
+        if (ApplicationFilter::tryExecCheck(tmp) || ApplicationFilter::showInCheck(tmp)) {
+            qInfo() << "autostart application" << id << "couldn't pass check.";
             continue;
         }
 
@@ -434,9 +435,10 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
         auto originalSource = desktopFile.sourcePath();
         app = addApplication(std::move(desktopFile));
         if (!app) {
-            qWarning() << "add autostart application failed, skip.";
+            qWarning() << "add autostart application" << id << "failed, skip.";
             continue;
         }
+
         app->setAutostartSource({originalSource, {}});
     }
 }
@@ -601,7 +603,7 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
         destApp->detachAllInstance();
     }
 
-    if (destApp->m_desktopSource != desktopFile and destApp->isAutoStart()) {
+    if (destApp->m_desktopSource != desktopFile && destApp->isAutoStart()) {
         destApp->m_desktopSource = std::move(desktopFile);
     }
 }
@@ -620,7 +622,6 @@ void ApplicationManager1Service::doReloadApplications()
     qInfo() << "reload applications.";
 
     auto desktopFileDirs = getDesktopFileDirs();
-    desktopFileDirs.append(getXDGConfigDirs());
     auto appIds = m_applicationList.keys();
 
     applyIteratively(
@@ -635,11 +636,6 @@ void ApplicationManager1Service::doReloadApplications()
             auto file = std::move(ret).value();
             auto app = m_applicationList.value(file.desktopId());
             if (app && appIds.contains(app->id())) {
-                // Can emit correct remove signal when uninstalling applications
-                if (ApplicationFilter::tryExecCheck(*(app.data()->m_entry))) {
-                    qDebug() << info.absolutePath() << "Checked TryExec failed and will be removed";
-                    return false;
-                }
                 appIds.removeOne(app->id());
                 updateApplication(app, std::move(file));
                 return false;
@@ -656,8 +652,9 @@ void ApplicationManager1Service::doReloadApplications()
         removeOneApplication(appId);
     }
 
-    reloadMimeInfos();
     updateAutostartStatus();
+
+    reloadMimeInfos();
 }
 
 ObjectMap ApplicationManager1Service::GetManagedObjects() const
@@ -824,11 +821,11 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
 }
 
 QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &program,
-                                                  const QStringList &arguments,
-                                                  const QString &type,
-                                                  const QString &runId,
-                                                  const QMap<QString, QString> &envVars,
-                                                  const QString &workdir) noexcept
+                                                           const QStringList &arguments,
+                                                           const QString &type,
+                                                           const QString &runId,
+                                                           const QMap<QString, QString> &envVars,
+                                                           const QString &workdir) noexcept
 {
     // Validate required parameters
     if (program.isEmpty()) {
@@ -839,7 +836,8 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // Validate execution type
     const QStringList validTypes = {"shortcut", "script", "portablebinary"};
     if (!validTypes.contains(type)) {
-        safe_sendErrorReply(QDBusError::Failed, QString{"Invalid type '%1'. Must be one of: shortcut, script, portablebinary"}.arg(type));
+        safe_sendErrorReply(QDBusError::Failed,
+                            QString{"Invalid type '%1'. Must be one of: shortcut, script, portablebinary"}.arg(type));
         return QDBusObjectPath("/");
     }
 
@@ -886,25 +884,25 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
 
     QList<SystemdProperty> properties;
     // 1. Property: Description
-    properties.append({ "Description", QDBusVariant(QString("Run: %1").arg(program)) });
+    properties.append({"Description", QDBusVariant(QString("Run: %1").arg(program))});
 
     // 2. Property: ExecStart (Type: a(sasb))
     // Systemd 要求 ExecStart 是一个结构体数组，因为一个服务可以有多个 ExecStart 命令
     SystemdExecCommand execCmd;
-    execCmd.path = program;     // 二进制路径
-    execCmd.args = commandLine; // 完整参数列表 (argv)
-    execCmd.unclean = false;    // 是否忽略非零返回值
+    execCmd.path = program;      // 二进制路径
+    execCmd.args = commandLine;  // 完整参数列表 (argv)
+    execCmd.unclean = false;     // 是否忽略非零返回值
 
     QList<SystemdExecCommand> execStartList;
     execStartList << execCmd;
-    properties.append({ "ExecStart", QDBusVariant(QVariant::fromValue(execStartList)) });
+    properties.append({"ExecStart", QDBusVariant(QVariant::fromValue(execStartList))});
 
     // 3. Property: Environment (Type: as)
-    properties.append({ "Environment", QDBusVariant(environment) });
+    properties.append({"Environment", QDBusVariant(environment)});
 
     // 4. Property: WorkingDirectory (Type: s)
     if (!workdir.isEmpty()) {
-        properties.append({ "WorkingDirectory", QDBusVariant(workdir) });
+        properties.append({"WorkingDirectory", QDBusVariant(workdir)});
     }
 
     // Call systemd to start the service
@@ -912,23 +910,23 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // args: unit_name, mode("replace"), properties, aux_units
 
     QDBusConnection conn = QDBusConnection::sessionBus();
-    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1", // Service
-                                              "/org/freedesktop/systemd1", // Path
-                                              "org.freedesktop.systemd1.Manager", // Interface
+    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1",          // Service
+                                              "/org/freedesktop/systemd1",         // Path
+                                              "org.freedesktop.systemd1.Manager",  // Interface
                                               "StartTransientUnit");
 
     msg.setArguments({
-        unitName,                           // arg1: name
-        "replace",                          // arg2: mode
-        QVariant::fromValue(properties),    // arg3: properties a(sv)
-        QVariant::fromValue(QList<SystemdAux>()) // arg4: aux units (empty)
+        unitName,                                 // arg1: name
+        "replace",                                // arg2: mode
+        QVariant::fromValue(properties),          // arg3: properties a(sv)
+        QVariant::fromValue(QList<SystemdAux>())  // arg4: aux units (empty)
     });
 
     auto reply = conn.asyncCall(msg);
     qInfo() << "Request sent to start transient unit (Async):" << unitName;
 
-    // TODO: the return value is currently empty, it's reserved for future use if we plan to make the spawned process as an AM-managed instance
-    // At that moment, we should:
+    // TODO: the return value is currently empty, it's reserved for future use if we plan to make the spawned process as an
+    // AM-managed instance At that moment, we should:
     // 1. Add a new API to JobManager1Service to allow add/start a new job without providing an application D-Bus path
     // 2. Use JobManager1Service::addJob to add a new job and run it, like what we do in ApplicationService::Launch()
     // 3. Return the object path that the new JobManager service offered.

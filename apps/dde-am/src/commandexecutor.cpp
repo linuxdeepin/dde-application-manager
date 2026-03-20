@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2025 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -6,8 +6,8 @@
 #include "global.h"
 
 #include <QDBusConnection>
-#include <QDBusMetaType>
 #include <QDBusMessage>
+#include <QDBusMetaType>
 #include <QDir>
 #include <QStandardPaths>
 
@@ -26,7 +26,7 @@ void registerComplexDbusType()
     qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();
 }
-}
+}  // namespace
 
 bool CommandExecutor::setProgram(const QString &program)
 {
@@ -36,7 +36,7 @@ bool CommandExecutor::setProgram(const QString &program)
 
     // am requires the command to be a full path
     if (!QDir::isAbsolutePath(program)) {
-        QString fullPath = QStandardPaths::findExecutable(program);
+        const QString fullPath = QStandardPaths::findExecutable(program);
         if (fullPath.isEmpty()) {
             qWarning() << "Cannot find executable for command:" << program << ", skipping action invocation.";
             return false;
@@ -82,19 +82,16 @@ DExpected<void> CommandExecutor::execute()
     auto con = QDBusConnection::sessionBus();
     auto msg = QDBusMessage::createMethodCall(
         DDEApplicationManager1ServiceName, DDEApplicationManager1ObjectPath, ApplicationManager1Interface, "executeCommand");
-    
+
     QStringMap envMap;
     for (const auto &env : std::as_const(m_environmentVariables)) {
-        int idx = env.indexOf('=');
+        auto idx = env.indexOf(u'=');
         if (idx > 0) {
             envMap.insert(env.left(idx), env.mid(idx + 1));
         }
     }
 
-    QList<QVariant> arguments;
-    arguments << m_program << m_args << m_type << m_runId << QVariant::fromValue(envMap) << m_workdir;
-    
-    msg.setArguments(arguments);
+    msg.setArguments({m_program, m_args, m_type, m_runId, QVariant::fromValue(envMap), m_workdir});
     auto reply = con.call(msg);
     if (reply.type() != QDBusMessage::ReplyMessage) {
         return DUnexpected{emplace_tag::USE_EMPLACE,

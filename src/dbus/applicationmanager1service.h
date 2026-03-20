@@ -58,14 +58,15 @@ public:
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
     [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.get(); }
+    [[nodiscard]] bool isNewSession() const noexcept { return m_isNewSession; }
 
 public Q_SLOTS:
     QDBusObjectPath executeCommand(const QString &program,
-                          const QStringList &arguments,
-                          const QString &type,
-                          const QString &runId,
-                          const QMap<QString, QString> &envVars,
-                          const QString &workdir) noexcept;
+                                   const QStringList &arguments,
+                                   const QString &type,
+                                   const QString &runId,
+                                   const QMap<QString, QString> &envVars,
+                                   const QString &workdir) noexcept;
     QString Identify(const QDBusUnixFileDescriptor &pidfd,
                      QDBusObjectPath &instance,
                      ObjectInterfaceMap &application_instance_info) const noexcept;
@@ -83,6 +84,7 @@ private Q_SLOTS:
     void doReloadApplications();
 
 private:
+    bool m_isNewSession{false};
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
     QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};

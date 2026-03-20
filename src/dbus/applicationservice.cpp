@@ -293,31 +293,50 @@ bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entr
     return true;
 }
 
-QDBusObjectPath
-ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options, const QString &realExec)
+QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
 {
-    QString execStr{};
+    // Suppress splash for system autostart launches or singleton apps with existing instances.
+    const bool isAutostartLaunch = options.value(u"_autostart"_s, false).toBool();
+    if (isAutostartLaunch) {
+        if (!parent()->isNewSession()) {
+            safe_sendErrorReply(QDBusError::Failed, "autostart launch has been ignored if not new session.");
+        }
+    }
+
+    QString execStr;
     const auto &supportedActions = actions();
     auto optionsMap = options;
     appendExtraEnvironments(optionsMap);
 
-    if (realExec.isEmpty()) {  // we want to replace exec of this applications.
-        execStr = realExec;
+    auto *desktopEntry = [this, isAutostartLaunch]() -> DesktopEntry * {
+        if (!isAutostartLaunch) {
+            return this->m_entry.get();
+        }
+
+        if (this->m_autostartSource.m_filePath.isEmpty()) {
+            return nullptr;
+        }
+
+        if (!this->m_autostartSource.m_entry.data().isEmpty()) {
+            return &this->m_autostartSource.m_entry;
+        }
+
+        return this->m_entry.get();
+    }();
+
+    if (desktopEntry == nullptr) {
+        safe_sendErrorReply(QDBusError::Failed, "This application is not set to autostart.");
     }
 
-    auto workDir = m_entry->value(DesktopFileEntryKey, "Path");
-    if (workDir && !optionsMap.contains(setWorkingPathLaunchOption::key())) {
-        optionsMap.insert(setWorkingPathLaunchOption::key(), workDir->toString());
-    }
-
-    while (execStr.isEmpty() && !action.isEmpty() && !supportedActions.isEmpty()) {  // break trick
+    // ignore action if it's not supported or autostart launch
+    while (!isAutostartLaunch && !action.isEmpty() && !supportedActions.isEmpty()) {  // break trick
         if (auto index = supportedActions.indexOf(action); index == -1) {
             qWarning() << "can't find " << action << " in supported actions List. application will use default action to launch.";
             break;
         }
 
         const auto &actionHeader = QString{"%1%2"}.arg(DesktopFileActionKey, action);
-        const auto &actionExec = m_entry->value(actionHeader, "Exec");
+        const auto &actionExec = desktopEntry->value(actionHeader, "Exec");
         if (!actionExec) {
             break;
         }
@@ -331,7 +350,7 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     }
 
     if (execStr.isEmpty()) {
-        auto Actions = m_entry->value(DesktopFileEntryKey, "Exec");
+        auto Actions = desktopEntry->value(DesktopFileEntryKey, "Exec");
         if (!Actions) {
             const QString msg{"application can't be executed."};
             qWarning() << msg;
@@ -348,8 +367,6 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
         }
     }
 
-    // Suppress splash for system autostart launches or singleton apps with existing instances.
-    const bool isAutostartLaunch = optionsMap.contains("_autostart") && optionsMap.value("_autostart").toBool();
     const bool isSingleton = findEntryValue(DesktopFileEntryKey, "X-Deepin-Singleton", EntryValueType::Boolean).toBool();
     const bool singletonWithInstance = isSingleton && !m_Instances.isEmpty();
 
@@ -365,7 +382,11 @@ ApplicationService::Launch(const QString &action, const QStringList &fields, con
     processCompatibility(action, optionsMap, execStr);
     unescapeEnvs(optionsMap);
 
-    auto workingDir = optionsMap.value("path").toString();
+    auto workingDir = desktopEntry->value(DesktopFileEntryKey, "Path").value_or(QVariant{}).toString();
+    if (auto path = optionsMap.value("path").toString(); !path.isEmpty()) {
+        workingDir = path;
+    }
+
     if (!workingDir.isEmpty() && QDir::isRelativePath(workingDir)) {
         qWarning() << "relative working dir is not supported: " << workingDir;
         workingDir.clear();
@@ -787,34 +808,17 @@ void ApplicationService::setEnviron(const QString &value) noexcept
     emit environChanged();
 }
 
-bool ApplicationService::autostartCheck(const QString &filePath) const noexcept
+bool ApplicationService::autostartCheck() const noexcept
 {
-    qDebug() << "current check autostart file:" << filePath;
-
-    DesktopEntry s;
-    if (!m_autostartSource.m_entry.data().isEmpty()) {
-        s = m_autostartSource.m_entry;
-    } else {
-        QFile file{filePath};
-        if (!file.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-            qWarning() << "open" << filePath << "failed:" << file.errorString();
-            return false;
+    const auto &entry = [this] {
+        if (!m_autostartSource.m_entry.data().isEmpty()) {
+            return m_autostartSource.m_entry;
         }
 
-        QTextStream stream{&file};
-        if (auto err = s.parse(stream); err != ParserError::NoError) {
-            qWarning() << "parse" << filePath << "failed:" << err;
-            return false;
-        }
-    }
+        return *this->m_entry;
+    }();
 
-    QString source = s.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{}).toString();
-    // file has been removed
-    if (source != m_autostartSource.m_filePath && filePath != m_autostartSource.m_filePath) {
-        return false;
-    }
-
-    auto hiddenVal = s.value(DesktopFileEntryKey, DesktopEntryHidden);
+    auto hiddenVal = entry.value(DesktopFileEntryKey, DesktopEntryHidden);
     if (!hiddenVal) {
         qDebug() << "no hidden in autostart desktop";
         return true;
@@ -830,24 +834,7 @@ bool ApplicationService::isAutoStart() const noexcept
         return false;
     }
 
-    auto appId = id();
-    auto dirs = getAutoStartDirs();
-    QString destDesktopFile;
-
-    applyIteratively(
-        QList<QDir>(dirs.crbegin(), dirs.crend()),
-        [&appId, &destDesktopFile](const QFileInfo &file) {
-            auto filePath = file.absoluteFilePath();
-            if (appId == getAutostartAppIdFromAbsolutePath(filePath)) {
-                destDesktopFile = filePath;
-            }
-            return false;
-        },
-        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
-        {"*.desktop"},
-        QDir::Name | QDir::DirsLast);
-
-    return autostartCheck(destDesktopFile);
+    return autostartCheck();
 }
 
 void ApplicationService::setAutoStart(bool autostart) noexcept
@@ -891,10 +878,8 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     auto hideAutostart = toString(newEntry.data()).toLocal8Bit();
     auto writeBytes = autostartFile.write(hideAutostart);
 
-    if (writeBytes != hideAutostart.size() or !autostartFile.flush()) {
+    if (writeBytes != hideAutostart.size() || !autostartFile.flush()) {
         qWarning() << "incomplete write:" << autostartFile.error();
-        safe_sendErrorReply(QDBusError::Failed, "set failed: filesystem error.");
-        return;
     }
 
     emit autostartChanged();

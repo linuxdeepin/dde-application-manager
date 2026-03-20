@@ -1,20 +1,21 @@
-// SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2024 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include <QCoreApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QUrl>
 
 #include <DUtil>
 
 #include "launcher.h"
-#include "global.h"
 #include "commandexecutor.h"
+#include "global.h"
 
 DCORE_USE_NAMESPACE
+namespace {
 
 QString getAppIdFromInput(const QString &input)
 {
@@ -24,15 +25,17 @@ QString getAppIdFromInput(const QString &input)
     if (!appId.isEmpty()) {
         return appId;
     }
+
     // 如果失败，再尝试解析为本地文件路径
-    QUrl url = QUrl::fromUserInput(input);
+    const QUrl url = QUrl::fromUserInput(input);
     if (!url.isLocalFile()) {
         return {};
     }
-    QString path = url.toLocalFile();
+
+    const QString path = url.toLocalFile();
     // fallback: 仅当文件存在且为.desktop时才用basename
     if (path.endsWith(".desktop") && QFileInfo::exists(path)) {
-        QFileInfo fileInfo(path);
+        const QFileInfo fileInfo(path);
         appId = fileInfo.completeBaseName();
         return appId;
     }
@@ -44,7 +47,7 @@ int handleList()
     const auto apps = Launcher::appIds();
     if (!apps) {
         qWarning() << apps.error();
-        return apps.error().getErrorCode();
+        return static_cast<int>(apps.error().getErrorCode());
     }
 
     for (const auto &item : apps.value()) {
@@ -92,7 +95,7 @@ int handleExecuteCommand(const QCommandLineParser &parser,
     auto ret = executor.execute();
     if (!ret) {
         qWarning() << ret.error();
-        return ret.error().getErrorCode();
+        return static_cast<int>(ret.error().getErrorCode());
     }
 
     return 0;
@@ -124,16 +127,19 @@ int handleLaunchApp(const QCommandLineParser &parser,
         }
     }
 
-    // Handle action - prioritize --action option 
+    // Handle action - prioritize --action option
     if (parser.isSet(actionOption)) {
         action = parser.value(actionOption);
     }
 
     Launcher launcher;
-    if (parser.isSet(launchedByUserOption))
-        launcher.setLaunchedType(Launcher::ByUser);
-    if (parser.isSet(autostartOption))
+    if (parser.isSet(launchedByUserOption)) {
+        launcher.setLaunchedType(Launcher::Type::ByUser);
+    }
+
+    if (parser.isSet(autostartOption)) {
         launcher.setAutostart(true);
+    }
 
     QString appPath;
     if (!appId.isEmpty()) {
@@ -144,6 +150,7 @@ int handleLaunchApp(const QCommandLineParser &parser,
         appPath = QString("%1/%2").arg(DDEApplicationManager1ObjectPath, escapeToObjectPath(inputArg));
     } else {
         // 绝对路径或特殊用法
+        qWarning() << "unknown input: " << inputArg << ", just use it as path.";
         appPath = inputArg;
     }
     launcher.setPath(appPath);
@@ -159,17 +166,20 @@ int handleLaunchApp(const QCommandLineParser &parser,
     auto ret = launcher.run();
     if (!ret) {
         qWarning() << ret.error();
-        return ret.error().getErrorCode();
+        return static_cast<int>(ret.error().getErrorCode());
     }
-    
+
     return 0;
 }
 
+}  // namespace
+
 int main(int argc, char *argv[])
 {
-    QCoreApplication app{argc, argv};
+    const QCoreApplication app{argc, argv};
 
     QCommandLineParser parser;
+
     parser.setApplicationDescription("Deepin Application Manager Client\n\n"
                                      "Usage:\n"
                                      "  dde-am [options] <appId>              Launch application by ID or path\n"
@@ -182,50 +192,57 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
 
     // Application Launching Options
-    QCommandLineOption listOption("list", "List all installed application IDs.");
+    const QCommandLineOption listOption("list", "List all installed application IDs.");
     parser.addOption(listOption);
-    QCommandLineOption launchedByUserOption("by-user",
-                                            "Mark launch as initiated by user (useful for usage statistics).");
+    const QCommandLineOption launchedByUserOption("by-user", "Mark launch as initiated by user (useful for usage statistics).");
     parser.addOption(launchedByUserOption);
-    QCommandLineOption autostartOption("autostart",
-                                       "Launched by system autostart. Suppress prelaunch splash.");
+
+    // autostart is an undocumented option, this option is only used by dde-autostart, DO NOT SHOW IT TO USERS.
+    QCommandLineOption autostartOption("autostart", "Launched by system autostart. Suppress prelaunch splash.");
+    autostartOption.setFlags(QCommandLineOption::Flag::HiddenFromHelp);
     parser.addOption(autostartOption);
-    QCommandLineOption actionOption(QStringList() << "a" << "action",
-                                   "Specify action identifier to trigger for the application.", "action");
+
+    const QCommandLineOption actionOption({"a", "action"}, "Specify action identifier to trigger for the application.", "action");
     parser.addOption(actionOption);
-    
+
     // Common Options
-    QCommandLineOption envOption(QStringList() << "e" << "env",
-                                "Set environment variable, format: NAME=VALUE (can be used multiple times).", "env");
+    const QCommandLineOption envOption(
+        {"e", "env"}, "Set environment variable, format: NAME=VALUE (can be used multiple times).", "env");
     parser.addOption(envOption);
 
     // Command Execution Options
-    QCommandLineOption executeOption(QStringList() << "c" << "command",
-                                     "Execute a command/program directly.", "program");
+    const QCommandLineOption executeOption({"c", "command"}, "Execute a command/program directly.", "program");
     parser.addOption(executeOption);
 
-    QCommandLineOption typeOption("type", "Execution type (shortcut, script, portablebinary). Default: portablebinary.\n"
-                                   "Only valid with --command.", "type");
+    const QCommandLineOption typeOption("type",
+                                        "Execution type (shortcut, script, portablebinary). Default: portablebinary.\n"
+                                        "Only valid with --command.",
+                                        "type");
     parser.addOption(typeOption);
 
-    QCommandLineOption runIdOption("run-id", "Custom Run ID for the execution.\n"
-                                    "Only valid with --command.", "runId");
+    const QCommandLineOption runIdOption("run-id",
+                                         "Custom Run ID for the execution.\n"
+                                         "Only valid with --command.",
+                                         "runId");
     parser.addOption(runIdOption);
 
-    QCommandLineOption workdirOption("workdir", "Working directory for the execution.\n"
-                                      "Only valid with --command.", "dir");
+    const QCommandLineOption workdirOption("workdir",
+                                           "Working directory for the execution.\n"
+                                           "Only valid with --command.",
+                                           "dir");
     parser.addOption(workdirOption);
-    
-    parser.addPositionalArgument("appId", "Application ID, .desktop file path, or URI to launch.\n"
+
+    parser.addPositionalArgument("appId",
+                                 "Application ID, .desktop file path, or URI to launch.\n"
                                  "If --command is specified, this acts as arguments for the command "
                                  "(use '--' before arguments starting with '-').");
 
     parser.process(app);
-    
+
     // Validate mode and arguments
     const bool hasCommand = parser.isSet(executeOption);
     const QStringList posArgs = parser.positionalArguments();
-    
+
     if (parser.isSet(listOption)) {
         return handleList();
     }
@@ -233,12 +250,13 @@ int main(int argc, char *argv[])
     if (hasCommand) {
         // Command mode: positional args are command arguments
         return handleExecuteCommand(parser, executeOption, typeOption, runIdOption, workdirOption, envOption);
-    } else {
-        // Launch mode: positional args must contain appId
-        if (posArgs.isEmpty()) {
-            qCritical() << "Error: Missing appId. Use --help for usage information.";
-            return 1;
-        }
-        return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption);
     }
+
+    // Launch mode: positional args must contain appId
+    if (posArgs.isEmpty()) {
+        qCritical() << "Error: Missing appId. Use --help for usage information.";
+        return 1;
+    }
+
+    return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption);
 }

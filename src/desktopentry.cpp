@@ -124,7 +124,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     QString path{desktopFile};
     QString id;
 
-    if (IsCommonApp or IsAutostartApp) {
+    if (IsCommonApp || IsAutostartApp) {
         auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
         auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts).toList();
         decltype(components)::const_iterator it;
