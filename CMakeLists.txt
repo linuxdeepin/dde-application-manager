@@ -33,6 +33,7 @@ find_package(TreelandProtocols REQUIRED)
 set(APP_LAUNCH_HELPER_BIN app-launch-helper)
 set(APP_UPDATE_NOTIFIER_BIN app-update-notifier)
 set(DDE_AM_COMPATIBILITY_BIN dde-am-compatibility)
+set(DDE_AM_BIN dde-am)
 set(AM_LIBEXEC_DIR ${CMAKE_INSTALL_LIBEXECDIR}/deepin/application-manager)
 set(APPLICATION_SERVICEID "org.deepin.dde.application-manager")
 

@@ -1,18 +1,9 @@
-set(BIN_NAME dde-am)
+add_executable(${DDE_AM_BIN} main.cpp launcher.h launcher.cpp commandexecutor.h
+                             commandexecutor.cpp)
 
-add_executable(${BIN_NAME} main.cpp
-    launcher.h launcher.cpp
-    commandexecutor.h commandexecutor.cpp
-)
+target_link_libraries(${DDE_AM_BIN} PRIVATE dde_am_static Dtk6::Core)
 
-target_link_libraries(${BIN_NAME} PRIVATE
-    dde_am_static
-    Dtk6::Core
-)
+target_include_directories(${DDE_AM_BIN} PRIVATE ${PROJECT_SOURCE_DIR}/src
+                                                 ${PROJECT_BINARY_DIR}/src)
 
-target_include_directories(${BIN_NAME} PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-)
-
-install(TARGETS ${BIN_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS ${DDE_AM_BIN} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
