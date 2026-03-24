@@ -36,7 +36,7 @@
 #include <utility>
 #include <wordexp.h>
 
-using namespace Qt::Literals::StringLiterals;
+using namespace Qt::StringLiterals;
 
 namespace {
 
@@ -45,7 +45,7 @@ void appendEnvs(const QVariant &var, QStringList &envs)
     if (var.canConvert<QStringList>()) {
         envs.append(var.value<QStringList>());
     } else if (var.canConvert<QString>()) {
-        envs.append(var.value<QString>().split(";", Qt::SkipEmptyParts));
+        envs.append(var.value<QString>().split(u';', Qt::SkipEmptyParts));
     }
 }
 
@@ -81,37 +81,46 @@ void unescapeEnvs(QVariantMap &options) noexcept
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
 {
     DCORE_USE_NAMESPACE
-    QStringList envs, unsetEnvs;
-    const QString &env = environ();
-    if (!env.isEmpty())
-        envs.append(env);
+    QStringList envs;
+    QStringList unsetEnvs;
 
-    if (auto it = runtimeOptions.find("env"); it != runtimeOptions.end()) {
+    const auto &envKey = u"env"_s;
+    const auto &unsetEnvKey = u"unsetEnv"_s;
+
+    const QString &env = environ();
+    if (!env.isEmpty()) {
+        envs.append(env);
+    }
+
+    if (auto it = runtimeOptions.constFind(envKey); it != runtimeOptions.cend()) {
         appendEnvs(*it, envs);
     }
 
-    if (auto it = runtimeOptions.find("unsetEnv"); it != runtimeOptions.end()) {
+    if (auto it = runtimeOptions.constFind(unsetEnvKey); it != runtimeOptions.cend()) {
         appendEnvs(*it, unsetEnvs);
     }
 
-    std::unique_ptr<DConfig> config(DConfig::create(ApplicationServiceID,
-                                                    ApplicationManagerConfig,
-                                                    QString("/%1").arg((id()))));  // $appid as subpath
+    std::unique_ptr<DConfig> config(DConfig::create(
+        QString::fromRawData(reinterpret_cast<const QChar *>(ApplicationServiceID), std::size(ApplicationServiceID) - 1),
+        ApplicationManagerConfig,
+        u'/' % id()));  // $appid as subpath
     if (config->isValid()) {
-        const QStringList &extraEnvs = config->value(AppExtraEnvironments).toStringList();
-        if (!extraEnvs.isEmpty())
-            envs.append(extraEnvs);
+        auto extraEnvs = config->value(AppExtraEnvironments).toStringList();
+        if (!extraEnvs.isEmpty()) {
+            envs.append(std::move(extraEnvs));
+        }
 
-        const QStringList &envsBlacklist = config->value(AppEnvironmentsBlacklist).toStringList();
-        if (!envsBlacklist.isEmpty())
-            unsetEnvs.append(envsBlacklist);
+        auto envsBlacklist = config->value(AppEnvironmentsBlacklist).toStringList();
+        if (!envsBlacklist.isEmpty()) {
+            unsetEnvs.append(std::move(envsBlacklist));
+        }
     }
 
     // it's useful for App to get itself AppId.
-    envs.append(QString{"DSG_APP_ID=%1"}.arg(id()));
+    envs.append(u"DSG_APP_ID="_s % id());
 
-    runtimeOptions.insert("env", envs);
-    runtimeOptions.insert("unsetEnv", unsetEnvs);
+    runtimeOptions.insert(envKey, envs);
+    runtimeOptions.insert(unsetEnvKey, unsetEnvs);
 }
 
 void ApplicationService::processCompatibility(const QString &action, QVariantMap &options, QString &execStr)
@@ -275,17 +284,17 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
 
 bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept
 {
-    if (ApplicationFilter::hiddenCheck(entry)) {
+    if (ApplicationFilter::hiddenCheck(*entry)) {
         qDebug() << "hidden check failed.";
         return false;
     }
 
-    if (ApplicationFilter::tryExecCheck(entry)) {
+    if (ApplicationFilter::tryExecCheck(*entry)) {
         qDebug() << "tryExec check failed";
         return false;
     }
 
-    if (ApplicationFilter::showInCheck(entry)) {
+    if (ApplicationFilter::showInCheck(*entry)) {
         qDebug() << "showIn check failed.";
         return false;
     }
@@ -939,9 +948,10 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
     std::set_difference(oldMimes.begin(), oldMimes.end(), newMimes.begin(), newMimes.end(), std::back_inserter(newRemoved));
     std::set_difference(newMimes.begin(), newMimes.end(), oldMimes.begin(), oldMimes.end(), std::back_inserter(newAdds));
 
-    static QString userDir = getXDGConfigHome();
+    const auto &userDir = getXDGConfigHome();
     auto &infos = parent()->mimeManager().infos();
-    auto userInfo = std::find_if(infos.begin(), infos.end(), [](const MimeInfo &info) { return info.directory() == userDir; });
+    auto userInfo =
+        std::find_if(infos.begin(), infos.end(), [&userDir](const MimeInfo &info) { return info.directory() == userDir; });
     if (userInfo == infos.cend()) {
         safe_sendErrorReply(QDBusError::Failed, "user-specific config file doesn't exists.");
         return;

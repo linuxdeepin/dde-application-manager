@@ -42,7 +42,7 @@ struct DesktopFile
     friend bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
     static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, ParserError &err) noexcept;
-    static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFilePath, ParserError &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
@@ -58,7 +58,7 @@ private:
     qint64 m_mtime;
     qint64 m_ctime;
     std::unique_ptr<QFile> m_fileSource{nullptr};
-    QString m_desktopId{""};
+    QString m_desktopId;
 };
 
 struct DesktopFileGuard

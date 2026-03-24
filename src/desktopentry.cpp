@@ -96,56 +96,42 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept
 {
-    decltype(auto) desktopSuffix = ".desktop";
+    using namespace Qt::StringLiterals;
+    constexpr auto desktopSuffixLen = 8;  // ".desktop" length
+    const QStringView pathView{desktopFile};
 
-    if (!desktopFile.endsWith(desktopSuffix)) {
-        qCWarning(logDesktopEntry) << "file isn't a desktop file:" << desktopFile;
+    if (!pathView.endsWith(u".desktop")) {
+        qCWarning(logDesktopEntry) << "file isn't a desktop file:" << pathView;
         err = ParserError::MismatchedFile;
         return std::nullopt;
     }
 
-    QFileInfo fileinfo{desktopFile};
-    if (!fileinfo.isAbsolute() or !fileinfo.exists()) {
+    const QFileInfo fileinfo{desktopFile};
+    if (!fileinfo.isAbsolute() || !fileinfo.exists()) {
         qCWarning(logDesktopEntry) << "desktop file not found.";
         err = ParserError::NotFound;
         return std::nullopt;
     }
 
-    const auto &XDGDataDirs = getDesktopFileDirs();
-    const auto &autostartDirs = getAutoStartDirs();
-    auto IsCommonApp = std::any_of(XDGDataDirs.cbegin(), XDGDataDirs.cend(), [&desktopFile](const QString &suffixPath) {
-        return desktopFile.startsWith(suffixPath);
-    });
+    // Extract desktop ID from path: .../applications/subdir/app.desktop -> subdir-app
+    const auto base = pathView.chopped(desktopSuffixLen);
+    const auto components = base.split(QDir::separator(), Qt::SkipEmptyParts);
 
-    auto IsAutostartApp = std::any_of(autostartDirs.cbegin(), autostartDirs.cend(), [&desktopFile](const QString &suffixPath) {
-        return desktopFile.startsWith(suffixPath);
-    });
+    auto appIt = std::find(components.cbegin(), components.cend(), u"applications");
+    auto autostartIt = std::find(components.cbegin(), components.cend(), u"autostart");
 
-    QString path{desktopFile};
     QString id;
+    if (auto it = (appIt != components.cend()) ? appIt : autostartIt; it != components.cend()) {
+        for (auto next = std::next(it); next != components.cend(); ++next) {
+            if (!id.isEmpty()) {
+                id.append(u'-');
+            }
 
-    if (IsCommonApp || IsAutostartApp) {
-        auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
-        auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts).toList();
-        decltype(components)::const_iterator it;
-        if (auto appIt = std::find(components.cbegin(), components.cend(), "applications"); appIt != components.cend()) {
-            it = appIt;
-
-        } else if (auto autostartIt = std::find(components.cbegin(), components.cend(), "autostart");
-                   autostartIt != components.cend()) {
-            it = autostartIt;
+            id.append(*next);
         }
-
-        QString FileId;
-        ++it;
-        while (it != components.cend()) {
-            FileId += (*(it++) + "-");
-        }
-        id = FileId.chopped(1);  // remove extra "-""
     }
 
-    auto filePtr = std::make_unique<QFile>(std::move(path));
-
+    auto filePtr = std::make_unique<QFile>(desktopFile);
     auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*filePtr});
 
     err = ParserError::NoError;
@@ -154,14 +140,14 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
 std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, ParserError &err) noexcept
 {
-    auto XDGDataDirs = getDesktopFileDirs();
-    constexpr auto desktopSuffix = u8".desktop";
+    auto appDirs = getApplicationsDirs();
 
-    for (const auto &dir : std::as_const(XDGDataDirs)) {
-        auto app = QFileInfo{dir + QDir::separator() + appId + desktopSuffix};
+    using namespace Qt::StringLiterals;
+    for (const auto &dir : std::as_const(appDirs)) {
+        auto app = QFileInfo{dir % QDir::separator() % appId % ".desktop"_L1};
         while (!app.exists()) {
             auto filePath = app.absoluteFilePath();
-            auto hyphenIndex = filePath.indexOf('-');
+            auto hyphenIndex = filePath.indexOf(u'-');
             if (hyphenIndex == -1) {
                 break;
             }
@@ -268,16 +254,28 @@ QString unescapeValue(QStringView str) noexcept
         if (*it == u'\\' && (it + 1) != str.end()) {
             const auto next = (*(++it)).unicode();
             switch (next) {
-                case 's':  out.append(u' ');  break;
-                case 'n':  out.append(u'\n'); break;
-                case 't':  out.append(u'\t'); break;
-                case 'r':  out.append(u'\r'); break;
-                case '\\': out.append(u'\\'); break;
-                case ';':  out.append(u';');  break;
-                default:
-                    out.append(u'\\');
-                    out.append(next);
-                    break;
+            case 's':
+                out.append(u' ');
+                break;
+            case 'n':
+                out.append(u'\n');
+                break;
+            case 't':
+                out.append(u'\t');
+                break;
+            case 'r':
+                out.append(u'\r');
+                break;
+            case '\\':
+                out.append(u'\\');
+                break;
+            case ';':
+                out.append(u';');
+                break;
+            default:
+                out.append(u'\\');
+                out.append(next);
+                break;
             }
         } else {
             out.append(*it);

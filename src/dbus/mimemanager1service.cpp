@@ -20,7 +20,7 @@ MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     connect(&m_mimeAppsWatcher, &QFileSystemWatcher::fileChanged, this, &MimeManager1Service::onMimeAppsFileChanged);
 
     // 添加用户配置目录下的 mimeapps.list 文件到监控
-    QString userMimeAppsFile = getXDGConfigHome() + "/mimeapps.list";
+    auto userMimeAppsFile = QDir{getXDGConfigHome()}.absoluteFilePath("mimeapps.list");
     if (QFileInfo::exists(userMimeAppsFile)) {
         m_mimeAppsWatcher.addPath(userMimeAppsFile);
     } else {
@@ -175,7 +175,6 @@ void MimeManager1Service::updateMimeCache(QString dir) noexcept
     if (exitCode != 0) {
         qWarning() << "Launch Application Failed";
     }
-
 }
 
 void MimeManager1Service::onMimeAppsFileChanged(const QString &path)

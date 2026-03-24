@@ -5,11 +5,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-constexpr auto ApplicationLaunchHelperBinary =
-    u8"@CMAKE_INSTALL_FULL_LIBEXECDIR@/deepin/application-manager/@APP_LAUNCH_HELPER_BIN@";
+constexpr static auto &ApplicationLaunchHelperBinary =
+    u"@CMAKE_INSTALL_FULL_LIBEXECDIR@/deepin/application-manager/@APP_LAUNCH_HELPER_BIN@";
 
-constexpr auto ApplicationServiceID = u8"@APPLICATION_SERVICEID@";
+constexpr static auto &ApplicationServiceID = u"@APPLICATION_SERVICEID@";
 
-constexpr auto DDEApplicationBin = u"@CMAKE_INSTALL_FULL_BINDIR@/@DDE_AM_BIN@";
+constexpr static auto &DDEApplicationBin = u"@CMAKE_INSTALL_FULL_BINDIR@/@DDE_AM_BIN@";
 
 #endif

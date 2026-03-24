@@ -140,12 +140,16 @@ DExpected<void> Launcher::launch() noexcept
 
 DExpected<void> Launcher::updateLaunchedTimes() noexcept
 {
-    std::unique_ptr<DConfig> config(DConfig::create(ApplicationServiceID, ApplicationManagerToolsConfig));
+    std::unique_ptr<DConfig> config(DConfig::create(
+        // use QString::fromRawData(const char16_t*, size) if Qt version >= 6.10
+        QString::fromRawData(reinterpret_cast<const QChar *>(ApplicationServiceID), std::size(ApplicationServiceID) - 1),
+        ApplicationManagerToolsConfig));
     if (!config->isValid()) {
         return DUnexpected{emplace_tag::USE_EMPLACE, -1, "DConfig is invalid when updating launched times."};
     }
 
-    const QString AppsLaunchedTimes(u8"appsLaunchedTimes");
+    using namespace Qt::StringLiterals;
+    const QString AppsLaunchedTimes(u"appsLaunchedTimes"_s);
     QVariantMap launchedTimes = config->value(AppsLaunchedTimes).toMap();
     const auto appKey = appId();
     if (appKey.isEmpty()) {

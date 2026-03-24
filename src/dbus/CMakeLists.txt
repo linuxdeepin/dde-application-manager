@@ -30,13 +30,12 @@ target_sources(dde_am_dbus PRIVATE
 
 target_link_libraries(
     dde_am_dbus PUBLIC
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::DBus
-    Qt${QT_VERSION_MAJOR}::Concurrent
-    Qt${QT_VERSION_MAJOR}::WaylandClient
-    Qt${QT_VERSION_MAJOR}::WaylandClientPrivate
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Concurrent
+    Qt6::WaylandClient
+    Qt6::WaylandClientPrivate
     Dtk6::Core
-    dde_am_utils
 )
 
 target_include_directories(
