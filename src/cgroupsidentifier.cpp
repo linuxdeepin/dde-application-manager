@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -32,8 +32,14 @@ IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
         return {};
     }
 
-    auto [appId, launcher, InstanceId] = processUnitName(UnitStr);
-    
+    auto value = processUnitName(UnitStr);
+    if (!value) {
+        qWarning() << "processUnitName failed.";
+        return {};
+    }
+
+    auto [appId, launcher, InstanceId] = std::move(value).value();
+
     // Verify that the pidfd still refers to the same process to avoid timing issues
     // where the process exits and the PID is reused by another process
     if (pidfd_send_signal(pidfd.fileDescriptor(), 0, nullptr, 0) != 0) {
@@ -42,7 +48,7 @@ IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
         qWarning() << "pidfd is no longer valid (process may have exited)";
         return {};
     }
-    
+
     return {std::move(appId), std::move(InstanceId)};
 }
 

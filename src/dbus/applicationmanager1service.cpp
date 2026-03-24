@@ -91,16 +91,13 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
 
     // Ensure all directories exist before adding watches
-    auto desktopDirs = getDesktopFileDirs();
-    for (const auto &dirPath : std::as_const(desktopDirs)) {
-        QDir dir(dirPath);
-        if (!dir.exists()) {
-            if (!dir.mkpath(dirPath)) {
-                qWarning() << "Failed to create directory:" << dirPath;
-            }
-        }
+    const auto &userApp = getUserApplicationDir();
+    if (!QDir{userApp}.mkpath(".")) {
+        qCritical() << "Failed to create directory:" << userApp;
+        std::terminate();
     }
 
+    const auto &desktopDirs = getApplicationsDirs();
     auto unhandled = m_watcher.addPaths(desktopDirs);
     for (const auto &dir : std::as_const(unhandled)) {
         qCritical() << "couldn't watch directory:" << dir;
@@ -112,7 +109,10 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     connect(
         &dispatcher, &SystemdSignalDispatcher::SystemdJobNew, this, [this](QString unitName, QDBusObjectPath systemdUnitPath) {
             auto info = processUnitName(unitName);
-            auto appId = std::move(info.applicationID);
+            if (!info) {
+                return;
+            }
+            auto appId = std::move(info->applicationID);
 
             if (appId.isEmpty()) {
                 return;
@@ -188,38 +188,43 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     }
 
     // TODO: This is a workaround, we will use database at the end.
-    auto runtimePath = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (runtimePath.isEmpty()) {
-        runtimePath = QString{"/run/user/%1/"}.arg(getCurrentUID());
-    }
-
-    const QDir runtimeDir{runtimePath};
-    QFile flag{runtimeDir.filePath(u"deepin-application-manager"_s)};
+    const QDir runtimeDir{getXDGRuntimeDir()};
+    const auto fileName = runtimeDir.filePath(u"deepin-application-manager"_s);
+    QFile flag{fileName};
 
     auto sessionId = getCurrentSessionId();
     if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
         auto content = flag.read(sessionId.size());
         if (!content.isEmpty() && !sessionId.isEmpty() && content == sessionId) {
             m_isNewSession = false;
+            return;
         }
     }
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
         flag.write(sessionId, sessionId.size());
         m_isNewSession = true;
+        return;
     }
+
+    qCritical() << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
     auto info = processUnitName(unitName);
-    auto appId = std::move(info.applicationID);
-    auto launcher = std::move(info.Launcher);
-    auto instanceId = std::move(info.instanceID);
+    if (!info) {
+        return;
+    }
+
+    auto appId = std::move(info->applicationID);
+    auto launcher = std::move(info->launcher);
+    auto instanceId = std::move(info->instanceID);
 
     if (appId.isEmpty()) {
         return;
     }
+
     if (instanceId.isEmpty()) {
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
@@ -243,7 +248,11 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
 void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
     auto info = processUnitName(unitName);
-    auto appId = std::move(info.applicationID);
+    if (!info) {
+        return;
+    }
+
+    auto appId = std::move(info->applicationID);
 
     if (appId.isEmpty()) {
         return;
@@ -293,7 +302,7 @@ void ApplicationManager1Service::reloadMimeInfos() noexcept
 
 void ApplicationManager1Service::scanApplications() noexcept
 {
-    const auto &desktopFileDirs = getDesktopFileDirs();
+    const auto &desktopFileDirs = getApplicationsDirs();
 
     std::unordered_map<QString, DesktopFile> fileMap;
     applyIteratively(
@@ -445,12 +454,11 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
 
 void ApplicationManager1Service::loadHooks() noexcept
 {
-    auto hookDirs = getXDGDataMergedDirs();
-    std::for_each(hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(ApplicationManagerHookDir); });
     QHash<QString, ApplicationHook> hooks;
 
+    const auto &hooksDirs = getHooksDirs();
     applyIteratively(
-        QList<QDir>(hookDirs.begin(), hookDirs.end()),
+        QList<QDir>(hooksDirs.begin(), hooksDirs.end()),
         [&hooks](const QFileInfo &info) -> bool {
             auto fileName = info.fileName();
             if (!hooks.contains(fileName)) {
@@ -628,11 +636,11 @@ void ApplicationManager1Service::doReloadApplications()
     m_pendingReload = false;
     qInfo() << "reload applications.";
 
-    auto desktopFileDirs = getDesktopFileDirs();
+    const auto &appDirs = getApplicationsDirs();
     auto appIds = m_applicationList.keys();
 
     applyIteratively(
-        QList<QDir>(desktopFileDirs.cbegin(), desktopFileDirs.cend()),
+        QList<QDir>(appDirs.cbegin(), appDirs.cend()),
         [this, &appIds](const QFileInfo &info) -> bool {
             ParserError err{ParserError::NoError};
             auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
@@ -696,37 +704,15 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    // 传入的desktop文件内容为空的时候直接返回。
     QString errMsg;
     auto fileContent = DesktopFileGenerator::generate(desktop_file, errMsg);
-    if (fileContent.isEmpty() or !errMsg.isEmpty()) {
+    if (fileContent.isEmpty() || !errMsg.isEmpty()) {
         safe_sendErrorReply(QDBusError::Failed, errMsg);
         return {};
     }
 
-    QDir xdgDataHome;
-    QString dir{getXDGDataHome()};
-    // Ensure consistent path format (with trailing separator) to match getDesktopFileDirs()
-    if (!dir.endsWith(QDir::separator())) {
-        dir.append(QDir::separator());
-    }
-    dir.append("applications");
-    const bool dirExisted = QDir(dir).exists();
-    if (!xdgDataHome.mkpath(dir)) {
-        safe_sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
-        return {};
-    }
-
-    // If directory is newly created, add watch for it dynamically
-    if (!dirExisted && !m_watcher.directories().contains(dir)) {
-        if (!m_watcher.addPath(dir)) {
-            qWarning() << "Failed to add watch for newly created directory:" << dir;
-        }
-    }
-
-    // 判断当前是否已经存在了desktop文件
-    xdgDataHome.setPath(dir);
-    const auto &filePath = xdgDataHome.filePath(name);
+    const QDir appDir{getXDGDataHome()};
+    const auto &filePath = appDir.filePath(name);
     QFile file{filePath};
     const auto fileExists = file.exists();
     bool shouldRewrite = false;
@@ -790,7 +776,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    m_mimeManager->updateMimeCache(dir);
+    m_mimeManager->updateMimeCache(appDir.absolutePath());
     return appId;
 }
 
@@ -801,37 +787,20 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
         return;
     }
 
-    QDir xdgDataHome;
-    QString dir{getXDGDataHome() + "/applications"};
-    if (!xdgDataHome.mkpath(dir)) {
-        safe_sendErrorReply(QDBusError::Failed, "couldn't create directory of user applications.");
-        return;
-    }
+    const QDir appDir{getUserApplicationDir()};
+    const auto &filePath = appDir.filePath(app_id + ".desktop");
 
-    xdgDataHome.setPath(dir);
-    const auto &filePath = xdgDataHome.filePath(app_id + ".desktop");
-
-    if (QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
+    if (const QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"file not exists:%1"}.arg(info.absoluteFilePath()));
         return;
     }
 
-    /*
-        auto apps = findApplicationsByIds({app_id});
-        if (apps.isEmpty()) {
-            qWarning() << "we can't find corresponding application in ApplicationManagerService.";
-        }
-
-        for (const auto &app : apps) {
-            app->setMimeTypes({});
-        }
-    */
     if (!QFile::remove(filePath)) {
         safe_sendErrorReply(QDBusError::Failed, "remove file failed.");
         return;
     }
 
-    m_mimeManager->updateMimeCache(dir);
+    m_mimeManager->updateMimeCache(appDir.absolutePath());
 }
 
 QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &program,

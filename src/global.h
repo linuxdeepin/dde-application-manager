@@ -13,6 +13,7 @@
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 #include <QDBusUnixFileDescriptor>
+#include <QStandardPaths>
 #include <QDir>
 #include <QLocale>
 #include <QLoggingCategory>
@@ -22,13 +23,14 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QUuid>
-#include <csignal> // IWYU pragma: keep
+#include <csignal>  // IWYU pragma: keep
 #include <optional>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
+Q_DECLARE_LOGGING_CATEGORY(DDEAMUtils)
 
 using ObjectInterfaceMap = QMap<QString, QVariantMap>;
 using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
@@ -50,65 +52,74 @@ struct SystemdUnitDBusMessage
 // --- Systemd D-Bus 类型定义开始 ---
 
 // 对应 Systemd ExecStart 的结构: (path, argv, ignore_failure) -> (sasb)
-struct SystemdExecCommand {
+struct SystemdExecCommand
+{
     QString path;
     QStringList args;
-    bool unclean; // 是否忽略错误
+    bool unclean;  // 是否忽略错误
 };
 Q_DECLARE_METATYPE(SystemdExecCommand)
 
 // 对应 Systemd 属性结构: (name, value) -> (sv)
-struct SystemdProperty {
+struct SystemdProperty
+{
     QString name;
-    QDBusVariant value; // 使用 QDBusVariant 来明确这是一个 Variant 容器
+    QDBusVariant value;  // 使用 QDBusVariant 来明确这是一个 Variant 容器
 };
 Q_DECLARE_METATYPE(SystemdProperty)
 
 // 对应 Systemd 辅助单元结构 (Aux Unit): (name, properties) -> (sa(sv))
 // StartTransientUnit 的第4个参数需要这个类型的数组，即使它是空的
-struct SystemdAux {
+struct SystemdAux
+{
     QString name;
     QList<SystemdProperty> properties;
 };
 Q_DECLARE_METATYPE(SystemdAux)
 
 // 序列化操作符重载
-inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdExecCommand &cmd) {
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdExecCommand &cmd)
+{
     arg.beginStructure();
     arg << cmd.path << cmd.args << cmd.unclean;
     arg.endStructure();
     return arg;
 }
 
-inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdExecCommand &cmd) {
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdExecCommand &cmd)
+{
     arg.beginStructure();
     arg >> cmd.path >> cmd.args >> cmd.unclean;
     arg.endStructure();
     return arg;
 }
 
-inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdProperty &prop) {
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdProperty &prop)
+{
     arg.beginStructure();
     arg << prop.name << prop.value;
     arg.endStructure();
     return arg;
 }
 
-inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdProperty &prop) {
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdProperty &prop)
+{
     arg.beginStructure();
     arg >> prop.name >> prop.value;
     arg.endStructure();
     return arg;
 }
 
-inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdAux &aux) {
+inline QDBusArgument &operator<<(QDBusArgument &arg, const SystemdAux &aux)
+{
     arg.beginStructure();
     arg << aux.name << aux.properties;
     arg.endStructure();
     return arg;
 }
 
-inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdAux &aux) {
+inline const QDBusArgument &operator>>(const QDBusArgument &arg, SystemdAux &aux)
+{
     arg.beginStructure();
     arg >> aux.name >> aux.properties;
     arg.endStructure();
@@ -141,7 +152,7 @@ inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<Syst
         QDBusObjectPath _path;
         SystemdUnitDBusMessage unit;
         argument >> unit.name >> _str >> _str >> _str >> unit.subState >> _str >> unit.objectPath >> _uint >> _str >> _path;
-        units.push_back(unit);
+        units.emplace_back(std::move(unit));
         argument.endStructure();
     }
     argument.endArray();
@@ -149,30 +160,34 @@ inline const QDBusArgument &operator>>(const QDBusArgument &argument, QList<Syst
     return argument;
 }
 
-inline const QString& getApplicationLauncherBinary()
+inline const QString &getApplicationLauncherBinary() noexcept
 {
-    static const QString bin = []() {
-        auto value = qgetenv("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN");
-        if (value.isEmpty()) {
-            return QString::fromLocal8Bit(ApplicationLaunchHelperBinary);
+    static const auto &bin = []() {
+        if (auto value = qEnvironmentVariable("DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN"); !value.isEmpty()) {
+            qCWarning(DDEAMUtils)
+                << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN:"
+                << value;
+            return value;
         }
-        qWarning() << "Using app launch helper defined in environment variable DEEPIN_APPLICATION_MANAGER_APP_LAUNCH_HELPER_BIN.";
-        return QString::fromLocal8Bit(value);
+
+        return QString::fromRawData(reinterpret_cast<const QChar *>(ApplicationLaunchHelperBinary),
+                                    std::size(ApplicationLaunchHelperBinary) - 1);
     }();
+
     return bin;
 }
 
-enum class DBusType { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom };
+enum class DBusType : uint8_t { Session = QDBusConnection::SessionBus, System = QDBusConnection::SystemBus, Custom = 2 };
 
 template <typename T>
 using remove_cvr_t = std::remove_reference_t<std::remove_cv_t<T>>;
 
 template <typename T>
 void applyIteratively(QList<QDir> dirs,
-                      T &&func,
+                      T func,
                       QDir::Filters filter = QDir::NoFilter,
-                      QStringList nameFilter = {},
-                      QDir::SortFlags sortFlag = QDir::SortFlag::NoSort)
+                      const QStringList &nameFilter = {},
+                      QDir::SortFlags sortFlag = QDir::SortFlag::NoSort) noexcept
 {
     static_assert(std::is_invocable_v<T, const QFileInfo &>, "apply function should only accept one QFileInfo");
     static_assert(std::is_same_v<decltype(func(QFileInfo{})), bool>,
@@ -183,13 +198,13 @@ void applyIteratively(QList<QDir> dirs,
         const auto &dir = dirList.takeFirst();
 
         if (!dir.exists()) {
-            qWarning() << "apply function to an non-existent directory:" << dir.absolutePath() << ", skip.";
+            qCWarning(DDEAMUtils) << "apply function to an non-existent directory:" << dir.absolutePath() << ", skip.";
             continue;
         }
         const auto &infoList = dir.entryInfoList(nameFilter, filter, sortFlag);
 
         for (const auto &info : infoList) {
-            if (info.isFile() and func(info)) {
+            if (info.isFile() && func(info)) {
                 return;
             }
 
@@ -207,20 +222,21 @@ public:
     ApplicationManager1DBus(ApplicationManager1DBus &&) = delete;
     ApplicationManager1DBus &operator=(const ApplicationManager1DBus &) = delete;
     ApplicationManager1DBus &operator=(ApplicationManager1DBus &&) = delete;
-    [[nodiscard]] const QString &globalDestBusAddress() const { return m_destBusAddress; }
-    [[nodiscard]] const QString &globalServerBusAddress() const { return m_serverBusAddress; }
-    void initGlobalServerBus(DBusType type, const QString &busAddress = "")
+    [[nodiscard]] const QString &globalDestBusAddress() const noexcept { return m_destBusAddress; }
+    [[nodiscard]] const QString &globalServerBusAddress() const noexcept { return m_serverBusAddress; }
+    void initGlobalServerBus(DBusType type, QString busAddress = "") noexcept
     {
         if (m_initFlag) {
+            qCDebug(DDEAMUtils) << "dbus already initialized";
             return;
         }
 
-        m_serverBusAddress = busAddress;
+        m_serverBusAddress = std::move(busAddress);
         m_serverType = type;
         m_initFlag = true;
     }
 
-    QDBusConnection &globalServerBus()
+    QDBusConnection &globalServerBus() noexcept
     {
         if (m_serverConnection.has_value()) {
             return m_serverConnection.value();
@@ -255,13 +271,13 @@ public:
 
         Q_UNREACHABLE();
     }
-    static ApplicationManager1DBus &instance()
+    static ApplicationManager1DBus &instance() noexcept
     {
         static ApplicationManager1DBus dbus;
         return dbus;
     }
 
-    QDBusConnection &globalDestBus()
+    QDBusConnection &globalDestBus() noexcept
     {
         if (!m_destConnection) {
             qFatal("please set which bus should application manager to use to invoke other D-Bus service's method.");
@@ -269,13 +285,14 @@ public:
         return m_destConnection.value();
     }
 
-    void setDestBus(const QString &destAddress = "")
+    void setDestBus(QString destAddress = {}) noexcept
     {
         if (m_destConnection) {
-            m_destConnection->disconnectFromBus(ApplicationManagerDestDBusName);
+            QDBusConnection::disconnectFromBus(ApplicationManagerDestDBusName);
+            m_destConnection.reset();
         }
 
-        m_destBusAddress = destAddress;
+        m_destBusAddress = std::move(destAddress);
 
         if (m_destBusAddress.isEmpty()) {
             m_destConnection.emplace(
@@ -284,10 +301,6 @@ public:
                 qFatal("%s", m_destConnection->lastError().message().toLocal8Bit().data());
             }
             return;
-        }
-
-        if (m_destBusAddress.isEmpty()) {
-            qFatal("connect to custom dbus must init this object by custom dbus address");
         }
 
         m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
@@ -307,64 +320,72 @@ private:
     std::optional<QDBusConnection> m_serverConnection{std::nullopt};
 };
 
-bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface);
-void unregisterObjectFromDBus(const QString &path);
+bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface) noexcept;
+void unregisterObjectFromDBus(const QString &path) noexcept;
 
-inline QString getDBusInterface(const QMetaType &meta)
+inline QString getDBusInterface(const QMetaObject *meta) noexcept
 {
-    auto name = QString{meta.name()};
-    if (name == "ApplicationAdaptor") {
-        return ApplicationInterface;
+    if (meta == nullptr) {
+        qCCritical(DDEAMUtils) << "meta is nullptr";
+        return {};
     }
 
-    if (name == "InstanceAdaptor") {
-        return InstanceInterface;
+    if (auto infoIndex = meta->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
+        return meta->classInfo(infoIndex).value();
     }
 
-    if (name == "APPObjectManagerAdaptor" or name == "AMObjectManagerAdaptor") {
-        return ObjectManagerInterface;
-    }
-
-    if (name == "ApplicationManager1Service")
-        // const auto *infoObject = meta.metaObject();
-        // if (auto infoIndex = infoObject->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
-        //     return infoObject->classInfo(infoIndex).value();
-        // }
-        qWarning() << "couldn't found interface:" << name;
-    return "";
+    qCWarning(DDEAMUtils) << "no interface found.";
+    return {};
 }
 
-inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(QObject *o)
+inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(const QObject *o) noexcept
 {
-    auto childs = o->children();
+    if (o == nullptr) {
+        qCCritical(DDEAMUtils) << "object pointer is nullptr";
+        return {};
+    }
+
+    const auto &childs = o->children();
     ObjectInterfaceMap ret;
 
-    std::for_each(childs.cbegin(), childs.cend(), [&ret](QObject *app) {
-        if (app->inherits("QDBusAbstractAdaptor")) {
-            auto interface = getDBusInterface(app->metaObject()->metaType());
-            QVariantMap properties;
-            const auto *mo = app->metaObject();
-            for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
-                auto prop = mo->property(i);
-                properties.insert(prop.name(), prop.read(app));
+    for (const auto *child : childs) {
+        if (child->inherits("QDBusAbstractAdaptor")) {
+            const auto *mo = child->metaObject();
+            auto interface = getDBusInterface(mo);
+
+            if (interface.isEmpty()) {
+                continue;
             }
+
+            QVariantMap properties;
+            for (auto i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+                const auto prop = mo->property(i);
+                properties.insert(prop.name(), prop.read(child));
+            }
+
             ret.insert(interface, properties);
         }
-    });
+    }
 
     return ret;
 }
 
-inline QStringList getChildInterfacesFromObject(QObject *o)
+inline QStringList getChildInterfacesFromObject(const QObject *o) noexcept
 {
-    auto childs = o->children();
-    QStringList ret;
+    if (o == nullptr) {
+        qCCritical(DDEAMUtils) << "object pointer is nullptr";
+        return {};
+    }
 
-    std::for_each(childs.cbegin(), childs.cend(), [&ret](QObject *app) {
-        if (app->inherits("QDBusAbstractAdaptor")) {
-            ret.append(getDBusInterface(app->metaObject()->metaType()));
+    const auto &childs = o->children();
+    QStringList ret;
+    ret.reserve(childs.size());
+
+    for (const auto *child : childs) {
+        if (child->inherits("QDBusAbstractAdaptor")) {
+            ret.append(getDBusInterface(child->metaObject()));
         }
-    });
+    }
 
     return ret;
 }
@@ -379,258 +400,318 @@ inline QLocale getUserLocale()
     return QLocale::system();  // current use env
 }
 
-inline QString escapeToObjectPath(const QString &str)
+namespace Detail {
+
+inline bool isBaseAlnum(QChar ch) noexcept
+{
+    const ushort cell = ch.unicode();
+    return (cell >= u'a' && cell <= u'z') || (cell >= u'A' && cell <= u'Z') || (cell >= u'0' && cell <= u'9');
+}
+
+template <typename Predicate>
+QString escapeImpl(QStringView str, QStringView prefix, Predicate isSafe) noexcept
+{
+    static_assert(std::is_invocable_r_v<bool, Predicate, QChar>, "Predicate should accept one QChar and return a boolean");
+    if (str.isEmpty()) {
+        return str.toString();
+    }
+
+    qsizetype firstEscape{-1};
+    for (auto i = 0; i < str.size(); ++i) {
+        if (!isSafe(str.at(i))) {
+            firstEscape = i;
+            break;
+        }
+    }
+
+    if (firstEscape == -1) {
+        return str.toString();
+    }
+
+    QString result;
+    result.reserve(str.size() * (prefix.size() + 2));
+    result.append(str.first(firstEscape));
+
+    for (auto i = firstEscape; i < str.size(); ++i) {
+        if (const auto ch = str.at(i); isSafe(ch)) {
+            result.append(ch);
+        } else {
+            if (ch.row() != 0) {
+                qCWarning(DDEAMUtils).nospace()
+                    << "Character U+" << Qt::hex << ch.unicode() << " is truncated to " << static_cast<uint>(ch.cell());
+            }
+
+            result.append(prefix);
+            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+        }
+    }
+
+    return result;
+}
+
+inline QString unescapeImpl(QStringView str, QStringView prefix) noexcept
+{
+    const auto prefixLen = prefix.size();
+    const auto step = prefixLen + 2;
+    const auto len = str.size();
+
+    auto r = str.indexOf(prefix);
+    if (r == -1 || r > len - step) {
+        return str.toString();
+    }
+
+    QString result;
+    result.reserve(len);
+    result.append(str.first(r));
+
+    while (r < len) {
+        if (r <= len - step && str.sliced(r, prefixLen) == prefix) {
+            bool ok{false};
+            const auto val = str.sliced(r + prefixLen, 2).toShort(&ok, 16);
+
+            if (ok) {
+                result.append(QChar::fromLatin1(static_cast<char>(val)));
+                r += step;
+                continue;
+            }
+        }
+
+        result.append(str.at(r++));
+    }
+
+    if (r < len) {
+        result.append(str.mid(r));
+    }
+
+    return result;
+}
+
+}  // namespace Detail
+
+inline QString escapeToObjectPath(QStringView str)
 {
     if (str.isEmpty()) {
-        return "_";
+        using namespace Qt::StringLiterals;
+        return u"_"_s;
     }
-    auto ret = str;
 
-    const static auto _re = [] {
-        QRegularExpression tmp{QStringLiteral(R"([^a-zA-Z0-9])")};
-        tmp.optimize();
-        return tmp;
-    }();
-    const auto re = _re;
-
-    auto matcher = re.globalMatch(ret);
-    while (matcher.hasNext()) {
-        auto replaceList = matcher.next().capturedTexts();
-        replaceList.removeDuplicates();
-        for (const auto &c : std::as_const(replaceList)) {
-            auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
-            ret.replace(c, QString{R"(_%1)"}.arg(hexStr));
-        }
-    }
-    return ret;
+    return Detail::escapeImpl(str, u"_", [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; });
 }
 
-inline QString unescapeFromObjectPath(const QString &str)
+inline QString unescapeFromObjectPath(QStringView str)
 {
-    auto ret = str;
-    for (qsizetype i = 0; i < str.size(); ++i) {
-        if (str[i] == '_' and i + 2 < str.size()) {
-            auto hexStr = str.sliced(i + 1, 2);
-            ret.replace(QString{"_%1"}.arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
-            i += 2;
-        }
-    }
-    return ret;
+    return Detail::unescapeImpl(str, u"_");
 }
 
-inline QString escapeApplicationId(const QString &id)
+inline QString escapeApplicationId(QStringView id)
 {
+    return Detail::escapeImpl(
+        id, uR"(\x)", [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'.' || ch == u'-'; });
+}
+
+inline QString unescapeApplicationId(QStringView id)
+{
+    return Detail::unescapeImpl(id, uR"(\x)");
+}
+
+inline QString getRelativePathFromAppId(QStringView id)
+{
+    using namespace Qt::StringLiterals;
     if (id.isEmpty()) {
-        return id;
+        return {};
     }
 
-    auto ret = id;
-
-    static const auto _re = [] {
-        QRegularExpression tmp{QStringLiteral(R"([^a-zA-Z0-9])")};
-        tmp.optimize();
-        return tmp;
-    }();
-    const auto re = _re;
-
-    auto matcher = re.globalMatch(ret);
-    while (matcher.hasNext()) {
-        auto replaceList = matcher.next().capturedTexts();
-        replaceList.removeDuplicates();
-        for (const auto &c : std::as_const(replaceList)) {
-            auto hexStr = QString::number(static_cast<uint>(c.front().toLatin1()), 16);
-            ret.replace(c, QStringLiteral(R"(\x%1)").arg(hexStr));
-        }
+    const auto lastDash = id.lastIndexOf(u'-');
+    if (lastDash == -1) {
+        return id.toString() % ".desktop"_L1;
     }
-    return ret;
-}
 
-inline QString unescapeApplicationId(const QString &id)
-{
-    auto ret = id;
-    for (qsizetype i = 0; i < id.size(); ++i) {
-        if (id[i] == '\\' and i + 3 < id.size()) {
-            auto hexStr = id.sliced(i + 2, 2);
-            ret.replace(QStringLiteral(R"(\x%1)").arg(hexStr), QChar::fromLatin1(hexStr.toUInt(nullptr, 16)));
-            i += 3;
-        }
-    }
-    return ret;
-}
-
-inline QString getRelativePathFromAppId(const QString &id)
-{
     QString path;
-    auto components = id.split('-', Qt::SkipEmptyParts);
-    for (qsizetype i = 0; i < components.size() - 1; ++i) {
-        path += QString{"/%1"}.arg(components[i]);
+    path.reserve(id.size() + 16);
+
+    qsizetype start{0};
+    while (start < lastDash) {
+        const auto nextDash = id.indexOf(u'-', start);
+        if (nextDash == -1 || nextDash > lastDash) {
+            break;
+        }
+
+        path.append(u'/');
+        path.append(id.sliced(start, nextDash - start));
+        start = nextDash + 1;
     }
-    path += QString{R"(-%1.desktop)"}.arg(components.last());
+
+    path.append(u'-');
+    path.append(id.sliced(lastDash + 1));
+    path.append(".desktop"_L1);
+
     return path;
 }
 
-inline QString getXDGDataHome()
+inline const QString &getXDGRuntimeDir() noexcept
 {
-    auto XDGDataHome = QString::fromLocal8Bit(qgetenv("XDG_DATA_HOME"));
-    if (XDGDataHome.isEmpty()) {
-        XDGDataHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".local" + QDir::separator() + "share";
-    }
-    return XDGDataHome;
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)};
+    return value;
 }
 
-inline QStringList getXDGDataDirs()
+inline const QString &getXDGConfigHome() noexcept
 {
-    auto XDGDataDirs = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS")).split(':', Qt::SkipEmptyParts);
-
-    if (XDGDataDirs.isEmpty()) {
-        XDGDataDirs.append("/usr/local/share");
-        XDGDataDirs.append("/usr/share");
-    }
-
-    return XDGDataDirs;
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)};
+    return value;
 }
 
-inline QStringList getXDGDataMergedDirs()
+inline const QString &getXDGDataHome() noexcept
 {
-    QStringList merged;
-    merged.append(getXDGDataHome());
-    merged.append(getXDGDataDirs());
-    return merged;
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)};
+    return value;
 }
 
-inline QStringList getDesktopFileDirs()
+inline const QStringList &getXDGDataDirs() noexcept
 {
-    auto desktopFileDirs = getXDGDataMergedDirs();
-    std::for_each(desktopFileDirs.begin(), desktopFileDirs.end(), [](QString &str) {
-        if (!str.endsWith(QDir::separator())) {
-            str.append(QDir::separator());
-        }
-        str.append("applications");
-    });
-
-    return desktopFileDirs;
+    static const auto &value{QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)};
+    return value;
 }
 
-inline QString getXDGConfigHome()
+inline const QStringList &getXDGConfigDirs() noexcept
 {
-    auto XDGConfigHome = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_HOME"));
-    if (XDGConfigHome.isEmpty()) {
-        XDGConfigHome = QString::fromLocal8Bit(qgetenv("HOME")) + QDir::separator() + ".config";
-    }
-
-    return XDGConfigHome;
+    static const auto &value{QStandardPaths::standardLocations(QStandardPaths::GenericConfigLocation)};
+    return value;
 }
 
-inline QStringList getXDGConfigDirs()
+inline const QStringList &getAutoStartDirs() noexcept
 {
-    auto XDGConfigDirs = QString::fromLocal8Bit(qgetenv("XDG_CONFIG_DIRS")).split(':', Qt::SkipEmptyParts);
-    if (XDGConfigDirs.isEmpty()) {
-        XDGConfigDirs.append("/etc/xdg");
-    }
+    static const auto &value = []() noexcept {
+        auto autostartDirs = getXDGConfigDirs();
 
-    return XDGConfigDirs;
+        std::for_each(autostartDirs.begin(), autostartDirs.end(), [](QString &str) {
+            using namespace Qt::StringLiterals;
+            str.append("autostart"_L1);
+        });
+
+        return autostartDirs;
+    }();
+
+    return value;
 }
 
-inline QStringList getXDGConfigMergedDirs()
+inline const QStringList &getHooksDirs() noexcept
 {
-    QStringList merged;
-    merged.append(getXDGConfigHome());
-    merged.append(getXDGConfigDirs());
-    return merged;
+    static const auto &value = []() noexcept {
+        auto hookDirs = getXDGDataDirs();
+        std::for_each(hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(ApplicationManagerHookDir); });
+        return hookDirs;
+    }();
+
+    return value;
 }
 
-inline QStringList getAutoStartDirs()
+inline const QString &getUserApplicationDir() noexcept
 {
-    auto autostartDirs = getXDGConfigMergedDirs();
-    std::for_each(autostartDirs.begin(), autostartDirs.end(), [](QString &str) {
-        if (!str.endsWith(QDir::separator())) {
-            str.append(QDir::separator());
-        }
-        str.append("autostart");
-    });
-
-    return autostartDirs;
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)};
+    return value;
 }
 
-inline QStringList getMimeDirs()
+inline const QStringList &getApplicationsDirs() noexcept
 {
-    auto mimeDirs = getXDGConfigMergedDirs();
-    mimeDirs.append(getDesktopFileDirs());
-    return mimeDirs;
+    static const auto &value{QStandardPaths::standardLocations(QStandardPaths::ApplicationsLocation)};
+    return value;
+}
+
+inline const QStringList &getMimeDirs() noexcept
+{
+    static const auto &value = []() noexcept {
+        auto mimeDirs = getXDGConfigDirs();
+        mimeDirs.append(getApplicationsDirs());
+        return mimeDirs;
+    }();
+
+    return value;
 }
 
 inline QString getCurrentDesktop()
 {
-    auto desktops = QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP")).split(';', Qt::SkipEmptyParts);
+    using namespace Qt::StringLiterals;
+    static const auto &desktop = [] {
+        auto value = qEnvironmentVariable("XDG_CURRENT_DESKTOP", u"DDE"_s);
+        const QStringView view{value};
+        const auto firstSemi = view.indexOf(u';');
 
-    if (desktops.size() > 1) {
-        qWarning() << "multi-DE is detected, use first value.";
-    }
+        if (firstSemi == -1) {
+            return value;
+        }
 
-    if (desktops.isEmpty()) {
-        return "DDE";
-    }
+        if (firstSemi < view.size() - 1) {
+            qCWarning(DDEAMUtils) << "multi-DE is detected, use first value:" << view.left(firstSemi);
+        }
 
-    return desktops.first();
+        return view.left(firstSemi).toString();
+    }();
+
+    return desktop;
 }
 
-struct unitInfo
+struct UnitInfo
 {
     QString applicationID;
-    QString Launcher;
+    QString launcher;
     QString instanceID;
 };
 
-inline unitInfo processUnitName(const QString &unitName)
+[[nodiscard]] inline std::optional<UnitInfo> processUnitName(QStringView unitName) noexcept
 {
-    QString instanceId;
-    QString launcher;
-    QString applicationId;
+    using namespace Qt::StringLiterals;
+    qCDebug(DDEAMUtils) << "process unit:" << unitName;
 
-    qDebug() << "process unit:" << unitName;
-
-    decltype(auto) appPrefix = u8"app-";
+    constexpr auto appPrefix{"app-"_L1};
     if (!unitName.startsWith(appPrefix)) {
         // If not started by application manager, just remove suffix and take name as app id.
-        auto lastDotIndex = unitName.lastIndexOf('.');
-        applicationId = unitName.sliced(0, lastDotIndex);
-        return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
+        auto lastDotIndex = unitName.lastIndexOf(u'.');
+        if (lastDotIndex == -1) {
+            return std::nullopt;
+        }
+
+        return std::make_optional<UnitInfo>({unescapeApplicationId(unitName.first(lastDotIndex)), {}, {}});
     }
 
-    auto unit = unitName.sliced(sizeof(appPrefix) - 1);
+    auto unit = unitName.sliced(appPrefix.size());
+    auto current = unit;
+    auto popSuffix = [&](char16_t sep) -> QStringView {
+        if (current.isEmpty()) {
+            return {};
+        }
 
-    if (unit.endsWith(".service")) {
-        auto lastDotIndex = unit.lastIndexOf('.');
-        auto app = unit.sliced(0, lastDotIndex);  // remove suffix
+        const auto idx = current.lastIndexOf(sep);
+        if (idx == -1) {
+            return std::exchange(current, {});
+        }
 
-        if (app.contains('@')) {
-            auto atIndex = app.indexOf('@');
-            instanceId = app.sliced(atIndex + 1);
-            app.remove(atIndex, instanceId.length() + 1);
-        }
-        auto rest = app.split('-', Qt::SkipEmptyParts);
-        if (rest.size() == 2) {
-            launcher = rest.takeFirst();
-        }
-        if (rest.size() == 1) {
-            applicationId = rest.takeFirst();
-        }
-    } else if (unit.endsWith(".scope")) {
-        auto lastDotIndex = unit.lastIndexOf('.');
-        auto app = unit.sliced(0, lastDotIndex);
+        const auto res = current.sliced(idx + 1);
+        current = current.first(idx);
+        return res;
+    };
 
-        auto components = app.split('-');
-        instanceId = components.takeLast();
-        applicationId = components.takeLast();
-        if (!components.isEmpty()) {
-            launcher = components.takeLast();
-        }
-    } else {
-        qDebug() << "it's not service or scope:" << unit << "ignore";
-        return {};
+    if (unit.endsWith(".service"_L1)) {
+        current = unit.first(unit.lastIndexOf(u'.'));
+
+        const auto vInstance = popSuffix(u'@');
+        const auto vApp = popSuffix(u'-');
+        const auto vLauncher = current;
+
+        return UnitInfo{unescapeApplicationId(vApp), vLauncher.toString(), vInstance.toString()};
     }
 
-    return {unescapeApplicationId(applicationId), std::move(launcher), std::move(instanceId)};
+    if (unit.endsWith(".scope"_L1)) {
+        current = unit.first(unit.lastIndexOf(u'.'));
+
+        const auto vInstance = popSuffix(u'-');
+        const auto vApp = popSuffix(u'-');
+        const auto vLauncher = current;
+
+        return UnitInfo{unescapeApplicationId(vApp), vLauncher.toString(), vInstance.toString()};
+    }
+
+    qCDebug(DDEAMUtils) << "it's not service or scope:" << unit << ",ignore";
+    return std::nullopt;
 }
 
 template <typename Key, typename Value>
@@ -643,10 +724,14 @@ ObjectMap dumpDBusObject(const QHash<Key, QSharedPointer<Value>> &map)
 
     for (const auto &[key, value] : map.asKeyValueRange()) {
         auto interAndProps = getChildInterfacesAndPropertiesFromObject(value.data());
+        if (interAndProps.isEmpty()) {
+            continue;
+        }
+
         if constexpr (std::is_same_v<Key, QString>) {
-            objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, interAndProps);
+            objs.insert(QDBusObjectPath{getObjectPathFromAppId(key)}, std::move(interAndProps));
         } else if constexpr (std::is_same_v<Key, QDBusObjectPath>) {
-            objs.insert(key, interAndProps);
+            objs.insert(key, std::move(interAndProps));
         }
     }
 
@@ -670,87 +755,108 @@ inline FileTimeInfo getFileTimeInfo(const QFileInfo &file)
 
 inline QByteArray getCurrentSessionId()
 {
-    constexpr auto graphicalTarget = u8"graphical-session.target";
+    using namespace Qt::StringLiterals;
 
-    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1",
-                                              "/org/freedesktop/systemd1/unit/" + escapeToObjectPath(graphicalTarget),
-                                              "org.freedesktop.DBus.Properties",
-                                              "Get");
-    msg << QString{"org.freedesktop.systemd1.Unit"};
-    msg << QString{"InvocationID"};
-    auto bus = QDBusConnection::sessionBus();
-    auto ret = bus.call(msg);
+    auto msg =
+        QDBusMessage::createMethodCall(u"org.freedesktop.systemd1"_s,
+                                       "/org/freedesktop/systemd1/unit/"_L1 % escapeToObjectPath(u"graphical-session.target"),
+                                       u"org.freedesktop.DBus.Properties"_s,
+                                       u"Get"_s);
+    msg << u"org.freedesktop.systemd1.Unit"_s;
+    msg << u"InvocationID"_s;
+
+    auto ret = QDBusConnection::sessionBus().call(msg);
     if (ret.type() != QDBusMessage::ReplyMessage) {
-        qWarning() << "get graphical session Id failed:" << ret.errorMessage();
+        qCWarning(DDEAMUtils) << "get graphical session Id failed:" << ret.errorMessage();
         return {};
     }
 
-    const auto &id = ret.arguments().constFirst();
+    const auto &args = ret.arguments();
+    if (args.isEmpty()) {
+        return {};
+    }
+
+    const auto &id = args.constFirst();
     return id.value<QDBusVariant>().variant().toByteArray();
 }
 
 inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
 {
-    QString fdFilePath = QString{"/proc/self/fdinfo/%1"}.arg(pidfd.fileDescriptor());
+    using namespace Qt::StringLiterals;
+    auto fdFilePath = "/proc/self/fdinfo/"_L1 % QString::number(pidfd.fileDescriptor());
     QFile fdFile{fdFilePath};
     if (!fdFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
-        qWarning() << "open " << fdFilePath << "failed: " << fdFile.errorString();
+        qCWarning(DDEAMUtils) << "Failed to open" << fdFilePath << fdFile.errorString();
         return 0;
     }
 
-    auto content = fdFile.readAll();
-    QTextStream stream{content};
-    QString appPid;
-    while (!stream.atEnd()) {
-        auto line = stream.readLine();
-        if (line.startsWith("Pid")) {
-            appPid = line.split(":").last().trimmed();
+    while (true) {
+        const auto line = fdFile.readLine();
+        if (line.isEmpty()) {
+            break;
+        }
+
+        if (line.startsWith("Pid:"_L1)) {
+            const auto pidView = QByteArrayView(line).sliced(4).trimmed();
+
+            bool ok{false};
+            const auto pid = pidView.toUInt(&ok);
+
+            if (ok) {
+                return pid;
+            }
+
             break;
         }
     }
 
-    if (appPid.isEmpty()) {
-        qWarning() << "can't find pid which corresponding with the instance of this application.";
-        return 0;
-    }
-    bool ok{false};
-    auto pid = appPid.toUInt(&ok);
-    if (!ok) {
-        qWarning() << "AppId is failed to convert to uint.";
-        return 0;
-    }
-
-    return pid;
+    qCWarning(DDEAMUtils) << "Could not find valid 'Pid' field in" << fdFilePath;
+    return 0;
 }
 
-inline QString getAutostartAppIdFromAbsolutePath(const QString &path)
+inline QString getAutostartAppIdFromAbsolutePath(QStringView path)
 {
-    constexpr decltype(auto) desktopSuffix{u8".desktop"};
-    auto tmp = path.chopped(sizeof(desktopSuffix) - 1);
-    auto components = tmp.split(QDir::separator(), Qt::SkipEmptyParts);
-    auto location = std::find(components.cbegin(), components.cend(), "autostart");
-    if (location == components.cend()) {
+    using namespace Qt::StringLiterals;
+    if (!path.endsWith(u".desktop")) {
+        return {};
+    }
+    auto base = path.chopped(8);
+
+    const auto parts = base.split(QDir::separator());
+    auto it = std::find(parts.cbegin(), parts.cend(), u"autostart");
+
+    if (it == parts.cend() || std::next(it) == parts.cend()) {
         return {};
     }
 
-    auto appId = QStringList{location + 1, components.cend()}.join('-');
-    return appId;
+    QString result;
+    for (auto next = std::next(it); next != parts.cend(); ++next) {
+        if (!result.isEmpty()) {
+            result.append(u'-');
+        }
+
+        result.append(*next);
+    }
+
+    return result;
 }
 
 inline QString getObjectPathFromAppId(const QString &appId)
 {
+    const auto basePath = QLatin1StringView{DDEApplicationManager1ObjectPath};
     if (!appId.isEmpty()) {
-        return QString{DDEApplicationManager1ObjectPath} + "/" + escapeToObjectPath(appId);
+        return basePath % '/' % escapeToObjectPath(appId);
     }
-    return QString{DDEApplicationManager1ObjectPath} + "/" + QUuid::createUuid().toString(QUuid::Id128);
+
+    return basePath % '/' % QUuid::createUuid().toString(QUuid::Id128);
 }
 
-inline int pidfd_open(pid_t pid, uint flags)
+inline int pidfd_open(pid_t pid, uint flags) noexcept
 {
     return syscall(SYS_pidfd_open, pid, flags);
 }
 
-inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags)
+inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int flags) noexcept
 {
     return syscall(SYS_pidfd_send_signal, pidfd, sig, info, flags);
 }
