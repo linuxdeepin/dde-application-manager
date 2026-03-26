@@ -490,28 +490,31 @@ inline QString unescapeImpl(QStringView str, QStringView prefix) noexcept
 
 inline QString escapeToObjectPath(QStringView str)
 {
+    using namespace Qt::StringLiterals;
     if (str.isEmpty()) {
-        using namespace Qt::StringLiterals;
         return u"_"_s;
     }
 
-    return Detail::escapeImpl(str, u"_", [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; });
+    return Detail::escapeImpl(str, u"_"_sv, [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; });
 }
 
 inline QString unescapeFromObjectPath(QStringView str)
 {
-    return Detail::unescapeImpl(str, u"_");
+    using namespace Qt::StringLiterals;
+    return Detail::unescapeImpl(str, u"_"_sv);
 }
 
 inline QString escapeApplicationId(QStringView id)
 {
+    using namespace Qt::StringLiterals;
     return Detail::escapeImpl(
-        id, uR"(\x)", [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'.' || ch == u'-'; });
+        id, uR"(\x)"_sv, [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'.' || ch == u'-'; });
 }
 
 inline QString unescapeApplicationId(QStringView id)
 {
-    return Detail::unescapeImpl(id, uR"(\x)");
+    using namespace Qt::StringLiterals;
+    return Detail::unescapeImpl(id, uR"(\x)"_sv);
 }
 
 inline QString getRelativePathFromAppId(QStringView id)
@@ -523,7 +526,7 @@ inline QString getRelativePathFromAppId(QStringView id)
 
     const auto lastDash = id.lastIndexOf(u'-');
     if (lastDash == -1) {
-        return id.toString() % ".desktop"_L1;
+        return id.toString() % desktopSuffix;
     }
 
     QString path;
@@ -543,7 +546,7 @@ inline QString getRelativePathFromAppId(QStringView id)
 
     path.append(u'-');
     path.append(id.sliced(lastDash + 1));
-    path.append(".desktop"_L1);
+    path.append(desktopSuffix);
 
     return path;
 }
@@ -585,7 +588,7 @@ inline const QStringList &getAutoStartDirs() noexcept
 
         std::for_each(autostartDirs.begin(), autostartDirs.end(), [](QString &str) {
             using namespace Qt::StringLiterals;
-            str.append("autostart"_L1);
+            str.append(u"/autostart"_s);
         });
 
         return autostartDirs;
@@ -628,26 +631,23 @@ inline const QStringList &getMimeDirs() noexcept
     return value;
 }
 
-inline QString getCurrentDesktop()
+inline const QStringList &getCurrentDesktops()
 {
     using namespace Qt::StringLiterals;
-    static const auto &desktop = [] {
-        auto value = qEnvironmentVariable("XDG_CURRENT_DESKTOP", u"DDE"_s);
-        const QStringView view{value};
-        const auto firstSemi = view.indexOf(u';');
+    static const auto &desktops = [] {
+        auto value = qEnvironmentVariable("XDG_CURRENT_DESKTOP", u"dde"_s);
+        auto tokens = qTokenize(value, u':');
 
-        if (firstSemi == -1) {
-            return value;
+        QStringList list;
+        for (auto token : tokens) {
+            list.append(token.toString().toLower());
         }
 
-        if (firstSemi < view.size() - 1) {
-            qCWarning(DDEAMUtils) << "multi-DE is detected, use first value:" << view.left(firstSemi);
-        }
-
-        return view.left(firstSemi).toString();
+        list.removeDuplicates();
+        return list;
     }();
 
-    return desktop;
+    return desktops;
 }
 
 struct UnitInfo
@@ -662,7 +662,7 @@ struct UnitInfo
     using namespace Qt::StringLiterals;
     qCDebug(DDEAMUtils) << "process unit:" << unitName;
 
-    constexpr auto appPrefix{"app-"_L1};
+    constexpr QStringView appPrefix{u"app-"};
     if (!unitName.startsWith(appPrefix)) {
         // If not started by application manager, just remove suffix and take name as app id.
         auto lastDotIndex = unitName.lastIndexOf(u'.');
@@ -690,7 +690,7 @@ struct UnitInfo
         return res;
     };
 
-    if (unit.endsWith(".service"_L1)) {
+    if (unit.endsWith(u".service")) {
         current = unit.first(unit.lastIndexOf(u'.'));
 
         const auto vInstance = popSuffix(u'@');
@@ -700,7 +700,7 @@ struct UnitInfo
         return UnitInfo{unescapeApplicationId(vApp), vLauncher.toString(), vInstance.toString()};
     }
 
-    if (unit.endsWith(".scope"_L1)) {
+    if (unit.endsWith(u".scope")) {
         current = unit.first(unit.lastIndexOf(u'.'));
 
         const auto vInstance = popSuffix(u'-');
@@ -759,7 +759,7 @@ inline QByteArray getCurrentSessionId()
 
     auto msg =
         QDBusMessage::createMethodCall(u"org.freedesktop.systemd1"_s,
-                                       "/org/freedesktop/systemd1/unit/"_L1 % escapeToObjectPath(u"graphical-session.target"),
+                                       u"/org/freedesktop/systemd1/unit/"_s % escapeToObjectPath(u"graphical-session.target"),
                                        u"org.freedesktop.DBus.Properties"_s,
                                        u"Get"_s);
     msg << u"org.freedesktop.systemd1.Unit"_s;
@@ -783,7 +783,7 @@ inline QByteArray getCurrentSessionId()
 inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
 {
     using namespace Qt::StringLiterals;
-    auto fdFilePath = "/proc/self/fdinfo/"_L1 % QString::number(pidfd.fileDescriptor());
+    auto fdFilePath = u"/proc/self/fdinfo/"_s % QString::number(pidfd.fileDescriptor());
     QFile fdFile{fdFilePath};
     if (!fdFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
         qCWarning(DDEAMUtils) << "Failed to open" << fdFilePath << fdFile.errorString();
@@ -796,7 +796,7 @@ inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
             break;
         }
 
-        if (line.startsWith("Pid:"_L1)) {
+        if (line.startsWith("Pid:"_ba)) {
             const auto pidView = QByteArrayView(line).sliced(4).trimmed();
 
             bool ok{false};
@@ -817,10 +817,10 @@ inline uint getPidFromPidFd(const QDBusUnixFileDescriptor &pidfd) noexcept
 inline QString getAutostartAppIdFromAbsolutePath(QStringView path)
 {
     using namespace Qt::StringLiterals;
-    if (!path.endsWith(u".desktop")) {
+    if (!path.endsWith(desktopSuffix)) {
         return {};
     }
-    auto base = path.chopped(8);
+    auto base = path.chopped(desktopSuffix.size());
 
     const auto parts = base.split(QDir::separator());
     auto it = std::find(parts.cbegin(), parts.cend(), u"autostart");

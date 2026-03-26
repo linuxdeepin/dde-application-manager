@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -6,18 +6,15 @@
 #define APPLICATIONMIMEINFO_H
 
 #include <QStringList>
-#include <QMap>
 #include <QFile>
-#include <QMimeData>
-#include <memory>
-#include <QSemaphore>
 #include <optional>
 #include <QFileInfo>
 #include "mimefileparser.h"
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(DDEAMMime)
 
 using MimeContent = MimeFileParser::Groups;
-
-QStringList getListFiles() noexcept;
 
 class MimeFileBase
 {
@@ -56,7 +53,7 @@ class MimeApps : public MimeFileBase
 public:
     static std::optional<MimeApps> createMimeApps(const QString &filePath, bool desktopSpec) noexcept;
 
-    MimeApps(MimeApps &&) = default;
+    MimeApps(MimeApps &&) noexcept = default;
     MimeApps &operator=(MimeApps &&) = default;
     MimeApps(const MimeApps &) = delete;
     MimeApps &operator=(const MimeApps &) = delete;
