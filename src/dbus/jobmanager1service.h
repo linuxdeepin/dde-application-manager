@@ -53,10 +53,10 @@ public:
     template <typename F>
     QDBusObjectPath addJob(const QString &source, F func, QVariantList args)
     {
-        static_assert(std::is_invocable_v<F, const QVariant&>, "param type must be satisfied with const QVariant&.");
+        static_assert(std::is_invocable_v<F, const QVariant &>, "param type must be satisfied with const QVariant&.");
 
-        const auto objectPath =
-            QString{"%1/%2"}.arg(DDEApplicationManager1JobManager1ObjectPath).arg(QUuid::createUuid().toString(QUuid::Id128));
+        const auto &objectPath =
+            fromStaticRaw(DDEApplicationManager1JobManager1ObjectPath) % u'/' % QUuid::createUuid().toString(QUuid::Id128);
         QFuture<QVariantList> future = QtConcurrent::mappedReduced(std::move(args),
                                                                    func,
                                                                    qOverload<QVariantList::parameter_type>(&QVariantList::append),
@@ -71,7 +71,7 @@ public:
 
         auto *ptr = job.data();
         auto *adaptor = new (std::nothrow) JobAdaptor(ptr);
-        if (adaptor == nullptr || !registerObjectToDBus(ptr, objectPath, JobInterface)) {
+        if (adaptor == nullptr || !registerObjectToDBus(ptr, objectPath, fromStaticRaw(JobInterface))) {
             qCritical() << "can't register job to dbus.";
             future.cancel();
             return {};
@@ -101,7 +101,7 @@ public:
             return value;
         };
 
-        future.then(this, emitRemove);
+        future.then(this, std::move(emitRemove));
         return path;
     }
 

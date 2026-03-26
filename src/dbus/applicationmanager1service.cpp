@@ -22,6 +22,8 @@
 
 using namespace Qt::StringLiterals;
 
+Q_LOGGING_CATEGORY(DDEAM, "dde.am.manager")
+
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
 ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
@@ -48,7 +50,6 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
         qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (not running on Wayland)";
     }
 
-    using namespace std::chrono_literals;
     m_reloadTimer.setInterval(500);
     m_reloadTimer.setSingleShot(true);
     connect(&m_reloadTimer, &QTimer::timeout, this, &ApplicationManager1Service::doReloadApplications);
@@ -56,31 +57,32 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
 {
-    if (!connection.registerService(DDEApplicationManager1ServiceName)) {
+    if (!connection.registerService(fromStaticRaw(DDEApplicationManager1ServiceName))) {
         qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
 
     if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
-        qCritical() << "new Application Manager Adaptor failed.";
+        qCCritical(DDEAM) << "new Application Manager Adaptor failed.";
         std::terminate();
     }
 
     if (auto *tmp = new (std::nothrow) AMObjectManagerAdaptor{this}; tmp == nullptr) {
-        qCritical() << "new Object Manager of Application Manager Adaptor failed.";
+        qCCritical(DDEAM) << "new Object Manager of Application Manager Adaptor failed.";
         std::terminate();
     }
 
-    if (!registerObjectToDBus(this, DDEApplicationManager1ObjectPath, ApplicationManager1Interface)) {
+    if (!registerObjectToDBus(
+            this, fromStaticRaw(DDEApplicationManager1ObjectPath), fromStaticRaw(ApplicationManager1Interface))) {
         std::terminate();
     }
 
     if (m_jobManager.reset(new (std::nothrow) JobManager1Service(this)); !m_jobManager) {
-        qCritical() << "new JobManager failed.";
+        qCCritical(DDEAM) << "new JobManager failed.";
         std::terminate();
     }
 
     if (m_mimeManager.reset(new (std::nothrow) MimeManager1Service(this)); !m_mimeManager) {
-        qCritical() << "new MimeManager failed.";
+        qCCritical(DDEAM) << "new MimeManager failed.";
         std::terminate();
     }
 
@@ -92,48 +94,52 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     // Ensure all directories exist before adding watches
     const auto &userApp = getUserApplicationDir();
-    if (!QDir{userApp}.mkpath(".")) {
-        qCritical() << "Failed to create directory:" << userApp;
+    if (!QDir{userApp}.mkpath(u"."_s)) {
+        qCCritical(DDEAM) << "Failed to create directory:" << userApp;
         std::terminate();
     }
 
     const auto &desktopDirs = getApplicationsDirs();
     auto unhandled = m_watcher.addPaths(desktopDirs);
     for (const auto &dir : std::as_const(unhandled)) {
-        qCritical() << "couldn't watch directory:" << dir;
+        qCCritical(DDEAM) << "couldn't watch directory:" << dir;
     }
 
     auto &dispatcher = SystemdSignalDispatcher::instance();
 
-    connect(&dispatcher, &SystemdSignalDispatcher::SystemdUnitNew, this, &ApplicationManager1Service::addInstanceToApplication);
-    connect(
-        &dispatcher, &SystemdSignalDispatcher::SystemdJobNew, this, [this](QString unitName, QDBusObjectPath systemdUnitPath) {
-            auto info = processUnitName(unitName);
-            if (!info) {
-                return;
-            }
-            auto appId = std::move(info->applicationID);
+    connect(&dispatcher,
+            &SystemdSignalDispatcher::SystemdUnitNew,
+            this,
+            qOverload<const QString &, const QDBusObjectPath &>(&ApplicationManager1Service::addInstanceToApplication));
+    connect(&dispatcher,
+            &SystemdSignalDispatcher::SystemdJobNew,
+            this,
+            [this](const QString &unitName, const QDBusObjectPath &systemdUnitPath) {
+                auto info = processUnitName(unitName);
+                if (!info) {
+                    return;
+                }
 
-            if (appId.isEmpty()) {
-                return;
-            }
+                if (info->applicationID.isEmpty()) {
+                    return;
+                }
 
-            auto app = m_applicationList.value(appId);
+                auto app = m_applicationList.value(info->applicationID);
 
-            if (!app) {
-                return;
-            }
+                if (!app) {
+                    return;
+                }
 
-            // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
-            // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
-            if (app->instances().size() > 0) {
-                return;
-            }
+                // 服务在 AM 之后启动那么 instance size 是 0， newJob 时尝试添加一次
+                // 比如 dde-file-manager.service 如果启动的比 AM 晚，那么在 scanInstances 时不会 addInstanceToApplication
+                if (!app->instances().empty()) {
+                    return;
+                }
 
-            qDebug() << "add Instance " << unitName << "on JobNew, " << app->instances().size();
+                qCDebug(DDEAM) << "add Instance " << unitName << "on JobNew, " << app->instances().size();
 
-            addInstanceToApplication(unitName, systemdUnitPath);
-        });
+                addInstanceToApplication(std::move(info).value(), systemdUnitPath);
+            });
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
@@ -141,17 +147,27 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             &ApplicationManager1Service::removeInstanceFromApplication);
 
     auto envToPath = [this](const QStringList &envs) {
-        if (auto path = std::find_if(envs.cbegin(), envs.cend(), [](const QString &env) { return env.startsWith("PATH="); });
-            path != envs.cend()) {
-            m_systemdPathEnv = path->mid(5).split(':', Qt::SkipEmptyParts);
+        auto path =
+            std::find_if(envs.cbegin(), envs.cend(), [](const QString &env) { return env.startsWith(QStringView{u"PATH="}); });
+        if (path == envs.cend()) {
+            return;
+        }
+
+        auto pathView = QStringView{*path}.sliced(5);
+        auto tokens = qTokenize(pathView, u':', Qt::SkipEmptyParts);
+        m_systemdPathEnv.clear();
+
+        for (auto view : tokens) {
+            m_systemdPathEnv.append(view.toString());
         }
     };
 
     connect(&dispatcher, &SystemdSignalDispatcher::SystemdEnvironmentChanged, envToPath);
 
     auto &con = ApplicationManager1DBus::instance().globalDestBus();
-    auto envMsg = QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdPropInterfaceName, "Get");
-    envMsg.setArguments({SystemdInterfaceName, "Environment"});
+    auto envMsg =
+        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, fromStaticRaw(SystemdPropInterfaceName), u"Get"_s);
+    envMsg.setArguments({SystemdInterfaceName, u"Environment"_s});
     auto ret = con.call(envMsg);
     if (ret.type() == QDBusMessage::ErrorMessage) {
         qFatal("%s", ret.errorMessage().toLocal8Bit().data());
@@ -159,16 +175,14 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     envToPath(qdbus_cast<QStringList>(ret.arguments().constFirst().value<QDBusVariant>().variant()));
 
     auto sysBus = QDBusConnection::systemBus();
-    if (!sysBus.connect("org.desktopspec.ApplicationUpdateNotifier1",
-                        "/org/desktopspec/ApplicationUpdateNotifier1",
-                        "org.desktopspec.ApplicationUpdateNotifier1",
-                        "ApplicationUpdated",
+    if (!sysBus.connect(u"org.desktopspec.ApplicationUpdateNotifier1"_s,
+                        u"/org/desktopspec/ApplicationUpdateNotifier1"_s,
+                        u"org.desktopspec.ApplicationUpdateNotifier1"_s,
+                        u"ApplicationUpdated"_s,
                         this,
                         SLOT(ReloadApplications()))) {
         qFatal("connect to ApplicationUpdated failed.");
     }
-
-    scanMimeInfos();
 
     scanApplications();
 
@@ -176,15 +190,18 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     scanInstances();
 
-    auto storagePtr = m_storage.lock();
-    if (!storagePtr->setFirstLaunch(false)) {
-        qCritical() << "failed to update state of application manager, some properties may be lost after restart.";
-    }
+    scanMimeInfos();
 
     loadHooks();
 
-    if (auto *ptr = new (std::nothrow) PropertiesForwarder{DDEApplicationManager1ObjectPath, this}; ptr == nullptr) {
-        qCritical() << "new PropertiesForwarder of Application Manager failed.";
+    auto storagePtr = m_storage.lock();
+    if (!storagePtr->setFirstLaunch(false)) {
+        qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
+    }
+
+    if (auto *ptr = new (std::nothrow) PropertiesForwarder{fromStaticRaw(DDEApplicationManager1ObjectPath), this};
+        ptr == nullptr) {
+        qCCritical(DDEAM) << "new PropertiesForwarder of Application Manager failed.";
     }
 
     // TODO: This is a workaround, we will use database at the end.
@@ -207,19 +224,25 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         return;
     }
 
-    qCritical() << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
+    qCCritical(DDEAM) << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
 }
 
-void ApplicationManager1Service::addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
+void ApplicationManager1Service::addInstanceToApplication(const QString &unitName,
+                                                          const QDBusObjectPath &systemdUnitPath) noexcept
 {
     auto info = processUnitName(unitName);
     if (!info) {
         return;
     }
 
-    auto appId = std::move(info->applicationID);
-    auto launcher = std::move(info->launcher);
-    auto instanceId = std::move(info->instanceID);
+    addInstanceToApplication(std::move(info).value(), systemdUnitPath);
+}
+
+void ApplicationManager1Service::addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept
+{
+    auto appId = std::move(info.applicationID);
+    auto launcher = std::move(info.launcher);
+    auto instanceId = std::move(info.instanceID);
 
     if (appId.isEmpty()) {
         return;
@@ -232,7 +255,7 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
     auto app = m_applicationList.value(appId);
 
     if (!app) {
-        qWarning() << "couldn't find app" << appId << "in application manager.";
+        qCWarning(DDEAM) << "couldn't find app" << appId << "in application manager.";
         return;
     }
 
@@ -241,11 +264,12 @@ void ApplicationManager1Service::addInstanceToApplication(const QString &unitNam
     const auto &applicationPath = app->applicationPath().path();
 
     if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) {
-        qCritical() << "add Instance failed:" << applicationPath << unitName << systemdUnitPath.path();
+        qCCritical(DDEAM) << "failed to add instance" << systemdUnitPath.path() << "to app" << appId;
     }
 }
 
-void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
+void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName,
+                                                               const QDBusObjectPath &systemdUnitPath) noexcept
 {
     auto info = processUnitName(unitName);
     if (!info) {
@@ -331,12 +355,13 @@ void ApplicationManager1Service::scanApplications() noexcept
 
 void ApplicationManager1Service::scanInstances() noexcept
 {
+    using namespace Qt::StringLiterals;
     auto &conn = ApplicationManager1DBus::instance().globalDestBus();
     auto call_message =
-        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "ListUnitsByPatterns");
+        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, u"ListUnitsByPatterns"_s);
     QList<QVariant> args;
-    args << QVariant::fromValue(QStringList{"running", "start"});
-    args << QVariant::fromValue(QStringList{"dde*", "deepin*"});
+    args << QVariant::fromValue(QStringList{u"running"_s, u"start"_s});
+    args << QVariant::fromValue(QStringList{u"dde*"_s, u"deepin*"_s});
     call_message.setArguments(args);
     auto result = conn.call(call_message);
     if (result.type() == QDBusMessage::ErrorMessage) {
@@ -354,7 +379,7 @@ void ApplicationManager1Service::scanInstances() noexcept
 
 void ApplicationManager1Service::updateAutostartStatus() noexcept
 {
-    auto autostartDirs = getAutoStartDirs();
+    const auto &autostartDirs = getAutoStartDirs();
     std::unordered_map<QString, DesktopFile> autostartItems;
 
     applyIteratively(
@@ -391,7 +416,8 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
         }
 
         QSharedPointer<ApplicationService> app{nullptr};
-        auto asApplication = tmp.value(DesktopFileEntryKey, X_Deepin_GenerateSource).value_or(DesktopEntry::Value{});
+        auto asApplication =
+            tmp.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(X_Deepin_GenerateSource)).value_or(DesktopEntry::Value{});
 
         if (!asApplication.isNull()) {  // modified by application manager
             auto appSource = asApplication.toString();
@@ -508,7 +534,7 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
         return nullptr;
     }
 
-    if (!registerObjectToDBus(ptr, application->applicationPath().path(), ApplicationInterface)) {
+    if (!registerObjectToDBus(ptr, application->applicationPath().path(), fromStaticRaw(ApplicationInterface))) {
         return nullptr;
     }
     m_applicationList.insert(application->id(), application);

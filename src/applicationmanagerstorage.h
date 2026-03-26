@@ -9,7 +9,7 @@
 #include <QJsonObject>
 #include <QFile>
 
-enum class ModifyMode { Create, Update };
+enum class ModifyMode : uint8_t { Create, Update };
 
 class ApplicationManager1Storage
 {

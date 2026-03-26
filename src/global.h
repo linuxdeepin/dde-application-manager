@@ -215,6 +215,29 @@ void applyIteratively(QList<QDir> dirs,
     }
 }
 
+template <typename = std::void_t<>>
+struct hasChar16FromRawData : std::false_type
+{
+};
+
+template <>
+struct hasChar16FromRawData<
+    std::void_t<decltype(QString::fromRawData(std::declval<const char16_t *>(), std::declval<qsizetype>()))>> : std::true_type
+{
+};
+
+template <std::size_t N>
+inline QString fromStaticRaw(const char16_t (&array)[N]) noexcept
+{
+    constexpr auto len = static_cast<qsizetype>(N - 1);
+
+    if constexpr (hasChar16FromRawData<>::value) {
+        return QString::fromRawData(array, len);
+    } else {
+        return QString::fromRawData(reinterpret_cast<const QChar *>(array), len);
+    }
+}
+
 class ApplicationManager1DBus
 {
 public:
@@ -224,7 +247,7 @@ public:
     ApplicationManager1DBus &operator=(ApplicationManager1DBus &&) = delete;
     [[nodiscard]] const QString &globalDestBusAddress() const noexcept { return m_destBusAddress; }
     [[nodiscard]] const QString &globalServerBusAddress() const noexcept { return m_serverBusAddress; }
-    void initGlobalServerBus(DBusType type, QString busAddress = "") noexcept
+    void initGlobalServerBus(DBusType type, QString busAddress = {}) noexcept
     {
         if (m_initFlag) {
             qCDebug(DDEAMUtils) << "dbus already initialized";
@@ -251,7 +274,7 @@ public:
             [[fallthrough]];
         case DBusType::System: {
             m_serverConnection.emplace(QDBusConnection::connectToBus(static_cast<QDBusConnection::BusType>(m_serverType),
-                                                                     ApplicationManagerServerDBusName));
+                                                                     fromStaticRaw(ApplicationManagerServerDBusName)));
             if (!m_serverConnection->isConnected()) {
                 qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
             }
@@ -261,7 +284,8 @@ public:
             if (m_serverBusAddress.isEmpty()) {
                 qFatal("connect to custom dbus must init this object by custom dbus address");
             }
-            m_serverConnection.emplace(QDBusConnection::connectToBus(m_serverBusAddress, ApplicationManagerServerDBusName));
+            m_serverConnection.emplace(
+                QDBusConnection::connectToBus(m_serverBusAddress, fromStaticRaw(ApplicationManagerServerDBusName)));
             if (!m_serverConnection->isConnected()) {
                 qFatal("%s", m_serverConnection->lastError().message().toLocal8Bit().data());
             }
@@ -288,22 +312,22 @@ public:
     void setDestBus(QString destAddress = {}) noexcept
     {
         if (m_destConnection) {
-            QDBusConnection::disconnectFromBus(ApplicationManagerDestDBusName);
+            QDBusConnection::disconnectFromBus(fromStaticRaw(ApplicationManagerDestDBusName));
             m_destConnection.reset();
         }
 
         m_destBusAddress = std::move(destAddress);
 
         if (m_destBusAddress.isEmpty()) {
-            m_destConnection.emplace(
-                QDBusConnection::connectToBus(QDBusConnection::BusType::SessionBus, ApplicationManagerDestDBusName));
+            m_destConnection.emplace(QDBusConnection::connectToBus(QDBusConnection::BusType::SessionBus,
+                                                                   fromStaticRaw(ApplicationManagerDestDBusName)));
             if (!m_destConnection->isConnected()) {
                 qFatal("%s", m_destConnection->lastError().message().toLocal8Bit().data());
             }
             return;
         }
 
-        m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, ApplicationManagerDestDBusName));
+        m_destConnection.emplace(QDBusConnection::connectToBus(m_destBusAddress, fromStaticRaw(ApplicationManagerDestDBusName)));
         if (!m_destConnection->isConnected()) {
             qFatal("%s", m_destConnection->lastError().message().toLocal8Bit().data());
         }
@@ -618,7 +642,8 @@ inline const QStringList &getHooksDirs() noexcept
 {
     static const auto &value = []() noexcept {
         auto hookDirs = getXDGDataDirs();
-        std::for_each(hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(ApplicationManagerHookDir); });
+        std::for_each(
+            hookDirs.begin(), hookDirs.end(), [](QString &str) { str.append(fromStaticRaw(ApplicationManagerHookDir)); });
         return hookDirs;
     }();
 
@@ -860,7 +885,7 @@ inline QString getAutostartAppIdFromAbsolutePath(QStringView path)
 
 inline QString getObjectPathFromAppId(const QString &appId)
 {
-    const auto basePath = QLatin1StringView{DDEApplicationManager1ObjectPath};
+    const auto &basePath = fromStaticRaw(DDEApplicationManager1ObjectPath);
     if (!appId.isEmpty()) {
         return basePath % '/' % escapeToObjectPath(appId);
     }

@@ -48,8 +48,11 @@ int main(int argc, char *argv[])
             return;
         }
 
-        auto msg = QDBusMessage::createMethodCall(
-            DDEApplicationManager1ServiceName, DDEApplicationManager1ObjectPath, ApplicationManager1Interface, "Identify");
+        using namespace Qt::StringLiterals;
+        auto msg = QDBusMessage::createMethodCall(fromStaticRaw(DDEApplicationManager1ServiceName),
+                                                  fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                                  fromStaticRaw(ApplicationManager1Interface),
+                                                  u"Identify"_s);
         msg.setArguments({QVariant::fromValue(QDBusUnixFileDescriptor{pidfd})});
         // see QDBusUnixFileDescriptor: The original file descriptor is not touched and must be closed by the user.
         close(pidfd);

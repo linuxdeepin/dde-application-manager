@@ -45,7 +45,7 @@ bool hasDesktopIntersection(QStringView rawValue, const QStringList &currentDesk
 bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 {
     bool hidden{false};
-    auto hiddenVal = entry.value(DesktopFileEntryKey, DesktopEntryHidden);
+    auto hiddenVal = entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryHidden));
 
     if (hiddenVal.has_value()) {
         bool ok{false};
@@ -60,7 +60,7 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 
 bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
 {
-    auto tryExecVal = entry.value(DesktopFileEntryKey, u"TryExec"_s);
+    auto tryExecVal = entry.value(fromStaticRaw(DesktopFileEntryKey), u"TryExec"_s);
     if (tryExecVal.has_value()) {
         auto executable = toString(tryExecVal.value());
         if (executable.isEmpty()) {
@@ -86,12 +86,12 @@ bool ApplicationFilter::showInCheck(const DesktopEntry &entry) noexcept
     }
 
     bool showInCurrentDE{true};
-    if (auto val = entry.value(DesktopFileEntryKey, u"OnlyShowIn"_s); val.has_value()) {
+    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), u"OnlyShowIn"_s); val.has_value()) {
         showInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 
     bool notShowInCurrentDE{false};
-    if (auto val = entry.value(DesktopFileEntryKey, u"NotShowIn"_s); val.has_value()) {
+    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), u"NotShowIn"_s); val.has_value()) {
         notShowInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 

@@ -9,7 +9,6 @@
 #include <QDBusObjectPath>
 #include <QDBusUnixFileDescriptor>
 #include <QSharedPointer>
-#include <QScopedPointer>
 #include <memory>
 #include <QMap>
 #include <QHash>
@@ -22,6 +21,8 @@
 #include "identifier.h"
 #include "compatibilitymanager.h"
 #include "prelaunchsplashhelper.h"
+
+Q_DECLARE_LOGGING_CATEGORY(DDEAM)
 
 class ApplicationService;
 
@@ -87,8 +88,8 @@ private:
     bool m_isNewSession{false};
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
-    QScopedPointer<MimeManager1Service> m_mimeManager{nullptr};
-    QScopedPointer<JobManager1Service> m_jobManager{nullptr};
+    std::unique_ptr<MimeManager1Service> m_mimeManager;
+    std::unique_ptr<JobManager1Service> m_jobManager;
     QStringList m_hookElements;
     QStringList m_systemdPathEnv;
     QFileSystemWatcher m_watcher;
@@ -96,16 +97,17 @@ private:
     bool m_isReloading{false};
     bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
-    QSharedPointer<CompatibilityManager> m_compatibilityManager{nullptr};
-    std::unique_ptr<PrelaunchSplashHelper> m_splashHelper{nullptr};
+    QSharedPointer<CompatibilityManager> m_compatibilityManager;
+    std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
     void scanInstances() noexcept;
     void updateAutostartStatus() noexcept;
     void loadHooks() noexcept;
-    void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
-    void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
+    void addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept;
+    void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
 };
 
 #endif

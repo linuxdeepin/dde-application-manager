@@ -34,23 +34,23 @@ void registerComplexDbusType()
 
 int main(int argc, char *argv[])
 {
-    setenv("DSG_APP_ID", ApplicationManagerConfig, 0);
+    using namespace Qt::StringLiterals;
+    setenv("DSG_APP_ID", fromStaticRaw(ApplicationManagerConfig).toUtf8().constData(), 0);
 #ifdef PROFILING_MODE
     auto start = std::chrono::high_resolution_clock::now();
 #endif
-    QGuiApplication app{argc, argv};
+    const QGuiApplication app{argc, argv};
 
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
     bus.setDestBus();
-    auto &AMBus = bus.globalServerBus();
 
     registerComplexDbusType();
-    auto storageDir = getXDGDataHome() + QDir::separator() + "deepin" + QDir::separator() + "ApplicationManager";
+    auto storageDir = getXDGDataHome() % u"/deepin/ApplicationManager"_s;
     auto storage = ApplicationManager1Storage::createApplicationManager1Storage(storageDir);
 
     ApplicationManager1Service AMService{std::make_unique<CGroupsIdentifier>(), storage};
-    AMService.initService(AMBus);
+    AMService.initService(bus.globalServerBus());
 
 #ifdef PROFILING_MODE
     auto end = std::chrono::high_resolution_clock::now();

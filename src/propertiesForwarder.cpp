@@ -68,7 +68,7 @@ void PropertiesForwarder::PropertyChanged()
 
     auto msg = QDBusMessage::createSignal(m_path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
 
-    msg << QString{ApplicationInterface};
+    msg << fromStaticRaw(ApplicationInterface);
     msg << QVariantMap{{QString{propName}, value}};
     msg << QStringList{};
 
