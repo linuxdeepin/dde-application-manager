@@ -408,47 +408,6 @@ inline bool isBaseAlnum(QChar ch) noexcept
     return (cell >= u'a' && cell <= u'z') || (cell >= u'A' && cell <= u'Z') || (cell >= u'0' && cell <= u'9');
 }
 
-template <typename Predicate>
-QString escapeImpl(QStringView str, QStringView prefix, Predicate isSafe) noexcept
-{
-    static_assert(std::is_invocable_r_v<bool, Predicate, QChar>, "Predicate should accept one QChar and return a boolean");
-    if (str.isEmpty()) {
-        return str.toString();
-    }
-
-    qsizetype firstEscape{-1};
-    for (auto i = 0; i < str.size(); ++i) {
-        if (!isSafe(str.at(i))) {
-            firstEscape = i;
-            break;
-        }
-    }
-
-    if (firstEscape == -1) {
-        return str.toString();
-    }
-
-    QString result;
-    result.reserve(str.size() * (prefix.size() + 2));
-    result.append(str.first(firstEscape));
-
-    for (auto i = firstEscape; i < str.size(); ++i) {
-        if (const auto ch = str.at(i); isSafe(ch)) {
-            result.append(ch);
-        } else {
-            if (ch.row() != 0) {
-                qCWarning(DDEAMUtils).nospace()
-                    << "Character U+" << Qt::hex << ch.unicode() << " is truncated to " << static_cast<uint>(ch.cell());
-            }
-
-            result.append(prefix);
-            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
-        }
-    }
-
-    return result;
-}
-
 inline QString unescapeImpl(QStringView str, QStringView prefix) noexcept
 {
     const auto prefixLen = prefix.size();
@@ -480,7 +439,7 @@ inline QString unescapeImpl(QStringView str, QStringView prefix) noexcept
     }
 
     if (r < len) {
-        result.append(str.mid(r));
+        result.append(str.sliced(r));
     }
 
     return result;
@@ -495,7 +454,34 @@ inline QString escapeToObjectPath(QStringView str)
         return u"_"_s;
     }
 
-    return Detail::escapeImpl(str, u"_"_sv, [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; });
+    // see: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
+    auto isSafe = [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; };
+
+    const auto *it = std::find_if_not(str.cbegin(), str.cend(), isSafe);
+    if (it == str.cend()) {
+        return str.toString();
+    }
+
+    QString result;
+    result.reserve(str.size() + 16);
+    result.append(str.first(std::distance(str.cbegin(), it)));
+
+    for (; it != str.end(); ++it) {
+        const auto ch = *it;
+        if (isSafe(ch)) {
+            result.append(ch);
+        } else {
+            if (ch.row() != 0) {
+                qCWarning(DDEAMUtils).nospace()
+                    << "Character U+" << Qt::hex << ch.unicode() << " is truncated to " << static_cast<uint>(ch.cell());
+            }
+
+            result.append(u'_');
+            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+        }
+    }
+
+    return result;
 }
 
 inline QString unescapeFromObjectPath(QStringView str)
@@ -506,9 +492,40 @@ inline QString unescapeFromObjectPath(QStringView str)
 
 inline QString escapeApplicationId(QStringView id)
 {
+    if (id.isEmpty()) {
+        return id.toString();
+    }
+
     using namespace Qt::StringLiterals;
-    return Detail::escapeImpl(
-        id, uR"(\x)"_sv, [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'.' || ch == u'-'; });
+
+    // see:
+    // https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html#String%20Escaping%20for%20Inclusion%20in%20Unit%20Names
+    auto isSafeChar = [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u':' || ch == u'.'; };
+
+    // Custom escape that handles "/" specially
+    QString result;
+    result.reserve(id.size() + 16);
+
+    for (qsizetype i = 0; i < id.size(); ++i) {
+        const auto ch = id.at(i);
+
+        if (ch == u'/') {
+            // "/" is replaced by "-"
+            result.append(u'-');
+        } else if (i == 0 && ch == u'.') {
+            // "." as first char is escaped
+            result.append(uR"(\x)"_sv);
+            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+        } else if (isSafeChar(ch)) {
+            result.append(ch);
+        } else {
+            // Other non-safe chars are escaped
+            result.append(uR"(\x)"_sv);
+            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+        }
+    }
+
+    return result;
 }
 
 inline QString unescapeApplicationId(QStringView id)
