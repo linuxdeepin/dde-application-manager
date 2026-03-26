@@ -10,7 +10,7 @@
 #include "constant.h"
 #include "global.h"
 
-Q_LOGGING_CATEGORY(logDesktopFileParser, "am.desktopfileparser")
+Q_LOGGING_CATEGORY(logDesktopFileParser, "dde.am.desktopfile.parser")
 
 namespace {
 bool isInvalidLocaleString(const QString &str) noexcept
@@ -52,8 +52,7 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
             continue;
         }
 
-
-        if (groups.cbegin().key() != DesktopFileEntryKey) {
+        if (groups.cbegin().key() != QStringView{DesktopFileEntryKey}) {
             qCWarning(logDesktopFileParser) << "There should be nothing preceding "
                                                "'Desktop Entry' group in the desktop entry file "
                                                "but possibly one or more comments.";
@@ -122,7 +121,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
     auto valueStr = line.sliced(splitCharIndex + 1).trimmed();
 
     QString key{""};
-    QString localeStr{DesktopFileDefaultKeyLocale};
+    QString localeStr{fromStaticRaw(DesktopFileDefaultKeyLocale)};
     // NOTE:
     // We are process "localized keys" here, for usage check:
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#localized-keys
@@ -152,7 +151,7 @@ ParserError DesktopFileParser::addEntry(typename Groups::iterator &group) noexce
         return ParserError::NoError;
     }
 
-    if (localeStr != DesktopFileDefaultKeyLocale and !isInvalidLocaleString(localeStr)) {
+    if (localeStr != QStringView{DesktopFileDefaultKeyLocale} && !isInvalidLocaleString(localeStr)) {
         qCDebug(logDesktopFileParser).noquote() << QString("invalid LOCALE (%2) for key \"%1\"").arg(key, localeStr);
         return ParserError::NoError;
     }
@@ -220,10 +219,10 @@ QString toString(const DesktopFileParser::Groups &map)
         ret.append('\n');
     };
 
-    groupToString(DesktopFileEntryKey);
+    groupToString(fromStaticRaw(DesktopFileEntryKey));
     for (auto it = map.cbegin(); it != map.cend(); ++it) {
-        const auto& groupName = it.key();
-        if (groupName == DesktopFileEntryKey) {
+        const auto &groupName = it.key();
+        if (groupName == QStringView{DesktopFileEntryKey}) {
             continue;
         }
         groupToString(groupName);

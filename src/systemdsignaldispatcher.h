@@ -6,7 +6,6 @@
 #define SYSTEMDSIGNALDISPATCHER_H
 
 #include "global.h"
-#include <QDBusMessage>
 
 class SystemdSignalDispatcher : public QObject
 {
@@ -19,30 +18,33 @@ public:
         return dispatcher;
     }
 Q_SIGNALS:
-    void SystemdUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
-    void SystemdJobNew(QString unitName, QDBusObjectPath systemdUnitPath);
-    void SystemdUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
-    void SystemdEnvironmentChanged(QStringList envs);
+    void SystemdUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void SystemdJobNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void SystemdUnitRemoved(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void SystemdEnvironmentChanged(const QStringList &envs);
 
 private Q_SLOTS:
-    void onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath);
-    void onJobNew(uint32_t id, QDBusObjectPath systemdUnitPath, QString unitName);
-    void onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath);
-    void onPropertiesChanged(QString interface, QVariantMap props, QStringList invalid);
+    void onUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void onJobNew(uint32_t id, const QDBusObjectPath &systemdUnitPath, const QString &unitName);
+    void onUnitRemoved(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
+    void onPropertiesChanged(const QString &interface, const QVariantMap &props, const QStringList &invalid);
 
 private:
     explicit SystemdSignalDispatcher(QObject *parent = nullptr)
         : QObject(parent)
     {
-        auto &con = ApplicationManager1DBus::instance().globalDestBus();
-        auto ret = con.call(QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, "Subscribe"));
+        using namespace Qt::StringLiterals;
+        auto ret = ApplicationManager1DBus::instance().globalDestBus().call(
+            QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, u"Subscribe"_s));
         if (ret.type() == QDBusMessage::ErrorMessage) {
             qFatal("%s", ret.errorMessage().toLocal8Bit().data());
         }
+
         if (!connectToSignals()) {
             std::terminate();
         }
     }
+
     bool connectToSignals() noexcept;
 };
 

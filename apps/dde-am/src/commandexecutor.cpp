@@ -78,10 +78,13 @@ void CommandExecutor::setEnvironmentVariables(const QStringList &envVars)
 
 DExpected<void> CommandExecutor::execute()
 {
+    using namespace Qt::StringLiterals;
     registerComplexDbusType();
     auto con = QDBusConnection::sessionBus();
-    auto msg = QDBusMessage::createMethodCall(
-        DDEApplicationManager1ServiceName, DDEApplicationManager1ObjectPath, ApplicationManager1Interface, "executeCommand");
+    auto msg = QDBusMessage::createMethodCall(fromStaticRaw(DDEApplicationManager1ServiceName),
+                                              fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                              fromStaticRaw(ApplicationManager1Interface),
+                                              u"executeCommand"_s);
 
     QStringMap envMap;
     for (const auto &env : std::as_const(m_environmentVariables)) {

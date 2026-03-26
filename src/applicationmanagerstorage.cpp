@@ -12,14 +12,12 @@
 std::shared_ptr<ApplicationManager1Storage>
 ApplicationManager1Storage::createApplicationManager1Storage(const QString &storageDir) noexcept
 {
-    QDir dir;
-    auto dirPath = QDir::cleanPath(storageDir);
-    if (!dir.mkpath(dirPath)) {
+    const QDir dir{QDir::cleanPath(storageDir)};
+    if (!dir.mkpath(".")) {
         qCritical() << "can't create directory";
         return nullptr;
     }
 
-    dir.setPath(dirPath);
     auto storagePath = dir.filePath("storage.json");
     auto obj = std::shared_ptr<ApplicationManager1Storage>(new (std::nothrow) ApplicationManager1Storage{storagePath});
 

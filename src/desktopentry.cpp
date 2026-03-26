@@ -13,7 +13,7 @@
 #include <QVariant>
 #include <algorithm>
 
-Q_LOGGING_CATEGORY(logDesktopEntry, "am.desktopentry")
+Q_LOGGING_CATEGORY(logDesktopEntry, "dde.am.desktopfile.entry")
 
 QString DesktopFile::sourcePath() const noexcept
 {
@@ -27,7 +27,7 @@ QString DesktopFile::sourcePath() const noexcept
 
 bool DesktopEntry::checkMainEntryValidation() const noexcept
 {
-    auto it = m_entryMap.find(DesktopFileEntryKey);
+    auto it = m_entryMap.constFind(fromStaticRaw(DesktopFileEntryKey));
     if (it == m_entryMap.end()) {
         return false;
     }
@@ -289,7 +289,10 @@ QString toString(const DesktopEntry::Value &value) noexcept
     QString str;
 
     if (value.canConvert<QStringMap>()) {  // get default locale
-        str = value.value<QStringMap>()[DesktopFileDefaultKeyLocale];
+        const auto &val = value.value<QStringMap>();
+        if (auto it = val.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale)); it != val.cend()) {
+            str = it.value();
+        }
     } else {
         str = value.toString();
     }
@@ -317,7 +320,12 @@ QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexc
         }
     }
 
-    return toString(localeMap[DesktopFileDefaultKeyLocale]);
+    auto it = localeMap.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale));
+    if (it == localeMap.cend()) {
+        return {};
+    }
+
+    return toString(*it);
 }
 
 QString toIconString(const DesktopEntry::Value &value) noexcept

@@ -6,14 +6,15 @@
 
 bool SystemdSignalDispatcher::connectToSignals() noexcept
 {
+    using namespace Qt::StringLiterals;
     auto &con = ApplicationManager1DBus::instance().globalDestBus();
 
     if (!con.connect(SystemdService,
                      SystemdObjectPath,
                      SystemdInterfaceName,
-                     "UnitNew",
+                     u"UnitNew"_s,
                      this,
-                     SLOT(onUnitNew(QString, QDBusObjectPath)))) {
+                     SLOT(onUnitNew(const QString &, const QDBusObjectPath &)))) {
         qCritical() << "can't connect to UnitNew signal of systemd service.";
         return false;
     }
@@ -21,19 +22,19 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
     if (!con.connect(SystemdService,
                      SystemdObjectPath,
                      SystemdInterfaceName,
-                     "UnitRemoved",
+                     u"UnitRemoved"_s,
                      this,
-                     SLOT(onUnitRemoved(QString, QDBusObjectPath)))) {
+                     SLOT(onUnitRemoved(const QString &, const QDBusObjectPath &)))) {
         qCritical() << "can't connect to UnitRemoved signal of systemd service.";
         return false;
     }
 
     if (!con.connect(SystemdService,
                      SystemdObjectPath,
-                     SystemdPropInterfaceName,
-                     "PropertiesChanged",
+                     SystemdInterfaceName,
+                     u"PropertiesChanged"_s,
                      this,
-                     SLOT(onPropertiesChanged(QString, QVariantMap, QStringList)))) {
+                     SLOT(onPropertiesChanged(const QString &, const QVariantMap &, const QStringList &)))) {
         qCritical() << "can't connect to PropertiesChanged signal of systemd service.";
         return false;
     }
@@ -41,9 +42,9 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
     if (!con.connect(SystemdService,
                      SystemdObjectPath,
                      SystemdInterfaceName,
-                     "JobNew",
+                     u"JobNew"_s,
                      this,
-                     SLOT(onJobNew(uint32_t, QDBusObjectPath, QString)))) {
+                     SLOT(onJobNew(uint32_t, const QDBusObjectPath &, const QString &)))) {
         qCritical() << "can't connect to JobNew signal of systemd service.";
         return false;
     }
@@ -51,28 +52,33 @@ bool SystemdSignalDispatcher::connectToSignals() noexcept
     return true;
 }
 
-void SystemdSignalDispatcher::onPropertiesChanged(QString interface, QVariantMap props, [[maybe_unused]] QStringList invalid)
+void SystemdSignalDispatcher::onPropertiesChanged(const QString &interface,
+                                                  const QVariantMap &props,
+                                                  [[maybe_unused]] const QStringList &invalid)
 {
-    if (interface != SystemdPropInterfaceName) {
+    if (QStringView{interface} != SystemdPropInterfaceName) {
         return;
     }
 
-    if (auto it = props.find("Environment"); it != props.end()) {
+    using namespace Qt::StringLiterals;
+    if (auto it = props.constFind(u"Environment"_s); it != props.cend()) {
         emit SystemdEnvironmentChanged(it->toStringList());
     }
 }
 
-void SystemdSignalDispatcher::onUnitNew(QString unitName, QDBusObjectPath systemdUnitPath)
+void SystemdSignalDispatcher::onUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
     emit SystemdUnitNew(unitName, systemdUnitPath);
 }
 
-void SystemdSignalDispatcher::onJobNew(uint32_t, QDBusObjectPath systemdUnitPath, QString unitName)
+void SystemdSignalDispatcher::onJobNew([[maybe_unused]] uint32_t id,
+                                       const QDBusObjectPath &systemdUnitPath,
+                                       const QString &unitName)
 {
     emit SystemdJobNew(unitName, systemdUnitPath);
 }
 
-void SystemdSignalDispatcher::onUnitRemoved(QString unitName, QDBusObjectPath systemdUnitPath)
+void SystemdSignalDispatcher::onUnitRemoved(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
     emit SystemdUnitRemoved(unitName, systemdUnitPath);
 }

@@ -11,8 +11,11 @@
 MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     : QObject(parent)
 {
+    using namespace Qt::StringLiterals;
     auto *adaptor = new (std::nothrow) MimeManager1Adaptor{this};
-    if (adaptor == nullptr or !registerObjectToDBus(this, DDEApplicationManager1MimeManager1ObjectPath, MimeManager1Interface)) {
+    if (adaptor == nullptr || !registerObjectToDBus(this,
+                                                    fromStaticRaw(DDEApplicationManager1MimeManager1ObjectPath),
+                                                    fromStaticRaw(MimeManager1Interface))) {
         std::terminate();
     }
 
@@ -20,7 +23,7 @@ MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     connect(&m_mimeAppsWatcher, &QFileSystemWatcher::fileChanged, this, &MimeManager1Service::onMimeAppsFileChanged);
 
     // 添加用户配置目录下的 mimeapps.list 文件到监控
-    auto userMimeAppsFile = QDir{getXDGConfigHome()}.absoluteFilePath("mimeapps.list");
+    auto userMimeAppsFile = QDir{getXDGConfigHome()}.absoluteFilePath(u"mimeapps.list"_s);
     if (QFileInfo::exists(userMimeAppsFile)) {
         m_mimeAppsWatcher.addPath(userMimeAppsFile);
     } else {

@@ -144,10 +144,10 @@ int handleLaunchApp(const QCommandLineParser &parser,
     QString appPath;
     if (!appId.isEmpty()) {
         // 解析出 appId，说明输入是 appId 或 desktop 文件
-        appPath = QString("%1/%2").arg(DDEApplicationManager1ObjectPath, escapeToObjectPath(appId));
-    } else if (!inputArg.isEmpty() && !inputArg.startsWith("/")) {
+        appPath = fromStaticRaw(DDEApplicationManager1ObjectPath) % u'/' % escapeToObjectPath(appId);
+    } else if (!inputArg.isEmpty() && !inputArg.startsWith(u'/')) {
         // 既不是绝对路径，也不是 desktop 文件等，视为 appId
-        appPath = QString("%1/%2").arg(DDEApplicationManager1ObjectPath, escapeToObjectPath(inputArg));
+        appPath = fromStaticRaw(DDEApplicationManager1ObjectPath) % escapeToObjectPath(inputArg);
     } else {
         // 绝对路径或特殊用法
         qWarning() << "unknown input: " << inputArg << ", just use it as path.";

@@ -24,7 +24,9 @@ InstanceService::~InstanceService() = default;
 
 void InstanceService::KillAll(int signal)
 {
-    auto killMsg = QDBusMessage::createMethodCall(SystemdService, m_SystemdUnitPath.path(), SystemdUnitInterfaceName, "Kill");
+    using namespace Qt::StringLiterals;
+    auto killMsg = QDBusMessage::createMethodCall(
+        SystemdService, m_SystemdUnitPath.path(), fromStaticRaw(SystemdUnitInterfaceName), u"Kill"_s);
     killMsg << QString{"all"} << signal;
 
     auto &con = ApplicationManager1DBus::instance().globalDestBus();

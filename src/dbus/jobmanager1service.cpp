@@ -9,7 +9,9 @@ JobManager1Service::JobManager1Service(ApplicationManager1Service *parent)
     : m_parent(parent)
 {
     auto *adaptor = new (std::nothrow) JobManager1Adaptor{this};
-    if (adaptor == nullptr or !registerObjectToDBus(this, DDEApplicationManager1JobManager1ObjectPath, JobManager1Interface)) {
+    if (adaptor == nullptr || !registerObjectToDBus(this,
+                                                    fromStaticRaw(DDEApplicationManager1JobManager1ObjectPath),
+                                                    fromStaticRaw(JobManager1Interface))) {
         std::terminate();
     }
 
@@ -22,7 +24,7 @@ bool JobManager1Service::removeOneJob(const QDBusObjectPath &path)
 {
     decltype(m_jobs)::size_type removeCount{0};
     {
-        QMutexLocker locker{&m_mutex};
+        const QMutexLocker locker{&m_mutex};
         removeCount = m_jobs.remove(path);
     }
     // removeCount means m_jobs can't find value which corresponding with path

@@ -40,8 +40,11 @@ ObjectMap getManagedObjects()
 {
     registerComplexDbusType();
 
-    auto msg = QDBusMessage::createMethodCall(
-        DDEApplicationManager1ServiceName, DDEApplicationManager1ObjectPath, ObjectManagerInterface, "GetManagedObjects");
+    using namespace Qt::StringLiterals;
+    auto msg = QDBusMessage::createMethodCall(fromStaticRaw(DDEApplicationManager1ServiceName),
+                                              fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                              fromStaticRaw(ObjectManagerInterface),
+                                              u"GetManagedObjects"_s);
 
     auto reply = QDBusConnection::sessionBus().call(msg);
 
@@ -114,18 +117,20 @@ DExpected<void> Launcher::run()
 
 DExpected<void> Launcher::launch() noexcept
 {
+    using namespace Qt::StringLiterals;
     // Build options map
     QVariantMap options;
     if (!m_environmentVariables.isEmpty()) {
-        options.insert("env", m_environmentVariables);
+        options.insert(u"env"_s, m_environmentVariables);
     }
 
     // Mark autostart launches so AM can suppress splash
     if (m_autostart) {
-        options.insert("_autostart", true);
+        options.insert(u"_autostart"_s, true);
     }
 
-    auto msg = QDBusMessage::createMethodCall(DDEApplicationManager1ServiceName, m_path, ApplicationInterface, "Launch");
+    auto msg = QDBusMessage::createMethodCall(
+        fromStaticRaw(DDEApplicationManager1ServiceName), m_path, fromStaticRaw(ApplicationInterface), u"Launch"_s);
     msg.setArguments({m_action, QStringList{}, options});
     auto reply = QDBusConnection::sessionBus().call(msg);
 
@@ -140,10 +145,8 @@ DExpected<void> Launcher::launch() noexcept
 
 DExpected<void> Launcher::updateLaunchedTimes() noexcept
 {
-    std::unique_ptr<DConfig> config(DConfig::create(
-        // use QString::fromRawData(const char16_t*, size) if Qt version >= 6.10
-        QString::fromRawData(reinterpret_cast<const QChar *>(ApplicationServiceID), std::size(ApplicationServiceID) - 1),
-        ApplicationManagerToolsConfig));
+    std::unique_ptr<DConfig> config(
+        DConfig::create(fromStaticRaw(ApplicationServiceID), fromStaticRaw(ApplicationManagerToolsConfig)));
     if (!config->isValid()) {
         return DUnexpected{emplace_tag::USE_EMPLACE, -1, "DConfig is invalid when updating launched times."};
     }
@@ -173,9 +176,11 @@ QString Launcher::appId() const noexcept
         return {};
     }
 
-    const auto startIndex = QString(DDEApplicationManager1ObjectPath).size();
-    auto endIndex = m_path.indexOf("/", startIndex + 1);
-    const auto id = endIndex <= -1 ? m_path.mid(startIndex + 1) : m_path.sliced(startIndex + 1, endIndex - (startIndex + 1));
+    const QStringView pathView{m_path};
+    const qsizetype startIndex = std::size(DDEApplicationManager1ObjectPath) - 1;
+    const auto endIndex = pathView.indexOf(u'/', startIndex + 1);
+    const auto id =
+        endIndex <= -1 ? pathView.sliced(startIndex + 1) : pathView.sliced(startIndex + 1, endIndex - (startIndex + 1));
     return unescapeFromObjectPath(id);
 }
 

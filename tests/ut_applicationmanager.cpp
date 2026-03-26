@@ -48,7 +48,7 @@ public:
     }
 
     static inline ApplicationManager1Service *m_am{nullptr};
-    const static inline QDBusObjectPath ApplicationPath{QString{DDEApplicationManager1ObjectPath} + "/test_2dApplication"};
+    const static inline QDBusObjectPath ApplicationPath{fromStaticRaw(DDEApplicationManager1ObjectPath) % "/test_2dApplication"};
     const static inline QDBusObjectPath InstancePath{ApplicationPath.path() + "/" + QUuid::createUuid().toString(QUuid::Id128)};
 };
 
@@ -108,11 +108,11 @@ TEST_F(TestApplicationManager, identifyService)
         GTEST_SKIP_("couldn't find instance and skip.");
     }
 
-    ObjectInterfaceMap map{{QString{InstanceInterface},
-                            QVariantMap{{QString{"Application"}, ApplicationPath},
-                                        {QString{"SystemdUnitPath"}, QDBusObjectPath{"/"}},
-                                        {QString{"Launcher"}, QString{"DDE"}},
-                                        {QString{"Orphaned"}, false}}}};
+    const ObjectInterfaceMap map{{fromStaticRaw(InstanceInterface),
+                                  QVariantMap{{QString{"Application"}, ApplicationPath},
+                                              {QString{"SystemdUnitPath"}, QDBusObjectPath{"/"}},
+                                              {QString{"Launcher"}, QString{"DDE"}},
+                                              {QString{"Orphaned"}, false}}}};
     EXPECT_EQ(instanceInfo, map);
 
     close(pidfd);
