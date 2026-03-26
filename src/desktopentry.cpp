@@ -73,7 +73,7 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_p
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString &temporaryFile) noexcept
 {
     const static QString userTmp = QString{"/run/user/%1/"}.arg(getCurrentUID());
-    auto tempFile = std::make_unique<QFile>(QString{userTmp + QUuid::createUuid().toString(QUuid::Id128) + ".desktop"});
+    auto tempFile = std::make_unique<QFile>(userTmp % QUuid::createUuid().toString(QUuid::Id128) % desktopSuffix);
 
     if (!tempFile->open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
         qCWarning(logDesktopEntry) << "failed to create temporary desktop file:" << QFileInfo{*tempFile}.absoluteFilePath()
@@ -97,10 +97,9 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept
 {
     using namespace Qt::StringLiterals;
-    constexpr auto desktopSuffixLen = 8;  // ".desktop" length
     const QStringView pathView{desktopFile};
 
-    if (!pathView.endsWith(u".desktop")) {
+    if (!pathView.endsWith(desktopSuffix)) {
         qCWarning(logDesktopEntry) << "file isn't a desktop file:" << pathView;
         err = ParserError::MismatchedFile;
         return std::nullopt;
@@ -114,7 +113,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
     }
 
     // Extract desktop ID from path: .../applications/subdir/app.desktop -> subdir-app
-    const auto base = pathView.chopped(desktopSuffixLen);
+    const auto base = pathView.chopped(desktopSuffix.size());
     const auto components = base.split(QDir::separator(), Qt::SkipEmptyParts);
 
     auto appIt = std::find(components.cbegin(), components.cend(), u"applications");
@@ -144,7 +143,7 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &app
 
     using namespace Qt::StringLiterals;
     for (const auto &dir : std::as_const(appDirs)) {
-        auto app = QFileInfo{dir % QDir::separator() % appId % ".desktop"_L1};
+        auto app = QFileInfo{dir % QDir::separator() % appId % desktopSuffix};
         while (!app.exists()) {
             auto filePath = app.absoluteFilePath();
             auto hyphenIndex = filePath.indexOf(u'-');

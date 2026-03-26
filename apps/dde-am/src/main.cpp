@@ -34,7 +34,7 @@ QString getAppIdFromInput(const QString &input)
 
     const QString path = url.toLocalFile();
     // fallback: 仅当文件存在且为.desktop时才用basename
-    if (path.endsWith(".desktop") && QFileInfo::exists(path)) {
+    if (path.endsWith(desktopSuffix) && QFileInfo::exists(path)) {
         const QFileInfo fileInfo(path);
         appId = fileInfo.completeBaseName();
         return appId;

@@ -1,65 +1,57 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "applicationmimeinfo.h"
 #include "global.h"
+#include <QSaveFile>
 
-constexpr std::array<char, 9> desktopSuffix{u8".desktop"};
+Q_LOGGING_CATEGORY(DDEAMMime, "dde.am.mime")
 
-QStringList getListFiles() noexcept
-{
-    QStringList files;
-    const auto &mimeDirs = getMimeDirs();
-    const auto &desktop = getCurrentDesktop().toLower();
+using namespace Qt::StringLiterals;
 
-    auto appendListFile = [&files, &desktop](const QString &dir) {
-        const QFileInfo cur{dir};
-        if (!cur.exists() || !cur.isDir()) {
-            return;
-        }
-
-        const QDir tmp{cur.absoluteFilePath()};
-        auto desktopList = tmp.filePath(QString{"%1-mimeapps.list"}.arg(desktop));
-        if (QFileInfo::exists(desktopList)) {
-            files.append(desktopList);
-        }
-
-        desktopList = tmp.filePath("mimeapps.list");
-        if (QFileInfo::exists(desktopList)) {
-            files.append(desktopList);
-        }
-    };
-
-    std::for_each(mimeDirs.cbegin(), mimeDirs.cend(), appendListFile);
-    std::reverse(files.begin(), files.end());
-    return files;
-}
 namespace {
+
 QString toString(const MimeContent &content) noexcept
 {
     QString ret;
 
-    for (auto it = content.constKeyValueBegin(); it != content.constKeyValueEnd(); ++it) {
-        ret.append(QString{"[%1]\n"}.arg(it->first));
-        const auto &QStringMap = it->second;
-        for (auto inner = QStringMap.constKeyValueBegin(); inner != QStringMap.constKeyValueEnd(); ++inner) {
-            ret.append(QString{"%1="}.arg(inner->first));
-            for (const auto &app : inner->second) {
-                ret.append(QString{"%2;"}.arg(app));
+    for (const auto &[key, value] : content.asKeyValueRange()) {
+        ret.append(u'[' % key % u"]\n"_sv);
+        for (const auto &[iKey, iValue] : value.asKeyValueRange()) {
+            ret.append(iKey % u'=');
+            for (const auto &app : iValue) {
+                ret.append(app % u';');
             }
-            ret.append('\n');
+            ret.append(u'\n');
         }
-        ret.append('\n');
+        ret.append(u'\n');
     }
 
     return ret;
 }
 
-QString removeDesktopSuffix(const QString &str) noexcept
+void createUserConfig(const QString &filename) noexcept
 {
-    return str.chopped(desktopSuffix.size() - 1);
+    QSaveFile userFile{filename};
+    if (!userFile.open(QFile::WriteOnly | QFile::Text)) {
+        qCCritical(DDEAMMime) << "failed to create user file:" << filename << userFile.errorString();
+        return;
+    }
+
+    constexpr auto initContent = "[Default Applications]\n";
+    if (userFile.write(initContent) == -1) {
+        qCWarning(DDEAMMime) << "failed to write content into" << filename << userFile.errorString();
+        return;
+    }
+
+    if (userFile.commit()) {
+        qCInfo(DDEAMMime) << "successfully created user mimeapps:" << filename;
+    } else {
+        qCWarning(DDEAMMime) << "failed to commit atomic write:" << filename << userFile.errorString();
+    }
 }
+
 }  // namespace
 
 std::optional<MimeFileBase> MimeFileBase::loadFromFile(const QFileInfo &fileInfo, bool desktopSpec)
@@ -133,7 +125,7 @@ void MimeApps::insertToSection(const QString &section, const QString &mimeType, 
         targetSection = map.insert(section, {});
     }
 
-    QStringList newApps{QString{appId}.append(desktopSuffix.data())};
+    QStringList newApps{QString{appId}.append(desktopSuffix)};
     auto oldApps = targetSection->find(mimeType);
     if (oldApps != targetSection->end()) {
         newApps.append(*oldApps);
@@ -161,7 +153,7 @@ void MimeApps::setDefaultApplication(const QString &mimeType, const QString &app
         defaultSection = map.insert(defaultApplications, {});
     }
 
-    defaultSection->insert(mimeType, {QString{appId}.append(desktopSuffix.data())});
+    defaultSection->insert(mimeType, {QString{appId}.append(desktopSuffix)});
 }
 
 void MimeApps::unsetDefaultApplication(const QString &mimeType) noexcept
@@ -179,7 +171,7 @@ void MimeApps::unsetDefaultApplication(const QString &mimeType) noexcept
 AppList MimeApps::queryTypes(QString appId) const noexcept
 {
     AppList ret;
-    appId.append(desktopSuffix.data());
+    appId.append(desktopSuffix);
     const auto &lists = content();
 
     if (const auto &adds = lists.constFind(addedAssociations); adds != lists.cend()) {
@@ -203,39 +195,45 @@ AppList MimeApps::queryTypes(QString appId) const noexcept
 
 bool MimeApps::writeToFile() const noexcept
 {
-    auto filePath = fileInfo().absoluteFilePath();
+    const auto filePath = fileInfo().absoluteFilePath();
+
     if (!isWritable()) {
-        qDebug() << "shouldn't write file:" << filePath;
+        qCWarning(DDEAMMime) << "file is not writable:" << filePath;
         return false;
     }
 
-    QFile file{filePath};
+    QSaveFile file(filePath);
 
-    if (!file.open(QFile::ExistingOnly | QFile::Text | QFile::WriteOnly | QFile::Truncate)) {
-        qWarning() << "open" << filePath << "failed:" << file.errorString();
+    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+        qCWarning(DDEAMMime) << "failed to open save file:" << filePath << file.errorString();
         return false;
     }
 
-    auto newContent = toString(content()).toLocal8Bit();
-    auto bytes = file.write(newContent);
+    const auto newContent = toString(content()).toUtf8();
 
-    if (bytes != newContent.size()) {
-        qWarning() << "incomplete content, write:" << bytes << "total:" << newContent.size();
+    if (file.write(newContent) != newContent.size()) {
+        qCWarning(DDEAMMime) << "incomplete write for:" << filePath << "error:" << file.errorString();
         return false;
     }
 
+    if (!file.commit()) {
+        qCWarning(DDEAMMime) << "failed to atomic commit:" << filePath << file.errorString();
+        return false;
+    }
+
+    qCInfo(DDEAMMime) << "successfully updated mimeapps:" << filePath;
     return true;
 }
 
 QString MimeApps::queryDefaultApp(const QString &type) const noexcept
 {
     const auto &map = content();
-    auto defaultSection = map.find(defaultApplications);
-    if (defaultSection == map.end()) {
+    auto defaultSection = map.constFind(defaultApplications);
+    if (defaultSection == map.cend()) {
         return {};
     }
 
-    auto defaultApp = defaultSection->find(type);
+    auto defaultApp = defaultSection->constFind(type);
     if (defaultApp == defaultSection->end()) {
         return {};
     }
@@ -245,13 +243,14 @@ QString MimeApps::queryDefaultApp(const QString &type) const noexcept
         return {};
     }
 
-    return removeDesktopSuffix(app.first());
+    const QStringView appView{app.first()};
+    return appView.chopped(desktopSuffix.size()).toString();
 }
 
 QStringList MimeCache::queryTypes(QString appId) const noexcept
 {
     QStringList ret;
-    appId.append(desktopSuffix.data());
+    appId.append(desktopSuffix);
     const auto &cache = content()[mimeCache];
     for (auto it = cache.constKeyValueBegin(); it != cache.constKeyValueEnd(); ++it) {
         if (it->second.contains(appId)) {
@@ -290,67 +289,52 @@ QStringList MimeCache::queryApps(const QString &type) const noexcept
     if (auto kv = it->constFind(type); kv != it->constEnd()) {
         const auto &apps = kv.value();
         for (const auto &e : apps) {
-            if (!e.endsWith(desktopSuffix.data())) {
+            if (!e.endsWith(desktopSuffix)) {
                 continue;
             }
-            ret.append(removeDesktopSuffix(e));
+            ret.append(e.chopped(desktopSuffix.size()));
         }
     }
     return ret;
 }
 
-void createUserConfig(const QString &filename) noexcept
-{
-    QFile userFile{filename};
-    if (!userFile.open(QFile::WriteOnly | QFile::Text)) {
-        qCritical() << "failed to create user file:" << filename << userFile.errorString();
-    }
-
-    decltype(auto) initContent = u8"[Default Applications]";
-    if (userFile.write(initContent) == sizeof(initContent) - 1 and userFile.flush()) {
-        qInfo() << "create user mimeapps:" << filename;
-        return;
-    }
-
-    qWarning() << "failed to write content into" << filename << userFile.errorString();
-    userFile.remove();
-}
-
 std::optional<MimeInfo> MimeInfo::createMimeInfo(const QString &directory) noexcept
 {
     MimeInfo ret;
-    auto dirPath = QDir::cleanPath(directory);
     QDir dir;
 
-    if (!QFileInfo::exists(dirPath)) {
-        qCritical() << "directory " << dirPath << "doesn't exists.";
+    if (!QFileInfo::exists(directory)) {
+        qCritical() << "directory " << directory << "doesn't exists.";
         return std::nullopt;
     }
-    dir.setPath(dirPath);
-    ret.m_directory = dirPath;
+    dir.setPath(directory);
+    ret.m_directory = directory;
 
-    QFileInfo cacheFile{dir.filePath("mimeinfo.cache")};
-    if (cacheFile.exists() and cacheFile.isFile()) {
+    const QFileInfo cacheFile{dir.filePath(u"mimeinfo.cache"_s)};
+    if (cacheFile.exists() && cacheFile.isFile()) {
         ret.m_cache = MimeCache::createMimeCache(cacheFile.absoluteFilePath());
     }
 
-    QFileInfo desktopAppList{dir.filePath(QString{"%1-mimeapps.list"}.arg(getCurrentDesktop().toLower()))};
-    if (desktopAppList.exists() and desktopAppList.isFile()) {
-        auto desktopApps = MimeApps::createMimeApps(desktopAppList.absoluteFilePath(), true);
-        if (desktopApps) {
-            ret.m_appsList.emplace_back(std::move(desktopApps).value());
+    const auto &desktops = getCurrentDesktops();
+    for (const auto &desktop : desktops) {
+        const QFileInfo desktopAppList{dir.filePath(desktop % u"-mimeapps.list"_s)};
+        if (desktopAppList.exists() && desktopAppList.isFile()) {
+            auto desktopApps = MimeApps::createMimeApps(desktopAppList.absoluteFilePath(), true);
+            if (desktopApps) {
+                ret.m_appsList.emplace_back(std::move(desktopApps).value());
+            }
         }
     }
 
-    QFileInfo appList{dir.filePath("mimeapps.list")};
+    QFileInfo appList{dir.filePath(u"mimeapps.list"_s)};
     appList.setCaching(false);
 
     auto userMimeApps = appList.absoluteFilePath();
-    if (userMimeApps.startsWith(getXDGConfigHome()) and (!appList.exists() or !appList.isFile())) {
+    if (userMimeApps.startsWith(getXDGConfigHome()) && (!appList.exists() || !appList.isFile())) {
         createUserConfig(userMimeApps);
     }
 
-    if (appList.exists() and appList.isFile()) {
+    if (appList.exists() && appList.isFile()) {
         auto apps = MimeApps::createMimeApps(appList.absoluteFilePath(), false);
         if (apps) {
             ret.m_appsList.emplace_back(std::move(apps).value());

@@ -534,7 +534,7 @@ bool ApplicationService::SendToDesktop() const noexcept
         return false;
     }
 
-    auto desktopFile = QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop");
+    auto desktopFile = QDir{dir}.filePath(m_desktopSource.desktopId() % desktopSuffix);
     auto success = m_desktopSource.sourceFileRef().link(desktopFile);
     if (!success) {
         qDebug() << "create link failed:" << m_desktopSource.sourceFileRef().errorString() << "path:" << desktopFile;
@@ -556,7 +556,7 @@ bool ApplicationService::RemoveFromDesktop() const noexcept
         return false;
     }
 
-    QFile desktopFile{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
+    QFile desktopFile{QDir{dir}.filePath(m_desktopSource.desktopId() % desktopSuffix)};
     auto success = desktopFile.remove();
 
     if (!success) {
@@ -576,7 +576,7 @@ bool ApplicationService::isOnDesktop() const noexcept
         return false;
     }
 
-    QFileInfo info{QDir{dir}.filePath(m_desktopSource.desktopId() + ".desktop")};
+    QFileInfo info{QDir{dir}.filePath(m_desktopSource.desktopId() % desktopSuffix)};
 
     if (!info.exists()) {
         return false;
@@ -859,7 +859,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
         return;
     }
 
-    auto fileName = startDir.filePath(m_desktopSource.desktopId() + ".desktop");
+    auto fileName = startDir.filePath(m_desktopSource.desktopId() % desktopSuffix);
     QFile autostartFile{fileName};
     if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
         qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
@@ -915,9 +915,9 @@ QStringList ApplicationService::mimeTypes() const noexcept
 
     AppList tmp;
 
-    for (auto it = cacheList.crbegin(); it != cacheList.crend(); ++it) {
+    for (auto it = cacheList.begin(); it != cacheList.end(); ++it) {
         const auto &list = it->appsList();
-        std::for_each(list.crbegin(), list.crend(), [&tmp, this](const MimeApps &app) {
+        std::for_each(list.begin(), list.end(), [&tmp, this](const MimeApps &app) {
             auto [added, removed] = app.queryTypes(id());
             tmp.added.append(std::move(added));
             tmp.removed.append(std::move(removed));
@@ -957,7 +957,13 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
         return;
     }
 
-    const auto &list = userInfo->appsList().rbegin();
+    auto &userAppsList = userInfo->appsList();
+    auto list = std::find_if(
+        userAppsList.begin(), userAppsList.end(), [](const MimeApps &config) { return !config.isDesktopSpecific(); });
+    if (list == userAppsList.end()) {
+        safe_sendErrorReply(QDBusError::Failed, "user-specific config file doesn't exists.");
+        return;
+    }
     const auto &appId = id();
     for (const auto &add : std::as_const(newAdds)) {
         list->addAssociation(add, appId);

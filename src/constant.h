@@ -1,14 +1,14 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #ifndef CONSTANT_H
 #define CONSTANT_H
 
-constexpr auto SystemdService = u8"org.freedesktop.systemd1";
-constexpr auto SystemdObjectPath = u8"/org/freedesktop/systemd1";
+#include "common/constant.h"
+#include <QStringView>
+
 constexpr auto SystemdPropInterfaceName = u8"org.freedesktop.DBus.Properties";
-constexpr auto SystemdInterfaceName = u8"org.freedesktop.systemd1.Manager";
 constexpr auto SystemdUnitInterfaceName = u8"org.freedesktop.systemd1.Unit";
 constexpr auto DDEApplicationManager1ServiceName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
@@ -73,5 +73,7 @@ constexpr auto AppExtraEnvironments = u8"appExtraEnvironments";
 constexpr auto AppEnvironmentsBlacklist = u8"appEnvironmentsBlacklist";
 
 constexpr auto CompatibilityConfigFilePath = "/var/lib/compatible/compatibleDesktop.json";
+
+constexpr auto desktopSuffix = QStringView{u".desktop"};
 
 #endif

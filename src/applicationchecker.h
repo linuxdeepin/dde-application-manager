@@ -7,6 +7,8 @@
 
 #include "desktopentry.h"
 
+Q_DECLARE_LOGGING_CATEGORY(DDEAMChecker)
+
 namespace ApplicationFilter {
 
 bool hiddenCheck(const DesktopEntry &entry) noexcept;

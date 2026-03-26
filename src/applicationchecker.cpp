@@ -8,6 +8,40 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 
+Q_LOGGING_CATEGORY(DDEAMChecker, "dde.am.checker")
+using namespace Qt::StringLiterals;
+
+namespace {
+
+bool hasDesktopIntersection(QStringView rawValue, const QStringList &currentDesktops) noexcept
+{
+    if (rawValue.isEmpty()) {
+        return false;
+    }
+
+    auto tokens = qTokenize(rawValue, u';', Qt::SkipEmptyParts);
+
+    for (const auto token : tokens) {
+        const bool isDDE =
+            (token.compare(u"DDE"_sv, Qt::CaseInsensitive) == 0 || token.compare(u"deepin"_sv, Qt::CaseInsensitive) == 0);
+
+        for (const auto &current : currentDesktops) {
+            if (isDDE) {
+                if (current.compare(u"DDE"_sv, Qt::CaseInsensitive) == 0 ||
+                    current.compare(u"deepin"_sv, Qt::CaseInsensitive) == 0) {
+                    return true;
+                }
+            } else if (current.compare(token, Qt::CaseInsensitive) == 0) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+}  // namespace
+
 bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 {
     bool hidden{false};
@@ -17,7 +51,7 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
         bool ok{false};
         hidden = toBoolean(hiddenVal.value(), ok);
         if (!ok) {
-            qWarning() << "invalid hidden value:" << hiddenVal.value();
+            qCWarning(DDEAMChecker) << "invalid hidden value:" << hiddenVal.value();
             return false;
         }
     }
@@ -26,17 +60,17 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 
 bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
 {
-    auto tryExecVal = entry.value(DesktopFileEntryKey, "TryExec");
+    auto tryExecVal = entry.value(DesktopFileEntryKey, u"TryExec"_s);
     if (tryExecVal.has_value()) {
         auto executable = toString(tryExecVal.value());
         if (executable.isEmpty()) {
-            qWarning() << "invalid TryExec value:" << tryExecVal.value();
+            qCWarning(DDEAMChecker) << "invalid TryExec value:" << tryExecVal.value();
             return false;
         }
 
         if (executable.startsWith(QDir::separator())) {
-            QFileInfo info{executable};
-            return !(info.exists() and info.isExecutable());
+            const QFileInfo info{executable};
+            return !(info.exists() && info.isExecutable());
         }
         return QStandardPaths::findExecutable(executable).isEmpty();
     }
@@ -46,55 +80,20 @@ bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
 
 bool ApplicationFilter::showInCheck(const DesktopEntry &entry) noexcept
 {
-    auto desktops = QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP")).split(':', Qt::SkipEmptyParts);
+    const auto &desktops = getCurrentDesktops();
     if (desktops.isEmpty()) {
         return true;
     }
-    desktops.removeDuplicates();
 
     bool showInCurrentDE{true};
-    auto onlyShowInVal = entry.value(DesktopFileEntryKey, "OnlyShowIn");
-    while (onlyShowInVal.has_value()) {
-        auto deStr = toString(onlyShowInVal.value());
-        if (deStr.isEmpty()) {
-            qWarning() << "invalid OnlyShowIn value:" << onlyShowInVal.value();
-            break;
-        }
-
-        auto des = deStr.split(';', Qt::SkipEmptyParts);
-        if (des.contains("DDE", Qt::CaseInsensitive)) {
-            des.append("deepin");
-        } else if (des.contains("deepin", Qt::CaseInsensitive)) {
-            des.append("DDE");
-        }
-        des.removeDuplicates();
-
-        showInCurrentDE = std::any_of(
-            des.cbegin(), des.cend(), [&desktops](const QString &str) { return desktops.contains(str, Qt::CaseInsensitive); });
-        break;
+    if (auto val = entry.value(DesktopFileEntryKey, u"OnlyShowIn"_s); val.has_value()) {
+        showInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 
     bool notShowInCurrentDE{false};
-    auto notShowInVal = entry.value(DesktopFileEntryKey, "NotShowIn");
-    while (notShowInVal.has_value()) {
-        auto deStr = toString(notShowInVal.value());
-        if (deStr.isEmpty()) {
-            qWarning() << "invalid OnlyShowIn value:" << notShowInVal.value();
-            break;
-        }
-
-        auto des = deStr.split(';', Qt::SkipEmptyParts);
-        if (des.contains("DDE", Qt::CaseInsensitive)) {
-            des.append("deepin");
-        } else if (des.contains("deepin", Qt::CaseInsensitive)) {
-            des.append("DDE");
-        }
-        des.removeDuplicates();
-
-        notShowInCurrentDE = std::any_of(
-            des.cbegin(), des.cend(), [&desktops](const QString &str) { return desktops.contains(str, Qt::CaseInsensitive); });
-        break;
+    if (auto val = entry.value(DesktopFileEntryKey, u"NotShowIn"_s); val.has_value()) {
+        notShowInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 
-    return !showInCurrentDE or notShowInCurrentDE;
+    return !showInCurrentDE || notShowInCurrentDE;
 }

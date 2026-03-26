@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include "constant.h"
+#include "common/constant.h"
 #include "types.h"
 #include "variantValue.h"
 #include <algorithm>
@@ -370,12 +370,7 @@ std::optional<std::string> cmdParse(msg_ptr &msg, const std::vector<std::string_
     }
 
     if (!syslogIdentifier.empty()) {
-        if (ret = sd_bus_message_append(msg,
-                                        "(sv)",
-                                        "SyslogIdentifier",
-                                        "s",
-                                        syslogIdentifier.c_str());
-            ret < 0) {
+        if (ret = sd_bus_message_append(msg, "(sv)", "SyslogIdentifier", "s", syslogIdentifier.c_str()); ret < 0) {
             sd_journal_perror("failed to append SyslogIdentifier property.");
             return std::nullopt;
         }

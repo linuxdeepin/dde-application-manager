@@ -44,7 +44,7 @@ ObjectMap MimeManager1Service::listApplications(const QString &mimeType) const n
 
     QStringList appIds;
 
-    for (auto it = m_infos.rbegin(); it != m_infos.rend(); ++it) {
+    for (auto it = m_infos.begin(); it != m_infos.end(); ++it) {
         const auto &info = it->cacheInfo();
         if (!info) {
             continue;
@@ -78,12 +78,16 @@ QString MimeManager1Service::queryDefaultApplication(const QString &content, QDB
     }
 
     QString defaultAppId;
-    for (auto it1 = m_infos.rbegin(); it1 != m_infos.rend(); ++it1) {
+    for (auto it1 = m_infos.begin(); it1 != m_infos.end(); ++it1) {
         const auto &list = it1->appsList();
-        for (auto it2 = list.rbegin(); it2 != list.rend(); ++it2) {
+        for (auto it2 = list.begin(); it2 != list.end(); ++it2) {
             if (auto app = it2->queryDefaultApp(type); !app.isEmpty()) {
                 defaultAppId = app;
+                break;
             }
+        }
+        if (!defaultAppId.isEmpty()) {
+            break;
         }
     }
 

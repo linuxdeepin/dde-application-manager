@@ -788,7 +788,7 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
     }
 
     const QDir appDir{getUserApplicationDir()};
-    const auto &filePath = appDir.filePath(app_id + ".desktop");
+    const auto &filePath = appDir.filePath(app_id % desktopSuffix);
 
     if (const QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"file not exists:%1"}.arg(info.absoluteFilePath()));
