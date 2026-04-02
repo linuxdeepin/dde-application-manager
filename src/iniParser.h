@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -6,11 +6,14 @@
 #define INIPARSER_H
 
 #include <QMap>
-#include <QRegularExpression>
+#include <QByteArray>
+#include <QByteArrayView>
+#include <QDebug>
 #include <QString>
-#include <QTextStream>
+#include <QStringView>
+#include <QFile>
 
-enum class ParserError {
+enum class ParserError : uint8_t {
     NoError,
     NotFound,
     MismatchedFile,
@@ -26,8 +29,8 @@ template <typename Value>
 class Parser
 {
 public:
-    explicit Parser(QTextStream &stream)
-        : m_stream(stream){};
+    explicit Parser(QFile &file)
+        : m_file(file) {};
     virtual ~Parser() = default;
     using Groups = QMap<QString, QMap<QString, Value>>;
 
@@ -37,40 +40,106 @@ public:
     Parser &operator=(Parser &&) = delete;
 
     virtual ParserError parse(Groups &groups) noexcept = 0;
-    virtual ParserError addGroup(Groups &groups) noexcept = 0;
-    virtual ParserError addEntry(typename Groups::iterator &group) noexcept = 0;
-    void skip() noexcept
-    {
-        while (!m_stream.atEnd() and (m_line.startsWith('#') or m_line.isEmpty())) {
-            m_line = m_stream.readLine().trimmed();
-        }
-    };
 
 protected:
-    QTextStream &m_stream;
-    QString m_line;
+    virtual ParserError addGroup(Groups &groups, QString &groupName) noexcept = 0;
+    virtual ParserError addEntry(typename Groups::iterator group) noexcept = 0;
+    [[nodiscard]] bool atEnd() noexcept
+    {
+        ensureLoaded();
+        return m_line.isEmpty() && m_offset >= m_content.size();
+    }
+
+    void skip() noexcept
+    {
+        ensureLoaded();
+        while (m_offset < m_content.size()) {
+            const auto lineBegin = m_offset;
+            while (m_offset < m_content.size() && m_content.at(m_offset) != '\n') {
+                ++m_offset;
+            }
+
+            auto lineEnd = m_offset;
+            if (m_offset < m_content.size() && m_content.at(m_offset) == '\n') {
+                ++m_offset;
+            }
+
+            if (lineEnd > lineBegin && m_content.at(lineEnd - 1) == '\r') {
+                --lineEnd;
+            }
+
+            const auto trimmedView = QByteArrayView{m_content}.sliced(lineBegin, lineEnd - lineBegin).trimmed();
+
+            if (trimmedView.isEmpty() || trimmedView.startsWith('#')) {
+                continue;
+            }
+
+            m_line = trimmedView;
+            break;
+        }
+
+        if (m_offset >= m_content.size() && m_line.isEmpty()) {
+            m_line = {};
+        }
+    }
+
+    void clearLine() noexcept { m_line = {}; }
+
+private:
+    void ensureLoaded() noexcept
+    {
+        if (m_loaded) {
+            return;
+        }
+
+        m_loaded = true;
+        const auto content = m_file.readAll();
+        if (content.isEmpty()) {
+            return;
+        }
+
+        m_content = content;
+    }
+
+protected:
+    QFile &m_file;
+    QByteArray m_content;
+    QByteArrayView m_line;
+    qsizetype m_offset{0};
+    bool m_loaded{false};
 };
 
-inline bool hasNonAsciiAndControlCharacters(const QString &str) noexcept
+inline bool hasNonAsciiAndControlCharacters(QStringView str) noexcept
 {
-    static const auto matchControlChars = [] {
-        QRegularExpression tmp{QStringLiteral(R"(\p{Cc})")};
-        tmp.optimize();
-        return tmp;
-    }();
+    if (str.isEmpty()) {
+        return false;
+    }
 
-    static const auto matchNonAsciiChars = [] {
-        QRegularExpression tmp{QStringLiteral(R"([^\x00-\x7f])")};
-        tmp.optimize();
-        return tmp;
-    }();
+    bool hasControl{false};
+    bool hasNonAscii{false};
 
-    return str.contains(matchControlChars) && str.contains(matchNonAsciiChars);
+    for (const auto &ch : str) {
+        const auto u = ch.unicode();
+
+        if (u > 127) {
+            hasNonAscii = true;
+        }
+
+        if (u <= 31 || (u >= 127 && u <= 159)) {
+            hasControl = true;
+        }
+
+        if (hasNonAscii && hasControl) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 inline QDebug operator<<(QDebug debug, const ParserError &v)
 {
-    QDebugStateSaver saver{debug};
+    const QDebugStateSaver saver{debug};
     QString errMsg;
     switch (v) {
     case ParserError::NoError: {

@@ -17,8 +17,9 @@ IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
         return {};
     }
 
+    using namespace Qt::StringLiterals;
     // Perform identification using PID
-    auto AppCgroupPath = QString("/proc/%1/cgroup").arg(pid);
+    auto AppCgroupPath = u"/proc/" % QString::number(pid) % u"/cgroup";
     QFile AppCgroupFile{AppCgroupPath};
     if (!AppCgroupFile.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text)) {
         qWarning() << "open " << AppCgroupPath << "failed: " << AppCgroupFile.errorString();
@@ -54,67 +55,84 @@ IdentifyRet CGroupsIdentifier::Identify(const QDBusUnixFileDescriptor &pidfd)
 
 QString CGroupsIdentifier::parseCGroupsPath(QFile &cgroupFile) noexcept
 {
-    QString content = cgroupFile.readAll();
-    if (content.isEmpty()) {
+    const auto data = QString::fromUtf8(cgroupFile.readAll());
+    if (data.isEmpty()) {
         return {};
     }
 
-    QTextStream stream{&content};
-    stream.setEncoding(QStringConverter::Utf8);
+    const QStringView contentView{data};
 
-    QString CGP;
-    while (!stream.atEnd()) {
-        auto line = stream.readLine();
-        auto firstColon = line.indexOf(':');
-        auto secondColon = line.indexOf(':', firstColon + 1);
-        auto subSystemd = QStringView(line.constBegin() + firstColon + 1, secondColon - firstColon - 1);
-        if (subSystemd.isEmpty()) {  // cgroup v2
-            CGP = line.last(line.size() - secondColon - 1);
+    QStringView v2Path;
+    QStringView v1Path;
+
+    auto lines = qTokenize(contentView, u'\n', Qt::SkipEmptyParts);
+    for (auto line : lines) {
+        auto trimmed = line.trimmed();
+
+        auto fields = qTokenize(trimmed, u':');
+        auto it = fields.begin();
+        const auto end = fields.end();
+
+        // Index 0: Hierarchy ID (ignore)
+        if (it == end) {
+            continue;
+        }
+
+        // Index 1: Subsystems
+        if (++it == end) {
+            continue;
+        }
+        const auto subsystems = *it;
+
+        // Index 2: Path
+        if (++it == end) {
+            continue;
+        }
+        const auto path = *it;
+
+        // v2 first
+        if (subsystems.isEmpty()) {
+            v2Path = path;
             break;
         }
 
-        if (subSystemd == QString{"name=systemd"}) {         // cgroup v1
-            CGP = line.last(line.size() - secondColon - 1);  // shouldn't break, maybe v1 and v2 exists at the same time.
+        if (subsystems == u"name=systemd") {
+            v1Path = path;  // v1 second
         }
     }
 
-    if (CGP.isEmpty()) {
-        qWarning() << "no systemd informations found.";
+    const QStringView targetPath = !v2Path.isEmpty() ? v2Path : v1Path;
+    if (targetPath.isEmpty()) {
         return {};
     }
 
-    auto CGPSlices = CGP.split('/', Qt::SkipEmptyParts);
-    if (CGPSlices.isEmpty()) {
-        qCritical() << "invalid cgroups path,abort.";
+    auto tokens = qTokenize(targetPath, u'/', Qt::SkipEmptyParts);
+    auto pit = tokens.begin();
+    const auto pend = tokens.end();
+
+    if (pit == pend || *pit != u"user.slice") {
         return {};
     }
 
-    if (CGPSlices.first() != "user.slice") {
-        qWarning() << "unrecognized process.";
+    if (++pit == pend) {
+        return {};
+    }
+    const auto userSlice = *pit;
+
+    if (!userSlice.startsWith(u"user-") || !userSlice.endsWith(u".slice")) {
         return {};
     }
 
-    auto userSlice = CGPSlices.at(1);
-    if (userSlice.isEmpty()) {
-        qWarning() << "couldn't detect uid.";
-        return {};
-    }
-    auto processUIDStr = userSlice.split('.').first().split('-').last();
-
-    if (processUIDStr.isEmpty()) {
-        qWarning() << "no uid found.";
+    const auto uidPart = userSlice.sliced(5, userSlice.size() - 5 - 6);
+    bool ok{false};
+    if (uidPart.toUInt(&ok) != getCurrentUID() || !ok) {
         return {};
     }
 
-    if (auto processUID = processUIDStr.toInt(); static_cast<uid_t>(processUID) != getCurrentUID()) {
-        qWarning() << "process is not in CGroups of current user, ignore....";
-        return {};
+    auto lastToken = userSlice;
+    while (++pit != pend) {
+        lastToken = *pit;
     }
 
-    auto appInstance = CGPSlices.last();
-    if (appInstance.isEmpty()) {
-        qWarning() << "get AppId failed.";
-        return {};
-    }
-    return appInstance;
+    return lastToken.toString();
 }

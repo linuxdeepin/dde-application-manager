@@ -60,6 +60,7 @@ public:
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
     [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.get(); }
     [[nodiscard]] bool isNewSession() const noexcept { return m_isNewSession; }
+    [[nodiscard]] bool isStartupPhase() const noexcept { return m_startupPhase; }
 
 public Q_SLOTS:
     QDBusObjectPath executeCommand(const QString &program,
@@ -85,6 +86,7 @@ private Q_SLOTS:
     void doReloadApplications();
 
 private:
+    bool m_startupPhase{true};
     bool m_isNewSession{false};
     std::unique_ptr<Identifier> m_identifier;
     std::weak_ptr<ApplicationManager1Storage> m_storage;
@@ -108,6 +110,7 @@ private:
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
     void addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept;
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
+    QSharedPointer<ApplicationService> addApplication(DesktopFile desktopFileSource, std::unique_ptr<DesktopEntry> entry) noexcept;
 };
 
 #endif

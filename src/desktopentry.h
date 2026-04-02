@@ -6,18 +6,16 @@
 #define DESKTOPENTRY_H
 
 #include <QString>
-#include <QMap>
 #include <QDebug>
 #include <QLocale>
-#include <QTextStream>
 #include <optional>
 #include <QFile>
+#include <QFileInfo>
 #include "iniParser.h"
-#include "global.h"
 
-enum class EntryContext { Unknown, EntryOuter, Entry, Done };
+enum class EntryContext : uint8_t { Unknown, EntryOuter, Entry, Done };
 
-enum class EntryValueType { String, LocaleString, Boolean, IconString, Raw };
+enum class EntryValueType : uint8_t { String, LocaleString, Boolean, IconString, Raw };
 
 struct DesktopFileGuard;
 
@@ -30,20 +28,22 @@ struct DesktopFile
     DesktopFile &operator=(DesktopFile &&) = default;
     ~DesktopFile() = default;
 
-    [[nodiscard]] QString sourcePath() const noexcept;
+    [[nodiscard]] const QString &sourcePath() const noexcept { return m_sourcePath; }
     // WARNING: This raw pointer's ownership belong to DesktopFile, DO NOT MODIFY!
     [[nodiscard]] QFile *sourceFile() const noexcept { return &sourceFileRef(); };
     [[nodiscard]] QFile &sourceFileRef() const noexcept { return *m_fileSource; };
     [[nodiscard]] const QString &desktopId() const noexcept { return m_desktopId; }
+    [[nodiscard]] bool hasStandardizedApplicationFileName() const noexcept;
     [[nodiscard]] bool modified(qint64 time) const noexcept;
     [[nodiscard]] qint64 createTime() const noexcept { return m_ctime; }
 
     friend bool operator==(const DesktopFile &lhs, const DesktopFile &rhs);
     friend bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
-    static std::optional<DesktopFile> searchDesktopFileById(const QString &appId, ParserError &err) noexcept;
+    static std::optional<DesktopFile> searchDesktopFileById(QStringView appId, ParserError &err) noexcept;
     static std::optional<DesktopFile> searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept;
-    static std::optional<DesktopFile> createTemporaryDesktopFile(const QString &temporaryFile) noexcept;
+    static std::optional<DesktopFile> createDesktopFile(const QFileInfo &desktopFileInfo, QString desktopId) noexcept;
+    static std::optional<DesktopFile> createTemporaryDesktopFile(QUtf8StringView temporaryFile) noexcept;
     static std::optional<DesktopFile> createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept;
 
 private:
@@ -53,11 +53,17 @@ private:
         , m_fileSource(std::move(source))
         , m_desktopId(std::move(fileId))
     {
+        if (!m_fileSource) {
+            qFatal("nullptr desktop file source.");
+        }
+
+        m_sourcePath = m_fileSource->fileName();
     }
 
     qint64 m_mtime;
     qint64 m_ctime;
     std::unique_ptr<QFile> m_fileSource{nullptr};
+    QString m_sourcePath;
     QString m_desktopId;
 };
 
@@ -123,9 +129,11 @@ public:
 
     ~DesktopEntry() = default;
     [[nodiscard]] ParserError parse(const DesktopFile &file) noexcept;
-    [[nodiscard]] ParserError parse(QTextStream &stream) noexcept;
-    [[nodiscard]] std::optional<QMap<QString, Value>> group(const QString &key) const noexcept;
-    [[nodiscard]] std::optional<Value> value(const QString &key, const QString &valueKey) const noexcept;
+    [[nodiscard]] ParserError parse(QFile &file) noexcept;
+    [[nodiscard]] std::optional<std::reference_wrapper<const QMap<QString, DesktopEntry::Value>>>
+    group(const QString &key) const noexcept;
+    [[nodiscard]] std::optional<std::reference_wrapper<const Value>> value(const QString &key,
+                                                                           const QString &valueKey) const noexcept;
     void insert(const QString &key, const QString &valueKey, Value &&val) noexcept;
     [[nodiscard]] const auto &data() const noexcept { return m_entryMap; }
 
@@ -151,9 +159,9 @@ bool operator!=(const DesktopFile &lhs, const DesktopFile &rhs);
 
 QString unescapeValue(QStringView str) noexcept;
 
-QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept;
+QString toLocaleString(const DesktopEntry::Value &localeEntry, const QLocale &locale) noexcept;
 
-QString toString(const DesktopEntry::Value &value) noexcept;
+QString toString(const DesktopEntry::Value &value, bool skipUnescape = false) noexcept;
 
 bool toBoolean(const DesktopEntry::Value &value, bool &ok) noexcept;
 

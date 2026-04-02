@@ -26,7 +26,7 @@ public:
     void insert(const QString &groupKey, const Entry &entry) noexcept;
 
 
-    QMap<QString, Entry> m_entrys;
+    QHash<QString, Entry> m_entrys;
 };
 
 class CompatibilityManager : public QObject
@@ -43,7 +43,7 @@ private:
 
 private:
     QFileSystemWatcher m_watcher;
-    QMap<QString,CompatibilityDesktopEntry> m_compatibilityConfig;
+    QHash<QString,CompatibilityDesktopEntry> m_compatibilityConfig;
 };
 
 #endif  // COMPATIBILITYMANAGER_H

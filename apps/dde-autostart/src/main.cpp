@@ -7,8 +7,10 @@
 #include "desktopentry.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QDBusServiceWatcher>
 #include <QProcess>
+#include <QSet>
 
 using namespace Qt::StringLiterals;
 
@@ -39,47 +41,50 @@ void launchApplication(const DesktopFile &file)
 
 void scanAndLaunch()
 {
-    auto autostartDirs = getAutoStartDirs();
-    std::unordered_map<QString, DesktopFile> autostartItems;
+    QSet<QString> seenFileNames;
+    for (const auto &dirPath : getAutoStartDirs()) {
+        const QDir dir{dirPath};
+        if (!dir.exists()) {
+            continue;
+        }
 
-    applyIteratively(
-        QList<QDir>{autostartDirs.crbegin(), autostartDirs.crend()},
-        [&autostartItems](const QFileInfo &info) {
-            ParserError err{ParserError::InternalError};
-            auto desktopSource = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-            if (err != ParserError::NoError) {
-                qWarning() << "skip" << info.absoluteFilePath();
-                return false;
+        const auto infoList = dir.entryInfoList({u"*.desktop"_s}, QDir::Files | QDir::NoDotAndDotDot | QDir::Readable, QDir::Name);
+        for (const auto &info : infoList) {
+            if (seenFileNames.contains(info.fileName())) {
+                continue;
             }
-            auto file = std::move(desktopSource).value();
-            autostartItems.insert_or_assign(file.desktopId(), std::move(file));
-            return false;
-        },
-        QDir::Readable | QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
-        {"*.desktop"},
-        QDir::Name | QDir::DirsLast);
 
-    for (const auto &[id, desktopFile] : autostartItems) {
-        DesktopFileGuard guard{desktopFile};
-        if (!guard.try_open()) {
-            continue;
+            ParserError searchErr{ParserError::InternalError};
+            auto desktopSource = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), searchErr);
+            if (searchErr != ParserError::NoError) {
+                qWarning() << "skip" << info.absoluteFilePath();
+                continue;
+            }
+
+            auto desktopFile = std::move(desktopSource).value();
+            seenFileNames.insert(info.fileName());
+            const auto &id = desktopFile.desktopId();
+            DesktopFileGuard guard{desktopFile};
+            if (!guard.try_open()) {
+                continue;
+            }
+
+            auto &file = desktopFile.sourceFileRef();
+            DesktopEntry tmp;
+            auto parseErr = tmp.parse(file);
+            if (parseErr != ParserError::NoError) {
+                qWarning() << "parse autostart file" << desktopFile.sourcePath() << " error:" << parseErr;
+                continue;
+            }
+
+            if (ApplicationFilter::tryExecCheck(tmp) || ApplicationFilter::showInCheck(tmp)
+                || ApplicationFilter::hiddenCheck(tmp)) {
+                qInfo() << "autostart application " << id << " couldn't pass check:" << desktopFile.sourcePath();
+                continue;
+            }
+
+            launchApplication(desktopFile);
         }
-
-        auto &file = desktopFile.sourceFileRef();
-        QTextStream stream{&file};
-        DesktopEntry tmp;
-        auto err = tmp.parse(stream);
-        if (err != ParserError::NoError) {
-            qWarning() << "parse autostart file" << desktopFile.sourcePath() << " error:" << err;
-            continue;
-        }
-
-        if (ApplicationFilter::tryExecCheck(tmp) || ApplicationFilter::showInCheck(tmp) || ApplicationFilter::hiddenCheck(tmp)) {
-            qInfo() << "autostart application " << id << " couldn't pass check:" << desktopFile.sourcePath();
-            continue;
-        }
-
-        launchApplication(desktopFile);
     }
 }
 }  // namespace

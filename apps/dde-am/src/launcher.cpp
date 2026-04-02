@@ -121,12 +121,12 @@ DExpected<void> Launcher::launch() noexcept
     // Build options map
     QVariantMap options;
     if (!m_environmentVariables.isEmpty()) {
-        options.insert(u"env"_s, m_environmentVariables);
+        options.insert(fromStaticRaw(EnvOption), m_environmentVariables);
     }
 
     // Mark autostart launches so AM can suppress splash
     if (m_autostart) {
-        options.insert(u"_autostart"_s, true);
+        options.insert(fromStaticRaw(BuiltInAutostartOption), true);
     }
 
     auto msg = QDBusMessage::createMethodCall(

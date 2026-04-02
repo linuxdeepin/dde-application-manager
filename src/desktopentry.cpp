@@ -2,48 +2,91 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include "global.h"
 #include "desktopentry.h"
 #include "desktopfileparser.h"
 #include <QDir>
 #include <QDirIterator>
-#include <QFileInfo>
 #include <QLoggingCategory>
 #include <QRegularExpression>
 #include <QStringView>
 #include <QVariant>
-#include <algorithm>
+#include <sys/stat.h>
+
+using namespace Qt::StringLiterals;
 
 Q_LOGGING_CATEGORY(logDesktopEntry, "dde.am.desktopfile.entry")
 
-QString DesktopFile::sourcePath() const noexcept
+namespace {
+[[nodiscard]] bool isValidDBusWellKnownNameElement(QStringView element) noexcept
 {
-    if (!m_fileSource) {
-        return "";
+    if (element.isEmpty() || element.front().isDigit()) {
+        return false;
     }
 
-    QFileInfo info(*m_fileSource);
-    return info.absoluteFilePath();
+    for (const auto ch : element) {
+        if (ch.isLetterOrNumber() || ch == u'-' || ch == u'_') {
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
 }
+
+[[nodiscard]] bool isValidApplicationDesktopFileStem(QStringView stem) noexcept
+{
+    if (stem.isEmpty()) {
+        return false;
+    }
+
+    auto current = stem;
+    while (!current.isEmpty()) {
+        const auto dotIndex = current.indexOf(u'.');
+        const auto element = dotIndex == -1 ? current : current.first(dotIndex);
+        if (!isValidDBusWellKnownNameElement(element)) {
+            return false;
+        }
+
+        if (dotIndex == -1) {
+            return true;
+        }
+
+        current = current.sliced(dotIndex + 1);
+    }
+
+    return true;
+}
+
+[[nodiscard]] std::optional<std::pair<qint64, qint64>> fileTimesFromStat(const QString &path) noexcept
+{
+    const auto utf8Path = path.toUtf8();
+    struct stat st{};
+    if (::stat(utf8Path.constData(), &st) != 0) {
+        return std::nullopt;
+    }
+
+    auto toMSecs = [](const struct timespec &ts) -> qint64 { return ts.tv_sec * 1000LL + ts.tv_nsec / 1000000; };
+    return std::pair{toMSecs(st.st_mtim), toMSecs(st.st_ctim)};
+}
+}  // namespace
 
 bool DesktopEntry::checkMainEntryValidation() const noexcept
 {
     auto it = m_entryMap.constFind(fromStaticRaw(DesktopFileEntryKey));
-    if (it == m_entryMap.end()) {
+    if (it == m_entryMap.cend()) {
         return false;
     }
 
-    if (auto name = it->find("Name"); name == it->end()) {
+    if (auto name = it->constFind(fromStaticRaw(DesktopEntryName)); name == it->cend()) {
         qCWarning(logDesktopEntry) << "No Name entry";
         return false;
     }
 
-    auto type = it->find("Type");
-    if (type == it->end()) {
+    auto type = it->constFind(fromStaticRaw(DesktopEntryType));
+    if (type == it->cend()) {
         qCWarning(logDesktopEntry) << "No Type entry";
-        for (auto tmp = it->constKeyValueBegin(); tmp != it->constKeyValueEnd(); ++tmp) {
-            const auto &[k, v] = *tmp;
-            qCDebug(logDesktopEntry) << "key:" << k << "value:" << v;
-        }
         return false;
     }
 
@@ -51,8 +94,9 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
     if (typeStr.isEmpty()) {
         return false;
     }
-    if (typeStr == "Link") {
-        if (!it->contains("URL")) {
+
+    if (typeStr == fromStaticRaw(DesktopEntryLink)) {
+        if (!it->contains(fromStaticRaw(DesktopEntryURL))) {
             return false;
         }
     }
@@ -62,29 +106,29 @@ bool DesktopEntry::checkMainEntryValidation() const noexcept
 
 std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(std::unique_ptr<QFile> temporaryFile) noexcept
 {
-    auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*temporaryFile});
-    if (mtime == 0) {
+    const auto utf8Path = temporaryFile->fileName().toUtf8();
+    struct stat st{};
+    if (::stat(utf8Path.constData(), &st) != 0) {
         qCWarning(logDesktopEntry) << "create temporary file failed.";
         return std::nullopt;
     }
-    return DesktopFile{std::move(temporaryFile), "", mtime, ctime};
+    auto toMSecs = [](const struct timespec &ts) -> qint64 { return ts.tv_sec * 1000LL + ts.tv_nsec / 1000000; };
+    return DesktopFile{std::move(temporaryFile), "", toMSecs(st.st_mtim), toMSecs(st.st_ctim)};
 }
 
-std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString &temporaryFile) noexcept
+std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(QUtf8StringView temporaryFile) noexcept
 {
-    const static QString userTmp = QString{"/run/user/%1/"}.arg(getCurrentUID());
+    const static QString userTmp = u"/run/user/" % QString::number(getCurrentUID());
     auto tempFile = std::make_unique<QFile>(userTmp % QUuid::createUuid().toString(QUuid::Id128) % desktopSuffix);
 
     if (!tempFile->open(QFile::NewOnly | QFile::WriteOnly | QFile::Text)) {
-        qCWarning(logDesktopEntry) << "failed to create temporary desktop file:" << QFileInfo{*tempFile}.absoluteFilePath()
+        qCWarning(logDesktopEntry) << "failed to create temporary desktop file:" << tempFile->fileName()
                                    << tempFile->errorString();
         return std::nullopt;
     }
 
-    auto content = temporaryFile.toLocal8Bit();
-    auto writeByte = tempFile->write(content);
-
-    if (writeByte == -1 || writeByte != content.length()) {
+    auto writeByte = tempFile->write(temporaryFile.data(), temporaryFile.size());
+    if (writeByte == -1 || writeByte != temporaryFile.size()) {
         qCWarning(logDesktopEntry) << "write to temporary file failed:" << tempFile->errorString();
         return std::nullopt;
     }
@@ -94,9 +138,45 @@ std::optional<DesktopFile> DesktopFile::createTemporaryDesktopFile(const QString
     return createTemporaryDesktopFile(std::move(tempFile));
 }
 
+std::optional<DesktopFile> DesktopFile::createDesktopFile(const QFileInfo &desktopFileInfo, QString desktopId) noexcept
+{
+    const auto absolutePath = desktopFileInfo.absoluteFilePath();
+    const QStringView pathView{absolutePath};
+
+    if (!desktopFileInfo.isFile() || !desktopFileInfo.isAbsolute()) {
+        qCWarning(logDesktopEntry) << "desktop file not found.";
+        return std::nullopt;
+    }
+
+    if (!pathView.endsWith(desktopSuffix)) {
+        qCWarning(logDesktopEntry) << "file isn't a desktop file:" << pathView;
+        return std::nullopt;
+    }
+
+    const auto times = fileTimesFromStat(absolutePath);
+    if (!times) {
+        qCWarning(logDesktopEntry) << "desktop file not found.";
+        return std::nullopt;
+    }
+
+    auto filePtr = std::make_unique<QFile>(absolutePath);
+    return DesktopFile{std::move(filePtr), std::move(desktopId), times->first, times->second};
+}
+
+bool DesktopFile::hasStandardizedApplicationFileName() const noexcept
+{
+    const QFileInfo info{m_sourcePath};
+    const auto fileName = info.fileName();
+    const QStringView fileNameView{fileName};
+    if (!fileNameView.endsWith(desktopSuffix)) {
+        return false;
+    }
+
+    return isValidApplicationDesktopFileStem(fileNameView.chopped(desktopSuffix.size()));
+}
+
 std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &desktopFile, ParserError &err) noexcept
 {
-    using namespace Qt::StringLiterals;
     const QStringView pathView{desktopFile};
 
     if (!pathView.endsWith(desktopSuffix)) {
@@ -105,8 +185,15 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
         return std::nullopt;
     }
 
-    const QFileInfo fileinfo{desktopFile};
-    if (!fileinfo.isAbsolute() || !fileinfo.exists()) {
+    if (!QDir::isAbsolutePath(desktopFile)) {
+        qCWarning(logDesktopEntry) << "desktop file not found.";
+        err = ParserError::NotFound;
+        return std::nullopt;
+    }
+
+    const auto utf8Path = desktopFile.toUtf8();
+    struct stat st{};
+    if (::stat(utf8Path.constData(), &st) != 0) {
         qCWarning(logDesktopEntry) << "desktop file not found.";
         err = ParserError::NotFound;
         return std::nullopt;
@@ -114,48 +201,60 @@ std::optional<DesktopFile> DesktopFile::searchDesktopFileByPath(const QString &d
 
     // Extract desktop ID from path: .../applications/subdir/app.desktop -> subdir-app
     const auto base = pathView.chopped(desktopSuffix.size());
-    const auto components = base.split(QDir::separator(), Qt::SkipEmptyParts);
-
-    auto appIt = std::find(components.cbegin(), components.cend(), u"applications");
-    auto autostartIt = std::find(components.cbegin(), components.cend(), u"autostart");
+    const auto tokens = qTokenize(base, QDir::separator(), Qt::SkipEmptyParts);
 
     QString id;
-    if (auto it = (appIt != components.cend()) ? appIt : autostartIt; it != components.cend()) {
-        for (auto next = std::next(it); next != components.cend(); ++next) {
-            if (!id.isEmpty()) {
-                id.append(u'-');
+    bool foundRoot{false};
+    for (auto component : tokens) {
+        if (component.isEmpty()) {
+            continue;
+        }
+
+        if (!foundRoot) {
+            if (component == u"applications" || component == u"autostart") {
+                foundRoot = true;
             }
 
-            id.append(*next);
+            continue;
         }
+
+        if (!id.isEmpty()) {
+            id.append(u'-');
+        }
+
+        id.append(component);
     }
 
-    auto filePtr = std::make_unique<QFile>(desktopFile);
-    auto [ctime, mtime, _] = getFileTimeInfo(QFileInfo{*filePtr});
-
     err = ParserError::NoError;
-    return DesktopFile{std::move(filePtr), std::move(id), mtime, ctime};
+    const QFileInfo info{desktopFile};
+    if (auto ret = createDesktopFile(info, std::move(id)); ret) {
+        return ret;
+    }
+
+    err = ParserError::NotFound;
+    return std::nullopt;
 }
 
-std::optional<DesktopFile> DesktopFile::searchDesktopFileById(const QString &appId, ParserError &err) noexcept
+std::optional<DesktopFile> DesktopFile::searchDesktopFileById(QStringView appId, ParserError &err) noexcept
 {
     auto appDirs = getApplicationsDirs();
 
-    using namespace Qt::StringLiterals;
     for (const auto &dir : std::as_const(appDirs)) {
-        auto app = QFileInfo{dir % QDir::separator() % appId % desktopSuffix};
-        while (!app.exists()) {
-            auto filePath = app.absoluteFilePath();
-            auto hyphenIndex = filePath.indexOf(u'-');
+        QString relativePath = appId % desktopSuffix;
+
+        while (true) {
+            auto fullPath = QDir{dir}.filePath(relativePath);
+
+            if (QFile::exists(fullPath)) {
+                return searchDesktopFileByPath(fullPath, err);
+            }
+
+            auto hyphenIndex = relativePath.indexOf(u'-');
             if (hyphenIndex == -1) {
                 break;
             }
-            filePath.replace(hyphenIndex, 1, QDir::separator());
-            app.setFile(filePath);
-        }
 
-        if (app.exists()) {
-            return searchDesktopFileByPath(app.absoluteFilePath(), err);
+            relativePath[hyphenIndex] = QDir::separator();  // NOLINT
         }
     }
 
@@ -177,25 +276,21 @@ ParserError DesktopEntry::parse(const DesktopFile &file) noexcept
         return ParserError::OpenFailed;
     }
 
-    QTextStream stream;
-    stream.setDevice(file.sourceFile());
-    return parse(stream);
+    return parse(file.sourceFileRef());
 }
 
-ParserError DesktopEntry::parse(QTextStream &stream) noexcept
+ParserError DesktopEntry::parse(QFile &file) noexcept
 {
     if (m_parsed) {
         return ParserError::Parsed;
     }
 
-    if (stream.atEnd()) {
+    if (file.atEnd()) {
         return ParserError::OpenFailed;
     }
 
-    stream.setEncoding(QStringConverter::Utf8);
-
     ParserError err{ParserError::NoError};
-    DesktopFileParser p(stream);
+    DesktopFileParser p(file);
     err = p.parse(m_entryMap);
     m_parsed = true;
     if (err != ParserError::NoError) {
@@ -210,15 +305,18 @@ ParserError DesktopEntry::parse(QTextStream &stream) noexcept
     return err;
 }
 
-std::optional<QMap<QString, DesktopEntry::Value>> DesktopEntry::group(const QString &key) const noexcept
+std::optional<std::reference_wrapper<const QMap<QString, DesktopEntry::Value>>>
+DesktopEntry::group(const QString &key) const noexcept
 {
-    if (auto group = m_entryMap.find(key); group != m_entryMap.cend()) {
+    if (auto group = m_entryMap.constFind(key); group != m_entryMap.cend()) {
         return *group;
     }
+
     return std::nullopt;
 }
 
-std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, const QString &valueKey) const noexcept
+std::optional<std::reference_wrapper<const DesktopEntry::Value>> DesktopEntry::value(const QString &groupKey,
+                                                                                     const QString &valueKey) const noexcept
 {
     const auto &destGroup = group(groupKey);
     if (!destGroup) {
@@ -226,8 +324,9 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
         return std::nullopt;
     }
 
-    auto it = destGroup->find(valueKey);
-    if (it == destGroup->cend()) {
+    const auto &groupRef = destGroup->get();
+    auto it = groupRef.constFind(valueKey);
+    if (it == groupRef.cend()) {
         qCDebug(logDesktopEntry) << "value " << valueKey << " can't be found.";
         return std::nullopt;
     }
@@ -236,12 +335,8 @@ std::optional<DesktopEntry::Value> DesktopEntry::value(const QString &groupKey, 
 
 void DesktopEntry::insert(const QString &key, const QString &valueKey, Value &&val) noexcept
 {
-    auto outer = m_entryMap.find(key);
-    if (outer == m_entryMap.end()) {
-        outer = m_entryMap.insert(key, {});
-    }
-
-    outer->insert(valueKey, val);
+    auto &outer = m_entryMap[key];  // NOLINT
+    outer.insert(valueKey, val);
 }
 
 QString unescapeValue(QStringView str) noexcept
@@ -284,48 +379,102 @@ QString unescapeValue(QStringView str) noexcept
     return out;
 }
 
-QString toString(const DesktopEntry::Value &value) noexcept
+QString toString(const DesktopEntry::Value &value, bool skipUnescape) noexcept
 {
-    QString str;
+    const auto id = value.userType();
 
-    if (value.canConvert<QStringMap>()) {  // get default locale
-        const auto &val = value.value<QStringMap>();
-        if (auto it = val.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale)); it != val.cend()) {
+    QString str;
+    if (id == QMetaTypeId<QStringMap>::qt_metatype_id()) {  // get default locale
+        const auto &val = *static_cast<const QStringMap *>(value.constData());
+        auto it = val.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale));
+        if (it != val.cend()) {
             str = it.value();
         }
+    } else if (id == QMetaType::QString) {
+        str = *static_cast<const QString *>(value.constData());
     } else {
-        str = value.toString();
+        qCritical() << "unknown value type:" << id;
+        return {};
     }
 
     if (str.isEmpty()) {
         qCWarning(logDesktopEntry) << "failed to convert value to string.";
+        return str;
+    }
+
+    if (!skipUnescape) {
+        str = unescapeValue(str);
+    }
+
+    if (hasNonAsciiAndControlCharacters(str)) {
         return {};
     }
 
-    auto unescapedStr = unescapeValue(str);
-
-    if (hasNonAsciiAndControlCharacters(unescapedStr)) {
-        return {};
-    }
-
-    return unescapedStr;
+    return str;
 }
 
-QString toLocaleString(const QStringMap &localeMap, const QLocale &locale) noexcept
+QString toLocaleString(const DesktopEntry::Value &localeEntry, const QLocale &locale) noexcept
 {
-    for (auto it = localeMap.constKeyValueBegin(); it != localeMap.constKeyValueEnd(); ++it) {
-        auto [a, b] = *it;
-        if (QLocale{a}.name() == locale.name()) {
-            return unescapeValue(b);
+    // see: https://specifications.freedesktop.org/desktop-entry/latest/localized-keys.html
+    if (localeEntry.userType() != QMetaTypeId<QStringMap>::qt_metatype_id()) {
+        return {};
+    }
+
+    const auto &localeMap = *static_cast<const QStringMap *>(localeEntry.constData());
+    if (Q_UNLIKELY(localeMap.isEmpty())) {
+        return {};
+    }
+
+    const auto posixName = locale.name(QLocale::TagSeparator::Underscore);
+    const QStringView name{posixName};
+
+    QStringView modifier;
+    const auto atIdx = name.indexOf(u'@');
+    const auto mainPart = (atIdx != -1) ? name.sliced(0, atIdx) : name;
+    if (atIdx != -1) {
+        modifier = name.sliced(atIdx + 1);
+    }
+
+    QStringView lang;
+    QStringView country;
+    const auto dotIdx = mainPart.indexOf(u'.');
+    const auto cleanMain = (dotIdx != -1) ? mainPart.sliced(0, dotIdx) : mainPart;
+
+    const auto underscoreIdx = cleanMain.indexOf(u'_');
+    if (underscoreIdx != -1) {
+        lang = cleanMain.sliced(0, underscoreIdx);
+        country = cleanMain.sliced(underscoreIdx + 1);
+    } else {
+        lang = cleanMain;
+    }
+
+    QVarLengthArray<QString, 4> candidates;
+    if (!country.isEmpty() && !modifier.isEmpty()) {
+        // lang_COUNTRY@modifier
+        candidates.append(lang % u'_' % country % u'@' % modifier);
+    }
+
+    if (!country.isEmpty()) {
+        // lang_COUNTRY
+        candidates.append(lang % u'_' % country);
+    }
+
+    if (!modifier.isEmpty()) {
+        // lang@modifier
+        candidates.append(lang % u'@' % modifier);
+    }
+
+    // lang
+    candidates.append(lang.toString());
+
+    for (const auto &key : candidates) {
+        auto it = localeMap.constFind(key);
+        if (it != localeMap.cend()) {
+            return unescapeValue(it.value());
         }
     }
 
-    auto it = localeMap.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale));
-    if (it == localeMap.cend()) {
-        return {};
-    }
-
-    return toString(*it);
+    return {};
 }
 
 QString toIconString(const DesktopEntry::Value &value) noexcept
@@ -337,12 +486,12 @@ bool toBoolean(const DesktopEntry::Value &value, bool &ok) noexcept
 {
     ok = false;
     const auto &str = toString(value);
-    if (str == "true") {
+    if (str == u"true"_s) {
         ok = true;
         return true;
     }
 
-    if (str == "false") {
+    if (str == u"false"_s) {
         ok = true;
         return false;
     }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -23,8 +23,8 @@ public:
     friend bool operator!=(const ApplicationHook &lhs, const ApplicationHook &rhs) { return !(lhs == rhs); };
 
 private:
-    ApplicationHook(QString &&hookName, QString &&execPath, QStringList &&args)
-        : m_hookName(hookName)
+    ApplicationHook(QString hookName, QString execPath, QStringList &&args)
+        : m_hookName(std::move(hookName))
         , m_execPath(std::move(execPath))
         , m_args(std::move(args))
     {

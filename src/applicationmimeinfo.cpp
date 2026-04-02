@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "applicationmimeinfo.h"
+#include "constant.h"
 #include "global.h"
 #include <QSaveFile>
 
@@ -17,7 +18,7 @@ QString toString(const MimeContent &content) noexcept
     QString ret;
 
     for (const auto &[key, value] : content.asKeyValueRange()) {
-        ret.append(u'[' % key % u"]\n"_sv);
+        ret.append(u'[' % key % u"]\n"_s);
         for (const auto &[iKey, iValue] : value.asKeyValueRange()) {
             ret.append(iKey % u'=');
             for (const auto &app : iValue) {
@@ -58,7 +59,7 @@ std::optional<MimeFileBase> MimeFileBase::loadFromFile(const QFileInfo &fileInfo
 {
     bool isWritable{false};
     auto filePath = fileInfo.absoluteFilePath();
-    if (filePath.startsWith(getXDGConfigHome()) or filePath.startsWith(getXDGDataHome())) {
+    if (filePath.startsWith(getXDGConfigHome()) || filePath.startsWith(getXDGDataHome())) {
         isWritable = true;
     }
 
@@ -68,11 +69,8 @@ std::optional<MimeFileBase> MimeFileBase::loadFromFile(const QFileInfo &fileInfo
         return std::nullopt;
     }
 
-    QTextStream stream{&file};
-    stream.setEncoding(QStringConverter::Utf8);
-
     MimeContent content;
-    MimeFileParser parser{stream, desktopSpec};
+    MimeFileParser parser{file, desktopSpec};
     if (auto err = parser.parse(content); err != ParserError::NoError) {
         qWarning() << "file:" << filePath << "parse failed:" << err;
         return std::nullopt;
@@ -119,48 +117,33 @@ std::optional<MimeApps> MimeApps::createMimeApps(const QString &filePath, bool d
 void MimeApps::insertToSection(const QString &section, const QString &mimeType, const QString &appId) noexcept
 {
     auto &map = content();
-
-    auto targetSection = map.find(section);
-    if (targetSection == map.end()) {
-        targetSection = map.insert(section, {});
-    }
-
-    QStringList newApps{QString{appId}.append(desktopSuffix)};
-    auto oldApps = targetSection->find(mimeType);
-    if (oldApps != targetSection->end()) {
-        newApps.append(*oldApps);
-    }
-
-    targetSection->insert(mimeType, newApps);
+    auto &targetSection = map[section];       // NOLINT
+    auto &oldApps = targetSection[mimeType];  // NOLINT
+    oldApps.append(appId % desktopSuffix);
 }
 
 void MimeApps::addAssociation(const QString &mimeType, const QString &appId) noexcept
 {
-    insertToSection(addedAssociations, mimeType, appId);
+    insertToSection(fromStaticRaw(addedAssociations), mimeType, appId);
 }
 
 void MimeApps::removeAssociation(const QString &mimeType, const QString &appId) noexcept
 {
-    insertToSection(removedAssociations, mimeType, appId);
+    insertToSection(fromStaticRaw(removedAssociations), mimeType, appId);
 }
 
 void MimeApps::setDefaultApplication(const QString &mimeType, const QString &appId) noexcept
 {
     auto &map = content();
-
-    auto defaultSection = map.find(defaultApplications);
-    if (defaultSection == map.end()) {
-        defaultSection = map.insert(defaultApplications, {});
-    }
-
-    defaultSection->insert(mimeType, {QString{appId}.append(desktopSuffix)});
+    auto &defaultSection = map[fromStaticRaw(defaultApplications)];  // NOLINT
+    defaultSection.insert(mimeType, {appId % desktopSuffix});
 }
 
 void MimeApps::unsetDefaultApplication(const QString &mimeType) noexcept
 {
     auto &map = content();
 
-    auto defaultSection = map.find(defaultApplications);
+    auto defaultSection = map.find(fromStaticRaw(defaultApplications));
     if (defaultSection == map.end()) {
         return;
     }
@@ -174,20 +157,20 @@ AppList MimeApps::queryTypes(QString appId) const noexcept
     appId.append(desktopSuffix);
     const auto &lists = content();
 
-    if (const auto &adds = lists.constFind(addedAssociations); adds != lists.cend()) {
-        std::for_each(adds->constKeyValueBegin(), adds->constKeyValueEnd(), [&ret, &appId](const auto &it) {
-            if (it.second.contains(appId)) {
-                ret.added.append(it.first);
+    if (const auto &adds = lists.constFind(fromStaticRaw(addedAssociations)); adds != lists.cend()) {
+        for (const auto &[key, value] : adds->asKeyValueRange()) {
+            if (value.contains(appId)) {
+                ret.added.append(key);
             }
-        });
+        }
     }
 
-    if (const auto &removes = lists.constFind(removedAssociations); removes != lists.cend()) {
-        std::for_each(removes->constKeyValueBegin(), removes->constKeyValueEnd(), [&ret, &appId](const auto &it) {
-            if (it.second.contains(appId)) {
-                ret.removed.removeOne(it.first);
+    if (const auto &removes = lists.constFind(fromStaticRaw(removedAssociations)); removes != lists.cend()) {
+        for (const auto &[key, value] : removes->asKeyValueRange()) {
+            if (value.contains(appId)) {
+                ret.removed.removeAll(key);
             }
-        });
+        }
     }
 
     return ret;
@@ -228,13 +211,13 @@ bool MimeApps::writeToFile() const noexcept
 QString MimeApps::queryDefaultApp(const QString &type) const noexcept
 {
     const auto &map = content();
-    auto defaultSection = map.constFind(defaultApplications);
+    auto defaultSection = map.constFind(fromStaticRaw(defaultApplications));
     if (defaultSection == map.cend()) {
         return {};
     }
 
     auto defaultApp = defaultSection->constFind(type);
-    if (defaultApp == defaultSection->end()) {
+    if (defaultApp == defaultSection->cend()) {
         return {};
     }
 
@@ -251,12 +234,13 @@ QStringList MimeCache::queryTypes(QString appId) const noexcept
 {
     QStringList ret;
     appId.append(desktopSuffix);
-    const auto &cache = content()[mimeCache];
-    for (auto it = cache.constKeyValueBegin(); it != cache.constKeyValueEnd(); ++it) {
-        if (it->second.contains(appId)) {
-            ret.append(it->first);
+    const auto &cache = content()[fromStaticRaw(mimeCache)];  // NOLINT
+    for (const auto &[key, value] : cache.asKeyValueRange()) {
+        if (value.contains(appId)) {
+            ret.append(key);
         }
     }
+
     return ret;
 }
 
@@ -279,46 +263,50 @@ MimeCache::MimeCache(MimeFileBase &&base)
 QStringList MimeCache::queryApps(const QString &type) const noexcept
 {
     const auto &content = this->content();
-    auto it = content.constFind(mimeCache);
+    auto it = content.constFind(fromStaticRaw(mimeCache));
     if (it == content.constEnd()) {
         qDebug() << "this cache is broken, please reload.";
         return {};
     }
 
-    QStringList ret;
-    if (auto kv = it->constFind(type); kv != it->constEnd()) {
-        const auto &apps = kv.value();
-        for (const auto &e : apps) {
-            if (!e.endsWith(desktopSuffix)) {
-                continue;
-            }
-            ret.append(e.chopped(desktopSuffix.size()));
-        }
+    auto kv = it->constFind(type);
+    if (kv == it->constEnd()) {
+        return {};
     }
+
+    QStringList ret;
+    for (const auto &e : kv.value()) {
+        if (!e.endsWith(desktopSuffix)) {
+            continue;
+        }
+
+        ret.append(e.chopped(desktopSuffix.size()));
+    }
+
     return ret;
 }
 
 std::optional<MimeInfo> MimeInfo::createMimeInfo(const QString &directory) noexcept
 {
-    MimeInfo ret;
-    QDir dir;
-
-    if (!QFileInfo::exists(directory)) {
-        qCritical() << "directory " << directory << "doesn't exists.";
+    const QFileInfo dirInfo{directory};
+    if (!dirInfo.isDir()) {
+        qCritical() << "directory" << directory << "is not a valid directory.";
         return std::nullopt;
     }
-    dir.setPath(directory);
-    ret.m_directory = directory;
 
-    const QFileInfo cacheFile{dir.filePath(u"mimeinfo.cache"_s)};
-    if (cacheFile.exists() && cacheFile.isFile()) {
+    MimeInfo ret;
+    ret.m_directory = directory;
+    const QDir dir{directory};
+
+    const QFileInfo cacheFile{dir.filePath(fromStaticRaw(MimeinfoCache))};
+    if (cacheFile.isFile()) {
         ret.m_cache = MimeCache::createMimeCache(cacheFile.absoluteFilePath());
     }
 
     const auto &desktops = getCurrentDesktops();
     for (const auto &desktop : desktops) {
-        const QFileInfo desktopAppList{dir.filePath(desktop % u"-mimeapps.list"_s)};
-        if (desktopAppList.exists() && desktopAppList.isFile()) {
+        const QFileInfo desktopAppList{dir.filePath(desktop % fromStaticRaw(MimeappsDesktopSuffix))};
+        if (desktopAppList.isFile()) {
             auto desktopApps = MimeApps::createMimeApps(desktopAppList.absoluteFilePath(), true);
             if (desktopApps) {
                 ret.m_appsList.emplace_back(std::move(desktopApps).value());
@@ -326,15 +314,14 @@ std::optional<MimeInfo> MimeInfo::createMimeInfo(const QString &directory) noexc
         }
     }
 
-    QFileInfo appList{dir.filePath(u"mimeapps.list"_s)};
-    appList.setCaching(false);
-
+    QFileInfo appList{dir.filePath(fromStaticRaw(MimeappsList))};
     auto userMimeApps = appList.absoluteFilePath();
-    if (userMimeApps.startsWith(getXDGConfigHome()) && (!appList.exists() || !appList.isFile())) {
+    if (userMimeApps.startsWith(getXDGConfigHome()) && !appList.isFile()) {
         createUserConfig(userMimeApps);
+        appList.refresh();
     }
 
-    if (appList.exists() && appList.isFile()) {
+    if (appList.isFile()) {
         auto apps = MimeApps::createMimeApps(appList.absoluteFilePath(), false);
         if (apps) {
             ret.m_appsList.emplace_back(std::move(apps).value());
