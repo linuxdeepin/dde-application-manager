@@ -10,7 +10,7 @@
 #include <QDBusError>
 #include <QDBusObjectPath>
 #include <QFuture>
-#include <QMap>
+#include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QObject>
@@ -114,7 +114,7 @@ private:
     friend class ApplicationManager1Service;
     explicit JobManager1Service(ApplicationManager1Service *parent);
     QMutex m_mutex;
-    QMap<QDBusObjectPath, QSharedPointer<JobService>> m_jobs;
+    QHash<QDBusObjectPath, QSharedPointer<JobService>> m_jobs;
     ApplicationManager1Service *m_parent{nullptr};
 };
 

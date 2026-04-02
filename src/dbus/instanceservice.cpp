@@ -14,7 +14,9 @@ InstanceService::InstanceService(QString instanceId, QString application, QStrin
     , m_Application(std::move(application))
     , m_SystemdUnitPath(std::move(systemdUnitPath))
 {
-    if (auto *tmp = new (std::nothrow) PropertiesForwarder{application + "/" + instanceId, this}; tmp == nullptr) {
+    if (auto *tmp = new (std::nothrow)
+                     PropertiesForwarder{application + "/" + instanceId, fromStaticRaw(InstanceInterface), this};
+        tmp == nullptr) {
         qCritical() << "couldn't new PropertiesForwarder for instanceService.";
         return;
     }
@@ -26,7 +28,7 @@ void InstanceService::KillAll(int signal)
 {
     using namespace Qt::StringLiterals;
     auto killMsg = QDBusMessage::createMethodCall(
-        SystemdService, m_SystemdUnitPath.path(), fromStaticRaw(SystemdUnitInterfaceName), u"Kill"_s);
+        SystemdService, m_SystemdUnitPath.path(), fromStaticRaw(SystemdUnitInterfaceName), fromStaticRaw(SystemdKill));
     killMsg << QString{"all"} << signal;
 
     auto &con = ApplicationManager1DBus::instance().globalDestBus();

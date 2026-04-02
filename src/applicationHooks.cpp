@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -9,11 +9,10 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 
+using namespace Qt::StringLiterals;
+
 std::optional<ApplicationHook> ApplicationHook::loadFromFile(const QString &filePath) noexcept
 {
-    auto index = filePath.lastIndexOf(QDir::separator());
-    auto fileName = filePath.last(filePath.size() - index - 1);
-
     QFile file{filePath};
     if (!file.open(QFile::Text | QFile::ReadOnly | QFile::ExistingOnly)) {
         qWarning() << "open hook file:" << filePath << "failed:" << file.errorString() << ", skip.";
@@ -33,26 +32,28 @@ std::optional<ApplicationHook> ApplicationHook::loadFromFile(const QString &file
     }
     auto obj = json.object();
 
-    auto it = obj.constFind("Exec");
+    auto it = obj.constFind(u"Exec");
     if (it == obj.constEnd()) {
         qWarning() << "invalid hook: lack of Exec.";
         return std::nullopt;
     }
     auto exec = it->toString();
-    QFileInfo info{exec};
-    if (!(info.exists() and info.isExecutable())) {
+    const QFileInfo info{exec};
+    if (!(info.exists() && info.isExecutable())) {
         qWarning() << "exec maybe doesn't exists or be executed.";
         return std::nullopt;
     }
 
-    it = obj.constFind("Args");
+    it = obj.constFind(u"Args");
     if (it == obj.constEnd()) {
         qWarning() << "invalid hook: lack of Args.";
         return std::nullopt;
     }
     auto args = it->toVariant().toStringList();
 
-    return ApplicationHook{std::move(fileName), std::move(exec), std::move(args)};
+    auto fileName = file.fileName();
+    auto lastSlash = fileName.lastIndexOf(QDir::separator());
+    return ApplicationHook{fileName.slice(lastSlash + 1), std::move(exec), std::move(args)};
 }
 
 QStringList generateHooks(const QList<ApplicationHook> &hooks) noexcept

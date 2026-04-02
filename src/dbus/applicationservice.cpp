@@ -17,6 +17,7 @@
 #include "prelaunchsplashhelper.h"
 #include "propertiesForwarder.h"
 #include <DConfig>
+#include <QDBusMessage>
 #include <QList>
 #include <QLoggingCategory>
 #include <QProcess>
@@ -39,24 +40,54 @@
 using namespace Qt::StringLiterals;
 
 namespace {
+template <typename Adaptor>
+void setAdaptorAutoRelaySignals(Adaptor *adaptor, bool enabled) noexcept
+{
+    struct Accessor final : Adaptor
+    {
+        using Adaptor::setAutoRelaySignals;
+    };
+
+    if (adaptor != nullptr) {
+        static_cast<Accessor *>(adaptor)->setAutoRelaySignals(enabled);
+    }
+}
+
+void sendObjectManagerSignal(const QString &path, const char *member, const QDBusObjectPath &objectPath, const QVariant &payload)
+{
+    auto msg = QDBusMessage::createSignal(path, fromStaticRaw(ObjectManagerInterface), member);
+    msg << objectPath;
+    msg << payload;
+    ApplicationManager1DBus::instance().globalServerBus().send(msg);
+}
 
 void appendEnvs(const QVariant &var, QStringList &envs)
 {
-    if (var.canConvert<QStringList>()) {
-        envs.append(var.value<QStringList>());
-    } else if (var.canConvert<QString>()) {
-        envs.append(var.value<QString>().split(u';', Qt::SkipEmptyParts));
+    const int typeId = var.userType();
+    if (typeId == QMetaType::QStringList) {
+        envs.append(*static_cast<const QStringList *>(var.constData()));
+    } else if (typeId == QMetaType::QString) {
+        const auto &rawStr = *static_cast<const QString *>(var.constData());
+
+        auto tokens = qTokenize(rawStr, u';');
+        for (auto token : tokens) {
+            if (!token.isEmpty()) {
+                envs.append(token.toString());
+            }
+        }
     }
 }
 
 void unescapeEnvs(QVariantMap &options) noexcept
 {
-    if (options.constFind("env") == options.cend()) {
+    const auto &envKey = fromStaticRaw(EnvKey);
+    auto it = options.constFind(envKey);
+    if (it == options.cend()) {
         return;
     }
+
     QStringList result;
-    const auto &envsVar = options["env"];
-    auto envs = envsVar.toStringList();
+    auto envs = it->toStringList();
     for (const auto &var : std::as_const(envs)) {
         if (var.startsWith(u"DSG_APP_ID="_s)) {
             result << var;
@@ -73,7 +104,7 @@ void unescapeEnvs(QVariantMap &options) noexcept
         }
     }
 
-    options.insert("env", result);
+    options.insert(envKey, result);
 }
 
 }  // namespace
@@ -84,8 +115,8 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     QStringList envs;
     QStringList unsetEnvs;
 
-    const auto &envKey = u"env"_s;
-    const auto &unsetEnvKey = u"unsetEnv"_s;
+    const auto &envKey = fromStaticRaw(EnvKey);
+    const auto &unsetEnvKey = fromStaticRaw(UnsetEnvKey);
 
     const QString &env = environ();
     if (!env.isEmpty()) {
@@ -144,19 +175,20 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
     auto addEnv = [this, &options, compatibilityManager]() {
         auto envValue = compatibilityManager->getEnv(m_desktopSource.desktopId(), fromStaticRaw(DesktopFileEntryKey));
         if (!envValue.isEmpty()) {
-            if (auto it = options.find(u"env"_s); it != options.end()) {
+            const auto &envKey = fromStaticRaw(EnvKey);
+            if (auto it = options.find(envKey); it != options.end()) {
                 auto value = it->toStringList();
                 value.append(envValue);
-                options.insert(u"env"_s, std::move(value));
+                options.insert(envKey, value);
             } else {
-                options.insert(u"env"_s, std::move(envValue));
+                options.insert(envKey, envValue);
             }
         }
     };
 
     auto exec = getExec(m_desktopSource.desktopId());
     if (!exec.isEmpty()) {
-        execStr = exec;
+        execStr = std::move(exec);
         addEnv();
         qInfo() << "get compatibility : " << m_desktopSource.desktopId() << " Exec : " << execStr;
     }
@@ -213,7 +245,7 @@ ApplicationService::ApplicationService(DesktopFile source,
         m_lastLaunch = value.toLongLong();
     }
 
-    value = storagePtr->readApplicationValue(appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(::LaunchedTimes));
+    value = storagePtr->readApplicationValue(appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(LaunchedTimes));
     if (value.isNull()) {
         if (!storagePtr->createApplicationValue(
                 appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(::LaunchedTimes), 0)) {
@@ -224,7 +256,7 @@ ApplicationService::ApplicationService(DesktopFile source,
         m_launchedTimes = value.toLongLong();
     }
 
-    value = storagePtr->readApplicationValue(appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(::Environ));
+    value = storagePtr->readApplicationValue(appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(Environ));
     if (!value.isNull()) {
         m_environ = value.toString();
     }
@@ -235,8 +267,32 @@ ApplicationService::~ApplicationService()
     detachAllInstance();
 }
 
+bool ApplicationService::ensurePropertiesForwarder() noexcept
+{
+    if (m_propertiesForwarderInitialized) {
+        return true;
+    }
+
+    if (auto *ptr = new (std::nothrow) PropertiesForwarder{m_applicationPath.path(), fromStaticRaw(ApplicationInterface), this};
+        ptr == nullptr) {
+        qCritical() << "new PropertiesForwarder of Application failed.";
+        return false;
+    }
+
+    m_propertiesForwarderInitialized = true;
+    return true;
+}
+
 QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept
+{
+    return createApplicationService(std::move(source), nullptr, parent, std::move(storage));
+}
+
+QSharedPointer<ApplicationService> ApplicationService::createApplicationService(DesktopFile source,
+                                                                                std::unique_ptr<DesktopEntry> entry,
+                                                                                ApplicationManager1Service *parent,
+                                                                                std::weak_ptr<ApplicationManager1Storage> storage) noexcept
 {
     QSharedPointer<ApplicationService> app{new (std::nothrow) ApplicationService{std::move(source), parent, std::move(storage)}};
     if (!app) {
@@ -248,20 +304,21 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     QTextStream sourceStream;
 
     objectPath = getObjectPathFromAppId(app->desktopFileSource().desktopId());
-    DesktopFileGuard guard{app->desktopFileSource()};
+    if (!entry) {
+        DesktopFileGuard guard{app->desktopFileSource()};
 
-    if (!guard.try_open()) {
-        qDebug() << "open source desktop failed.";
-        return nullptr;
-    }
+        if (!guard.try_open()) {
+            qDebug() << "open source desktop failed.";
+            return nullptr;
+        }
 
-    sourceStream.setDevice(app->desktopFileSource().sourceFile());
-    std::unique_ptr<DesktopEntry> entry{std::make_unique<DesktopEntry>()};
-    auto error = entry->parse(sourceStream);
+        entry = std::make_unique<DesktopEntry>();
+        auto error = entry->parse(app->desktopFileSource().sourceFileRef());
 
-    if (error != ParserError::NoError) {
-        qDebug() << "parse failed:" << error << app->desktopFileSource().sourcePath();
-        return nullptr;
+        if (error != ParserError::NoError) {
+            qDebug() << "parse failed:" << error << app->desktopFileSource().sourcePath();
+            return nullptr;
+        }
     }
 
     if (!shouldBeShown(entry)) {
@@ -276,11 +333,8 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     if (auto *ptr = new (std::nothrow) APPObjectManagerAdaptor{app.data()}; ptr == nullptr) {
         qCritical() << "new Object Manager of Application failed.";
         return nullptr;
-    }
-
-    if (auto *ptr = new (std::nothrow) PropertiesForwarder{app->m_applicationPath.path(), app.data()}; ptr == nullptr) {
-        qCritical() << "new PropertiesForwarder of Application failed.";
-        return nullptr;
+    } else {
+        setAdaptorAutoRelaySignals(ptr, false);
     }
 
     return app;
@@ -309,7 +363,7 @@ bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entr
 QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringList &fields, const QVariantMap &options)
 {
     // Suppress splash for system autostart launches or singleton apps with existing instances.
-    const bool isAutostartLaunch = options.value(u"_autostart"_s, false).toBool();
+    const bool isAutostartLaunch = options.value(fromStaticRaw(BuiltInAutostartOption), false).toBool();
     if (isAutostartLaunch) {
         if (!parent()->isNewSession()) {
             safe_sendErrorReply(QDBusError::Failed, "autostart launch has been ignored if not new session.");
@@ -363,7 +417,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }
 
     if (execStr.isEmpty()) {
-        auto Actions = desktopEntry->value(fromStaticRaw(DesktopFileEntryKey), u"Exec"_s);
+        auto Actions = desktopEntry->value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryExec));
         if (!Actions) {
             const QString msg{"application can't be executed."};
             qWarning() << msg;
@@ -371,7 +425,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             return {};
         }
 
-        execStr = Actions.value().toString();
+        execStr = Actions->get().toString();
         if (execStr.isEmpty()) {
             const QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
@@ -381,24 +435,29 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }
 
     const bool isSingleton =
-        findEntryValue(fromStaticRaw(DesktopFileEntryKey), "X-Deepin-Singleton", EntryValueType::Boolean).toBool();
+        findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinSingleton), EntryValueType::Boolean)
+            .toBool();
     const bool singletonWithInstance = isSingleton && !m_Instances.isEmpty();
 
     // Those are internal properties, user shouldn't pass them to Application Manager
-    optionsMap.remove("_autostart");
-    optionsMap.remove("_hooks");
-    optionsMap.remove("_builtIn_searchExec");
+    optionsMap.remove(fromStaticRaw(BuiltInAutostartOption));
+    optionsMap.remove(u"_hooks"_s);
+    optionsMap.remove(u"_builtIn_searchExec"_s);
     if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
-        optionsMap.insert("_hooks", hooks);
+        optionsMap.insert(u"_hooks"_s, hooks);
     }
-    optionsMap.insert("_builtIn_searchExec", parent()->systemdPathEnv());
+    optionsMap.insert(u"_builtIn_searchExec"_s, parent()->systemdPathEnv());
 
     processCompatibility(action, optionsMap, execStr);
     unescapeEnvs(optionsMap);
 
-    auto workingDir = desktopEntry->value(fromStaticRaw(DesktopFileEntryKey), "Path").value_or(QVariant{}).toString();
-    if (auto path = optionsMap.value("path").toString(); !path.isEmpty()) {
-        workingDir = path;
+    QString workingDir;
+    if (auto entryPath = desktopEntry->value(fromStaticRaw(DesktopFileEntryKey), u"Path"_s); entryPath) {
+        workingDir = entryPath->get().value<QString>();
+    }
+
+    if (auto optionPath = optionsMap.value(u"path"_s).toString(); !optionPath.isEmpty()) {
+        workingDir = std::move(optionPath);
     }
 
     if (!workingDir.isEmpty() && QDir::isRelativePath(workingDir)) {
@@ -531,7 +590,7 @@ bool ApplicationService::SendToDesktop() const noexcept
         return true;
     }
 
-    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    const auto &dir = getDesktopDir();
     if (dir.isEmpty()) {
         qDebug() << "no desktop directory found.";
         return false;
@@ -553,7 +612,7 @@ bool ApplicationService::RemoveFromDesktop() const noexcept
         return true;
     }
 
-    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    const auto &dir = getDesktopDir();
     if (dir.isEmpty()) {
         qDebug() << "no desktop directory found.";
         return false;
@@ -572,29 +631,24 @@ bool ApplicationService::RemoveFromDesktop() const noexcept
 
 bool ApplicationService::isOnDesktop() const noexcept
 {
-    auto dir = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-
+    const auto &dir = getDesktopDir();
     if (dir.isEmpty()) {
         qDebug() << "no desktop directory found.";
         return false;
     }
 
-    QFileInfo info{QDir{dir}.filePath(m_desktopSource.desktopId() % desktopSuffix)};
-
-    if (!info.exists()) {
+    const QFileInfo info{dir % QDir::separator() % m_desktopSource.desktopId() % desktopSuffix};
+    auto target = info.symLinkTarget();
+    if (target.isEmpty()) {
         return false;
     }
 
-    if (!info.isSymbolicLink()) {
-        return false;
-    }
-
-    return info.symLinkTarget() == m_desktopSource.sourcePath();
+    return target == m_desktopSource.sourcePath();
 }
 
 bool ApplicationService::noDisplay() const noexcept
 {
-    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), "NoDisplay", EntryValueType::Boolean);
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"NoDisplay"_s, EntryValueType::Boolean);
 
     if (val.isNull()) {
         return false;
@@ -605,25 +659,24 @@ bool ApplicationService::noDisplay() const noexcept
 
 QStringList ApplicationService::actions() const noexcept
 {
-    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), "Actions", EntryValueType::String);
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryActions), EntryValueType::String);
 
     if (val.isNull()) {
         return {};
     }
 
-    auto actionList = val.toString().split(";", Qt::SkipEmptyParts);
-    return actionList;
+    return toString(val).split(u';', Qt::SkipEmptyParts);
 }
 
 QStringList ApplicationService::categories() const noexcept
 {
-    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), "Categories", EntryValueType::String);
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"Categories"_s, EntryValueType::String);
 
     if (val.isNull()) {
         return {};
     }
 
-    return val.toString().split(';', Qt::SkipEmptyParts);
+    return val.toString().split(u';', Qt::SkipEmptyParts);
 }
 
 PropMap ApplicationService::actionName() const noexcept
@@ -633,11 +686,11 @@ PropMap ApplicationService::actionName() const noexcept
 
     for (const auto &action : actionList) {
         const QString rawActionKey = fromStaticRaw(DesktopFileActionKey) % action;
-        auto value = m_entry->value(rawActionKey, "Name");
+        auto value = m_entry->value(rawActionKey, fromStaticRaw(DesktopEntryName));
         if (!value.has_value()) {
             continue;
         }
-        ret.insert(action, std::move(value).value().value<QStringMap>());
+        ret.insert(action, value->get().value<QStringMap>());
     }
 
     return ret;
@@ -645,30 +698,22 @@ PropMap ApplicationService::actionName() const noexcept
 
 QStringMap ApplicationService::name() const noexcept
 {
-    auto value = m_entry->value(fromStaticRaw(DesktopFileEntryKey), "Name");
+    auto value = m_entry->value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryName));
     if (!value) {
         return {};
     }
 
-    if (!value->canConvert<QStringMap>()) {
-        return {};
-    }
-
-    return value->value<QStringMap>();
+    return value->get().value<QStringMap>();
 }
 
 QStringMap ApplicationService::genericName() const noexcept
 {
-    auto value = m_entry->value(fromStaticRaw(DesktopFileEntryKey), "GenericName");
+    auto value = m_entry->value(fromStaticRaw(DesktopFileEntryKey), u"GenericName"_s);
     if (!value) {
         return {};
     }
 
-    if (!value->canConvert<QStringMap>()) {
-        return {};
-    }
-
-    return value->value<QStringMap>();
+    return value->get().value<QStringMap>();
 }
 
 QStringMap ApplicationService::icons() const noexcept
@@ -677,16 +722,17 @@ QStringMap ApplicationService::icons() const noexcept
     const auto &actionList = actions();
     for (const auto &action : std::as_const(actionList)) {
         auto actionKey = QString{action}.prepend(fromStaticRaw(DesktopFileActionKey));
-        auto value = m_entry->value(actionKey, "Icon");
-        if (!value.has_value()) {
+        auto value = m_entry->value(actionKey, u"Icon"_s);
+        if (!value) {
             continue;
         }
-        ret.insert(actionKey, value->value<QString>());
+
+        ret.insert(actionKey, value->get().value<QString>());
     }
 
-    auto mainIcon = m_entry->value(fromStaticRaw(DesktopFileEntryKey), "Icon");
-    if (mainIcon.has_value()) {
-        ret.insert(fromStaticRaw(DesktopFileEntryKey), mainIcon->value<QString>());
+    auto mainIcon = m_entry->value(fromStaticRaw(DesktopFileEntryKey), u"Icon"_s);
+    if (mainIcon) {
+        ret.insert(fromStaticRaw(DesktopFileEntryKey), mainIcon->get().value<QString>());
     }
 
     return ret;
@@ -697,31 +743,32 @@ ObjectMap ApplicationService::GetManagedObjects() const
     return dumpDBusObject(m_Instances);
 }
 
-QString ApplicationService::id() const noexcept
+const QString &ApplicationService::id() const noexcept
 {
     return m_desktopSource.desktopId();
 }
 
 bool ApplicationService::x_Flatpak() const noexcept
 {
-    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), "X-flatpak", EntryValueType::String);
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"X-flatpak"_s, EntryValueType::String);
     return !val.isNull();
 }
 
 bool ApplicationService::x_linglong() const noexcept
 {
-    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), "X-linglong", EntryValueType::String);
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"X-linglong"_s, EntryValueType::String);
     return !val.isNull();
 }
 
 QString ApplicationService::X_Deepin_Vendor() const noexcept
 {
-    return findEntryValue(fromStaticRaw(DesktopFileEntryKey), "X-Deepin-Vendor", EntryValueType::String).toString();
+    return findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"X-Deepin-Vendor"_s, EntryValueType::String).toString();
 }
 
 QString ApplicationService::X_Deepin_CreateBy() const noexcept
 {
-    return findEntryValue(fromStaticRaw(DesktopFileEntryKey), "X-Deepin-CreateBy", EntryValueType::String).toString();
+    return findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinCreateBy), EntryValueType::String)
+        .toString();
 }
 
 QStringMap ApplicationService::execs() const noexcept
@@ -730,7 +777,7 @@ QStringMap ApplicationService::execs() const noexcept
 
     auto mainExec = m_entry->value(fromStaticRaw(DesktopFileEntryKey), "Exec");
     if (mainExec.has_value()) {
-        ret.insert(fromStaticRaw(DesktopFileEntryKey), mainExec->value<QString>());
+        ret.insert(fromStaticRaw(DesktopFileEntryKey), mainExec->get().value<QString>());
     }
 
     const auto &actionList = actions();
@@ -740,7 +787,7 @@ QStringMap ApplicationService::execs() const noexcept
         if (!value.has_value()) {
             continue;
         }
-        ret.insert(actionKey, value->value<QString>());
+        ret.insert(actionKey, value->get().value<QString>());
     }
 
     return ret;
@@ -838,7 +885,7 @@ bool ApplicationService::autostartCheck() const noexcept
         return true;
     }
 
-    auto hidden = hiddenVal.value().toString();
+    const auto hidden = hiddenVal->get().toString();
     return hidden.compare("false", Qt::CaseInsensitive) == 0;
 }
 
@@ -876,15 +923,19 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     QString originalSource;
     if (!m_autostartSource.m_entry.data().isEmpty()) {
         newEntry = m_autostartSource.m_entry;
-        originalSource = newEntry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(X_Deepin_GenerateSource))
-                             .value_or(DesktopEntry::Value{m_autostartSource.m_filePath})
-                             .toString();
+
+        auto source = newEntry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource));
+        if (source) {
+            originalSource = source->get().toString();
+        } else {
+            originalSource = m_autostartSource.m_filePath;
+        }
     } else {
         newEntry = *m_entry;
         originalSource = m_desktopSource.sourcePath();
     }
 
-    newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(X_Deepin_GenerateSource), originalSource);
+    newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource), originalSource);
     newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryHidden), !autostart);
 
     setAutostartSource({fileName, newEntry});
@@ -901,43 +952,48 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
 
 QStringList ApplicationService::mimeTypes() const noexcept
 {
-    QStringList ret;
     const auto &desktopFilePath = m_desktopSource.sourcePath();
     const auto &cacheList = parent()->mimeManager().infos();
-    auto cache = std::find_if(cacheList.cbegin(), cacheList.cend(), [&desktopFilePath](const MimeInfo &info) {
-        return desktopFilePath.startsWith(info.directory());
-    });
+    const auto &appId = id();
 
-    if (cache == cacheList.cend()) {
-        qWarning() << "error occurred when get mimeTypes for" << desktopFilePath;
-        return ret;
+    auto itCache = std::find_if(
+        cacheList.cbegin(), cacheList.cend(), [&](const MimeInfo &info) { return desktopFilePath.startsWith(info.directory()); });
+
+    if (itCache == cacheList.cend()) {
+        qWarning() << "No mime directory matches:" << desktopFilePath;
+        return {};
     }
 
-    const auto &info = cache->cacheInfo();
-    if (info) {
-        ret.append(info->queryTypes(id()));
+    QSet<QString> addedSet;
+    QSet<QString> removedSet;
+
+    if (const auto &info = itCache->cacheInfo()) {
+        const auto baseTypes = info->queryTypes(appId);
+        addedSet.reserve(baseTypes.size());
+        for (const auto &type : baseTypes) {
+            addedSet.insert(type);
+        }
     }
 
-    AppList tmp;
+    for (const auto &info : cacheList) {
+        const auto &apps = info.appsList();
+        for (const auto &app : apps) {
+            auto [added, removed] = app.queryTypes(appId);
+            for (auto &&a : added) {
+                addedSet.insert(std::move(a));
+            }
 
-    for (auto it = cacheList.begin(); it != cacheList.end(); ++it) {
-        const auto &list = it->appsList();
-        std::for_each(list.begin(), list.end(), [&tmp, this](const MimeApps &app) {
-            auto [added, removed] = app.queryTypes(id());
-            tmp.added.append(std::move(added));
-            tmp.removed.append(std::move(removed));
-        });
-    };
-
-    tmp.added.removeDuplicates();
-    tmp.removed.removeDuplicates();
-    for (const auto &it : std::as_const(tmp.removed)) {
-        tmp.added.removeOne(it);
+            for (auto &&r : removed) {
+                removedSet.insert(std::move(r));
+            }
+        }
     }
 
-    ret.append(std::move(tmp.added));
-    ret.removeDuplicates();
-    return ret;
+    for (const auto &type : removedSet) {
+        addedSet.remove(type);
+    }
+
+    return addedSet.values();
 }
 
 void ApplicationService::setMimeTypes(const QStringList &value) noexcept
@@ -1002,6 +1058,9 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
 
     auto *adaptor = new (std::nothrow) InstanceAdaptor{service};
     const QString objectPath{m_applicationPath.path() % u'/' % instanceId};
+    if (adaptor != nullptr) {
+        setAdaptorAutoRelaySignals(adaptor, false);
+    }
 
     if (adaptor == nullptr || !registerObjectToDBus(service, objectPath, fromStaticRaw(InstanceInterface))) {
         adaptor->deleteLater();
@@ -1012,7 +1071,16 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
     m_Instances.insert(QDBusObjectPath{objectPath}, QSharedPointer<InstanceService>{service});
     service->moveToThread(this->thread());
     adaptor->moveToThread(this->thread());
-    emit InterfacesAdded(QDBusObjectPath{objectPath}, getChildInterfacesAndPropertiesFromObject(service));
+
+    if (!parent()->isStartupPhase()) {
+        const auto dbusObjectPath = QDBusObjectPath{objectPath};
+        const auto interfaces = getChildInterfacesAndPropertiesFromObject(service);
+        emit InterfacesAdded(dbusObjectPath, interfaces);
+        sendObjectManagerSignal(m_applicationPath.path(),
+                                "InterfacesAdded",
+                                dbusObjectPath,
+                                QVariant::fromValue(interfaces));
+    }
 
     return true;
 }
@@ -1021,7 +1089,9 @@ void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noex
 {
     if (auto it = m_Instances.constFind(instance); it != m_Instances.cend()) {
         closeSplashForInstance(it.value()->instanceId());
-        emit InterfacesRemoved(instance, getChildInterfacesFromObject(it->data()));
+        const auto interfaces = getChildInterfacesFromObject(it->data());
+        emit InterfacesRemoved(instance, interfaces);
+        sendObjectManagerSignal(m_applicationPath.path(), "InterfacesRemoved", instance, QVariant::fromValue(interfaces));
         unregisterObjectFromDBus(instance.path());
         m_Instances.remove(instance);
     }
@@ -1301,25 +1371,19 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
                 task.command << QStringLiteral("--icon") << std::move(iconStr);
             } break;
             case u'c': {
-                auto val = m_entry->value(fromStaticRaw(DesktopFileEntryKey), "Name");
+                auto val = m_entry->value(fromStaticRaw(DesktopFileEntryKey), u"Name"_s);
                 if (!val) {
                     qDebug() << R"(Application Name can't be found. %c will be ignored.)";
                     break;
                 }
 
-                const auto &rawValue = val.value();
-                if (!rawValue.canConvert<QStringMap>()) {
-                    qDebug() << "Name's underlying type mismatch:" << "QStringMap" << rawValue.metaType().name();
-                    break;
+                const auto &rawValue = val.value().get();
+                auto nameStr = toLocaleString(rawValue, getUserLocale());
+                if (nameStr.isEmpty()) {
+                    nameStr = toString(rawValue);
                 }
 
-                auto NameStr = toLocaleString(rawValue.value<QStringMap>(), getUserLocale());
-                if (NameStr.isEmpty()) {
-                    qDebug() << R"(Name Convert to locale string failed. %c will be ignored.)";
-                    break;
-                }
-
-                processedArg.append(NameStr);
+                processedArg.append(nameStr);
             } break;
             case u'k': {
                 processedArg.append(m_desktopSource.sourcePath());
@@ -1364,52 +1428,41 @@ QVariant ApplicationService::findEntryValue(const QString &group,
                                             EntryValueType type,
                                             const QLocale &locale) const noexcept
 {
-    QVariant ret;
     auto tmp = m_entry->value(group, valueKey);
-    if (!tmp.has_value()) {
-        return ret;
+    if (!tmp) {
+        return {};
     }
 
-    auto val = std::move(tmp).value();
-    bool ok{false};
-
+    const auto &val = std::move(tmp).value().get();
     switch (type) {
     case EntryValueType::Raw: {
-        auto valStr = val.toString();
-        if (!valStr.isEmpty()) {
-            ret = QVariant::fromValue(valStr);
-        }
-    } break;
+        auto valStr = toString(val, true);
+        return valStr.isEmpty() ? QVariant{} : QVariant::fromValue(std::move(valStr));
+    }
     case EntryValueType::String: {
         auto valStr = toString(val);
-        if (!valStr.isEmpty()) {
-            ret = QVariant::fromValue(valStr);
-        }
-    } break;
+        return valStr.isEmpty() ? QVariant{} : QVariant::fromValue(std::move(valStr));
+    }
     case EntryValueType::LocaleString: {
-        if (!val.canConvert<QStringMap>()) {
-            return ret;
+        auto valStr = toLocaleString(val, locale);
+        if (valStr.isEmpty()) {
+            valStr = toString(val);
         }
-        auto valStr = toLocaleString(val.value<QStringMap>(), locale);
-        if (!valStr.isEmpty()) {
-            ret = QVariant::fromValue(valStr);
-        }
-    } break;
+
+        return valStr.isEmpty() ? QVariant{} : QVariant::fromValue(std::move(valStr));
+    }
     case EntryValueType::Boolean: {
+        bool ok{false};
         auto valBool = toBoolean(val, ok);
-        if (ok) {
-            ret = QVariant::fromValue(valBool);
-        }
-    } break;
+        return ok ? valBool : QVariant{};
+    }
     case EntryValueType::IconString: {
         auto valStr = toIconString(val);
-        if (!valStr.isEmpty()) {
-            ret = QVariant::fromValue(valStr);
-        }
-    } break;
+        return valStr.isEmpty() ? QVariant{} : QVariant::fromValue(std::move(valStr));
+    }
     }
 
-    return ret;
+    Q_UNREACHABLE();
 }
 
 void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
@@ -1422,7 +1475,7 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
     if (auto ptr = m_storage.lock(); ptr) {
         if (!ptr->updateApplicationValue(m_desktopSource.desktopId(),
                                          fromStaticRaw(ApplicationPropertiesGroup),
-                                         fromStaticRaw(::LastLaunchedTime),
+                                         fromStaticRaw(LastLaunchedTime),
                                          QVariant::fromValue(timestamp),
                                          true)) {
             qWarning() << "failed to update LastLaunchedTime:" << id();
@@ -1431,7 +1484,7 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
 
         if (!ptr->updateApplicationValue(m_desktopSource.desktopId(),
                                          fromStaticRaw(ApplicationPropertiesGroup),
-                                         fromStaticRaw(::LaunchedTimes),
+                                         fromStaticRaw(LaunchedTimes),
                                          QVariant::fromValue(m_launchedTimes + 1))) {
             qWarning() << "failed to update LaunchedTimes:" << id();
             return;

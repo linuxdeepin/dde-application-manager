@@ -20,40 +20,35 @@ public:
     ApplicationManager1Storage &operator=(ApplicationManager1Storage &&) = default;
     ~ApplicationManager1Storage() = default;
 
-    [[nodiscard]] bool createApplicationValue(const QString &appId,
-                                              const QString &groupName,
-                                              const QString &valueKey,
-                                              const QVariant &value,
-                                              bool deferCommit = false) noexcept;
-    [[nodiscard]] bool updateApplicationValue(const QString &appId,
-                                              const QString &groupName,
-                                              const QString &valueKey,
-                                              const QVariant &value,
-                                              bool deferCommit = false) noexcept;
-    [[nodiscard]] QVariant
-    readApplicationValue(const QString &appId, const QString &groupName, const QString &valueKey) const noexcept;
-    [[nodiscard]] bool deleteApplicationValue(const QString &appId,
-                                              const QString &groupName,
-                                              const QString &valueKey,
-                                              bool deferCommit = false) noexcept;
+    [[nodiscard]] bool createApplicationValue(
+        QStringView appId, QStringView groupName, QStringView valueKey, const QVariant &value, bool deferCommit = false) noexcept;
+    [[nodiscard]] bool updateApplicationValue(
+        QStringView appId, QStringView groupName, QStringView valueKey, const QVariant &value, bool deferCommit = false) noexcept;
+    [[nodiscard]] QVariant readApplicationValue(QStringView appId, QStringView groupName, QStringView valueKey) const noexcept;
+    [[nodiscard]] bool
+    deleteApplicationValue(QStringView appId, QStringView groupName, QStringView valueKey, bool deferCommit = false) noexcept;
     [[nodiscard]] bool clearData() noexcept;
-    [[nodiscard]] bool deleteApplication(const QString &appId, bool deferCommit = false) noexcept;
-    [[nodiscard]] bool deleteGroup(const QString &appId, const QString &groupName, bool deferCommit = false) noexcept;
+    [[nodiscard]] bool deleteApplication(QStringView appId, bool deferCommit = false) noexcept;
+    [[nodiscard]] bool deleteGroup(QStringView appId, QStringView groupName, bool deferCommit = false) noexcept;
 
     bool setVersion(uint8_t version) noexcept;
     [[nodiscard]] uint8_t version() const noexcept;
 
     bool setFirstLaunch(bool first) noexcept;
     [[nodiscard]] bool firstLaunch() const noexcept;
+    void beginBatchUpdate() noexcept;
+    [[nodiscard]] bool endBatchUpdate() noexcept;
 
     [[nodiscard]] static std::shared_ptr<ApplicationManager1Storage>
     createApplicationManager1Storage(const QString &storageDir) noexcept;
 
 private:
-    [[nodiscard]] bool writeToFile() const noexcept;
-    explicit ApplicationManager1Storage(const QString &storagePath);
-    std::unique_ptr<QFile> m_file;
+    [[nodiscard]] bool writeToFile() noexcept;
+    explicit ApplicationManager1Storage(QString storagePath);
+    QString m_storagePath;
     QJsonObject m_data;
+    bool m_batchUpdate{false};
+    bool m_pendingWrite{false};
 };
 
 #endif

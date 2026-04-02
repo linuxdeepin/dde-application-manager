@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include "global.h"
 #include "constant.h"
 #include "applicationchecker.h"
 #include <QDir>
@@ -15,24 +16,34 @@ namespace {
 
 bool hasDesktopIntersection(QStringView rawValue, const QStringList &currentDesktops) noexcept
 {
-    if (rawValue.isEmpty()) {
+    if (rawValue.isEmpty() || currentDesktops.isEmpty()) {
         return false;
     }
 
+    const auto &dde = fromStaticRaw(DesktopDDE);
+    const auto &deepin = fromStaticRaw(DesktopDeepin);
+
+    bool currentHasDDE{false};
+    for (const auto &s : currentDesktops) {
+        if (s.compare(dde, Qt::CaseInsensitive) == 0 || s.compare(deepin, Qt::CaseInsensitive) == 0) {
+            currentHasDDE = true;
+            break;
+        }
+    }
+
     auto tokens = qTokenize(rawValue, u';', Qt::SkipEmptyParts);
-
     for (const auto token : tokens) {
-        const bool isDDE =
-            (token.compare(u"DDE"_sv, Qt::CaseInsensitive) == 0 || token.compare(u"deepin"_sv, Qt::CaseInsensitive) == 0);
+        const bool tokenIsDDE = (token.compare(dde, Qt::CaseInsensitive) == 0 || token.compare(deepin, Qt::CaseInsensitive) == 0);
 
-        for (const auto &current : currentDesktops) {
-            if (isDDE) {
-                if (current.compare(u"DDE"_sv, Qt::CaseInsensitive) == 0 ||
-                    current.compare(u"deepin"_sv, Qt::CaseInsensitive) == 0) {
+        if (tokenIsDDE) {
+            if (currentHasDDE) {
+                return true;
+            }
+        } else {
+            for (const auto &current : currentDesktops) {
+                if (current.compare(token, Qt::CaseInsensitive) == 0) {
                     return true;
                 }
-            } else if (current.compare(token, Qt::CaseInsensitive) == 0) {
-                return true;
             }
         }
     }
@@ -51,7 +62,7 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
         bool ok{false};
         hidden = toBoolean(hiddenVal.value(), ok);
         if (!ok) {
-            qCWarning(DDEAMChecker) << "invalid hidden value:" << hiddenVal.value();
+            qCWarning(DDEAMChecker) << "invalid hidden value:" << hiddenVal.value().get();
             return false;
         }
     }
@@ -60,11 +71,11 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
 
 bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
 {
-    auto tryExecVal = entry.value(fromStaticRaw(DesktopFileEntryKey), u"TryExec"_s);
+    auto tryExecVal = entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryTryExec));
     if (tryExecVal.has_value()) {
         auto executable = toString(tryExecVal.value());
         if (executable.isEmpty()) {
-            qCWarning(DDEAMChecker) << "invalid TryExec value:" << tryExecVal.value();
+            qCWarning(DDEAMChecker) << "invalid TryExec value:" << tryExecVal.value().get();
             return false;
         }
 
@@ -86,12 +97,12 @@ bool ApplicationFilter::showInCheck(const DesktopEntry &entry) noexcept
     }
 
     bool showInCurrentDE{true};
-    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), u"OnlyShowIn"_s); val.has_value()) {
+    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryOnlyShowIn)); val.has_value()) {
         showInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 
     bool notShowInCurrentDE{false};
-    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), u"NotShowIn"_s); val.has_value()) {
+    if (auto val = entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryNotShowIn)); val.has_value()) {
         notShowInCurrentDE = hasDesktopIntersection(toString(val.value()), desktops);
     }
 

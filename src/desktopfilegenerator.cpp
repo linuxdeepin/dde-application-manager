@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include "global.h"
 #include "desktopfilegenerator.h"
 #include "desktopfileparser.h"
+#include "constant.h"
 
 Q_LOGGING_CATEGORY(DDEAMGen, "dde.am.desktopfile.generator")
 
@@ -11,12 +13,12 @@ using namespace Qt::StringLiterals;
 
 bool DesktopFileGenerator::checkValidation(const QVariantMap &desktopFile, QString &err) noexcept
 {
-    if (!desktopFile.contains(u"Type"_s) || !desktopFile.contains(u"Name"_s)) {
+    if (!desktopFile.contains(fromStaticRaw(DesktopEntryType)) || !desktopFile.contains(fromStaticRaw(DesktopEntryName))) {
         err = "required key doesn't exists.";
         return false;
     }
 
-    auto it = desktopFile.constFind(u"Type"_s);
+    auto it = desktopFile.constFind(fromStaticRaw(DesktopEntryType));
     if (it == desktopFile.cend()) {
         err = "Type key doesn't exists.";
         return false;
@@ -28,7 +30,7 @@ bool DesktopFileGenerator::checkValidation(const QVariantMap &desktopFile, QStri
         return false;
     }
 
-    if (type == u"Link"_s && !desktopFile.contains(u"URL"_s)) {
+    if (type == fromStaticRaw(DesktopEntryLink) && !desktopFile.contains(fromStaticRaw(DesktopEntryURL))) {
         err = "URL must be set when Type is 'Link'";
         return false;
     }
@@ -40,46 +42,46 @@ int DesktopFileGenerator::processMainGroupLocaleEntry(DesktopEntry::container_ty
                                                       const QVariant &value) noexcept
 {
     using namespace Qt::StringLiterals;
-    if (key == u"ActionName"_s) {
+    if (key == fromStaticRaw(DesktopEntryActionName)) {
         return 1;
     }
 
-    if (key == u"Name"_s) {
+    if (key == fromStaticRaw(DesktopEntryName)) {
         const auto &nameMap = qdbus_cast<QStringMap>(value);
         if (nameMap.isEmpty()) {
             qDebug() << "Name's type mismatch:" << nameMap;
             return -1;
         }
 
-        mainEntry->insert(u"Name"_s, QVariant::fromValue(nameMap));
+        mainEntry->insert(fromStaticRaw(DesktopEntryName), QVariant::fromValue(nameMap));
         return 1;
     }
 
-    if (key == u"GenericName"_s) {
+    if (key == fromStaticRaw(DesktopEntryGenericName)) {
         const auto &genericNameMap = qdbus_cast<QStringMap>(value);
         if (genericNameMap.isEmpty()) {
             qDebug() << "GenericName's type mismatch:" << genericNameMap;
             return 1;
         }
 
-        mainEntry->insert(u"GenericName"_s, QVariant::fromValue(genericNameMap));
+        mainEntry->insert(fromStaticRaw(DesktopEntryGenericName), QVariant::fromValue(genericNameMap));
         return 1;
     }
 
-    if (key == u"Icon"_s) {
+    if (key == fromStaticRaw(DesktopEntryIcon)) {
         const auto &iconMap = qdbus_cast<QStringMap>(value);
         if (auto icon = iconMap.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale));
             icon != iconMap.cend() && !icon->isEmpty()) {
-            mainEntry->insert(u"Icon"_s, *icon);
+            mainEntry->insert(fromStaticRaw(DesktopEntryIcon), *icon);
         }
         return 1;
     }
 
-    if (key == u"Exec"_s) {
+    if (key == fromStaticRaw(DesktopEntryExec)) {
         const auto &execMap = qdbus_cast<QStringMap>(value);
         if (auto exec = execMap.constFind(fromStaticRaw(DesktopFileDefaultKeyLocale));
             exec != execMap.cend() && !exec->isEmpty()) {
-            mainEntry->insert(u"Exec"_s, *exec);
+            mainEntry->insert(fromStaticRaw(DesktopEntryExec), *exec);
         }
         return 1;
     }
@@ -105,10 +107,31 @@ bool DesktopFileGenerator::processMainGroup(DesktopEntry::container_type &conten
             return false;
         }
 
+        if (key == fromStaticRaw(DesktopEntryActions)) {
+            if (value.userType() == QMetaType::QString) {
+                mainEntry->insert(key, value);
+                continue;
+            }
+
+            if (value.userType() == QMetaType::QStringList) {
+                const auto actionList = value.toStringList();
+                if (actionList.isEmpty()) {
+                    qDebug() << "Actions's type mismatch or empty:" << value.typeName() << "expected: QString";
+                    return false;
+                }
+
+                mainEntry->insert(key, actionList.join(u';'));
+                continue;
+            }
+
+            qDebug() << "Actions's type mismatch:" << value.typeName() << "expected: QString";
+            return false;
+        }
+
         mainEntry->insert(key, value);
     }
 
-    mainEntry->insert(u"X-Deepin-CreateBy"_s, u"dde-application-manager"_s);
+    mainEntry->insert(fromStaticRaw(DesktopEntryXDeepinCreateBy), u"dde-application-manager"_s);
     return true;
 }
 
@@ -118,7 +141,7 @@ bool DesktopFileGenerator::processActionGroup(const QVariantMap &actionName,
                                               const QVariantMap &rawValue) noexcept
 {
     QStringMap iconMap;
-    if (auto actionIcon = rawValue.constFind(u"Icon"_s); actionIcon != rawValue.cend()) {
+    if (auto actionIcon = rawValue.constFind(fromStaticRaw(DesktopEntryIcon)); actionIcon != rawValue.cend()) {
         iconMap = qvariant_cast<QStringMap>(*actionIcon);
         if (iconMap.isEmpty()) {
             qCDebug(DDEAMGen) << "Icon's type mismatch or empty:" << actionIcon->typeName() << "expected: QMap<QString, QString>";
@@ -153,10 +176,10 @@ bool DesktopFileGenerator::processActionGroup(const QVariantMap &actionName,
             qCDebug(DDEAMGen) << "couldn't find actionName, current action:" << action;
             return false;
         }
-        actionGroup->insert(u"Name"_s, QVariant::fromValue(*it));
+        actionGroup->insert(fromStaticRaw(DesktopEntryName), QVariant::fromValue(*it));
 
         if (auto actionIcon = iconMap.constFind(action); actionIcon != iconMap.cend() && !actionIcon->isEmpty()) {
-            actionGroup->insert(u"Icon"_s, *actionIcon);
+            actionGroup->insert(fromStaticRaw(DesktopEntryIcon), *actionIcon);
         }
 
         if (auto actionExec = execMap.constFind(action); actionExec != execMap.cend() && !actionExec->isEmpty()) {
@@ -170,8 +193,8 @@ bool DesktopFileGenerator::processActionGroup(const QVariantMap &actionName,
 QString DesktopFileGenerator::generate(const QVariantMap &desktopFile, QString &err) noexcept
 {
     DesktopEntry::container_type content{};
-    if (auto actions = desktopFile.find(u"Actions"_s); actions != desktopFile.end()) {
-        auto it = desktopFile.constFind(u"ActionName"_s);
+    if (auto actions = desktopFile.find(fromStaticRaw(DesktopEntryActions)); actions != desktopFile.end()) {
+        auto it = desktopFile.constFind(fromStaticRaw(DesktopEntryActionName));
         if (it == desktopFile.cend()) {
             err = u"'ActionName' doesn't exists"_s;
             return {};

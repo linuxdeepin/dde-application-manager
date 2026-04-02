@@ -7,6 +7,7 @@
 #include "dbus/applicationmanager1service.h"
 #include "global.h"
 #include <QDBusConnection>
+#include <QCoreApplication>
 #include <QGuiApplication>
 
 Q_LOGGING_CATEGORY(DDEAMProf, "dde.am.prof", QtInfoMsg)

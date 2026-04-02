@@ -23,7 +23,7 @@ MimeManager1Service::MimeManager1Service(ApplicationManager1Service *parent)
     connect(&m_mimeAppsWatcher, &QFileSystemWatcher::fileChanged, this, &MimeManager1Service::onMimeAppsFileChanged);
 
     // 添加用户配置目录下的 mimeapps.list 文件到监控
-    auto userMimeAppsFile = QDir{getXDGConfigHome()}.absoluteFilePath(u"mimeapps.list"_s);
+    auto userMimeAppsFile = QDir{getXDGConfigHome()}.absoluteFilePath(fromStaticRaw(MimeappsList));
     if (QFileInfo::exists(userMimeAppsFile)) {
         m_mimeAppsWatcher.addPath(userMimeAppsFile);
     } else {

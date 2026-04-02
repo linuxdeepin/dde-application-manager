@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -8,23 +8,29 @@
 #include "iniParser.h"
 #include <QMimeDatabase>
 #include <QMimeType>
+#include <QLoggingCategory>
 
-constexpr auto defaultApplications = "Default Applications";
-constexpr auto addedAssociations = "Added Associations";
-constexpr auto removedAssociations = "Removed Associations";
-constexpr auto mimeCache = "MIME Cache";
+constexpr static auto &defaultApplications = u"Default Applications";
+constexpr static auto &addedAssociations = u"Added Associations";
+constexpr static auto &removedAssociations = u"Removed Associations";
+constexpr static auto &mimeCache = u"MIME Cache";
 
-class MimeFileParser : public Parser<QStringList>
+Q_DECLARE_LOGGING_CATEGORY(DDEAMMimeParser)
+
+class MimeFileParser final : public Parser<QStringList>
 {
 public:
-    explicit MimeFileParser(QTextStream &stream, bool isDesktopSpecific)
-        : Parser(stream)
+    explicit MimeFileParser(QFile &file, bool isDesktopSpecific)
+        : Parser(file)
         , m_desktopSpec(isDesktopSpecific)
     {
     }
+
     ParserError parse(Groups &ret) noexcept override;
-    ParserError addGroup(Groups &ret) noexcept override;
-    ParserError addEntry(Groups::iterator &group) noexcept override;
+
+protected:
+    ParserError addGroup(Groups &ret, QString &groupName) noexcept override;
+    ParserError addEntry(Groups::iterator group) noexcept override;
 
 private:
     bool m_desktopSpec;

@@ -16,7 +16,6 @@
 #include <QDBusObjectPath>
 #include <QDBusUnixFileDescriptor>
 #include <QFile>
-#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QSharedPointer>
@@ -51,7 +50,7 @@ public:
     [[nodiscard]] PropMap actionName() const noexcept;
 
     Q_PROPERTY(QString ID READ id CONSTANT)
-    [[nodiscard]] QString id() const noexcept;
+    [[nodiscard]] const QString &id() const noexcept;
 
     Q_PROPERTY(QStringMap Name READ name NOTIFY nameChanged)
     [[nodiscard]] QStringMap name() const noexcept;
@@ -148,6 +147,7 @@ public:
                                           const QLocale &locale = getUserLocale()) const noexcept;
 
     [[nodiscard]] static std::optional<QStringList> splitExecArguments(QStringView str) noexcept;
+    bool ensurePropertiesForwarder() noexcept;
 
 public Q_SLOTS:
     // NOTE: 'realExec' only for internal implementation
@@ -191,6 +191,10 @@ private:
                                 std::weak_ptr<ApplicationManager1Storage> storage);
     static QSharedPointer<ApplicationService> createApplicationService(
         DesktopFile source, ApplicationManager1Service *parent, std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
+    static QSharedPointer<ApplicationService> createApplicationService(DesktopFile source,
+                                                                       std::unique_ptr<DesktopEntry> entry,
+                                                                       ApplicationManager1Service *parent,
+                                                                       std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
     qint64 m_lastLaunch{0};
     qint64 m_installedTime{0};
     qint64 m_launchedTimes{0};
@@ -203,6 +207,7 @@ private:
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     QSet<QString> m_splashInstanceIds;
+    bool m_propertiesForwarderInitialized{false};
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck() const noexcept;

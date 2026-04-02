@@ -9,7 +9,6 @@
 #include "constant.h"
 #include <QDBusArgument>
 #include <QDBusConnection>
-#include <QDBusError>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 #include <QDBusUnixFileDescriptor>
@@ -19,15 +18,13 @@
 #include <QLoggingCategory>
 #include <QMap>
 #include <QMetaClassInfo>
-#include <QMetaType>
-#include <QRegularExpression>
 #include <QString>
 #include <QUuid>
 #include <csignal>  // IWYU pragma: keep
 #include <optional>
-#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <QDBusAbstractAdaptor>
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 Q_DECLARE_LOGGING_CATEGORY(DDEAMUtils)
@@ -215,27 +212,10 @@ void applyIteratively(QList<QDir> dirs,
     }
 }
 
-template <typename = std::void_t<>>
-struct hasChar16FromRawData : std::false_type
-{
-};
-
-template <>
-struct hasChar16FromRawData<
-    std::void_t<decltype(QString::fromRawData(std::declval<const char16_t *>(), std::declval<qsizetype>()))>> : std::true_type
-{
-};
-
 template <std::size_t N>
 inline QString fromStaticRaw(const char16_t (&array)[N]) noexcept
 {
-    constexpr auto len = static_cast<qsizetype>(N - 1);
-
-    if constexpr (hasChar16FromRawData<>::value) {
-        return QString::fromRawData(array, len);
-    } else {
-        return QString::fromRawData(reinterpret_cast<const QChar *>(array), len);
-    }
+    return QString::fromRawData(reinterpret_cast<const QChar *>(array), static_cast<qsizetype>(N - 1));
 }
 
 class ApplicationManager1DBus
@@ -347,24 +327,34 @@ private:
 bool registerObjectToDBus(QObject *o, const QString &path, const QString &interface) noexcept;
 void unregisterObjectFromDBus(const QString &path) noexcept;
 
-inline QString getDBusInterface(const QMetaObject *meta) noexcept
+inline const QString &getDBusInterface(const QMetaObject *meta) noexcept
 {
-    if (meta == nullptr) {
+    static QHash<const QMetaObject *, QString> interfaceCache{{nullptr, {}}};
+
+    if (Q_UNLIKELY(meta == nullptr)) {
         qCCritical(DDEAMUtils) << "meta is nullptr";
-        return {};
+        return interfaceCache[nullptr];  // NOLINT
     }
 
-    if (auto infoIndex = meta->indexOfClassInfo("D-Bus Interface"); infoIndex != -1) {
-        return meta->classInfo(infoIndex).value();
+    auto it = interfaceCache.constFind(meta);
+    if (Q_LIKELY(it != interfaceCache.cend())) {
+        return *it;
+    }
+
+    auto infoIndex = meta->indexOfClassInfo("D-Bus Interface");
+    if (Q_LIKELY(infoIndex != -1)) {
+        auto interface = QString::fromUtf8(meta->classInfo(infoIndex).value());
+        auto it = interfaceCache.insert(meta, std::move(interface));
+        return it.value();
     }
 
     qCWarning(DDEAMUtils) << "no interface found.";
-    return {};
+    return interfaceCache[nullptr];  // NOLINT
 }
 
 inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(const QObject *o) noexcept
 {
-    if (o == nullptr) {
+    if (Q_UNLIKELY(o == nullptr)) {
         qCCritical(DDEAMUtils) << "object pointer is nullptr";
         return {};
     }
@@ -373,22 +363,25 @@ inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(const QObjec
     ObjectInterfaceMap ret;
 
     for (const auto *child : childs) {
-        if (child->inherits("QDBusAbstractAdaptor")) {
-            const auto *mo = child->metaObject();
-            auto interface = getDBusInterface(mo);
-
-            if (interface.isEmpty()) {
-                continue;
-            }
-
-            QVariantMap properties;
-            for (auto i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
-                const auto prop = mo->property(i);
-                properties.insert(prop.name(), prop.read(child));
-            }
-
-            ret.insert(interface, properties);
+        const auto *adaptor = qobject_cast<const QDBusAbstractAdaptor *>(child);
+        if (adaptor == nullptr) {
+            continue;
         }
+
+        const auto *mo = child->metaObject();
+        const auto &interface = getDBusInterface(mo);
+
+        if (Q_UNLIKELY(interface.isEmpty())) {
+            continue;
+        }
+
+        QVariantMap properties;
+        for (auto i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+            const auto prop = mo->property(i);
+            properties.insert(QString::fromUtf8(prop.name()), prop.read(child));
+        }
+
+        ret.insert(interface, properties);
     }
 
     return ret;
@@ -396,7 +389,7 @@ inline ObjectInterfaceMap getChildInterfacesAndPropertiesFromObject(const QObjec
 
 inline QStringList getChildInterfacesFromObject(const QObject *o) noexcept
 {
-    if (o == nullptr) {
+    if (Q_UNLIKELY(o == nullptr)) {
         qCCritical(DDEAMUtils) << "object pointer is nullptr";
         return {};
     }
@@ -406,8 +399,11 @@ inline QStringList getChildInterfacesFromObject(const QObject *o) noexcept
     ret.reserve(childs.size());
 
     for (const auto *child : childs) {
-        if (child->inherits("QDBusAbstractAdaptor")) {
-            ret.append(getDBusInterface(child->metaObject()));
+        if (const auto *adaptor = qobject_cast<const QDBusAbstractAdaptor *>(child)) {
+            auto interface = getDBusInterface(adaptor->metaObject());
+            if (!interface.isEmpty()) {
+                ret.append(std::move(interface));
+            }
         }
     }
 
@@ -511,7 +507,7 @@ inline QString escapeToObjectPath(QStringView str)
 inline QString unescapeFromObjectPath(QStringView str)
 {
     using namespace Qt::StringLiterals;
-    return Detail::unescapeImpl(str, u"_"_sv);
+    return Detail::unescapeImpl(str, u"_"_s);
 }
 
 inline QString escapeApplicationId(QStringView id)
@@ -538,13 +534,13 @@ inline QString escapeApplicationId(QStringView id)
             result.append(u'-');
         } else if (i == 0 && ch == u'.') {
             // "." as first char is escaped
-            result.append(uR"(\x)"_sv);
+            result.append(uR"(\x)"_s);
             result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
         } else if (isSafeChar(ch)) {
             result.append(ch);
         } else {
             // Other non-safe chars are escaped
-            result.append(uR"(\x)"_sv);
+            result.append(uR"(\x)"_s);
             result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
         }
     }
@@ -555,7 +551,7 @@ inline QString escapeApplicationId(QStringView id)
 inline QString unescapeApplicationId(QStringView id)
 {
     using namespace Qt::StringLiterals;
-    return Detail::unescapeImpl(id, uR"(\x)"_sv);
+    return Detail::unescapeImpl(id, uR"(\x)"_s);
 }
 
 inline QString getRelativePathFromAppId(QStringView id)
@@ -590,6 +586,12 @@ inline QString getRelativePathFromAppId(QStringView id)
     path.append(desktopSuffix);
 
     return path;
+}
+
+inline const QString &getDesktopDir() noexcept
+{
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)};
+    return value;
 }
 
 inline const QString &getXDGRuntimeDir() noexcept
@@ -780,31 +782,16 @@ ObjectMap dumpDBusObject(const QHash<Key, QSharedPointer<Value>> &map)
     return objs;
 }
 
-struct FileTimeInfo
-{
-    qint64 mtime;
-    qint64 ctime;
-    qint64 atime;
-};
-
-inline FileTimeInfo getFileTimeInfo(const QFileInfo &file)
-{
-    auto mtime = file.lastModified().toMSecsSinceEpoch();
-    auto atime = file.lastRead().toMSecsSinceEpoch();
-    auto ctime = file.birthTime().toMSecsSinceEpoch();
-    return {mtime, ctime, atime};
-}
-
 inline QByteArray getCurrentSessionId()
 {
     using namespace Qt::StringLiterals;
 
-    auto msg =
-        QDBusMessage::createMethodCall(u"org.freedesktop.systemd1"_s,
-                                       u"/org/freedesktop/systemd1/unit/"_s % escapeToObjectPath(u"graphical-session.target"),
-                                       u"org.freedesktop.DBus.Properties"_s,
-                                       u"Get"_s);
-    msg << u"org.freedesktop.systemd1.Unit"_s;
+    auto msg = QDBusMessage::createMethodCall(QString::fromUtf8(SystemdService),
+                                              QString::fromUtf8(SystemdObjectPath) % u"/unit/"_s %
+                                                  escapeToObjectPath(u"graphical-session.target"),
+                                              fromStaticRaw(SystemdPropInterfaceName),
+                                              u"Get"_s);
+    msg << fromStaticRaw(SystemdUnitInterfaceName);
     msg << u"InvocationID"_s;
 
     auto ret = QDBusConnection::sessionBus().call(msg);
@@ -863,21 +850,27 @@ inline QString getAutostartAppIdFromAbsolutePath(QStringView path)
         return {};
     }
     auto base = path.chopped(desktopSuffix.size());
-
-    const auto parts = base.split(QDir::separator());
-    auto it = std::find(parts.cbegin(), parts.cend(), u"autostart");
-
-    if (it == parts.cend() || std::next(it) == parts.cend()) {
-        return {};
-    }
+    auto tokens = qTokenize(base, QDir::separator());
 
     QString result;
-    for (auto next = std::next(it); next != parts.cend(); ++next) {
+    bool foundAutostart{false};
+    for (auto component : tokens) {
+        if (!foundAutostart) {
+            if (component == u"autostart") {
+                foundAutostart = true;
+            }
+            continue;
+        }
+
+        if (component.isEmpty()) {
+            continue;
+        }
+
         if (!result.isEmpty()) {
             result.append(u'-');
         }
 
-        result.append(*next);
+        result.append(component);
     }
 
     return result;

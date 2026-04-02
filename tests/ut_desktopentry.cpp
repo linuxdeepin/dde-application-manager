@@ -1,14 +1,19 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include "global.h"
 #include "desktopentry.h"
+#include "desktopfileparser.h"
 #include <gtest/gtest.h>
 #include <QTextStream>
 #include <QSharedPointer>
 #include <QLocale>
 #include <QDir>
 #include <QFile>
+#include <QTemporaryFile>
+
+using namespace Qt::StringLiterals;
 
 class TestDesktopEntry : public testing::Test
 {
@@ -22,7 +27,7 @@ public:
         ASSERT_TRUE(fakeXDG.cd("tests/data"));
         ASSERT_TRUE(qputenv("XDG_DATA_DIRS", fakeXDG.absolutePath().toLocal8Bit()));
         ParserError err;
-        auto file = DesktopFile::searchDesktopFileById("deepin-editor", err);
+        auto file = DesktopFile::searchDesktopFileById(u"deepin-editor"_s, err);
         if (!file.has_value()) {
             qWarning() << "search failed:" << err;
             return;
@@ -48,7 +53,7 @@ TEST_F(TestDesktopEntry, desktopFile)
     ASSERT_TRUE(desktopFileDir.cdUp());
     ASSERT_TRUE(desktopFileDir.cdUp());
     ASSERT_TRUE(desktopFileDir.cd("tests/data/applications"));
-    const auto& path = desktopFileDir.absoluteFilePath("deepin-editor.desktop");
+    const auto &path = desktopFileDir.absoluteFilePath("deepin-editor.desktop");
     EXPECT_EQ(exampleFile->sourcePath(), path);
     EXPECT_EQ(exampleFile->desktopId().toStdString(), "deepin-editor");
 }
@@ -60,15 +65,15 @@ TEST_F(TestDesktopEntry, prase)
     DesktopEntry entry;
     QFile in{exampleFile->sourcePath()};
     ASSERT_TRUE(in.open(QFile::ExistingOnly | QFile::ReadOnly | QFile::Text));
-    QTextStream fs{&in};
-    auto err = entry.parse(fs);
+    auto err = entry.parse(in);
     ASSERT_EQ(err, ParserError::NoError);
 
     auto group = entry.group("Desktop Entry");
     ASSERT_TRUE(group);
 
-    auto name = group->constFind("Name");
-    ASSERT_NE(name, group->cend());
+    const auto &groupRef = group->get();
+    auto name = groupRef.constFind("Name");
+    ASSERT_NE(name, groupRef.cend());
 
     const auto &nameVal = *name;
 
@@ -83,7 +88,46 @@ TEST_F(TestDesktopEntry, prase)
     auto defaultName = toString(nameVal);  // get default locale value.
     EXPECT_TRUE(defaultName == "Text Editor");
 
-    const auto &localeMap = nameVal.value<QStringMap>();
-    auto localeString = toLocaleString(nameVal.value<QStringMap>(), QLocale{"zh_CN"});
+    auto localeString = toLocaleString(nameVal, QLocale{"zh_CN"});
     EXPECT_TRUE(localeString == "文本编辑器");
+}
+
+TEST(DesktopFileParser, desktopEntryMustBeFirstGroup)
+{
+    QTemporaryFile file;
+    ASSERT_TRUE(file.open());
+    QTextStream out(&file);
+    out << "[Desktop Action one]\n"
+           "Name=Action One\n\n"
+           "[Desktop Entry]\n"
+           "Type=Application\n"
+           "Name=Example\n"
+           "Exec=example\n";
+    out.flush();
+    file.seek(0);
+
+    DesktopEntry entry;
+    EXPECT_EQ(entry.parse(file), ParserError::InvalidFormat);
+}
+
+TEST(DesktopFileParser, serializeKeepsDesktopActionGroups)
+{
+    DesktopEntry entry;
+    entry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryType), u"Application"_s);
+    entry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryName), QVariant::fromValue(QStringMap{
+                                                                                      {fromStaticRaw(DesktopFileDefaultKeyLocale), u"Example"_s}}));
+    entry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryExec), u"example"_s);
+    entry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryActions), u"one;two;"_s);
+    entry.insert(fromStaticRaw(DesktopFileActionKey) % u"one"_s, fromStaticRaw(DesktopEntryName), QVariant::fromValue(QStringMap{
+                                                                                           {fromStaticRaw(DesktopFileDefaultKeyLocale), u"Action One"_s}}));
+    entry.insert(fromStaticRaw(DesktopFileActionKey) % u"one"_s, fromStaticRaw(DesktopEntryExec), u"example --one"_s);
+    entry.insert(fromStaticRaw(DesktopFileActionKey) % u"two"_s, fromStaticRaw(DesktopEntryName), QVariant::fromValue(QStringMap{
+                                                                                           {fromStaticRaw(DesktopFileDefaultKeyLocale), u"Action Two"_s}}));
+    entry.insert(fromStaticRaw(DesktopFileActionKey) % u"two"_s, fromStaticRaw(DesktopEntryExec), u"example --two"_s);
+
+    const auto serialized = toString(entry.data());
+    EXPECT_TRUE(serialized.contains(u"[Desktop Action one]\n"_s));
+    EXPECT_TRUE(serialized.contains(u"[Desktop Action two]\n"_s));
+    EXPECT_TRUE(serialized.contains(u"Exec=example --one\n"_s));
+    EXPECT_TRUE(serialized.contains(u"Exec=example --two\n"_s));
 }

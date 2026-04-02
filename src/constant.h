@@ -23,11 +23,6 @@ constexpr static auto &DDEApplicationManager1MimeManager1ObjectPath = u"/org/des
 constexpr static auto &DesktopFileEntryKey = u"Desktop Entry";
 constexpr static auto &DesktopFileActionKey = u"Desktop Action ";
 constexpr static auto &DesktopFileDefaultKeyLocale = u"default";
-constexpr static auto &X_Deepin_GenerateSource = u"X-Deepin-GenerateSource";
-constexpr static auto &X_Deepin_Singleton = u"X-Deepin-Singleton";
-constexpr static auto &DesktopEntryHidden = u"Hidden";
-constexpr static auto &DesktopEntryExec = u"Exec";
-constexpr static auto &DesktopEntryEnv = u"Env";
 constexpr static auto &DesktopDefault = u"default";
 
 constexpr static auto &ApplicationManagerServerDBusName =
@@ -58,21 +53,58 @@ constexpr static auto &AppExecOption = u"appExec";
 
 constexpr static auto STORAGE_VERSION = 0;
 constexpr static auto &ApplicationPropertiesGroup = u"Application Properties";
-constexpr static auto & LastLaunchedTime = u"LastLaunchedTime";
-constexpr static auto & Environ = u"Environ";
-constexpr static auto & LaunchedTimes = u"LaunchedTimes";
-constexpr static auto & InstalledTime = u"InstalledTime";
+constexpr static auto &LastLaunchedTime = u"LastLaunchedTime";
+constexpr static auto &Environ = u"Environ";
+constexpr static auto &LaunchedTimes = u"LaunchedTimes";
+constexpr static auto &InstalledTime = u"InstalledTime";
 
-constexpr static auto & ApplicationManagerHookDir = u"/deepin/dde-application-manager/hooks.d";
+constexpr static auto &ApplicationManagerHookDir = u"/deepin/dde-application-manager/hooks.d";
 
-constexpr static auto & ApplicationManagerToolsConfig = u"org.deepin.dde.am";
+constexpr static auto &ApplicationManagerToolsConfig = u"org.deepin.dde.am";
 
-constexpr static auto & ApplicationManagerConfig = u"org.deepin.dde.application-manager";
-constexpr static auto & AppExtraEnvironments = u"appExtraEnvironments";
-constexpr static auto & AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
+constexpr static auto &ApplicationManagerConfig = u"org.deepin.dde.application-manager";
+constexpr static auto &AppExtraEnvironments = u"appExtraEnvironments";
+constexpr static auto &AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
 
-constexpr static auto & CompatibilityConfigFilePath = u"/var/lib/compatible/compatibleDesktop.json";
+constexpr static auto &CompatibilityConfigFilePath = u"/var/lib/compatible/compatibleDesktop.json";
 
 constexpr auto desktopSuffix = QStringView{u".desktop"};
+
+constexpr static auto &DesktopEntryType = u"Type";
+constexpr static auto &DesktopEntryName = u"Name";
+constexpr static auto &DesktopEntryGenericName = u"GenericName";
+constexpr static auto &DesktopEntryIcon = u"Icon";
+constexpr static auto &DesktopEntryTryExec = u"TryExec";
+constexpr static auto &DesktopEntryActions = u"Actions";
+constexpr static auto &DesktopEntryActionName = u"ActionName";
+constexpr static auto &DesktopEntryOnlyShowIn = u"OnlyShowIn";
+constexpr static auto &DesktopEntryNotShowIn = u"NotShowIn";
+constexpr static auto &DesktopEntryURL = u"URL";
+constexpr static auto &DesktopEntryLink = u"Link";
+constexpr static auto &DesktopEntryComment = u"Comment";
+constexpr static auto &DesktopEntryKeywords = u"Keywords";
+constexpr static auto &DesktopEntryXDeepinCreateBy = u"X-Deepin-CreateBy";
+constexpr static auto &DesktopEntryXDeepinGenerateSource = u"X-Deepin-GenerateSource";
+constexpr static auto &DesktopEntryXDeepinSingleton = u"X-Deepin-Singleton";
+constexpr static auto &DesktopEntryHidden = u"Hidden";
+constexpr static auto &DesktopEntryExec = u"Exec";
+constexpr static auto &DesktopEntryEnv = u"Env";
+
+constexpr static auto &SystemdKill = u"Kill";
+constexpr static auto &SystemdEnvironment = u"Environment";
+constexpr static auto &SystemdGet = u"Get";
+constexpr static auto &SystemdListUnitsByPatterns = u"ListUnitsByPatterns";
+
+constexpr static auto &MimeappsList = u"mimeapps.list";
+constexpr static auto &MimeinfoCache = u"mimeinfo.cache";
+constexpr static auto &MimeappsDesktopSuffix = u"-mimeapps.list";
+
+constexpr static auto &BuiltInAutostartOption = u"_autostart";
+constexpr static auto &EnvOption = u"env"; // for dbus option
+constexpr static auto &EnvKey = u"env"; // for config
+constexpr static auto &UnsetEnvKey = u"unsetEnv";
+
+constexpr static auto &DesktopDDE = u"DDE";
+constexpr static auto &DesktopDeepin = u"deepin";
 
 #endif

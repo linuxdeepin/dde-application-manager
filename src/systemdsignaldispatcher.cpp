@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "systemdsignaldispatcher.h"
+#include "constant.h"
 
 bool SystemdSignalDispatcher::connectToSignals() noexcept
 {
@@ -61,7 +62,7 @@ void SystemdSignalDispatcher::onPropertiesChanged(const QString &interface,
     }
 
     using namespace Qt::StringLiterals;
-    if (auto it = props.constFind(u"Environment"_s); it != props.cend()) {
+    if (auto it = props.constFind(fromStaticRaw(SystemdEnvironment)); it != props.cend()) {
         emit SystemdEnvironmentChanged(it->toStringList());
     }
 }

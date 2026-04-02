@@ -13,6 +13,7 @@
 #include "systemdsignaldispatcher.h"
 #include <DUtil>
 #include <QDBusMessage>
+#include <QDirIterator>
 #include <QFile>
 #include <QGuiApplication>
 #include <QHash>
@@ -23,6 +24,138 @@
 using namespace Qt::StringLiterals;
 
 Q_LOGGING_CATEGORY(DDEAM, "dde.am.manager")
+
+namespace {
+template <typename Adaptor>
+void setAdaptorAutoRelaySignals(Adaptor *adaptor, bool enabled) noexcept
+{
+    struct Accessor final : Adaptor
+    {
+        using Adaptor::setAutoRelaySignals;
+    };
+
+    if (adaptor != nullptr) {
+        static_cast<Accessor *>(adaptor)->setAutoRelaySignals(enabled);
+    }
+}
+
+void sendObjectManagerSignal(const QString &path, const char *member, const QDBusObjectPath &objectPath, const QVariant &payload)
+{
+    auto msg = QDBusMessage::createSignal(path, fromStaticRaw(ObjectManagerInterface), member);
+    msg << objectPath;
+    msg << payload;
+    ApplicationManager1DBus::instance().globalServerBus().send(msg);
+}
+
+struct ParsedAutostartEntry
+{
+    DesktopFile desktopFile;
+    DesktopEntry entry;
+};
+
+QString desktopIdFromRelativePath(QStringView relativePath) noexcept
+{
+    if (!relativePath.endsWith(desktopSuffix)) {
+        return {};
+    }
+
+    auto id = relativePath.chopped(desktopSuffix.size()).toString();
+    id.replace(QDir::separator(), u'-');
+    return id;
+}
+
+template <typename T>
+void forEachApplicationDesktopFile(T &&func) noexcept
+{
+    static_assert(std::is_invocable_v<T, DesktopFile>,
+                  "application desktop iterator callback should accept one DesktopFile argument");
+
+    QSet<QString> seenDesktopIds;
+    for (const auto &dirPath : getApplicationsDirs()) {
+        const QFileInfo dirInfo{dirPath};
+        if (!dirInfo.isDir()) {
+            continue;
+        }
+
+        QDirIterator it{
+            dirPath, {u"*.desktop"_s}, QDir::Files | QDir::NoDotAndDotDot | QDir::Readable, QDirIterator::Subdirectories};
+        while (it.hasNext()) {
+            const auto info = it.nextFileInfo();
+            const auto relativePath = QDir{dirPath}.relativeFilePath(info.absoluteFilePath());
+            auto ret = DesktopFile::createDesktopFile(info, desktopIdFromRelativePath(relativePath));
+            if (!ret) {
+                continue;
+            }
+
+            auto file = std::move(ret).value();
+            if (file.desktopId().isEmpty() || seenDesktopIds.contains(file.desktopId())) {
+                continue;
+            }
+
+            seenDesktopIds.insert(file.desktopId());
+            if (func(std::move(file))) {
+                return;
+            }
+        }
+    }
+}
+
+template <typename T>
+void forEachAutostartDesktopFile(T &&func) noexcept
+{
+    static_assert(std::is_invocable_v<T, DesktopFile>,
+                  "autostart desktop iterator callback should accept one DesktopFile argument");
+
+    QSet<QString> seenFileNames;
+    for (const auto &dirPath : getAutoStartDirs()) {
+        const QDir dir{dirPath};
+        if (!dir.exists()) {
+            continue;
+        }
+
+        const auto infoList = dir.entryInfoList({u"*.desktop"_s}, QDir::Files | QDir::NoDotAndDotDot | QDir::Readable, QDir::Name);
+        for (const auto &info : infoList) {
+            if (seenFileNames.contains(info.fileName())) {
+                continue;
+            }
+
+            auto ret = DesktopFile::createDesktopFile(info, desktopIdFromRelativePath(info.fileName()));
+            if (!ret) {
+                continue;
+            }
+
+            seenFileNames.insert(info.fileName());
+            if (func(std::move(ret).value())) {
+                return;
+            }
+        }
+    }
+}
+
+[[nodiscard]] std::optional<ParsedAutostartEntry> parseAutostartDesktopFile(DesktopFile desktopFile) noexcept
+{
+    DesktopFileGuard guard{desktopFile};
+    if (!guard.try_open()) {
+        return std::nullopt;
+    }
+
+    DesktopEntry entry;
+    auto &file = desktopFile.sourceFileRef();
+    auto err = entry.parse(file);
+    if (err != ParserError::NoError) {
+        qWarning() << "parse autostart file" << desktopFile.sourcePath() << "error:" << err;
+        return std::nullopt;
+    }
+
+    if (ApplicationFilter::tryExecCheck(entry) || ApplicationFilter::showInCheck(entry) || ApplicationFilter::hiddenCheck(entry)) {
+        qInfo() << "autostart application" << desktopFile.desktopId() << "couldn't pass check.";
+        return std::nullopt;
+    }
+
+    guard.close();
+    return ParsedAutostartEntry{std::move(desktopFile), std::move(entry)};
+}
+}  // namespace
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
 
@@ -57,18 +190,18 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
 {
-    if (!connection.registerService(fromStaticRaw(DDEApplicationManager1ServiceName))) {
-        qFatal("%s", connection.lastError().message().toLocal8Bit().data());
-    }
-
     if (auto *tmp = new (std::nothrow) ApplicationManager1Adaptor{this}; tmp == nullptr) {
         qCCritical(DDEAM) << "new Application Manager Adaptor failed.";
         std::terminate();
+    } else {
+        setAdaptorAutoRelaySignals(tmp, false);
     }
 
     if (auto *tmp = new (std::nothrow) AMObjectManagerAdaptor{this}; tmp == nullptr) {
         qCCritical(DDEAM) << "new Object Manager of Application Manager Adaptor failed.";
         std::terminate();
+    } else {
+        setAdaptorAutoRelaySignals(tmp, false);
     }
 
     if (!registerObjectToDBus(
@@ -147,8 +280,7 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             &ApplicationManager1Service::removeInstanceFromApplication);
 
     auto envToPath = [this](const QStringList &envs) {
-        auto path =
-            std::find_if(envs.cbegin(), envs.cend(), [](const QString &env) { return env.startsWith(QStringView{u"PATH="}); });
+        auto path = std::find_if(envs.cbegin(), envs.cend(), [](QStringView env) { return env.startsWith(u"PATH="); });
         if (path == envs.cend()) {
             return;
         }
@@ -165,9 +297,9 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     connect(&dispatcher, &SystemdSignalDispatcher::SystemdEnvironmentChanged, envToPath);
 
     auto &con = ApplicationManager1DBus::instance().globalDestBus();
-    auto envMsg =
-        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, fromStaticRaw(SystemdPropInterfaceName), u"Get"_s);
-    envMsg.setArguments({SystemdInterfaceName, u"Environment"_s});
+    auto envMsg = QDBusMessage::createMethodCall(
+        SystemdService, SystemdObjectPath, fromStaticRaw(SystemdPropInterfaceName), fromStaticRaw(SystemdGet));
+    envMsg.setArguments({SystemdInterfaceName, fromStaticRaw(SystemdEnvironment)});
     auto ret = con.call(envMsg);
     if (ret.type() == QDBusMessage::ErrorMessage) {
         qFatal("%s", ret.errorMessage().toLocal8Bit().data());
@@ -184,6 +316,11 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         qFatal("connect to ApplicationUpdated failed.");
     }
 
+    auto storagePtr = m_storage.lock();
+    if (storagePtr) {
+        storagePtr->beginBatchUpdate();
+    }
+
     scanApplications();
 
     updateAutostartStatus();
@@ -194,14 +331,32 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     loadHooks();
 
-    auto storagePtr = m_storage.lock();
-    if (!storagePtr->setFirstLaunch(false)) {
-        qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
+    if (storagePtr) {
+        if (!storagePtr->setFirstLaunch(false) || !storagePtr->endBatchUpdate()) {
+            qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
+        }
     }
 
-    if (auto *ptr = new (std::nothrow) PropertiesForwarder{fromStaticRaw(DDEApplicationManager1ObjectPath), this};
+    if (auto *ptr = new (std::nothrow)
+                     PropertiesForwarder{fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                         fromStaticRaw(ApplicationManager1Interface),
+                                         this};
         ptr == nullptr) {
         qCCritical(DDEAM) << "new PropertiesForwarder of Application Manager failed.";
+    }
+
+    m_startupPhase = false;
+
+    qCInfo(DDEAM) << "Application Manager started.";
+
+    for (const auto &application : std::as_const(m_applicationList)) {
+        if (!application->ensurePropertiesForwarder()) {
+            qCCritical(DDEAM) << "failed to initialize PropertiesForwarder for" << application->id();
+        }
+    }
+
+    if (!connection.registerService(fromStaticRaw(DDEApplicationManager1ServiceName))) {
+        qFatal("%s", connection.lastError().message().toLocal8Bit().data());
     }
 
     // TODO: This is a workaround, we will use database at the end.
@@ -326,39 +481,21 @@ void ApplicationManager1Service::reloadMimeInfos() noexcept
 
 void ApplicationManager1Service::scanApplications() noexcept
 {
-    const auto &desktopFileDirs = getApplicationsDirs();
-
-    std::unordered_map<QString, DesktopFile> fileMap;
-    applyIteratively(
-        QList<QDir>(desktopFileDirs.crbegin(), desktopFileDirs.crend()),
-        [&fileMap](const QFileInfo &info) -> bool {
-            ParserError err{ParserError::NoError};
-            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-            if (!ret.has_value()) {
-                qWarning() << "failed to search File:" << err;
-                return false;
-            }
-            auto file = std::move(ret).value();
-            fileMap.insert_or_assign(file.desktopId(), std::move(file));
-            return false;  // means to apply this function to the rest of the files
-        },
-        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
-        {"*.desktop"},
-        QDir::Name | QDir::DirsLast);
-
-    for (auto &&[key, val] : std::move(fileMap)) {
-        if (!addApplication(std::move(val))) {
-            qWarning() << "add Application" << key << " failed, skip...";
+    forEachApplicationDesktopFile([this](DesktopFile file) -> bool {
+        const auto desktopId = file.desktopId();
+        if (!addApplication(std::move(file))) {
+            qWarning() << "add Application" << desktopId << " failed, skip...";
         }
-    }
+        return false;
+    });
 }
 
 void ApplicationManager1Service::scanInstances() noexcept
 {
     using namespace Qt::StringLiterals;
     auto &conn = ApplicationManager1DBus::instance().globalDestBus();
-    auto call_message =
-        QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, u"ListUnitsByPatterns"_s);
+    auto call_message = QDBusMessage::createMethodCall(
+        SystemdService, SystemdObjectPath, SystemdInterfaceName, fromStaticRaw(SystemdListUnitsByPatterns));
     QList<QVariant> args;
     args << QVariant::fromValue(QStringList{u"running"_s, u"start"_s});
     args << QVariant::fromValue(QStringList{u"dde*"_s, u"deepin*"_s});
@@ -379,103 +516,74 @@ void ApplicationManager1Service::scanInstances() noexcept
 
 void ApplicationManager1Service::updateAutostartStatus() noexcept
 {
-    const auto &autostartDirs = getAutoStartDirs();
-    std::unordered_map<QString, DesktopFile> autostartItems;
-
-    applyIteratively(
-        QList<QDir>{autostartDirs.crbegin(), autostartDirs.crend()},
-        [&autostartItems](const QFileInfo &info) {
-            ParserError err{ParserError::InternalError};
-            auto desktopSource = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-            if (err != ParserError::NoError) {
-                qWarning() << "skip" << info.absoluteFilePath();
-                return false;
-            }
-
-            auto file = std::move(desktopSource).value();
-            autostartItems.insert_or_assign(file.desktopId(), std::move(file));
+    forEachAutostartDesktopFile([this](DesktopFile desktopFile) -> bool {
+        auto parsedSource = parseAutostartDesktopFile(std::move(desktopFile));
+        if (!parsedSource) {
             return false;
-        },
-        QDir::Readable | QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
-        {"*.desktop"},
-        QDir::Name | QDir::DirsLast);
-
-    for (auto &&[id, desktopFile] : std::move(autostartItems)) {
-        DesktopFileGuard guard{desktopFile};
-        if (!guard.try_open()) {
-            continue;
         }
 
-        auto &file = desktopFile.sourceFileRef();
-        QTextStream stream{&file};
-        DesktopEntry tmp;
-        auto err = tmp.parse(stream);
-        if (err != ParserError::NoError) {
-            qWarning() << "parse autostart file" << desktopFile.sourcePath() << "error:" << err;
-            continue;
-        }
-
+        auto desktopId = parsedSource->desktopFile.desktopId();
+        auto sourcePath = parsedSource->desktopFile.sourcePath();
         QSharedPointer<ApplicationService> app{nullptr};
         auto asApplication =
-            tmp.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(X_Deepin_GenerateSource)).value_or(DesktopEntry::Value{});
+            parsedSource->entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource));
 
-        if (!asApplication.isNull()) {  // modified by application manager
-            auto appSource = asApplication.toString();
+        if (asApplication) {  // modified by application manager
+            auto appSource = asApplication->get().toString();
+            ParserError err{ParserError::NoError};
 
             const QFileInfo sourceInfo{appSource};
             if (!sourceInfo.exists() || !sourceInfo.isFile()) {
                 qWarning() << "autostart file" << appSource << "doesn't exist, skip.";
-                continue;
+                return false;
             }
 
             // add original application
             auto desktopSource = DesktopFile::searchDesktopFileByPath(appSource, err);
             if (err != ParserError::NoError) {
                 qWarning() << "search autostart application" << appSource << "failed:" << err;
-                continue;
+                return false;
             }
             auto source = std::move(desktopSource).value();
 
             auto curId = source.desktopId();
             if (curId.isEmpty()) {
-                qWarning() << X_Deepin_GenerateSource << "is" << appSource
+                qWarning() << QStringView{DesktopEntryXDeepinGenerateSource} << "is" << appSource
                            << ", but couldn't find it in applications, maybe this autostart file has been modified, skip.";
-                continue;
+                return false;
             }
 
             // add application directly, it wouldn't add the same application twice.
             app = addApplication(std::move(source));
             if (!app) {
                 qWarning() << "add autostart application" << curId << "failed, skip.";
-                continue;
+                return false;
             }
 
-            app->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
-            continue;
+            app->setAutostartSource({sourcePath, std::move(parsedSource->entry)});
+            return false;
         }
 
-        // maybe some application generate autostart desktop by itself
-        if (ApplicationFilter::tryExecCheck(tmp) || ApplicationFilter::showInCheck(tmp)) {
-            qInfo() << "autostart application" << id << "couldn't pass check.";
-            continue;
+        if (auto existApp = m_applicationList.value(desktopId); existApp) {
+            existApp->setAutostartSource({sourcePath, std::move(parsedSource->entry)});
+            return false;
         }
 
-        if (auto existApp = m_applicationList.value(desktopFile.desktopId()); existApp) {
-            existApp->setAutostartSource({desktopFile.sourcePath(), std::move(tmp)});
-            continue;
+        if (desktopId.isEmpty() || !parsedSource->desktopFile.hasStandardizedApplicationFileName()) {
+            qWarning() << "autostart file" << sourcePath
+                       << "doesn't map to an existing application and doesn't have a standard application desktop filename, skip.";
+            return false;
         }
 
-        guard.close();
-        // new application
-        auto originalSource = desktopFile.sourcePath();
-        app = addApplication(std::move(desktopFile));
+        app = addApplication(std::move(parsedSource->desktopFile), std::make_unique<DesktopEntry>(std::move(parsedSource->entry)));
         if (!app) {
-            qWarning() << "add autostart application" << id << "failed, skip.";
-            continue;
+            qWarning() << "add autostart application" << desktopId << "failed, skip.";
+            return false;
         }
 
-        app->setAutostartSource({originalSource, {}});
-    }
+        app->setAutostartSource({sourcePath, {}});
+        return false;
+    });
 }
 
 void ApplicationManager1Service::loadHooks() noexcept
@@ -514,6 +622,12 @@ QList<QDBusObjectPath> ApplicationManager1Service::list() const
 
 QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(DesktopFile desktopFileSource) noexcept
 {
+    return addApplication(std::move(desktopFileSource), nullptr);
+}
+
+QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(DesktopFile desktopFileSource,
+                                                                              std::unique_ptr<DesktopEntry> entry) noexcept
+{
     if (auto app = m_applicationList.constFind(desktopFileSource.desktopId()); app != m_applicationList.cend()) {
         qInfo() << "this application already exists." << "current desktop source:" << desktopFileSource.sourcePath()
                 << "exists app source:" << app->data()->desktopFileSource().sourcePath();
@@ -521,8 +635,8 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
     }
 
     auto source = desktopFileSource.sourcePath();
-    QSharedPointer<ApplicationService> application =
-        ApplicationService::createApplicationService(std::move(desktopFileSource), this, m_storage);
+    auto application =
+        ApplicationService::createApplicationService(std::move(desktopFileSource), std::move(entry), this, m_storage);
     if (!application) {
         qWarning() << "can't create application" << source;
         return nullptr;
@@ -532,6 +646,8 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
     if (auto *adaptor = new (std::nothrow) ApplicationAdaptor{ptr}; adaptor == nullptr) {
         qCritical() << "new ApplicationAdaptor failed.";
         return nullptr;
+    } else {
+        setAdaptorAutoRelaySignals(adaptor, false);
     }
 
     if (!registerObjectToDBus(ptr, application->applicationPath().path(), fromStaticRaw(ApplicationInterface))) {
@@ -539,8 +655,20 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
     }
     m_applicationList.insert(application->id(), application);
 
-    emit listChanged();
-    emit InterfacesAdded(application->applicationPath(), getChildInterfacesAndPropertiesFromObject(ptr));
+    if (!m_startupPhase && !application->ensurePropertiesForwarder()) {
+        qCCritical(DDEAM) << "failed to initialize PropertiesForwarder for" << application->id();
+        return nullptr;
+    }
+
+    if (!m_startupPhase) {
+        const auto interfaces = getChildInterfacesAndPropertiesFromObject(ptr);
+        emit listChanged();
+        emit InterfacesAdded(application->applicationPath(), interfaces);
+        sendObjectManagerSignal(fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                "InterfacesAdded",
+                                application->applicationPath(),
+                                QVariant::fromValue(interfaces));
+    }
 
     return application;
 }
@@ -549,7 +677,12 @@ void ApplicationManager1Service::removeOneApplication(const QString &appId) noex
 {
     auto objectPath = QDBusObjectPath{getObjectPathFromAppId(appId)};
     if (auto it = m_applicationList.constFind(appId); it != m_applicationList.cend()) {
-        emit InterfacesRemoved(objectPath, getChildInterfacesFromObject(it->data()));
+        const auto interfaces = getChildInterfacesFromObject(it->data());
+        emit InterfacesRemoved(objectPath, interfaces);
+        sendObjectManagerSignal(fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                "InterfacesRemoved",
+                                objectPath,
+                                QVariant::fromValue(interfaces));
         if (auto ptr = m_storage.lock(); ptr) {
             if (!ptr->deleteApplication(appId)) {
                 qCritical() << "failed to delete all properties of" << appId;
@@ -662,32 +795,19 @@ void ApplicationManager1Service::doReloadApplications()
     m_pendingReload = false;
     qInfo() << "reload applications.";
 
-    const auto &appDirs = getApplicationsDirs();
     auto appIds = m_applicationList.keys();
 
-    applyIteratively(
-        QList<QDir>(appDirs.cbegin(), appDirs.cend()),
-        [this, &appIds](const QFileInfo &info) -> bool {
-            ParserError err{ParserError::NoError};
-            auto ret = DesktopFile::searchDesktopFileByPath(info.absoluteFilePath(), err);
-            if (!ret.has_value()) {
-                return false;
-            }
-
-            auto file = std::move(ret).value();
-            auto app = m_applicationList.value(file.desktopId());
-            if (app && appIds.contains(app->id())) {
-                appIds.removeOne(app->id());
-                updateApplication(app, std::move(file));
-                return false;
-            }
-
-            addApplication(std::move(file));
+    forEachApplicationDesktopFile([this, &appIds](DesktopFile file) -> bool {
+        auto app = m_applicationList.value(file.desktopId());
+        if (app && appIds.contains(app->id())) {
+            appIds.removeOne(app->id());
+            updateApplication(app, std::move(file));
             return false;
-        },
-        QDir::Readable | QDir::AllDirs | QDir::Files | QDir::NoDotAndDotDot,
-        {"*.desktop"},
-        QDir::Name | QDir::DirsLast);
+        }
+
+        addApplication(std::move(file));
+        return false;
+    });
 
     for (const auto &appId : std::as_const(appIds)) {
         removeOneApplication(appId);
@@ -919,9 +1039,9 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // args: unit_name, mode("replace"), properties, aux_units
 
     QDBusConnection conn = QDBusConnection::sessionBus();
-    auto msg = QDBusMessage::createMethodCall("org.freedesktop.systemd1",          // Service
-                                              "/org/freedesktop/systemd1",         // Path
-                                              "org.freedesktop.systemd1.Manager",  // Interface
+    auto msg = QDBusMessage::createMethodCall(QString::fromUtf8(SystemdService),        // Service
+                                              QString::fromUtf8(SystemdObjectPath),     // Path
+                                              QString::fromUtf8(SystemdInterfaceName),  // Interface
                                               "StartTransientUnit");
 
     msg.setArguments({

@@ -8,17 +8,23 @@
 #include <QJsonDocument>
 #include <QDir>
 #include <memory>
+#include <QSaveFile>
+
+constexpr QStringView firstLaunchKey{u"firstLaunch"};
+constexpr QStringView versionKey{u"version"};
 
 std::shared_ptr<ApplicationManager1Storage>
 ApplicationManager1Storage::createApplicationManager1Storage(const QString &storageDir) noexcept
 {
+    using namespace Qt::StringLiterals;
+
     const QDir dir{QDir::cleanPath(storageDir)};
-    if (!dir.mkpath(".")) {
+    if (!dir.mkpath(u"."_s)) {
         qCritical() << "can't create directory";
         return nullptr;
     }
 
-    auto storagePath = dir.filePath("storage.json");
+    auto storagePath = dir.filePath(u"storage.json"_s);
     auto obj = std::shared_ptr<ApplicationManager1Storage>(new (std::nothrow) ApplicationManager1Storage{storagePath});
 
     if (!obj) {
@@ -26,15 +32,21 @@ ApplicationManager1Storage::createApplicationManager1Storage(const QString &stor
         return nullptr;
     }
 
-    if (!obj->m_file->open(QFile::ReadWrite)) {
+    QFile file{storagePath};
+    if (!file.open(QFile::ReadWrite | QFile::Text)) {
         qCritical() << "can't open file:" << storagePath;
         return nullptr;
     }
 
-    auto content = obj->m_file->readAll();
+    auto content = file.readAll();
+    if (file.error() != QFile::NoError) {
+        qCritical() << "read file:" << storagePath << "failed:" << file.errorString();
+        return nullptr;
+    }
+
     if (content.isEmpty()) {  // new file
-        obj->setVersion(STORAGE_VERSION);
-        obj->setFirstLaunch(true);
+        obj->m_data.insert(versionKey, STORAGE_VERSION);
+        obj->m_data.insert(firstLaunchKey, true);
         return obj;
     }
 
@@ -44,193 +56,211 @@ ApplicationManager1Storage::createApplicationManager1Storage(const QString &stor
     auto json = QJsonDocument::fromJson(content, &err);
     if (err.error != QJsonParseError::NoError) {
         qDebug() << "parse json failed:" << err.errorString() << "clear this file content.";
-        obj->m_file->resize(0);
-        obj->setVersion(STORAGE_VERSION);
-        obj->setFirstLaunch(true);
+        file.resize(0);
+        obj->m_data.insert(versionKey, STORAGE_VERSION);
+        obj->m_data.insert(firstLaunchKey, true);
     } else {
         obj->m_data = json.object();
-        obj->setFirstLaunch(false);
+        obj->m_data.insert(firstLaunchKey, false);
     }
 
     return obj;
 }
 
-ApplicationManager1Storage::ApplicationManager1Storage(const QString &storagePath)
-    : m_file(std::make_unique<QFile>(storagePath))
+ApplicationManager1Storage::ApplicationManager1Storage(QString storagePath)
+    : m_storagePath(std::move(storagePath))
 {
 }
 
-bool ApplicationManager1Storage::writeToFile() const noexcept
+bool ApplicationManager1Storage::writeToFile() noexcept
 {
-    if (!m_file) {
-        qCritical() << "file is nullptr";
-        return false;
+    if (m_batchUpdate) {
+        m_pendingWrite = true;
+        return true;
     }
 
-    if (!m_file->resize(0)) {
-        qCritical() << "failed to clear file:" << m_file->errorString();
+    QSaveFile file{m_storagePath};
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "open file:" << m_storagePath << "failed:" << file.errorString();
         return false;
     }
 
     auto content = QJsonDocument{m_data}.toJson(QJsonDocument::Compact);
-    auto bytes = m_file->write(content, content.size());
+    auto bytes = file.write(content);
     if (bytes != content.size()) {
-        qWarning() << "Incomplete file writes:" << m_file->errorString();
+        qWarning() << "Incomplete file writes:" << file.errorString();
     }
 
-    if (!m_file->flush()) {
-        qCritical() << "io error, write failed.";
+    if (!file.commit()) {
+        qCritical() << "commit new content failed:" << file.errorString();
         return false;
     }
 
+    m_pendingWrite = false;
     return true;
 }
 
 bool ApplicationManager1Storage::setVersion(uint8_t version) noexcept
 {
-    m_data["version"] = version;
+    m_data.insert(versionKey, version);
     return writeToFile();
 }
 
 uint8_t ApplicationManager1Storage::version() const noexcept
 {
-    return m_data["version"].toInt(-1);
+    return m_data.value(versionKey).toInt(-1);
 }
 
 bool ApplicationManager1Storage::setFirstLaunch(bool first) noexcept
 {
-    m_data["FirstLaunch"] = first;
+    m_data.insert(firstLaunchKey, first);
     return writeToFile();
 }
 
 [[nodiscard]] bool ApplicationManager1Storage::firstLaunch() const noexcept
 {
-    return m_data["FirstLaunch"].toBool(true);
+    return m_data.value(firstLaunchKey).toBool(true);
+}
+
+void ApplicationManager1Storage::beginBatchUpdate() noexcept
+{
+    m_batchUpdate = true;
+}
+
+bool ApplicationManager1Storage::endBatchUpdate() noexcept
+{
+    m_batchUpdate = false;
+    if (!m_pendingWrite) {
+        return true;
+    }
+
+    return writeToFile();
 }
 
 bool ApplicationManager1Storage::createApplicationValue(
-    const QString &appId, const QString &groupName, const QString &valueKey, const QVariant &value, bool deferCommit) noexcept
+    QStringView appId, QStringView groupName, QStringView valueKey, const QVariant &value, bool deferCommit) noexcept
 {
-    if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
+    if (appId.isEmpty() || groupName.isEmpty() || valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
         return false;
     }
 
-    QJsonObject appObj;
-    if (m_data.contains(appId)) {
-        appObj = m_data[appId].toObject();
-    }
+    auto app = m_data.find(appId);
+    auto appObj = app == m_data.end() ? QJsonObject{} : app->toObject();
 
-    QJsonObject groupObj;
-    if (appObj.contains(groupName)) {
-        groupObj = appObj[groupName].toObject();
-    }
+    auto group = appObj.find(groupName);
+    auto groupObj = group == appObj.end() ? QJsonObject{} : group->toObject();
 
     if (groupObj.contains(valueKey)) {
         qInfo() << "value" << valueKey << value << "is already exists.";
         return true;
     }
 
-    groupObj.insert(valueKey, value.toJsonValue());
-    appObj.insert(groupName, groupObj);
-    m_data.insert(appId, appObj);
+    groupObj.insert(valueKey, QJsonValue::fromVariant(value));
+    appObj.insert(groupName, std::move(groupObj));
+
+    if (app != m_data.end()) {
+        *app = std::move(appObj);
+    } else {
+        m_data.insert(appId, std::move(appObj));
+    }
 
     return deferCommit ? true : writeToFile();
 }
 
 bool ApplicationManager1Storage::updateApplicationValue(
-    const QString &appId, const QString &groupName, const QString &valueKey, const QVariant &value, bool deferCommit) noexcept
+    QStringView appId, QStringView groupName, QStringView valueKey, const QVariant &value, bool deferCommit) noexcept
 {
-    if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
+    if (appId.isEmpty() || groupName.isEmpty() || valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
         return false;
     }
 
-    if (!m_data.contains(appId)) {
+    auto app = m_data.find(appId);
+    if (app == m_data.constEnd()) {
         qInfo() << "app" << appId << "doesn't exists.";
         return false;
     }
-    auto appObj = m_data[appId].toObject();
+    auto appObj = app->toObject();
 
-    if (!appObj.contains(groupName)) {
+    auto group = appObj.find(groupName);
+    if (group == appObj.constEnd()) {
         qInfo() << "group" << groupName << "doesn't exists.";
         return false;
     }
-    auto groupObj = appObj[groupName].toObject();
+    auto groupObj = group->toObject();
 
-    if (!groupObj.contains(valueKey)) {
+    auto val = groupObj.find(valueKey);
+    if (val == groupObj.end()) {
         qInfo() << "value" << valueKey << "doesn't exists.";
         return false;
     }
 
-    groupObj.insert(valueKey, value.toJsonValue());
-    appObj.insert(groupName, groupObj);
-    m_data.insert(appId, appObj);
+    *val = QJsonValue::fromVariant(value);
+    appObj.insert(groupName, std::move(groupObj));
+    *app = std::move(appObj);
 
     return deferCommit ? true : writeToFile();
 }
 
-QVariant ApplicationManager1Storage::readApplicationValue(const QString &appId,
-                                                          const QString &groupName,
-                                                          const QString &valueKey) const noexcept
+QVariant
+ApplicationManager1Storage::readApplicationValue(QStringView appId, QStringView groupName, QStringView valueKey) const noexcept
 {
-    if (!m_data.contains(appId)) {
-        return {};
-    }
-    auto app = m_data.constFind(appId)->toObject();
-    if (app.isEmpty()) {
+    if (appId.isEmpty() || groupName.isEmpty() || valueKey.isEmpty()) {
+        qWarning() << "unexpected empty string";
         return {};
     }
 
-    if (!app.contains(groupName)) {
+    auto app = m_data.constFind(appId);
+    if (app == m_data.constEnd()) {
         return {};
     }
-    auto group = app.constFind(groupName)->toObject();
-    if (group.isEmpty()) {
+    auto appObj = app->toObject();
+
+    auto group = appObj.constFind(groupName);
+    if (group == appObj.constEnd()) {
+        return {};
+    }
+    auto groupObj = group->toObject();
+
+    auto value = groupObj.constFind(valueKey);
+    if (value == groupObj.constEnd()) {
         return {};
     }
 
-    if (!group.contains(valueKey)) {
-        return {};
-    }
-    auto val = group.constFind(valueKey);
-    if (val->isNull()) {
-        return {};
-    }
-
-    return val->toVariant();
+    return value->toVariant();
 }
 
-bool ApplicationManager1Storage::deleteApplicationValue(const QString &appId,
-                                                        const QString &groupName,
-                                                        const QString &valueKey,
+bool ApplicationManager1Storage::deleteApplicationValue(QStringView appId,
+                                                        QStringView groupName,
+                                                        QStringView valueKey,
                                                         bool deferCommit) noexcept
 {
-    if (appId.isEmpty() or groupName.isEmpty() or valueKey.isEmpty()) {
+    if (appId.isEmpty() || groupName.isEmpty() || valueKey.isEmpty()) {
         qWarning() << "unexpected empty string";
         return false;
     }
 
-    auto app = m_data.find(appId).value();
-    if (app.isNull()) {
+    auto app = m_data.find(appId);
+    if (app == m_data.end()) {
         return true;
     }
-    auto appObj = app.toObject();
+    auto appObj = app->toObject();
 
-    auto group = appObj.find(groupName).value();
-    if (group.isNull()) {
+    auto group = appObj.find(groupName);
+    if (group == appObj.end()) {
         return true;
     }
-    auto groupObj = group.toObject();
+    auto groupObj = group->toObject();
 
-    auto val = groupObj.find(valueKey).value();
-    if (val.isNull()) {
+    auto val = groupObj.find(valueKey);
+    if (val == groupObj.end()) {
         return true;
     }
 
-    groupObj.remove(valueKey);
-    appObj.insert(groupName, groupObj);
-    m_data.insert(appId, appObj);
+    groupObj.erase(val);
+    appObj.insert(groupName, std::move(groupObj));
+    m_data.insert(appId, std::move(appObj));
 
     return deferCommit ? true : writeToFile();
 }
@@ -242,7 +272,7 @@ bool ApplicationManager1Storage::clearData() noexcept
     return setVersion(STORAGE_VERSION);
 }
 
-bool ApplicationManager1Storage::deleteApplication(const QString &appId, bool deferCommit) noexcept
+bool ApplicationManager1Storage::deleteApplication(QStringView appId, bool deferCommit) noexcept
 {
     if (appId.isEmpty()) {
         qWarning() << "unexpected empty string.";
@@ -253,19 +283,25 @@ bool ApplicationManager1Storage::deleteApplication(const QString &appId, bool de
     return deferCommit ? true : writeToFile();
 }
 
-bool ApplicationManager1Storage::deleteGroup(const QString &appId, const QString &groupName, bool deferCommit) noexcept
+bool ApplicationManager1Storage::deleteGroup(QStringView appId, QStringView groupName, bool deferCommit) noexcept
 {
-    if (appId.isEmpty() or groupName.isEmpty()) {
+    if (appId.isEmpty() || groupName.isEmpty()) {
         qWarning() << "unexpected empty string.";
         return false;
     }
 
-    auto app = m_data.find(appId).value().toObject();
-    if (app.isEmpty()) {
+    auto app = m_data.find(appId);
+    if (app == m_data.end()) {
+        return true;
+    }
+    auto appObj = app->toObject();
+
+    auto group = appObj.find(groupName);
+    if (group == appObj.end()) {
         return true;
     }
 
-    app.remove(groupName);
-    m_data.insert(appId, app);
+    appObj.erase(group);
+    m_data.insert(appId, std::move(appObj));
     return deferCommit ? true : writeToFile();
 }
