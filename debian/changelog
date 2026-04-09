@@ -1,3 +1,20 @@
+dde-application-manager (1.2.49) unstable; urgency=medium
+
+  * refactor: optimize performance, adopt Qt 6 APIs, and fix XDG
+    compliance
+  * chore: update spdx license time
+  * refactor: modernize codebase with Qt 6.8 APIs and coding conventions
+  * fix: comply escapeApplicationId with systemd escaping spec
+  * feat: support multiple desktop environments and improve XDG
+    compliance
+  * refactor: modernize codebase and improve code quality
+  * feat(dbus): add reload protection to prevent concurrent reload
+    operations
+  * fix: use dde-am for autostart to ensure consistent execution
+  * chore: migrate dep5 to latest REUSE.toml
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 09 Apr 2026 20:27:42 +0800
+
 dde-application-manager (1.2.48) unstable; urgency=medium
 
   * feat: add DesktopSourcePath property to Application DBus interface
