@@ -79,7 +79,7 @@ protected:
         }
 
         if (m_offset >= m_content.size() && m_line.isEmpty()) {
-            m_line = {};
+            clearLine();
         }
     }
 

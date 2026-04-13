@@ -15,7 +15,13 @@ QString toUtf8String(QByteArrayView view) noexcept
 
 ParserError MimeFileParser::parse(Groups &ret) noexcept
 {
+    skip();
+
     while (!atEnd()) {
+        if (m_line.isEmpty()) {
+            break;
+        }
+
         QString groupName;
         auto err = addGroup(ret, groupName);
         if (err != ParserError::NoError) {
@@ -33,40 +39,37 @@ ParserError MimeFileParser::parse(Groups &ret) noexcept
 
 ParserError MimeFileParser::addGroup(Groups &ret, QString &groupName) noexcept
 {
-    if (!m_line.startsWith('[')) {
-        skip();
-    }
-
-    auto lineView = m_line;
-    if (!lineView.startsWith('[') || !lineView.endsWith(']')) {
-        qWarning() << "Invalid mimeapp.list format: unexpected line:" << toUtf8String(lineView);
+    if (m_line.isEmpty() || m_line.front() != '[' || m_line.back() != ']') {
+        qCDebug(DDEAMMimeParser) << "Invalid mime file format: unexpected line:" << toUtf8String(m_line);
         return ParserError::InvalidFormat;
     }
 
     // Parsing group header, this format is same as desktop file's group
 
-    const auto headerBytes = lineView.sliced(1, lineView.size() - 2).trimmed();
+    const auto headerBytes = m_line.sliced(1, m_line.size() - 2).trimmed();
     if (std::any_of(headerBytes.cbegin(), headerBytes.cend(), [](auto ch) { return ch == '[' || ch == ']'; })) {
-        qWarning() << "group header invalid:" << toUtf8String(lineView);
+        qCWarning(DDEAMMimeParser) << "group header invalid:" << toUtf8String(m_line);
         return ParserError::InvalidFormat;
     }
 
-    const auto header = toUtf8String(headerBytes);
-    const auto headerView = QStringView{header};
+    groupName = toUtf8String(headerBytes);
+    const auto headerView = QStringView{groupName};
     if (hasNonAsciiAndControlCharacters(headerView)) {
-        qWarning() << "group header invalid:" << header;
+        qCWarning(DDEAMMimeParser) << "group header invalid:" << headerView;
         return ParserError::InvalidFormat;
     }
 
-    groupName = header;
     if (m_desktopSpec && (headerView == addedAssociations || headerView == removedAssociations)) {
-        qWarning()
+        qCWarning(DDEAMMimeParser)
             << "desktop-specific mimeapp.list is not possible to add or remove associations from these files, skip this group.";
         while (!atEnd()) {
             skip();
 
-            lineView = m_line;
-            if (lineView.startsWith('[')) {
+            if (m_line.isEmpty()) {
+                break;
+            }
+
+            if (m_line.startsWith('[')) {
                 break;
             }
         }
@@ -83,8 +86,8 @@ ParserError MimeFileParser::addGroup(Groups &ret, QString &groupName) noexcept
     while (!atEnd()) {
         skip();
 
-        lineView = m_line;
-        if (lineView.startsWith('[')) {
+        if (m_line.startsWith('[')) {
+            // End of this group and start of another group, just break
             break;
         }
 
@@ -99,21 +102,15 @@ ParserError MimeFileParser::addGroup(Groups &ret, QString &groupName) noexcept
 
 ParserError MimeFileParser::addEntry(Groups::iterator group) noexcept
 {
-    if (m_line.isEmpty()) {
-        return ParserError::NoError;
-    }
-
-    const auto lineView = m_line;
-
-    const auto splitCharIndex = lineView.indexOf('=');
+    const auto splitCharIndex = m_line.indexOf('=');
     if (splitCharIndex == -1) {
-        qWarning() << "invalid line in desktop file, skip it:" << toUtf8String(lineView);
+        qWarning() << "invalid line in desktop file, skip it:" << toUtf8String(m_line);
         clearLine();
         return ParserError::NoError;
     }
 
-    const auto keyView = lineView.first(splitCharIndex).trimmed();
-    const auto valueView = lineView.sliced(splitCharIndex + 1).trimmed();
+    const auto keyView = m_line.first(splitCharIndex).trimmed();
+    const auto valueView = m_line.sliced(splitCharIndex + 1).trimmed();
 
     if (valueView.isEmpty()) {
         clearLine();

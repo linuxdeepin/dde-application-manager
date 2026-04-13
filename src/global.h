@@ -654,7 +654,7 @@ inline const QStringList &getHooksDirs() noexcept
 
 inline const QString &getUserApplicationDir() noexcept
 {
-    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)};
+    static const auto &value{QStandardPaths::writableLocation(QStandardPaths::ApplicationsLocation)};
     return value;
 }
 

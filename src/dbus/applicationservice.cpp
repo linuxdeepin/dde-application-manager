@@ -544,27 +544,30 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                 }
             }
 
-            for (int i = 0; i < task.command.size(); ++i) {
-                if (i != task.argNum) {
-                    newCommands << task.command.takeAt(i);
-                    continue;
-                }
+            int originalIndex{0};
+            while (!task.command.isEmpty()) {
+                auto currentArg = task.command.takeFirst();
 
-                auto targetArg = task.command.takeAt(i);
-                if (task.fieldLocation != -1) {
-                    if (formattedRes.size() > 1) {
-                        qWarning() << "multiple resources are found, only the first one will be used.";
-                    }
+                if (originalIndex != task.argNum) {
+                    newCommands << std::move(currentArg);
+                } else {
+                    if (task.fieldLocation != -1) {
+                        if (formattedRes.size() > 1) {
+                            qWarning() << "multiple resources are found, only the first one will be used.";
+                        }
 
-                    targetArg.replace(task.fieldLocation, 2, formattedRes.isEmpty() ? QString{} : formattedRes.takeFirst());
-                    newCommands << std::move(targetArg);
+                        currentArg.replace(task.fieldLocation, 2, formattedRes.isEmpty() ? QString{} : formattedRes.takeFirst());
+                        newCommands << std::move(currentArg);
 
-                    if (!formattedRes.isEmpty()) {
+                        if (!formattedRes.isEmpty()) {
+                            newCommands << std::move(formattedRes);
+                        }
+                    } else {
                         newCommands << std::move(formattedRes);
                     }
-                } else {
-                    newCommands << std::move(formattedRes);
                 }
+
+                ++originalIndex;
             }
 
             QProcess process;
