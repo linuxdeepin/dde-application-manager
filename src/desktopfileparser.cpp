@@ -107,9 +107,9 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
 {
     bool isFirstGroup{true};
 
-    while (!atEnd()) {
-        skip();
+    skip();
 
+    while (!atEnd()) {
         if (m_line.isEmpty()) {
             break;
         }
@@ -142,9 +142,7 @@ ParserError DesktopFileParser::parse(Groups &ret) noexcept
 
 ParserError DesktopFileParser::addGroup(Groups &groups, QString &groupName) noexcept
 {
-    const auto lineView = m_line;
-
-    if (lineView.isEmpty() || lineView.front() != '[' || lineView.back() != ']') {
+    if (m_line.isEmpty() || m_line.front() != '[' || m_line.back() != ']') {
         qCDebug(logDesktopFileParser) << "Invalid desktop file format: unexpected line:" << toUtf8String(m_line);
         return ParserError::InvalidFormat;
     }
@@ -152,7 +150,7 @@ ParserError DesktopFileParser::addGroup(Groups &groups, QString &groupName) noex
     // Parsing group header.
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#group-header
 
-    const auto groupNameBytes = lineView.sliced(1, lineView.size() - 2).trimmed();
+    const auto groupNameBytes = m_line.sliced(1, m_line.size() - 2).trimmed();
     if (std::any_of(groupNameBytes.cbegin(), groupNameBytes.cend(), [](auto ch) { return ch == '[' || ch == ']'; })) {
         qCDebug(logDesktopFileParser) << "group header invalid:" << toUtf8String(m_line);
         return ParserError::InvalidFormat;
@@ -180,7 +178,8 @@ ParserError DesktopFileParser::addGroup(Groups &groups, QString &groupName) noex
             break;
         }
 
-        if (m_line.front() == '[') {
+        if (m_line.startsWith('[')) {
+            // End of this group and start of next group, just break
             break;
         }
 
@@ -195,17 +194,15 @@ ParserError DesktopFileParser::addGroup(Groups &groups, QString &groupName) noex
 
 ParserError DesktopFileParser::addEntry(Groups::iterator group) noexcept
 {
-    const auto lineView = m_line;
-
-    const auto splitCharIndex = lineView.indexOf('=');
+    const auto splitCharIndex = m_line.indexOf('=');
     if (splitCharIndex == -1) {
-        qCDebug(logDesktopFileParser) << "invalid line in desktop file, skip it:" << toUtf8String(lineView);
+        qCDebug(logDesktopFileParser) << "invalid line in desktop file, skip it:" << toUtf8String(m_line);
         clearLine();
         return ParserError::NoError;
     }
 
-    const auto keyBytes = lineView.first(splitCharIndex).trimmed();
-    const auto valueBytes = lineView.sliced(splitCharIndex + 1).trimmed();
+    const auto keyBytes = m_line.first(splitCharIndex).trimmed();
+    const auto valueBytes = m_line.sliced(splitCharIndex + 1).trimmed();
 
     // NOTE:
     // We are process "localized keys" here, for usage check:
@@ -213,7 +210,7 @@ ParserError DesktopFileParser::addEntry(Groups::iterator group) noexcept
     const qsizetype localeBegin = keyBytes.indexOf('[');
     const qsizetype localeEnd = keyBytes.lastIndexOf(']');
     if ((localeBegin == -1) != (localeEnd == -1)) {
-        qCDebug(logDesktopFileParser) << "unmatched [] detected in desktop file, skip this line: " << toUtf8String(lineView);
+        qCDebug(logDesktopFileParser) << "unmatched [] detected in desktop file, skip this line: " << toUtf8String(m_line);
         clearLine();
 
         return ParserError::NoError;

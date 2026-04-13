@@ -368,9 +368,10 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
         auto content = flag.read(sessionId.size());
         if (!content.isEmpty() && !sessionId.isEmpty() && content == sessionId) {
-            m_isNewSession = false;
             return;
         }
+
+        flag.close();
     }
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
@@ -857,7 +858,7 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
         return {};
     }
 
-    const QDir appDir{getXDGDataHome()};
+    const QDir appDir{getUserApplicationDir()};
     const auto &filePath = appDir.filePath(name);
     QFile file{filePath};
     const auto fileExists = file.exists();
