@@ -1,3 +1,9 @@
+dde-application-manager (1.2.51) unstable; urgency=medium
+
+  * perf: move application manager to dde-session-pre target
+
+ -- zhangkun <zhangkun2@uniontech.com>  Fri, 24 Apr 2026 09:58:32 +0800
+
 dde-application-manager (1.2.50) unstable; urgency=medium
 
   * fix: correct user application directory path and refactor parsers
