@@ -185,7 +185,7 @@ QString Launcher::appId() const noexcept
     const auto endIndex = pathView.indexOf(u'/', startIndex + 1);
     const auto id =
         endIndex <= -1 ? pathView.sliced(startIndex + 1) : pathView.sliced(startIndex + 1, endIndex - (startIndex + 1));
-    return unescapeFromObjectPath(id);
+    return DUtil::unescapeFromObjectPath(id.toString());
 }
 
 void Launcher::setAutostart(bool autostart)
