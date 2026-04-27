@@ -5,6 +5,7 @@ add_executable(${BIN_NAME} main.cpp)
 target_link_libraries(${BIN_NAME} PRIVATE
     Qt6::Core
     Qt6::DBus
+    Dtk6::Core
 )
 
 target_include_directories(${BIN_NAME} PRIVATE
