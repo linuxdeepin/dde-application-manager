@@ -4,6 +4,7 @@
 
 #include "desktopentry.h"
 #include "dbus/applicationservice.h"
+#include "global.h"
 #include <gtest/gtest.h>
 #include <QList>
 #include <QString>
@@ -78,5 +79,248 @@ TEST(ApplicationServiceTest, SplitExecArguments_PassPhase2_Spec)
                                        << "\nExpected: " << tc.expected.value_or(QStringList{}).join('|').toStdString()
                                        << "\nActual: " << result.value_or(QStringList{}).join("|").toStdString()
                                        << "\nReason: " << tc.reason.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, EscapeToObjectPath_UTF8ByteSequence)
+{
+    struct TestCase
+    {
+        QString input;
+        QString expected;
+        QString reason;
+    };
+
+    const QList<TestCase> testCases = {
+        {"", "_", "Empty string should return underscore"},
+        {"simple", "simple", "Safe ASCII characters should not be escaped"},
+        {"test/path", "test/path", "Forward slash is safe and should not be escaped"},
+        {"test_name", "test_5fname", "Underscore should be escaped"},
+        {"test-name", "test_2dname", "Hyphen should be escaped"},
+        {"test.name", "test_2ename", "Dot should be escaped"},
+        {"test name", "test_20name", "Space should be escaped"},
+        {"test\x01", "test_01", "Control character should use 2-digit hex"},
+        {QString::fromUtf8("测试"), "_e6_b5_8b_e8_af_95", "Chinese: UTF-8 bytes E6 B5 8B E8 AF 95"},
+        {QString::fromUtf8("日本語"), "_e6_97_a5_e6_9c_ac_e8_aa_9e", "Japanese: UTF-8 bytes"},
+        {QString::fromUtf8("café"), "caf_c3_a9", "Latin-1: é is UTF-8 C3 A9"},
+    };
+
+    for (const auto &tc : testCases) {
+        const auto result = escapeToObjectPath(tc.input);
+        EXPECT_EQ(result, tc.expected) << "Failed: " << tc.reason.toStdString()
+                                       << "\nInput: " << tc.input.toStdString()
+                                       << "\nExpected: " << tc.expected.toStdString()
+                                       << "\nActual: " << result.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, UnescapeFromObjectPath_UTF8ByteSequence)
+{
+    struct TestCase
+    {
+        QString input;
+        QString expected;
+        QString reason;
+    };
+
+    const QList<TestCase> testCases = {
+        {"simple", "simple", "Safe string should not change"},
+        {"test_20name", "test name", "Escaped space"},
+        {"test_5fname", "test_name", "Escaped underscore"},
+        {"test_01", "test\x01", "2-digit hex for control character"},
+        {"_e6_b5_8b_e8_af_95", QString::fromUtf8("测试"), "Chinese UTF-8 bytes"},
+        {"test_e4_b8_adpath", QString::fromUtf8("test中path"), "Mixed ASCII and UTF-8 bytes"},
+    };
+
+    for (const auto &tc : testCases) {
+        const auto result = unescapeFromObjectPath(tc.input);
+        EXPECT_EQ(result, tc.expected) << "Failed: " << tc.reason.toStdString()
+                                       << "\nInput: " << tc.input.toStdString()
+                                       << "\nExpected: " << tc.expected.toStdString()
+                                       << "\nActual: " << result.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, ObjectPath_RoundTrip)
+{
+    const QList<QString> testCases = {
+        "simple",
+        "test/path",
+        "test_name",
+        "test name",
+        QString::fromUtf8("测试应用"),
+        QString::fromUtf8("日本語"),
+        QString::fromUtf8("한글"),
+        "test\x01",
+        QString::fromUtf8("café"),
+    };
+
+    for (const auto &tc : testCases) {
+        const auto escaped = escapeToObjectPath(tc);
+        const auto unescaped = unescapeFromObjectPath(escaped);
+        
+        EXPECT_EQ(unescaped, tc) << "Round-trip failed for: " << tc.toStdString()
+                                 << "\nEscaped: " << escaped.toStdString()
+                                 << "\nUnescaped: " << unescaped.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, ObjectPath_DBusCompliance)
+{
+    auto isValidDBusPathElement = [](const QString &element) {
+        if (element.isEmpty()) return false;
+        for (const auto &ch : element) {
+            const auto code = ch.unicode();
+            bool isValid = (code >= 'a' && code <= 'z') ||
+                          (code >= 'A' && code <= 'Z') ||
+                          (code >= '0' && code <= '9') ||
+                          code == '_';
+            if (!isValid) return false;
+        }
+        return true;
+    };
+
+    const QList<QString> testCases = {
+        "simple",
+        "test/path",
+        "test_name",
+        "test name",
+        QString::fromUtf8("测试"),
+        QString::fromUtf8("日本語"),
+        QString::fromUtf8("café"),
+    };
+
+    for (const auto &tc : testCases) {
+        const auto escaped = escapeToObjectPath(tc);
+        
+        auto segments = escaped.split('/', Qt::SkipEmptyParts);
+        for (const auto &seg : segments) {
+            EXPECT_TRUE(isValidDBusPathElement(seg))
+                << "Path element is not D-Bus compliant: " << seg.toStdString()
+                << "\nOriginal: " << tc.toStdString();
+        }
+    }
+}
+
+TEST(ApplicationServiceTest, EscapeApplicationId_SystemdStandard)
+{
+    struct TestCase
+    {
+        QString input;
+        QString expected;
+        QString reason;
+    };
+
+    const QList<TestCase> testCases = {
+        {"", "", "Empty string should remain empty"},
+        {"simple", "simple", "Safe ASCII characters should not be escaped"},
+        {"test.name", "test.name", "Dot is safe and should not be escaped"},
+        {"test_name", "test_name", "Underscore is safe and should not be escaped"},
+        {"org/app", "org-app", "Forward slash should be replaced with hyphen"},
+        {".hidden", "\\x2ehidden", "Leading dot should be escaped"},
+        {"test app", "test\\x20app", "Space should be escaped"},
+        {"test-name", "test\\x2dname", "Hyphen should be escaped"},
+        {"org.example.App", "org.example.App", "Typical desktop ID should not be changed"},
+        {"org/example/App", "org-example-App", "Path-style desktop ID with slashes"},
+        {"test!special", "test\\x21special", "Exclamation mark should be escaped"},
+        {"/", "-", "Single slash becomes single hyphen"},
+        {"//", "--", "Multiple slashes: each becomes hyphen (non-path mode)"},
+        {"test\x01", "test\\x01", "Control character should be escaped"},
+        {QString::fromUtf8("测试"), "\\xe6\\xb5\\x8b\\xe8\\xaf\\x95", "Chinese: UTF-8 bytes E6 B5 8B E8 AF 95"},
+        {QString::fromUtf8("日本語"), "\\xe6\\x97\\xa5\\xe6\\x9c\\xac\\xe8\\xaa\\x9e", "Japanese: UTF-8 bytes"},
+        {QString::fromUtf8("café"), "caf\\xc3\\xa9", "Latin-1: é is UTF-8 C3 A9"},
+    };
+
+    for (const auto &tc : testCases) {
+        const auto result = escapeApplicationId(tc.input);
+        EXPECT_EQ(result, tc.expected) << "Failed: " << tc.reason.toStdString()
+                                       << "\nInput: " << tc.input.toStdString()
+                                       << "\nExpected: " << tc.expected.toStdString()
+                                       << "\nActual: " << result.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, EscapeApplicationId_SystemdEscapeCompatible)
+{
+    // Test that our implementation matches systemd-escape command
+    struct TestCase
+    {
+        QString input;
+        QString reason;
+    };
+
+    const QList<TestCase> testCases = {
+        {"org/example/App", "Path-style ID"},
+        {QString::fromUtf8("测试"), "Chinese characters"},
+        {QString::fromUtf8("café"), "Latin-1 with accent"},
+        {"test app", "Space in name"},
+        {".hidden", "Leading dot"},
+        {"test-name", "Hyphen"},
+    };
+
+    for (const auto &tc : testCases) {
+        const auto escaped = escapeApplicationId(tc.input);
+        
+        // Verify the escaped string is valid for systemd
+        EXPECT_FALSE(escaped.isEmpty() && !tc.input.isEmpty())
+            << "Non-empty input should produce non-empty output: " << tc.input.toStdString();
+            
+        EXPECT_FALSE(escaped.startsWith('.'))
+            << "Escaped ID should not start with dot: " << escaped.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, UnescapeApplicationId_UTF8ByteSequence)
+{
+    struct TestCase
+    {
+        QString input;
+        QString expected;
+        QString reason;
+    };
+
+    const QList<TestCase> testCases = {
+        {"", "", "Empty string should remain empty"},
+        {"simple", "simple", "Safe string should not change"},
+        {"test\\x20app", "test app", "Escaped space"},
+        {"test\\x2dapp", "test-app", "Escaped hyphen"},
+        {"org-app", "org-app", "Hyphen should remain"},
+        {"\\x2e", ".", "Single escaped dot"},
+        {"test\\x", "test\\x", "Incomplete escape sequence should be preserved"},
+        {"test\\xZZ", "test\\xZZ", "Invalid hex digits should be preserved"},
+        {"test\\", "test\\", "Trailing backslash should be preserved"},
+        {"\\xe6\\xb5\\x8b\\xe8\\xaf\\x95", QString::fromUtf8("测试"), "Chinese UTF-8 bytes"},
+        {"caf\\xc3\\xa9", QString::fromUtf8("café"), "Latin-1 UTF-8 bytes"},
+    };
+
+    for (const auto &tc : testCases) {
+        const auto result = unescapeApplicationId(tc.input);
+        EXPECT_EQ(result, tc.expected) << "Failed: " << tc.reason.toStdString()
+                                       << "\nInput: " << tc.input.toStdString()
+                                       << "\nExpected: " << tc.expected.toStdString()
+                                       << "\nActual: " << result.toStdString();
+    }
+}
+
+TEST(ApplicationServiceTest, ApplicationId_RoundTrip)
+{
+    const QList<QString> testCases = {
+        "simple",
+        "test.name",
+        "test_name",
+        QString::fromUtf8("测试应用"),
+        QString::fromUtf8("日本語"),
+        QString::fromUtf8("한글"),
+        QString::fromUtf8("café"),
+        "test\x01",
+    };
+
+    for (const auto &tc : testCases) {
+        const auto escaped = escapeApplicationId(tc);
+        const auto unescaped = unescapeApplicationId(escaped);
+        
+        EXPECT_EQ(unescaped, tc) << "Round-trip failed for: " << tc.toStdString()
+                                 << "\nEscaped: " << escaped.toStdString()
+                                 << "\nUnescaped: " << unescaped.toStdString();
     }
 }

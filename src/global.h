@@ -422,136 +422,159 @@ inline QLocale getUserLocale()
 
 namespace Detail {
 
-inline bool isBaseAlnum(QChar ch) noexcept
+inline bool isAlnum(char ch) noexcept
 {
-    const ushort cell = ch.unicode();
-    return (cell >= u'a' && cell <= u'z') || (cell >= u'A' && cell <= u'Z') || (cell >= u'0' && cell <= u'9');
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
 }
 
-inline QString unescapeImpl(QStringView str, QStringView prefix) noexcept
+inline QByteArray unescapeToBytes(const QStringView str, const QStringView prefix) noexcept
 {
-    const auto prefixLen = prefix.size();
-    const auto step = prefixLen + 2;
-    const auto len = str.size();
+    const auto len = str.length();
+    const auto prefixLen = prefix.length();
 
-    auto r = str.indexOf(prefix);
-    if (r == -1 || r > len - step) {
-        return str.toString();
-    }
-
-    QString result;
+    QByteArray result;
     result.reserve(len);
-    result.append(str.first(r));
 
-    while (r < len) {
-        if (r <= len - step && str.sliced(r, prefixLen) == prefix) {
+    for (qsizetype i = 0; i < len;) {
+        if (i <= len - prefixLen - 2 && str.mid(i, prefixLen) == prefix) {
             bool ok{false};
-            const auto val = str.sliced(r + prefixLen, 2).toShort(&ok, 16);
-
+            auto byte = static_cast<unsigned char>(str.mid(i + prefixLen, 2).toUShort(&ok, 16));
             if (ok) {
-                result.append(QChar::fromLatin1(static_cast<char>(val)));
-                r += step;
+                result.append(static_cast<char>(byte));
+                i += prefixLen + 2;
                 continue;
             }
         }
 
-        result.append(str.at(r++));
+        result.append(str.at(i).toLatin1());
+        ++i;
     }
 
-    if (r < len) {
-        result.append(str.sliced(r));
-    }
-
+    result.shrink_to_fit();
     return result;
 }
 
 }  // namespace Detail
 
-inline QString escapeToObjectPath(QStringView str)
+inline QString escapeToObjectPath(QByteArrayView utf8)
 {
     using namespace Qt::StringLiterals;
-    if (str.isEmpty()) {
+    if (utf8.isEmpty()) {
         return u"_"_s;
     }
 
-    // see: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
-    auto isSafe = [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u'/'; };
-
-    const auto *it = std::find_if_not(str.cbegin(), str.cend(), isSafe);
-    if (it == str.cend()) {
-        return str.toString();
-    }
+    // see:
+    // https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
+    //
+    // This function escapes arbitrary UTF-8 byte sequences to valid D-Bus object path elements.
+    // Each non-safe byte is escaped as "_xx" (2-digit lowercase hex).
+    // Safe characters are: [A-Z][a-z][0-9]/ (note: '/' is a path separator)
+    // '_' is also escaped to ensure the escape scheme is reversible.
 
     QString result;
-    result.reserve(str.size() + 16);
-    result.append(str.first(std::distance(str.cbegin(), it)));
+    result.reserve(utf8.size() * 3);  // Worst case: every byte needs "_xx" (3 chars)
 
-    for (; it != str.end(); ++it) {
-        const auto ch = *it;
-        if (isSafe(ch)) {
-            result.append(ch);
+    bool hasNonAscii{false};
+
+    for (qsizetype i = 0; i < utf8.size(); ++i) {
+        auto byte = static_cast<unsigned char>(utf8.at(i));
+
+        if (Detail::isAlnum(byte) || byte == '/') {
+            result.append(QChar::fromLatin1(byte));
         } else {
-            if (ch.row() != 0) {
-                qCWarning(DDEAMUtils).nospace()
-                    << "Character U+" << Qt::hex << ch.unicode() << " is truncated to " << static_cast<uint>(ch.cell());
+            if (byte > 0x7F) {
+                hasNonAscii = true;
             }
-
             result.append(u'_');
-            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+            result.append(QString::number(byte, 16).rightJustified(2, u'0').toLower());
         }
+    }
+
+    if (hasNonAscii) {
+        qCWarning(DDEAMUtils) << "String contains non-ASCII characters, which "
+                                 "does not conform to the DBus specification. A "
+                                 "compatible path is generated using UTF-8 byte escaping for now,"
+                                 "but this compatibility may be removed in the future."
+                                 "Please use ASCII-only names.";
     }
 
     return result;
 }
 
+inline QString escapeToObjectPath(QStringView str)
+{
+    return escapeToObjectPath(str.toUtf8());
+}
+
 inline QString unescapeFromObjectPath(QStringView str)
 {
     using namespace Qt::StringLiterals;
-    return Detail::unescapeImpl(str, u"_"_s);
+    return QString::fromUtf8(Detail::unescapeToBytes(str, u"_"_s));
 }
 
-inline QString escapeApplicationId(QStringView id)
+inline QString escapeApplicationId(QByteArrayView utf8)
 {
-    if (id.isEmpty()) {
-        return id.toString();
+    if (utf8.isEmpty()) {
+        return {};
     }
 
     using namespace Qt::StringLiterals;
 
     // see:
     // https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html#String%20Escaping%20for%20Inclusion%20in%20Unit%20Names
-    auto isSafeChar = [](QChar ch) { return Detail::isBaseAlnum(ch) || ch == u'_' || ch == u':' || ch == u'.'; };
+    //
+    // This function escapes UTF-8 byte sequences to valid systemd unit names.
+    // Each non-safe byte is escaped as "\xxx" (2-digit lowercase hex).
+    // Safe characters are: [A-Z][a-z][0-9]:_.
+    // '/' is replaced by '-' (special handling for path-style IDs)
+    // '.' at the start is escaped; other '.' are safe
 
-    // Custom escape that handles "/" specially
     QString result;
-    result.reserve(id.size() + 16);
+    result.reserve(utf8.size() * 4);  // Worst case: every byte needs "\xxx" (4 chars)
 
-    for (qsizetype i = 0; i < id.size(); ++i) {
-        const auto ch = id.at(i);
+    bool hasNonAscii{false};
 
-        if (ch == u'/') {
-            // "/" is replaced by "-"
+    for (qsizetype i = 0; i < utf8.size(); ++i) {
+        auto byte = static_cast<unsigned char>(utf8.at(i));
+
+        if (byte == '/') {
             result.append(u'-');
-        } else if (i == 0 && ch == u'.') {
-            // "." as first char is escaped
+        } else if (i == 0 && byte == '.') {
             result.append(uR"(\x)"_s);
-            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
-        } else if (isSafeChar(ch)) {
-            result.append(ch);
+            result.append(QString::number(byte, 16).rightJustified(2, u'0').toLower());
+        } else if (Detail::isAlnum(byte) || byte == ':' || byte == '_' || byte == '.') {
+            result.append(QChar::fromLatin1(byte));
         } else {
-            // Other non-safe chars are escaped
+            if (byte > 0x7F) {
+                hasNonAscii = true;
+            }
+
             result.append(uR"(\x)"_s);
-            result.append(QString::number(ch.cell(), 16).rightJustified(2, u'0').toLower());
+            result.append(QString::number(byte, 16).rightJustified(2, u'0').toLower());
         }
     }
 
+    if (hasNonAscii) {
+        qCWarning(DDEAMUtils) << "String contains non-ASCII characters, which "
+                                 "does not conform to the systemd specification. A "
+                                 "compatible ID is generated using UTF-8 byte escaping for now,"
+                                 "but this compatibility may be removed in the future."
+                                 "Please use ASCII-only names.";
+    }
+
+    result.shrink_to_fit();
     return result;
+}
+
+inline QString escapeApplicationId(QStringView str)
+{
+    return escapeApplicationId(str.toUtf8());
 }
 
 inline QString unescapeApplicationId(QStringView id)
 {
     using namespace Qt::StringLiterals;
-    return Detail::unescapeImpl(id, uR"(\x)"_s);
+    return QString::fromUtf8(Detail::unescapeToBytes(id, uR"(\x)"_s));
 }
 
 inline QString getRelativePathFromAppId(QStringView id)
@@ -788,7 +811,7 @@ inline QByteArray getCurrentSessionId()
 
     auto msg = QDBusMessage::createMethodCall(QString::fromUtf8(SystemdService),
                                               QString::fromUtf8(SystemdObjectPath) % u"/unit/"_s %
-                                                  escapeToObjectPath(u"graphical-session.target"),
+                                                  escapeToObjectPath("graphical-session.target"),
                                               fromStaticRaw(SystemdPropInterfaceName),
                                               u"Get"_s);
     msg << fromStaticRaw(SystemdUnitInterfaceName);
@@ -880,7 +903,8 @@ inline QString getObjectPathFromAppId(const QString &appId)
 {
     const auto &basePath = fromStaticRaw(DDEApplicationManager1ObjectPath);
     if (!appId.isEmpty()) {
-        return basePath % '/' % escapeToObjectPath(appId);
+        auto appIdBytes = appId.toLocal8Bit();
+        return basePath % '/' % escapeToObjectPath(appIdBytes);
     }
 
     return basePath % '/' % QUuid::createUuid().toString(QUuid::Id128);
