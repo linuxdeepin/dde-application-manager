@@ -365,8 +365,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     // Suppress splash for system autostart launches or singleton apps with existing instances.
     const bool isAutostartLaunch = options.value(fromStaticRaw(BuiltInAutostartOption), false).toBool();
     if (isAutostartLaunch) {
-        if (!parent()->isNewSession()) {
+        if (parent()->isSessionStateKnown() && !parent()->isNewSession()) {
             safe_sendErrorReply(QDBusError::Failed, "autostart launch has been ignored if not new session.");
+        } else if (!parent()->isSessionStateKnown()) {
+            qCWarning(DDEAM) << "Allow autostart launch before session state is available:" << id();
         }
     }
 

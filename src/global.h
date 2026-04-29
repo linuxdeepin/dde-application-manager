@@ -794,7 +794,7 @@ inline QByteArray getCurrentSessionId()
     msg << fromStaticRaw(SystemdUnitInterfaceName);
     msg << u"InvocationID"_s;
 
-    auto ret = QDBusConnection::sessionBus().call(msg);
+    auto ret = QDBusConnection::sessionBus().call(msg, QDBus::Block, DBusStartupCallTimeoutMs);
     if (ret.type() != QDBusMessage::ReplyMessage) {
         qCWarning(DDEAMUtils) << "get graphical session Id failed:" << ret.errorMessage();
         return {};
