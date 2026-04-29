@@ -155,6 +155,28 @@ void forEachAutostartDesktopFile(T &&func) noexcept
     guard.close();
     return ParsedAutostartEntry{std::move(desktopFile), std::move(entry)};
 }
+
+QStringList pathListFromPathValue(QStringView pathValue) noexcept
+{
+    QStringList ret;
+    const auto tokens = qTokenize(pathValue, u':', Qt::SkipEmptyParts);
+    for (auto token : tokens) {
+        ret.append(token.toString());
+    }
+    return ret;
+}
+
+std::optional<QStringList> pathListFromEnvironment(const QStringList &envs) noexcept
+{
+    const auto path = std::find_if(envs.cbegin(), envs.cend(), [](QStringView env) { return env.startsWith(u"PATH="); });
+    if (path == envs.cend()) {
+        return std::nullopt;
+    }
+
+    return pathListFromPathValue(QStringView{*path}.sliced(5));
+}
+
+constexpr int DeferredStartupDelayMs = 200;
 }  // namespace
 
 ApplicationManager1Service::~ApplicationManager1Service() = default;
@@ -164,24 +186,7 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
     : m_identifier(std::move(ptr))
     , m_storage(std::move(storage))
 {
-    // Initialize prelaunch splash helper only when running on Wayland.
-    bool isWayland = false;
-    if (auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
-        if (app->nativeInterface<QNativeInterface::QWaylandApplication>() != nullptr) {
-            isWayland = true;
-        }
-    }
-
-    if (isWayland) {
-        m_splashHelper.reset(new (std::nothrow) PrelaunchSplashHelper());
-        if (!m_splashHelper) {
-            qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper.";
-        } else {
-            qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
-        }
-    } else {
-        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (not running on Wayland)";
-    }
+    m_systemdPathEnv = pathListFromPathValue(qEnvironmentVariable("PATH"));
 
     m_reloadTimer.setInterval(500);
     m_reloadTimer.setSingleShot(true);
@@ -238,7 +243,94 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
         qCCritical(DDEAM) << "couldn't watch directory:" << dir;
     }
 
+    auto sysBus = QDBusConnection::systemBus();
+    if (!sysBus.connect(u"org.desktopspec.ApplicationUpdateNotifier1"_s,
+                        u"/org/desktopspec/ApplicationUpdateNotifier1"_s,
+                        u"org.desktopspec.ApplicationUpdateNotifier1"_s,
+                        u"ApplicationUpdated"_s,
+                        this,
+                        SLOT(ReloadApplications()))) {
+        qFatal("connect to ApplicationUpdated failed.");
+    }
+
+    auto storagePtr = m_storage.lock();
+    if (storagePtr) {
+        storagePtr->beginBatchUpdate();
+    }
+
+    scanApplications();
+
+    updateAutostartStatus();
+
+    scanMimeInfos();
+
+    loadHooks();
+
+    if (storagePtr) {
+        if (!storagePtr->setFirstLaunch(false) || !storagePtr->endBatchUpdate()) {
+            qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
+        }
+    }
+
+    if (auto *ptr = new (std::nothrow)
+                     PropertiesForwarder{fromStaticRaw(DDEApplicationManager1ObjectPath),
+                                         fromStaticRaw(ApplicationManager1Interface),
+                                         this};
+        ptr == nullptr) {
+        qCCritical(DDEAM) << "new PropertiesForwarder of Application Manager failed.";
+    }
+
+    m_startupPhase = false;
+
+    if (!connection.registerService(fromStaticRaw(DDEApplicationManager1ServiceName))) {
+        qFatal("%s", connection.lastError().message().toLocal8Bit().data());
+    }
+
+    qCInfo(DDEAM) << "Application Manager started.";
+
+    QTimer::singleShot(DeferredStartupDelayMs, this, &ApplicationManager1Service::finishDeferredStartup);
+}
+
+PrelaunchSplashHelper *ApplicationManager1Service::splashHelper() noexcept
+{
+    if (!m_splashHelper && !m_splashHelperInitializationTried) {
+        initializePrelaunchSplashHelper();
+    }
+
+    return m_splashHelper.get();
+}
+
+void ApplicationManager1Service::initializePrelaunchSplashHelper() noexcept
+{
+    m_splashHelperInitializationTried = true;
+
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (app == nullptr) {
+        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (headless application manager)";
+        return;
+    }
+
+    if (app->nativeInterface<QNativeInterface::QWaylandApplication>() == nullptr) {
+        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (not running on Wayland)";
+        return;
+    }
+
+    m_splashHelper.reset(new (std::nothrow) PrelaunchSplashHelper());
+    if (!m_splashHelper) {
+        qCWarning(amPrelaunchSplash) << "Failed to allocate PrelaunchSplashHelper.";
+        return;
+    }
+
+    qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
+}
+
+void ApplicationManager1Service::initializeSystemdIntegration() noexcept
+{
     auto &dispatcher = SystemdSignalDispatcher::instance();
+    if (!dispatcher.isAvailable()) {
+        qCWarning(DDEAM) << "Skip systemd integration during startup.";
+        return;
+    }
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitNew,
@@ -280,83 +372,33 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             &ApplicationManager1Service::removeInstanceFromApplication);
 
     auto envToPath = [this](const QStringList &envs) {
-        auto path = std::find_if(envs.cbegin(), envs.cend(), [](QStringView env) { return env.startsWith(u"PATH="); });
-        if (path == envs.cend()) {
-            return;
-        }
-
-        auto pathView = QStringView{*path}.sliced(5);
-        auto tokens = qTokenize(pathView, u':', Qt::SkipEmptyParts);
-        m_systemdPathEnv.clear();
-
-        for (auto view : tokens) {
-            m_systemdPathEnv.append(view.toString());
+        if (auto path = pathListFromEnvironment(envs)) {
+            m_systemdPathEnv = std::move(path).value();
         }
     };
 
-    connect(&dispatcher, &SystemdSignalDispatcher::SystemdEnvironmentChanged, envToPath);
+    connect(&dispatcher, &SystemdSignalDispatcher::SystemdEnvironmentChanged, this, envToPath);
 
     auto &con = ApplicationManager1DBus::instance().globalDestBus();
     auto envMsg = QDBusMessage::createMethodCall(
         SystemdService, SystemdObjectPath, fromStaticRaw(SystemdPropInterfaceName), fromStaticRaw(SystemdGet));
     envMsg.setArguments({SystemdInterfaceName, fromStaticRaw(SystemdEnvironment)});
-    auto ret = con.call(envMsg);
+    auto ret = con.call(envMsg, QDBus::Block, DBusStartupCallTimeoutMs);
     if (ret.type() == QDBusMessage::ErrorMessage) {
-        qFatal("%s", ret.errorMessage().toLocal8Bit().data());
+        qCWarning(DDEAM) << "failed to query systemd environment:" << ret.errorMessage();
+    } else if (!ret.arguments().isEmpty()) {
+        envToPath(qdbus_cast<QStringList>(ret.arguments().constFirst().value<QDBusVariant>().variant()));
     }
-    envToPath(qdbus_cast<QStringList>(ret.arguments().constFirst().value<QDBusVariant>().variant()));
-
-    auto sysBus = QDBusConnection::systemBus();
-    if (!sysBus.connect(u"org.desktopspec.ApplicationUpdateNotifier1"_s,
-                        u"/org/desktopspec/ApplicationUpdateNotifier1"_s,
-                        u"org.desktopspec.ApplicationUpdateNotifier1"_s,
-                        u"ApplicationUpdated"_s,
-                        this,
-                        SLOT(ReloadApplications()))) {
-        qFatal("connect to ApplicationUpdated failed.");
-    }
-
-    auto storagePtr = m_storage.lock();
-    if (storagePtr) {
-        storagePtr->beginBatchUpdate();
-    }
-
-    scanApplications();
-
-    updateAutostartStatus();
 
     scanInstances();
+}
 
-    scanMimeInfos();
-
-    loadHooks();
-
-    if (storagePtr) {
-        if (!storagePtr->setFirstLaunch(false) || !storagePtr->endBatchUpdate()) {
-            qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
-        }
-    }
-
-    if (auto *ptr = new (std::nothrow)
-                     PropertiesForwarder{fromStaticRaw(DDEApplicationManager1ObjectPath),
-                                         fromStaticRaw(ApplicationManager1Interface),
-                                         this};
-        ptr == nullptr) {
-        qCCritical(DDEAM) << "new PropertiesForwarder of Application Manager failed.";
-    }
-
-    m_startupPhase = false;
-
-    qCInfo(DDEAM) << "Application Manager started.";
-
-    for (const auto &application : std::as_const(m_applicationList)) {
-        if (!application->ensurePropertiesForwarder()) {
-            qCCritical(DDEAM) << "failed to initialize PropertiesForwarder for" << application->id();
-        }
-    }
-
-    if (!connection.registerService(fromStaticRaw(DDEApplicationManager1ServiceName))) {
-        qFatal("%s", connection.lastError().message().toLocal8Bit().data());
+void ApplicationManager1Service::updateSessionState() noexcept
+{
+    const auto sessionId = getCurrentSessionId();
+    if (sessionId.isEmpty()) {
+        qCWarning(DDEAM) << "AM couldn't determine current session id.";
+        return;
     }
 
     // TODO: This is a workaround, we will use database at the end.
@@ -364,10 +406,11 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     const auto fileName = runtimeDir.filePath(u"deepin-application-manager"_s);
     QFile flag{fileName};
 
-    auto sessionId = getCurrentSessionId();
     if (flag.open(QFile::ReadOnly | QFile::ExistingOnly)) {
-        auto content = flag.read(sessionId.size());
-        if (!content.isEmpty() && !sessionId.isEmpty() && content == sessionId) {
+        const auto content = flag.readAll();
+        if (content == sessionId) {
+            m_isNewSession = false;
+            m_sessionStateKnown = true;
             return;
         }
 
@@ -375,12 +418,36 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     }
 
     if (flag.open(QFile::WriteOnly | QFile::Truncate)) {
-        flag.write(sessionId, sessionId.size());
-        m_isNewSession = true;
+        if (flag.write(sessionId) == sessionId.size()) {
+            m_isNewSession = true;
+            m_sessionStateKnown = true;
+        } else {
+            qCCritical(DDEAM) << "write" << fileName << "failed:" << flag.errorString()
+                              << ", AM couldn't specify if it's a new session.";
+        }
         return;
     }
 
     qCCritical(DDEAM) << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
+}
+
+void ApplicationManager1Service::finishDeferredStartup()
+{
+    if (m_deferredStartupDone) {
+        return;
+    }
+
+    m_deferredStartupDone = true;
+    initializeSystemdIntegration();
+    updateSessionState();
+
+    for (const auto &application : std::as_const(m_applicationList)) {
+        if (!application->ensurePropertiesForwarder()) {
+            qCCritical(DDEAM) << "failed to initialize PropertiesForwarder for" << application->id();
+        }
+    }
+
+    qCInfo(DDEAM) << "Application Manager deferred startup tasks finished.";
 }
 
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName,
@@ -501,7 +568,7 @@ void ApplicationManager1Service::scanInstances() noexcept
     args << QVariant::fromValue(QStringList{u"running"_s, u"start"_s});
     args << QVariant::fromValue(QStringList{u"dde*"_s, u"deepin*"_s});
     call_message.setArguments(args);
-    auto result = conn.call(call_message);
+    auto result = conn.call(call_message, QDBus::Block, DBusStartupCallTimeoutMs);
     if (result.type() == QDBusMessage::ErrorMessage) {
         qCritical() << "failed to scan existing instances: call to ListUnits failed:" << result.errorMessage();
         return;

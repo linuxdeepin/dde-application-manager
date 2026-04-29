@@ -17,6 +17,7 @@ public:
         static SystemdSignalDispatcher dispatcher;
         return dispatcher;
     }
+    [[nodiscard]] bool isAvailable() const noexcept { return m_available; }
 Q_SIGNALS:
     void SystemdUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
     void SystemdJobNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath);
@@ -30,19 +31,27 @@ private Q_SLOTS:
     void onPropertiesChanged(const QString &interface, const QVariantMap &props, const QStringList &invalid);
 
 private:
+    bool m_available{false};
+
     explicit SystemdSignalDispatcher(QObject *parent = nullptr)
         : QObject(parent)
     {
         using namespace Qt::StringLiterals;
         auto ret = ApplicationManager1DBus::instance().globalDestBus().call(
-            QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, u"Subscribe"_s));
+            QDBusMessage::createMethodCall(SystemdService, SystemdObjectPath, SystemdInterfaceName, u"Subscribe"_s),
+            QDBus::Block,
+            DBusStartupCallTimeoutMs);
         if (ret.type() == QDBusMessage::ErrorMessage) {
-            qFatal("%s", ret.errorMessage().toLocal8Bit().data());
+            qWarning() << "can't subscribe to systemd user manager:" << ret.errorMessage();
+            return;
         }
 
         if (!connectToSignals()) {
-            std::terminate();
+            qWarning() << "can't connect to systemd user manager signals.";
+            return;
         }
+
+        m_available = true;
     }
 
     bool connectToSignals() noexcept;

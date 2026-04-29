@@ -94,6 +94,7 @@ constexpr static auto &SystemdKill = u"Kill";
 constexpr static auto &SystemdEnvironment = u"Environment";
 constexpr static auto &SystemdGet = u"Get";
 constexpr static auto &SystemdListUnitsByPatterns = u"ListUnitsByPatterns";
+constexpr static int DBusStartupCallTimeoutMs = 1000;
 
 constexpr static auto &MimeappsList = u"mimeapps.list";
 constexpr static auto &MimeinfoCache = u"mimeinfo.cache";

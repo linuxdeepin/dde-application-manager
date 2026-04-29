@@ -8,7 +8,6 @@
 #include "global.h"
 #include <QDBusConnection>
 #include <QCoreApplication>
-#include <QGuiApplication>
 
 Q_LOGGING_CATEGORY(DDEAMProf, "dde.am.prof", QtInfoMsg)
 
@@ -40,7 +39,7 @@ int main(int argc, char *argv[])
 #ifdef PROFILING_MODE
     auto start = std::chrono::high_resolution_clock::now();
 #endif
-    const QGuiApplication app{argc, argv};
+    const QCoreApplication app{argc, argv};
 
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
@@ -58,6 +57,6 @@ int main(int argc, char *argv[])
     qCInfo(DDEAMProf) << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms";
     return 0;
 #else
-    return QGuiApplication::exec();
+    return QCoreApplication::exec();
 #endif
 }
