@@ -8,11 +8,13 @@
 #include <QDBusMessage>
 #include "global.h"
 
-InstanceService::InstanceService(QString instanceId, QString application, QString systemdUnitPath, QString launcher)
+InstanceService::InstanceService(QString instanceId, QString application, QString systemdUnitPath, QString launcher, const QString &launchType, const QString &uniqueId)
     : m_Launcher(std::move(launcher))
     , m_instanceId(std::move(instanceId))
     , m_Application(std::move(application))
     , m_SystemdUnitPath(std::move(systemdUnitPath))
+    , m_launchType(launchType)
+    , m_uniqueId(uniqueId)
 {
     if (auto *tmp = new (std::nothrow)
                      PropertiesForwarder{application + "/" + instanceId, fromStaticRaw(InstanceInterface), this};

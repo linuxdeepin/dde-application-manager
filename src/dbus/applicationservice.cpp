@@ -8,6 +8,7 @@
 #include "applicationmanagerstorage.h"
 #include "config.h"
 #include "constant.h"
+#include "eventreporter.h"
 #include "dbus/instanceadaptor.h"
 #include "desktopentry.h"
 #include "desktopfileparser.h"
@@ -364,6 +365,21 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 {
     // Suppress splash for system autostart launches or singleton apps with existing instances.
     const bool isAutostartLaunch = options.value(fromStaticRaw(BuiltInAutostartOption), false).toBool();
+
+    QString launchType;
+    if (options.contains(u"_launch_type"_s)) {
+        launchType = options.value(u"_launch_type"_s).toString();
+    } else if (isAutostartLaunch) {
+        launchType = u"dde-application-manager-autostart"_s;
+    }
+    if (launchType.isEmpty()) {
+        launchType = u"unknown"_s;
+    }
+    setLaunchType(launchType);
+    auto launchUniqueId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    setLaunchUniqueId(launchUniqueId);
+    qCDebug(DDEAM) << "launch app:" << id() << "launchType:" << launchType << "uniqueID:" << launchUniqueId;
+
     if (isAutostartLaunch) {
         if (!parent()->isNewSession()) {
             safe_sendErrorReply(QDBusError::Failed, "autostart launch has been ignored if not new session.");
@@ -392,6 +408,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }();
 
     if (desktopEntry == nullptr) {
+        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "This application is not set to autostart.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::Failed, "This application is not set to autostart.");
     }
 
@@ -421,6 +438,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (!Actions) {
             const QString msg{"application can't be executed."};
             qWarning() << msg;
+            EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), msg, launchType, launchUniqueId);
             safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
@@ -429,10 +447,22 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (execStr.isEmpty()) {
             const QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
+            EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), msg, launchType, launchUniqueId);
             safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
     }
+
+    if (execStr.contains("ll-cli")) {
+        if (auto args = splitExecArguments(execStr); args) {
+            auto runIdx = args->indexOf(u"run"_s);
+            if (runIdx >= 0 && runIdx + 1 < args->size()) {
+                setEventAppId(args->at(runIdx + 1));
+            }
+        }
+    }
+
+    EventReporter::getAppVersion(eventAppId());
 
     const bool isSingleton =
         findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinSingleton), EntryValueType::Boolean)
@@ -443,6 +473,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     optionsMap.remove(fromStaticRaw(BuiltInAutostartOption));
     optionsMap.remove(u"_hooks"_s);
     optionsMap.remove(u"_builtIn_searchExec"_s);
+    optionsMap.remove(u"_launch_type"_s);
     if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
         optionsMap.insert(u"_hooks"_s, hooks);
     }
@@ -468,12 +499,14 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto cmds = generateCommand(optionsMap);
     auto task = processExec(execStr, fields, workingDir);
     if (!task) {
+        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "Invalid Command.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::InternalError, "Invalid Command.");
         return {};
     }
 
     if (task.LaunchBin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
+        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "error command is detected, abort.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::Failed);
         return {};
     }
@@ -487,6 +520,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
     // Generate instance UUID early so splash and job lambda share the same id.
     auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
+
+    EventReporter::reportAppLaunch(eventAppId(), EventReporter::getAppVersion(eventAppId()), QDateTime::currentMSecsSinceEpoch(), launchType, launchUniqueId);
 
     // Notify the compositor to show a splash screen (after validation passes).
     if (isAutostartLaunch) {
@@ -579,6 +614,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
                 qWarning() << "Launch Application Failed";
+                EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(eventAppId()), "app-launch-helper exited with code " + QString::number(exitCode), m_launchType, m_launchUniqueId);
                 return QDBusError::Failed;
             }
 
@@ -1051,9 +1087,11 @@ QList<QDBusObjectPath> ApplicationService::instances() const noexcept
 bool ApplicationService::addOneInstance(const QString &instanceId,
                                         const QString &application,
                                         const QString &systemdUnitPath,
-                                        const QString &launcher) noexcept
+                                        const QString &launcher,
+                                        const QString &launchType,
+                                        const QString &uniqueId) noexcept
 {
-    auto *service = new (std::nothrow) InstanceService{instanceId, application, systemdUnitPath, launcher};
+    auto *service = new (std::nothrow) InstanceService{instanceId, application, systemdUnitPath, launcher, launchType, uniqueId};
     if (service == nullptr) {
         qCritical() << "couldn't new InstanceService.";
         return false;
@@ -1084,6 +1122,8 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
                                 dbusObjectPath,
                                 QVariant::fromValue(interfaces));
     }
+
+    EventReporter::reportAppLaunchDuration(eventAppId(), EventReporter::getAppVersion(eventAppId()), QDateTime::currentMSecsSinceEpoch(), launchType, uniqueId);
 
     return true;
 }

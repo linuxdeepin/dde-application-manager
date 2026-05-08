@@ -34,10 +34,19 @@
             />
         </property>
 
+        <property name="LaunchType" type="s" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="The launch source name of this instance,
+                       e.g. 'dde-launchpad', 'dde-shell', 'autostart'.
+                       Defaults to 'unknown' if not specified."
+            />
+        </property>
+
         <property name="Orphaned" type="b" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
-                value="This property indicates that the application 
+                value="This property indicates that the application
                        to which the instance belonged has been removed."
             />
         </property>

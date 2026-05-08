@@ -157,7 +157,14 @@
                           absolute directory path.
                        NOTE:
                        When application launched with `uid` option,
-                       `env` option will not take effect at all."
+                       `env` option will not take effect at all.
+                       The following internal options (prefixed with `_`)
+                       are for internal use only and should not be used
+                       by external callers:
+                       5. `_launch_type` (type s):
+                          launch source name for event reporting,
+                          e.g. 'dde-launchpad', 'dde-shell'.
+                          Defaults to 'unknown' if not specified."
             />
         </method>
 

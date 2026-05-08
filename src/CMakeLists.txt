@@ -16,7 +16,15 @@ target_include_directories(${LIB_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+find_package(Dtk6 REQUIRED COMPONENTS Core)
+
 target_link_libraries(${LIB_NAME} PUBLIC
     Threads::Threads
     dde_am_dbus
+    Dtk6::Core
 )
+
+if (HAVE_DDE_API_EVENTLOGGER)
+    target_compile_definitions(${LIB_NAME} PRIVATE HAVE_DDE_API_EVENTLOGGER)
+    target_link_libraries(${LIB_NAME} PUBLIC DDEAPI::EventLogger)
+endif()
