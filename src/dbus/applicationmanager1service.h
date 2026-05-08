@@ -26,6 +26,30 @@ Q_DECLARE_LOGGING_CATEGORY(DDEAM)
 
 class ApplicationService;
 
+class UnitResultWatcher : public QObject
+{
+    Q_OBJECT
+public:
+    explicit UnitResultWatcher(const QDBusObjectPath &unitPath, QObject *parent = nullptr)
+        : QObject(parent), m_unitPath(unitPath) {}
+
+public Q_SLOTS:
+    void handlePropertyChanged(const QString &interface, const QVariantMap &changed, const QStringList &invalidated)
+    {
+        if ((interface == QStringLiteral("org.freedesktop.systemd1.Unit")
+             || interface == QStringLiteral("org.freedesktop.systemd1.Service"))
+            && changed.contains(QStringLiteral("Result"))) {
+            emit resultReady(m_unitPath, changed.value(QStringLiteral("Result")).toString());
+        }
+    }
+
+Q_SIGNALS:
+    void resultReady(const QDBusObjectPath &unitPath, const QString &result);
+
+private:
+    QDBusObjectPath m_unitPath;
+};
+
 class ApplicationManager1Service final : public QObject, protected QDBusContext
 {
     Q_OBJECT
@@ -84,6 +108,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void doReloadApplications();
+    void onUnitResultReady(const QDBusObjectPath &unitPath, const QString &result);
 
 private:
     bool m_startupPhase{true};
@@ -99,6 +124,7 @@ private:
     bool m_isReloading{false};
     bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
+    QHash<QString, QString> m_unitResults;
     QSharedPointer<CompatibilityManager> m_compatibilityManager;
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
 

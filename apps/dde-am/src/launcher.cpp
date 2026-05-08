@@ -129,6 +129,10 @@ DExpected<void> Launcher::launch() noexcept
         options.insert(fromStaticRaw(BuiltInAutostartOption), true);
     }
 
+    if (!m_launchType.isEmpty()) {
+        options.insert(u"_launch_type"_s, m_launchType);
+    }
+
     auto msg = QDBusMessage::createMethodCall(
         fromStaticRaw(DDEApplicationManager1ServiceName), m_path, fromStaticRaw(ApplicationInterface), u"Launch"_s);
     msg.setArguments({m_action, QStringList{}, options});
@@ -187,4 +191,9 @@ QString Launcher::appId() const noexcept
 void Launcher::setAutostart(bool autostart)
 {
     m_autostart = autostart;
+}
+
+void Launcher::setLaunchType(const QString &launchType)
+{
+    m_launchType = launchType;
 }

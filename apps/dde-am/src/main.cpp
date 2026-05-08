@@ -105,7 +105,8 @@ int handleLaunchApp(const QCommandLineParser &parser,
                     const QCommandLineOption &envOption,
                     const QCommandLineOption &actionOption,
                     const QCommandLineOption &launchedByUserOption,
-                    const QCommandLineOption &autostartOption)
+                    const QCommandLineOption &autostartOption,
+                    const QCommandLineOption &launchTypeOption)
 {
     QString appId;
     QString action;
@@ -139,6 +140,10 @@ int handleLaunchApp(const QCommandLineParser &parser,
 
     if (parser.isSet(autostartOption)) {
         launcher.setAutostart(true);
+    }
+
+    if (parser.isSet(launchTypeOption)) {
+        launcher.setLaunchType(parser.value(launchTypeOption));
     }
 
     QString appPath;
@@ -202,6 +207,9 @@ int main(int argc, char *argv[])
     autostartOption.setFlags(QCommandLineOption::Flag::HiddenFromHelp);
     parser.addOption(autostartOption);
 
+    const QCommandLineOption launchTypeOption("launch-type", "Launch source name for event reporting (e.g. dde-launchpad, dde-shell).", "type");
+    parser.addOption(launchTypeOption);
+
     const QCommandLineOption actionOption({"a", "action"}, "Specify action identifier to trigger for the application.", "action");
     parser.addOption(actionOption);
 
@@ -258,5 +266,5 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption);
+    return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption, launchTypeOption);
 }

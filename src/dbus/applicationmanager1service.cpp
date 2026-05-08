@@ -5,9 +5,11 @@
 #include "applicationHooks.h"
 #include "applicationchecker.h"
 #include "applicationservice.h"
+#include "dbus/instanceservice.h"
 #include "dbus/AMobjectmanager1adaptor.h"
 #include "dbus/applicationmanager1adaptor.h"
 #include "desktopfilegenerator.h"
+#include "eventreporter.h"
 #include "global.h"
 #include "propertiesForwarder.h"
 #include "systemdsignaldispatcher.h"
@@ -18,6 +20,7 @@
 #include <QGuiApplication>
 #include <QHash>
 #include <QLoggingCategory>
+#include <QProcess>
 #include <QStringBuilder>
 #include <unistd.h>
 
@@ -419,9 +422,21 @@ void ApplicationManager1Service::addInstanceToApplication(UnitInfo info, const Q
 
     const auto &applicationPath = app->applicationPath().path();
 
-    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher)) {
+    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher, app->launchType(), app->launchUniqueId())) {
         qCCritical(DDEAM) << "failed to add instance" << systemdUnitPath.path() << "to app" << appId;
     }
+
+    using namespace Qt::StringLiterals;
+    auto &bus = ApplicationManager1DBus::instance().globalDestBus();
+    auto watcher = new UnitResultWatcher(systemdUnitPath, this);
+    connect(watcher, &UnitResultWatcher::resultReady, this, &ApplicationManager1Service::onUnitResultReady);
+    auto connected = bus.connect(QString::fromUtf8(SystemdService),
+                                 systemdUnitPath.path(),
+                                 QString::fromUtf16(SystemdPropInterfaceName),
+                                 u"PropertiesChanged"_s,
+                                 watcher,
+                                 SLOT(handlePropertyChanged(QString,QVariantMap,QStringList)));
+    qCDebug(DDEAM) << "UnitResultWatcher connect for" << systemdUnitPath.path() << "result:" << connected;
 }
 
 void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName,
@@ -453,6 +468,19 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
         });
 
     if (instanceIt != appIns.cend()) {
+        auto result = m_unitResults.take(systemdUnitPath.path());
+        qCDebug(DDEAM) << "removeInstance: unitPath=" << systemdUnitPath.path() << "cached result=" << result;
+        if (result == u"failed" || result == u"canceled" || result == u"timeout"
+            || result == u"signal" || result == u"core-dump" || result == u"exit-code") {
+            QStringList logArgs{QStringLiteral("--unit=%1").arg(unitName),
+                                "-n", "20", "-o", "cat", "-o", "with-unit", "--no-pager"};
+            QProcess logProc;
+            logProc.start("journalctl", logArgs);
+            logProc.waitForFinished(3000);
+            QString logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
+            EventReporter::reportAppAbnormalExit(app->eventAppId(), (*instanceIt)->launchType(), unitName, logInfo, (*instanceIt)->launchUniqueId());
+        }
+
         app->removeOneInstance(instanceIt.key());
         return;
     }
@@ -460,6 +488,12 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
     orphanedInstances.removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
         return (ptr->property("SystemdUnitPath").value<QDBusObjectPath>() == systemdUnitPath);
     });
+}
+
+void ApplicationManager1Service::onUnitResultReady(const QDBusObjectPath &unitPath, const QString &result)
+{
+    qCDebug(DDEAM) << "onUnitResultReady: unitPath=" << unitPath.path() << "result=" << result;
+    m_unitResults.insert(unitPath.path(), result);
 }
 
 void ApplicationManager1Service::scanMimeInfos() noexcept
