@@ -112,6 +112,7 @@ TEST_F(TestApplicationManager, identifyService)
                                   QVariantMap{{QString{"Application"}, ApplicationPath},
                                               {QString{"SystemdUnitPath"}, QDBusObjectPath{"/"}},
                                               {QString{"Launcher"}, QString{"DDE"}},
+                                              {QString{"LaunchType"}, QString{}},
                                               {QString{"Orphaned"}, false}}}};
     EXPECT_EQ(instanceInfo, map);
 
