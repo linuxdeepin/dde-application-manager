@@ -1022,7 +1022,7 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
         // Escape the program path to create a valid runId
         actualRunId = program;
     }
-    actualRunId = DUtil::escapeToObjectPath(actualRunId);
+    actualRunId = escapeApplicationId(actualRunId);
 
     // Generate random component for systemd unit name
     QString randomComponent = QUuid::createUuid().toString(QUuid::Id128).mid(1, 8);
