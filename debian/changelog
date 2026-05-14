@@ -1,3 +1,13 @@
+dde-application-manager (1.2.53) unstable; urgency=medium
+
+  * fix: use escapeApplicationId for systemd unit name in executeCommand
+  * fix(test): add missing LaunchType property to identifyService
+    expected result
+  * refactor(escape): Use the escape/unescape function from dtkcore to
+    ensure consistency
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 14 May 2026 22:10:31 +0800
+
 dde-application-manager (1.2.52) unstable; urgency=medium
 
   * feat: add application launch event reporting
