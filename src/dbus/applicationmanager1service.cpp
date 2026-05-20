@@ -478,7 +478,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
             logProc.start("journalctl", logArgs);
             logProc.waitForFinished(3000);
             QString logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
-            EventReporter::reportAppAbnormalExit(app->eventAppId(), (*instanceIt)->launchType(), unitName, logInfo, (*instanceIt)->launchUniqueId());
+            EventReporter::reportAppAbnormalExit(app->eventAppId(), (*instanceIt)->launchType(), unitName, logInfo, app->x_linglong(), (*instanceIt)->launchUniqueId());
         }
 
         app->removeOneInstance(instanceIt.key());
