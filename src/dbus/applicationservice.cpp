@@ -408,7 +408,6 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }();
 
     if (desktopEntry == nullptr) {
-        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "This application is not set to autostart.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::Failed, "This application is not set to autostart.");
     }
 
@@ -438,7 +437,6 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (!Actions) {
             const QString msg{"application can't be executed."};
             qWarning() << msg;
-            EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), msg, launchType, launchUniqueId);
             safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
@@ -447,22 +445,15 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         if (execStr.isEmpty()) {
             const QString msg{"maybe entry actions's format is invalid, abort launch."};
             qWarning() << msg;
-            EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), msg, launchType, launchUniqueId);
             safe_sendErrorReply(QDBusError::Failed, msg);
             return {};
         }
     }
 
-    if (execStr.contains("ll-cli")) {
-        if (auto args = splitExecArguments(execStr); args) {
-            auto runIdx = args->indexOf(u"run"_s);
-            if (runIdx >= 0 && runIdx + 1 < args->size()) {
-                setEventAppId(args->at(runIdx + 1));
-            }
-        }
+    auto linglongAppId = X_linglongAppId();
+    if (!linglongAppId.isEmpty()) {
+        setEventAppId(linglongAppId);
     }
-
-    EventReporter::getAppVersion(eventAppId());
 
     const bool isSingleton =
         findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinSingleton), EntryValueType::Boolean)
@@ -499,14 +490,12 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto cmds = generateCommand(optionsMap);
     auto task = processExec(execStr, fields, workingDir);
     if (!task) {
-        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "Invalid Command.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::InternalError, "Invalid Command.");
         return {};
     }
 
     if (task.LaunchBin.isEmpty()) {
         qCritical() << "error command is detected, abort.";
-        EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(id()), "error command is detected, abort.", launchType, launchUniqueId);
         safe_sendErrorReply(QDBusError::Failed);
         return {};
     }
@@ -521,7 +510,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     // Generate instance UUID early so splash and job lambda share the same id.
     auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
 
-    EventReporter::reportAppLaunch(eventAppId(), EventReporter::getAppVersion(eventAppId()), QDateTime::currentMSecsSinceEpoch(), launchType, launchUniqueId);
+    EventReporter::reportAppLaunch(eventAppId(), QDateTime::currentMSecsSinceEpoch(), x_linglong(), launchType, launchUniqueId);
 
     // Notify the compositor to show a splash screen (after validation passes).
     if (isAutostartLaunch) {
@@ -546,7 +535,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds)](
+        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType, launchUniqueId](
             const QVariant &value) mutable -> QVariant {
             QStringList newCommands;
             const int estimatedSize = 6 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
@@ -614,7 +603,11 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
                 qWarning() << "Launch Application Failed";
-                EventReporter::reportAppLaunchFailed(eventAppId(), EventReporter::getAppVersion(eventAppId()), "app-launch-helper exited with code " + QString::number(exitCode), m_launchType, m_launchUniqueId);
+                EventReporter::reportAppLaunchFailed(eventAppId(),
+                                                     QStringLiteral("app-launch-helper exited with code %1").arg(exitCode),
+                                                     x_linglong(),
+                                                     launchType,
+                                                     launchUniqueId);
                 return QDBusError::Failed;
             }
 
@@ -797,6 +790,12 @@ bool ApplicationService::x_linglong() const noexcept
 {
     auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"X-linglong"_s, EntryValueType::String);
     return !val.isNull();
+}
+
+QString ApplicationService::X_linglongAppId() const noexcept
+{
+    auto val = findEntryValue(fromStaticRaw(DesktopFileEntryKey), u"X-linglong"_s, EntryValueType::String);
+    return val.isNull() ? QString{} : val.toString();
 }
 
 QString ApplicationService::X_Deepin_Vendor() const noexcept
@@ -1122,8 +1121,6 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
                                 dbusObjectPath,
                                 QVariant::fromValue(interfaces));
     }
-
-    EventReporter::reportAppLaunchDuration(eventAppId(), EventReporter::getAppVersion(eventAppId()), QDateTime::currentMSecsSinceEpoch(), launchType, uniqueId);
 
     return true;
 }
