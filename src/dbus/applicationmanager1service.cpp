@@ -15,12 +15,14 @@
 #include "systemdsignaldispatcher.h"
 #include <DUtil>
 #include <QDBusMessage>
+#include <QDBusVariant>
 #include <QDirIterator>
 #include <QFile>
 #include <QGuiApplication>
 #include <QHash>
 #include <QLoggingCategory>
 #include <QProcess>
+#include <QSet>
 #include <QStringBuilder>
 #include <unistd.h>
 
@@ -470,15 +472,36 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
     if (instanceIt != appIns.cend()) {
         auto result = m_unitResults.take(systemdUnitPath.path());
         qCDebug(DDEAM) << "removeInstance: unitPath=" << systemdUnitPath.path() << "cached result=" << result;
-        if (result == u"failed" || result == u"canceled" || result == u"timeout"
-            || result == u"signal" || result == u"core-dump" || result == u"exit-code") {
-            QStringList logArgs{QStringLiteral("--unit=%1").arg(unitName),
-                                "-n", "20", "-o", "cat", "-o", "with-unit", "--no-pager"};
+
+        static const QSet<QString> launchFailedResults{u"start-limit-hit"_s, u"resources"_s, u"exec-condition"_s, u"protocol"_s, u"timeout"_s};
+
+        if (launchFailedResults.contains(result)) {
+            EventReporter::reportAppLaunchFailed(app->eventAppId(),
+                                                 QStringLiteral("systemd result: %1").arg(result),
+                                                 app->x_linglong(),
+                                                 (*instanceIt)->launchType(),
+                                                 (*instanceIt)->launchUniqueId());
+        } else if (!result.isEmpty() && result != u"success"_s) {
+            QStringList logArgs{"--user", QStringLiteral("--unit=%1").arg(unitName),
+                                "-p", "warning", "-n", "6", "-o", "cat", "-o", "with-unit", "--no-pager"};
             QProcess logProc;
             logProc.start("journalctl", logArgs);
-            logProc.waitForFinished(3000);
-            QString logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
-            EventReporter::reportAppAbnormalExit(app->eventAppId(), (*instanceIt)->launchType(), unitName, logInfo, (*instanceIt)->launchUniqueId());
+            QString logInfo;
+            if (!logProc.waitForStarted(1000)) {
+                qCWarning(DDEAM) << "journalctl failed to start for unit:" << unitName;
+            } else if (!logProc.waitForFinished(3000)) {
+                qCWarning(DDEAM) << "journalctl timeout for unit:" << unitName;
+                logProc.kill();
+            } else {
+                logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
+            }
+
+            EventReporter::reportAppAbnormalExit(app->eventAppId(),
+                                                 (*instanceIt)->launchType(),
+                                                 unitName,
+                                                 logInfo,
+                                                 app->x_linglong(),
+                                                 (*instanceIt)->launchUniqueId());
         }
 
         app->removeOneInstance(instanceIt.key());

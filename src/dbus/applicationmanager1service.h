@@ -36,10 +36,16 @@ public:
 public Q_SLOTS:
     void handlePropertyChanged(const QString &interface, const QVariantMap &changed, const QStringList &invalidated)
     {
-        if ((interface == QStringLiteral("org.freedesktop.systemd1.Unit")
-             || interface == QStringLiteral("org.freedesktop.systemd1.Service"))
-            && changed.contains(QStringLiteral("Result"))) {
-            emit resultReady(m_unitPath, changed.value(QStringLiteral("Result")).toString());
+        if (interface != QStringLiteral("org.freedesktop.systemd1.Unit")
+            && interface != QStringLiteral("org.freedesktop.systemd1.Service")) {
+            return;
+        }
+
+        if (auto it = changed.constFind(QStringLiteral("Result")); it != changed.constEnd()) {
+            auto result = it.value().toString();
+            if (!result.isEmpty() && result != QStringLiteral("success")) {
+                emit resultReady(m_unitPath, result);
+            }
         }
     }
 

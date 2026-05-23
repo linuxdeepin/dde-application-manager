@@ -97,6 +97,8 @@ public:
     Q_PROPERTY(bool X_linglong READ x_linglong NOTIFY x_linglongChanged)
     [[nodiscard]] bool x_linglong() const noexcept;
 
+    [[nodiscard]] QString X_linglongAppId() const noexcept;
+
     Q_PROPERTY(QString X_Deepin_Vendor READ X_Deepin_Vendor)
     [[nodiscard]] QString X_Deepin_Vendor() const noexcept;
 
