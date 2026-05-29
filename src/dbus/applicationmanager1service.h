@@ -59,6 +59,8 @@ private:
 class ApplicationManager1Service final : public QObject, protected QDBusContext
 {
     Q_OBJECT
+    friend class ApplicationService;
+
 public:
     explicit ApplicationManager1Service(std::unique_ptr<Identifier> ptr,
                                         std::weak_ptr<ApplicationManager1Storage> storage) noexcept;
@@ -131,6 +133,7 @@ private:
     bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
     QHash<QString, QString> m_unitResults;
+    QHash<QString, QString> m_pendingInstanceLaunchTypes;
     QSharedPointer<CompatibilityManager> m_compatibilityManager;
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
 
@@ -139,6 +142,9 @@ private:
     void scanInstances() noexcept;
     void updateAutostartStatus() noexcept;
     void loadHooks() noexcept;
+    void addPendingInstanceLaunchType(const QString &instanceId, const QString &launchType) noexcept;
+    void removePendingInstanceLaunchType(const QString &instanceId) noexcept;
+    QString takePendingInstanceLaunchType(const QString &appId, const QString &instanceId) noexcept;
     void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
     void addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept;
     void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;

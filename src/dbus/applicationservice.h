@@ -128,12 +128,6 @@ public:
     [[nodiscard]] const QString &getLauncher() const noexcept { return m_launcher; }
     void setLauncher(const QString &launcher) noexcept { m_launcher = launcher; }
 
-    void setLaunchType(const QString &launchType) noexcept { m_launchType = launchType; }
-    [[nodiscard]] const QString &launchType() const noexcept { return m_launchType; }
-
-    void setLaunchUniqueId(const QString &uniqueId) noexcept { m_launchUniqueId = uniqueId; }
-    [[nodiscard]] const QString &launchUniqueId() const noexcept { return m_launchUniqueId; }
-
     void setEventAppId(const QString &appId) noexcept { m_eventAppId = appId; }
     [[nodiscard]] QString eventAppId() const noexcept { return m_eventAppId.isEmpty() ? id() : m_eventAppId; }
 
@@ -141,8 +135,7 @@ public:
                         const QString &application,
                         const QString &systemdUnitPath,
                         const QString &launcher,
-                        const QString &launchType = {},
-                        const QString &uniqueId = {}) noexcept;
+                        const QString &launchType = {}) noexcept;
     void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;
     void removeAllInstance() noexcept;
@@ -221,8 +214,6 @@ private:
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
     QSet<QString> m_splashInstanceIds;
     bool m_propertiesForwarderInitialized{false};
-    QString m_launchType;
-    QString m_launchUniqueId;
     QString m_eventAppId;
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
