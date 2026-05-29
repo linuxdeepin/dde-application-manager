@@ -388,6 +388,27 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     qCCritical(DDEAM) << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
 }
 
+void ApplicationManager1Service::addPendingInstanceLaunchType(const QString &instanceId, const QString &launchType) noexcept
+{
+    m_pendingInstanceLaunchTypes.insert(instanceId, launchType);
+}
+
+void ApplicationManager1Service::removePendingInstanceLaunchType(const QString &instanceId) noexcept
+{
+    m_pendingInstanceLaunchTypes.remove(instanceId);
+}
+
+QString ApplicationManager1Service::takePendingInstanceLaunchType(const QString &appId, const QString &instanceId) noexcept
+{
+    auto launchType = m_pendingInstanceLaunchTypes.take(instanceId);
+    if (launchType.isEmpty()) {
+        qCWarning(DDEAM) << "missing pending launch type for app" << appId << "instance" << instanceId;
+        launchType = u"unknown"_s;
+    }
+
+    return launchType;
+}
+
 void ApplicationManager1Service::addInstanceToApplication(const QString &unitName,
                                                           const QDBusObjectPath &systemdUnitPath) noexcept
 {
@@ -424,7 +445,9 @@ void ApplicationManager1Service::addInstanceToApplication(UnitInfo info, const Q
 
     const auto &applicationPath = app->applicationPath().path();
 
-    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher, app->launchType(), app->launchUniqueId())) {
+    const auto launchType = takePendingInstanceLaunchType(appId, instanceId);
+
+    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher, launchType)) {
         qCCritical(DDEAM) << "failed to add instance" << systemdUnitPath.path() << "to app" << appId;
     }
 
@@ -480,7 +503,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
                                                  QStringLiteral("systemd result: %1").arg(result),
                                                  app->x_linglong(),
                                                  (*instanceIt)->launchType(),
-                                                 (*instanceIt)->launchUniqueId());
+                                                 (*instanceIt)->instanceId());
         } else if (!result.isEmpty() && result != u"success"_s) {
             QStringList logArgs{"--user", QStringLiteral("--unit=%1").arg(unitName),
                                 "-p", "warning", "-n", "6", "-o", "cat", "-o", "with-unit", "--no-pager"};
@@ -501,7 +524,7 @@ void ApplicationManager1Service::removeInstanceFromApplication(const QString &un
                                                  unitName,
                                                  logInfo,
                                                  app->x_linglong(),
-                                                 (*instanceIt)->launchUniqueId());
+                                                 (*instanceIt)->instanceId());
         }
 
         app->removeOneInstance(instanceIt.key());

@@ -375,10 +375,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     if (launchType.isEmpty()) {
         launchType = u"unknown"_s;
     }
-    setLaunchType(launchType);
-    auto launchUniqueId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    setLaunchUniqueId(launchUniqueId);
-    qCDebug(DDEAM) << "launch app:" << id() << "launchType:" << launchType << "uniqueID:" << launchUniqueId;
+    auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
+    qCDebug(DDEAM) << "launch app:" << id() << "launchType:" << launchType << "uniqueID:" << instanceRandomUUID;
 
     if (isAutostartLaunch) {
         if (!parent()->isNewSession()) {
@@ -507,10 +505,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         cmds.push_back("-e");  // run all original execution commands in deepin-terminal
     }
 
-    // Generate instance UUID early so splash and job lambda share the same id.
-    auto instanceRandomUUID = QUuid::createUuid().toString(QUuid::Id128);
-
-    EventReporter::reportAppLaunch(eventAppId(), QDateTime::currentMSecsSinceEpoch(), x_linglong(), launchType, launchUniqueId);
+    EventReporter::reportAppLaunch(eventAppId(), QDateTime::currentMSecsSinceEpoch(), x_linglong(), launchType, instanceRandomUUID);
 
     // Notify the compositor to show a splash screen (after validation passes).
     if (isAutostartLaunch) {
@@ -532,10 +527,12 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
     }
 
+    parent()->addPendingInstanceLaunchType(instanceRandomUUID, launchType);
+
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType, launchUniqueId](
+        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType](
             const QVariant &value) mutable -> QVariant {
             QStringList newCommands;
             const int estimatedSize = 6 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
@@ -607,7 +604,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                                                      QStringLiteral("app-launch-helper exited with code %1").arg(exitCode),
                                                      x_linglong(),
                                                      launchType,
-                                                     launchUniqueId);
+                                                     instanceRandomUUID);
+                parent()->removePendingInstanceLaunchType(instanceRandomUUID);
                 return QDBusError::Failed;
             }
 
@@ -1087,10 +1085,9 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
                                         const QString &application,
                                         const QString &systemdUnitPath,
                                         const QString &launcher,
-                                        const QString &launchType,
-                                        const QString &uniqueId) noexcept
+                                        const QString &launchType) noexcept
 {
-    auto *service = new (std::nothrow) InstanceService{instanceId, application, systemdUnitPath, launcher, launchType, uniqueId};
+    auto *service = new (std::nothrow) InstanceService{instanceId, application, systemdUnitPath, launcher, launchType};
     if (service == nullptr) {
         qCritical() << "couldn't new InstanceService.";
         return false;

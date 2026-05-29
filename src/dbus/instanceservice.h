@@ -27,7 +27,6 @@ public:
 
     [[nodiscard]] const QString &instanceId() const noexcept { return m_instanceId; }
     [[nodiscard]] const QString &launchType() const noexcept { return m_launchType; }
-    [[nodiscard]] const QString &launchUniqueId() const noexcept { return m_uniqueId; }
 
 public Q_SLOTS:
     void KillAll(int signal);
@@ -37,11 +36,10 @@ Q_SIGNALS:
 
 private:
     friend class ApplicationService;
-    InstanceService(QString instanceId, QString application, QString systemdUnitPath, QString launcher, const QString &launchType = {}, const QString &uniqueId = {});
+    InstanceService(QString instanceId, QString application, QString systemdUnitPath, QString launcher, const QString &launchType = {});
     bool m_orphaned{false};
     QString m_Launcher;
     QString m_launchType;
-    QString m_uniqueId;
     QString m_instanceId;
     QDBusObjectPath m_Application;
     QDBusObjectPath m_SystemdUnitPath;
