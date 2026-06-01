@@ -527,7 +527,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         qCWarning(amPrelaunchSplash) << "Skip prelaunch splash (no parent ApplicationManager1Service)" << id();
     }
 
-    parent()->addPendingInstanceLaunchType(instanceRandomUUID, launchType);
+    m_pendingLaunchTypes.insert(instanceRandomUUID, launchType);
 
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
@@ -605,7 +605,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                                                      x_linglong(),
                                                      launchType,
                                                      instanceRandomUUID);
-                parent()->removePendingInstanceLaunchType(instanceRandomUUID);
+                m_pendingLaunchTypes.remove(instanceRandomUUID);
                 return QDBusError::Failed;
             }
 
@@ -1139,6 +1139,96 @@ void ApplicationService::removeAllInstance() noexcept
     for (auto it = m_Instances.constBegin(); it != m_Instances.constEnd(); ++it) {
         removeOneInstance(it.key());
     }
+}
+
+void ApplicationService::handleUnitStarted(const QString &instanceId,
+                                           const QString &systemdUnitPath,
+                                           const QString &launcher,
+                                           const QString &launchType) noexcept
+{
+    using namespace Qt::StringLiterals;
+
+    updateAfterLaunch(sender() != nullptr);
+
+    auto lt = launchType;
+    if (lt.isEmpty()) {
+        lt = m_pendingLaunchTypes.take(instanceId);
+    }
+    if (lt.isEmpty()) {
+        qCWarning(DDEAM) << "missing pending launch type for app" << id() << "instance" << instanceId;
+        lt = u"unknown"_s;
+    }
+
+    if (!addOneInstance(instanceId, m_applicationPath.path(), systemdUnitPath, launcher, lt)) {
+        qCCritical(DDEAM) << "failed to add instance" << systemdUnitPath << "to app" << id();
+    }
+
+    auto watcher = new UnitResultWatcher(QDBusObjectPath{systemdUnitPath}, this);
+    connect(watcher, &UnitResultWatcher::resultReady, this, [this](const QDBusObjectPath &unitPath, const QString &result) {
+        qCDebug(DDEAM) << "onUnitResultReady: unitPath=" << unitPath.path() << "result=" << result;
+        m_unitResults.insert(unitPath.path(), result);
+    });
+    auto &bus = ApplicationManager1DBus::instance().globalDestBus();
+    auto connected = bus.connect(QString::fromUtf8(SystemdService),
+                                 systemdUnitPath,
+                                 QString::fromUtf16(SystemdPropInterfaceName),
+                                 u"PropertiesChanged"_s,
+                                 watcher,
+                                 SLOT(handlePropertyChanged(QString,QVariantMap,QStringList)));
+    qCDebug(DDEAM) << "UnitResultWatcher connect for" << systemdUnitPath << "result:" << connected;
+}
+
+void ApplicationService::handleUnitRemoved(const QString &systemdUnitPath, const QString &unitName) noexcept
+{
+    using namespace Qt::StringLiterals;
+
+    const QDBusObjectPath unitPath{systemdUnitPath};
+
+    auto instanceIt =
+        std::find_if(m_Instances.cbegin(), m_Instances.cend(), [&unitPath](const QSharedPointer<InstanceService> &value) {
+            return value->property("SystemdUnitPath") == unitPath;
+        });
+
+    if (instanceIt == m_Instances.cend()) {
+        return;
+    }
+
+    auto result = m_unitResults.take(systemdUnitPath);
+    qCDebug(DDEAM) << "removeInstance: unitPath=" << systemdUnitPath << "cached result=" << result;
+
+    static const QSet<QString> launchFailedResults{
+        u"start-limit-hit"_s, u"resources"_s, u"exec-condition"_s, u"protocol"_s, u"timeout"_s};
+
+    if (launchFailedResults.contains(result)) {
+        EventReporter::reportAppLaunchFailed(eventAppId(),
+                                             QStringLiteral("systemd result: %1").arg(result),
+                                             x_linglong(),
+                                             (*instanceIt)->launchType(),
+                                             (*instanceIt)->instanceId());
+    } else if (!result.isEmpty() && result != u"success"_s) {
+        QStringList logArgs{"--user", QStringLiteral("--unit=%1").arg(unitName),
+                            "-p", "warning", "-n", "6", "-o", "cat", "-o", "with-unit", "--no-pager"};
+        QProcess logProc;
+        logProc.start("journalctl", logArgs);
+        QString logInfo;
+        if (!logProc.waitForStarted(1000)) {
+            qCWarning(DDEAM) << "journalctl failed to start for unit:" << unitName;
+        } else if (!logProc.waitForFinished(3000)) {
+            qCWarning(DDEAM) << "journalctl timeout for unit:" << unitName;
+            logProc.kill();
+        } else {
+            logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
+        }
+
+        EventReporter::reportAppAbnormalExit(eventAppId(),
+                                             (*instanceIt)->launchType(),
+                                             unitName,
+                                             logInfo,
+                                             x_linglong(),
+                                             (*instanceIt)->instanceId());
+    }
+
+    removeOneInstance(instanceIt.key());
 }
 
 void ApplicationService::detachAllInstance() noexcept

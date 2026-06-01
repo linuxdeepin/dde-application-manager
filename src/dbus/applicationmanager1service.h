@@ -116,7 +116,6 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void doReloadApplications();
-    void onUnitResultReady(const QDBusObjectPath &unitPath, const QString &result);
 
 private:
     bool m_startupPhase{true};
@@ -132,8 +131,6 @@ private:
     bool m_isReloading{false};
     bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
-    QHash<QString, QString> m_unitResults;
-    QHash<QString, QString> m_pendingInstanceLaunchTypes;
     QSharedPointer<CompatibilityManager> m_compatibilityManager;
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
 
@@ -142,12 +139,8 @@ private:
     void scanInstances() noexcept;
     void updateAutostartStatus() noexcept;
     void loadHooks() noexcept;
-    void addPendingInstanceLaunchType(const QString &instanceId, const QString &launchType) noexcept;
-    void removePendingInstanceLaunchType(const QString &instanceId) noexcept;
-    QString takePendingInstanceLaunchType(const QString &appId, const QString &instanceId) noexcept;
-    void addInstanceToApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
-    void addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept;
-    void removeInstanceFromApplication(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
+    void onUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
+    void onUnitRemoved(const QString &unitName, const QDBusObjectPath &systemdUnitPath) noexcept;
     QSharedPointer<ApplicationService> addApplication(DesktopFile desktopFileSource, std::unique_ptr<DesktopEntry> entry) noexcept;
 };
 
