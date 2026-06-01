@@ -402,7 +402,7 @@ void ApplicationManager1Service::onUnitNew(const QString &unitName,
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
-    app->handleUnitStarted(instanceId, systemdUnitPath.path(), info->launcher, {});
+    app->handleUnitStarted(instanceId, systemdUnitPath.path(), info->launcher, {}, sender() != nullptr);
 }
 
 void ApplicationManager1Service::onUnitRemoved(const QString &unitName,
