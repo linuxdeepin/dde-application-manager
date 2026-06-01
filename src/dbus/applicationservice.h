@@ -139,7 +139,8 @@ public:
     void handleUnitStarted(const QString &instanceId,
                            const QString &systemdUnitPath,
                            const QString &launcher,
-                           const QString &launchType) noexcept;
+                           const QString &launchType,
+                           bool isNewLaunch) noexcept;
     void handleUnitRemoved(const QString &systemdUnitPath, const QString &unitName) noexcept;
     void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;

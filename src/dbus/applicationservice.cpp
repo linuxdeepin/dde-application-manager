@@ -1144,11 +1144,12 @@ void ApplicationService::removeAllInstance() noexcept
 void ApplicationService::handleUnitStarted(const QString &instanceId,
                                            const QString &systemdUnitPath,
                                            const QString &launcher,
-                                           const QString &launchType) noexcept
+                                           const QString &launchType,
+                                           bool isNewLaunch) noexcept
 {
     using namespace Qt::StringLiterals;
 
-    updateAfterLaunch(sender() != nullptr);
+    updateAfterLaunch(isNewLaunch);
 
     auto lt = launchType;
     if (lt.isEmpty()) {
