@@ -136,6 +136,11 @@ public:
                         const QString &systemdUnitPath,
                         const QString &launcher,
                         const QString &launchType = {}) noexcept;
+    void handleUnitStarted(const QString &instanceId,
+                           const QString &systemdUnitPath,
+                           const QString &launcher,
+                           const QString &launchType) noexcept;
+    void handleUnitRemoved(const QString &systemdUnitPath, const QString &unitName) noexcept;
     void recoverInstances(const QList<QDBusObjectPath> &instanceList) noexcept;
     void removeOneInstance(const QDBusObjectPath &instance) noexcept;
     void removeAllInstance() noexcept;
@@ -212,6 +217,8 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
+    QHash<QString, QString> m_pendingLaunchTypes;
+    QHash<QString, QString> m_unitResults;
     QSet<QString> m_splashInstanceIds;
     bool m_propertiesForwarderInitialized{false};
     QString m_eventAppId;

@@ -248,22 +248,17 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitNew,
             this,
-            qOverload<const QString &, const QDBusObjectPath &>(&ApplicationManager1Service::addInstanceToApplication));
+            &ApplicationManager1Service::onUnitNew);
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdJobNew,
             this,
             [this](const QString &unitName, const QDBusObjectPath &systemdUnitPath) {
                 auto info = processUnitName(unitName);
-                if (!info) {
-                    return;
-                }
-
-                if (info->applicationID.isEmpty()) {
+                if (!info || info->applicationID.isEmpty()) {
                     return;
                 }
 
                 auto app = m_applicationList.value(info->applicationID);
-
                 if (!app) {
                     return;
                 }
@@ -276,13 +271,13 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
                 qCDebug(DDEAM) << "add Instance " << unitName << "on JobNew, " << app->instances().size();
 
-                addInstanceToApplication(std::move(info).value(), systemdUnitPath);
+                onUnitNew(unitName, systemdUnitPath);
             });
 
     connect(&dispatcher,
             &SystemdSignalDispatcher::SystemdUnitRemoved,
             this,
-            &ApplicationManager1Service::removeInstanceFromApplication);
+            &ApplicationManager1Service::onUnitRemoved);
 
     auto envToPath = [this](const QStringList &envs) {
         auto path = std::find_if(envs.cbegin(), envs.cend(), [](QStringView env) { return env.startsWith(u"PATH="); });
@@ -388,158 +383,45 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     qCCritical(DDEAM) << "open" << fileName << "failed:" << flag.errorString() << ", AM couldn't specify if it's a new session.";
 }
 
-void ApplicationManager1Service::addPendingInstanceLaunchType(const QString &instanceId, const QString &launchType) noexcept
-{
-    m_pendingInstanceLaunchTypes.insert(instanceId, launchType);
-}
-
-void ApplicationManager1Service::removePendingInstanceLaunchType(const QString &instanceId) noexcept
-{
-    m_pendingInstanceLaunchTypes.remove(instanceId);
-}
-
-QString ApplicationManager1Service::takePendingInstanceLaunchType(const QString &appId, const QString &instanceId) noexcept
-{
-    auto launchType = m_pendingInstanceLaunchTypes.take(instanceId);
-    if (launchType.isEmpty()) {
-        qCWarning(DDEAM) << "missing pending launch type for app" << appId << "instance" << instanceId;
-        launchType = u"unknown"_s;
-    }
-
-    return launchType;
-}
-
-void ApplicationManager1Service::addInstanceToApplication(const QString &unitName,
-                                                          const QDBusObjectPath &systemdUnitPath) noexcept
+void ApplicationManager1Service::onUnitNew(const QString &unitName,
+                                           const QDBusObjectPath &systemdUnitPath) noexcept
 {
     auto info = processUnitName(unitName);
-    if (!info) {
+    if (!info || info->applicationID.isEmpty()) {
         return;
     }
 
-    addInstanceToApplication(std::move(info).value(), systemdUnitPath);
-}
-
-void ApplicationManager1Service::addInstanceToApplication(UnitInfo info, const QDBusObjectPath &systemdUnitPath) noexcept
-{
-    auto appId = std::move(info.applicationID);
-    auto launcher = std::move(info.launcher);
-    auto instanceId = std::move(info.instanceID);
-
-    if (appId.isEmpty()) {
+    auto app = m_applicationList.value(info->applicationID);
+    if (!app) {
+        qCWarning(DDEAM) << "couldn't find app" << info->applicationID << "in application manager.";
         return;
     }
 
+    auto instanceId = info->instanceID;
     if (instanceId.isEmpty()) {
         instanceId = QUuid::createUuid().toString(QUuid::Id128);
     }
 
-    auto app = m_applicationList.value(appId);
-
-    if (!app) {
-        qCWarning(DDEAM) << "couldn't find app" << appId << "in application manager.";
-        return;
-    }
-
-    app->updateAfterLaunch(sender() != nullptr);  // activate by signal
-
-    const auto &applicationPath = app->applicationPath().path();
-
-    const auto launchType = takePendingInstanceLaunchType(appId, instanceId);
-
-    if (!app->addOneInstance(instanceId, applicationPath, systemdUnitPath.path(), launcher, launchType)) {
-        qCCritical(DDEAM) << "failed to add instance" << systemdUnitPath.path() << "to app" << appId;
-    }
-
-    using namespace Qt::StringLiterals;
-    auto &bus = ApplicationManager1DBus::instance().globalDestBus();
-    auto watcher = new UnitResultWatcher(systemdUnitPath, this);
-    connect(watcher, &UnitResultWatcher::resultReady, this, &ApplicationManager1Service::onUnitResultReady);
-    auto connected = bus.connect(QString::fromUtf8(SystemdService),
-                                 systemdUnitPath.path(),
-                                 QString::fromUtf16(SystemdPropInterfaceName),
-                                 u"PropertiesChanged"_s,
-                                 watcher,
-                                 SLOT(handlePropertyChanged(QString,QVariantMap,QStringList)));
-    qCDebug(DDEAM) << "UnitResultWatcher connect for" << systemdUnitPath.path() << "result:" << connected;
+    app->handleUnitStarted(instanceId, systemdUnitPath.path(), info->launcher, {});
 }
 
-void ApplicationManager1Service::removeInstanceFromApplication(const QString &unitName,
-                                                               const QDBusObjectPath &systemdUnitPath) noexcept
+void ApplicationManager1Service::onUnitRemoved(const QString &unitName,
+                                               const QDBusObjectPath &systemdUnitPath) noexcept
 {
     auto info = processUnitName(unitName);
-    if (!info) {
+    if (!info || info->applicationID.isEmpty()) {
         return;
     }
 
-    auto appId = std::move(info->applicationID);
-
-    if (appId.isEmpty()) {
-        return;
-    }
-
-    auto app = m_applicationList.value(appId);
-
+    auto app = m_applicationList.value(info->applicationID);
     if (!app) {
-        qWarning() << "couldn't find app" << appId << "in application manager.";
-        return;
-    }
-
-    const auto &appIns = app->applicationInstances();
-
-    auto instanceIt =
-        std::find_if(appIns.cbegin(), appIns.cend(), [&systemdUnitPath](const QSharedPointer<InstanceService> &value) {
-            return value->property("SystemdUnitPath") == systemdUnitPath;
+        orphanedInstances.removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
+            return (ptr->property("SystemdUnitPath").value<QDBusObjectPath>() == systemdUnitPath);
         });
-
-    if (instanceIt != appIns.cend()) {
-        auto result = m_unitResults.take(systemdUnitPath.path());
-        qCDebug(DDEAM) << "removeInstance: unitPath=" << systemdUnitPath.path() << "cached result=" << result;
-
-        static const QSet<QString> launchFailedResults{u"start-limit-hit"_s, u"resources"_s, u"exec-condition"_s, u"protocol"_s, u"timeout"_s};
-
-        if (launchFailedResults.contains(result)) {
-            EventReporter::reportAppLaunchFailed(app->eventAppId(),
-                                                 QStringLiteral("systemd result: %1").arg(result),
-                                                 app->x_linglong(),
-                                                 (*instanceIt)->launchType(),
-                                                 (*instanceIt)->instanceId());
-        } else if (!result.isEmpty() && result != u"success"_s) {
-            QStringList logArgs{"--user", QStringLiteral("--unit=%1").arg(unitName),
-                                "-p", "warning", "-n", "6", "-o", "cat", "-o", "with-unit", "--no-pager"};
-            QProcess logProc;
-            logProc.start("journalctl", logArgs);
-            QString logInfo;
-            if (!logProc.waitForStarted(1000)) {
-                qCWarning(DDEAM) << "journalctl failed to start for unit:" << unitName;
-            } else if (!logProc.waitForFinished(3000)) {
-                qCWarning(DDEAM) << "journalctl timeout for unit:" << unitName;
-                logProc.kill();
-            } else {
-                logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
-            }
-
-            EventReporter::reportAppAbnormalExit(app->eventAppId(),
-                                                 (*instanceIt)->launchType(),
-                                                 unitName,
-                                                 logInfo,
-                                                 app->x_linglong(),
-                                                 (*instanceIt)->instanceId());
-        }
-
-        app->removeOneInstance(instanceIt.key());
         return;
     }
 
-    orphanedInstances.removeIf([&systemdUnitPath](const QSharedPointer<InstanceService> &ptr) {
-        return (ptr->property("SystemdUnitPath").value<QDBusObjectPath>() == systemdUnitPath);
-    });
-}
-
-void ApplicationManager1Service::onUnitResultReady(const QDBusObjectPath &unitPath, const QString &result)
-{
-    qCDebug(DDEAM) << "onUnitResultReady: unitPath=" << unitPath.path() << "result=" << result;
-    m_unitResults.insert(unitPath.path(), result);
+    app->handleUnitRemoved(systemdUnitPath.path(), unitName);
 }
 
 void ApplicationManager1Service::scanMimeInfos() noexcept
@@ -591,7 +473,7 @@ void ApplicationManager1Service::scanInstances() noexcept
     QList<SystemdUnitDBusMessage> units;
     v.value<QDBusArgument>() >> units;
     for (const auto &unit : std::as_const(units)) {
-        this->addInstanceToApplication(unit.name, unit.objectPath);
+        this->onUnitNew(unit.name, unit.objectPath);
     }
 }
 
