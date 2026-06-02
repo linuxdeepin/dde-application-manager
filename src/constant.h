@@ -103,6 +103,7 @@ constexpr static auto &BuiltInAutostartOption = u"_autostart";
 constexpr static auto &EnvOption = u"env"; // for dbus option
 constexpr static auto &EnvKey = u"env"; // for config
 constexpr static auto &UnsetEnvKey = u"unsetEnv";
+constexpr static auto &ExtraArgsOption = u"_extraArgs";
 
 constexpr static auto &DesktopDDE = u"DDE";
 constexpr static auto &DesktopDeepin = u"deepin";

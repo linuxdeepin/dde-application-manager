@@ -463,6 +463,12 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     optionsMap.remove(u"_hooks"_s);
     optionsMap.remove(u"_builtIn_searchExec"_s);
     optionsMap.remove(u"_launch_type"_s);
+
+    QStringList extraArgs;
+    if (auto it = optionsMap.constFind(fromStaticRaw(ExtraArgsOption)); it != optionsMap.cend()) {
+        extraArgs = it->toStringList();
+        optionsMap.remove(fromStaticRaw(ExtraArgsOption));
+    }
     if (const auto &hooks = parent()->applicationHooks(); !hooks.isEmpty()) {
         optionsMap.insert(u"_hooks"_s, hooks);
     }
@@ -532,10 +538,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     auto &jobManager = parent()->jobManager();
     return jobManager.addJob(
         m_applicationPath.path(),
-        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType](
+        [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType, extraArgs = std::move(extraArgs)](
             const QVariant &value) mutable -> QVariant {
             QStringList newCommands;
-            const int estimatedSize = 6 + cmds.size() + task.command.size() + (value.isValid() ? 1 : 0);
+            const int estimatedSize = 6 + cmds.size() + task.command.size() + extraArgs.size() + (value.isValid() ? 1 : 0);
             newCommands.reserve(estimatedSize);
             newCommands
                 << QStringLiteral("--unitName=app-DDE-%1@%2.service").arg(escapeApplicationId(this->id()), instanceRandomUUID);
@@ -590,6 +596,8 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
                 ++originalIndex;
             }
+
+            newCommands << std::move(extraArgs);
 
             QProcess process;
             const auto &bin = getApplicationLauncherBinary();
