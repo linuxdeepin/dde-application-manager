@@ -20,6 +20,7 @@ public:
     void setAutostart(bool autostart);
     void setLaunchType(const QString &launchType);
     void setEnvironmentVariables(const QStringList &envVars);
+    void setExtraArgs(const QStringList &args);
     Dtk::Core::DExpected<void> run();
 
     static Dtk::Core::DExpected<QStringList> appIds();
@@ -35,4 +36,5 @@ private:
     bool m_autostart = false;
     QString m_launchType;
     QStringList m_environmentVariables;
+    QStringList m_extraArgs;
 };

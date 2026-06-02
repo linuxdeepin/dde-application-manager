@@ -106,7 +106,8 @@ int handleLaunchApp(const QCommandLineParser &parser,
                     const QCommandLineOption &actionOption,
                     const QCommandLineOption &launchedByUserOption,
                     const QCommandLineOption &autostartOption,
-                    const QCommandLineOption &launchTypeOption)
+                    const QCommandLineOption &launchTypeOption,
+                    const QStringList &extraArgs)
 {
     QString appId;
     QString action;
@@ -118,6 +119,14 @@ int handleLaunchApp(const QCommandLineParser &parser,
     }
 
     auto arguments = parser.positionalArguments();
+    // Remove extra args from the end of positional arguments.
+    // After '--', QCommandLineParser treats all remaining args as positional,
+    // but we already extracted them separately from argv.
+    if (!extraArgs.isEmpty()) {
+        for (int i = 0; i < extraArgs.size() && !arguments.isEmpty(); ++i) {
+            arguments.removeLast();
+        }
+    }
     QString inputArg;
     if (!arguments.isEmpty()) {
         inputArg = arguments.takeFirst();
@@ -168,6 +177,10 @@ int handleLaunchApp(const QCommandLineParser &parser,
         launcher.setEnvironmentVariables(envVars);
     }
 
+    if (!extraArgs.isEmpty()) {
+        launcher.setExtraArgs(extraArgs);
+    }
+
     auto ret = launcher.run();
     if (!ret) {
         qWarning() << ret.error();
@@ -183,16 +196,35 @@ int main(int argc, char *argv[])
 {
     const QCoreApplication app{argc, argv};
 
+    // Extract extra arguments after '--' for launch mode.
+    // In launch mode, '--' separates dde-am options from extra arguments
+    // passed to the application's Exec command.
+    // In command mode ('-c'), '--' is handled by QCommandLineParser normally.
+    QStringList extraArgs;
+    {
+        bool foundDashDash = false;
+        for (int i = 1; i < argc; ++i) {
+            if (qstrcmp(argv[i], "--") == 0) {
+                foundDashDash = true;
+                continue;
+            }
+            if (foundDashDash) {
+                extraArgs.append(QString::fromLocal8Bit(argv[i]));
+            }
+        }
+    }
+
     QCommandLineParser parser;
 
     parser.setApplicationDescription("Deepin Application Manager Client\n\n"
                                      "Usage:\n"
-                                     "  dde-am [options] <appId>              Launch application by ID or path\n"
-                                     "  dde-am -c <program> [args...]         Execute a command with arguments\n"
-                                     "  dde-am --list                         List all installed applications\n\n"
+                                     "  dde-am [options] <appId> [-- extra-args]  Launch application\n"
+                                     "  dde-am -c <program> [args...]             Execute a command\n"
+                                     "  dde-am --list                             List all applications\n\n"
                                      "Examples:\n"
-                                     "  dde-am org.deepin.calculator          # Launch application by ID\n"
-                                     "  dde-am -c /usr/bin/ls -- -l           # Execute command with arguments");
+                                     "  dde-am org.deepin.calculator              # Launch by ID\n"
+                                     "  dde-am org.deepin.dde.control-center -- --show -p \"wallpaper\"\n"
+                                     "  dde-am -c /usr/bin/ls -- -l               # Execute command with args");
     parser.addHelpOption();
     parser.addVersionOption();
 
@@ -266,5 +298,5 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption, launchTypeOption);
+    return handleLaunchApp(parser, envOption, actionOption, launchedByUserOption, autostartOption, launchTypeOption, extraArgs);
 }

@@ -133,6 +133,10 @@ DExpected<void> Launcher::launch() noexcept
         options.insert(u"_launch_type"_s, m_launchType);
     }
 
+    if (!m_extraArgs.isEmpty()) {
+        options.insert(fromStaticRaw(ExtraArgsOption), m_extraArgs);
+    }
+
     auto msg = QDBusMessage::createMethodCall(
         fromStaticRaw(DDEApplicationManager1ServiceName), m_path, fromStaticRaw(ApplicationInterface), u"Launch"_s);
     msg.setArguments({m_action, QStringList{}, options});
@@ -196,4 +200,9 @@ void Launcher::setAutostart(bool autostart)
 void Launcher::setLaunchType(const QString &launchType)
 {
     m_launchType = launchType;
+}
+
+void Launcher::setExtraArgs(const QStringList &args)
+{
+    m_extraArgs = args;
 }
