@@ -21,6 +21,16 @@
             "description": "Ignore blacklisted environment variables before launching app",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "skipEventAppIds": {
+            "value": ["dde-file-manager"],
+            "serial": 0,
+            "flags": [],
+            "name": "Skip event reporting for these application IDs",
+            "name[zh_CN]": "跳过这些应用的埋点上报",
+            "description": "Applications that report events by themselves; application-manager will skip duplicate reporting.",
+            "permissions": "readonly",
+            "visibility": "public"
         }
     }
 }

@@ -511,7 +511,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         cmds.push_back("-e");  // run all original execution commands in deepin-terminal
     }
 
-    EventReporter::reportAppLaunch(eventAppId(), QDateTime::currentMSecsSinceEpoch(), x_linglong(), launchType, instanceRandomUUID);
+    EventReporter::instance().reportAppLaunch(eventAppId(), QDateTime::currentMSecsSinceEpoch(), x_linglong(), launchType, instanceRandomUUID);
 
     // Notify the compositor to show a splash screen (after validation passes).
     if (isAutostartLaunch) {
@@ -608,7 +608,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             auto exitCode = process.exitCode();
             if (exitCode != 0) {
                 qWarning() << "Launch Application Failed";
-                EventReporter::reportAppLaunchFailed(eventAppId(),
+                EventReporter::instance().reportAppLaunchFailed(eventAppId(),
                                                      QStringLiteral("app-launch-helper exited with code %1").arg(exitCode),
                                                      x_linglong(),
                                                      launchType,
@@ -1209,7 +1209,7 @@ void ApplicationService::handleUnitRemoved(const QString &systemdUnitPath, const
         u"start-limit-hit"_s, u"resources"_s, u"exec-condition"_s, u"protocol"_s, u"timeout"_s};
 
     if (launchFailedResults.contains(result)) {
-        EventReporter::reportAppLaunchFailed(eventAppId(),
+        EventReporter::instance().reportAppLaunchFailed(eventAppId(),
                                              QStringLiteral("systemd result: %1").arg(result),
                                              x_linglong(),
                                              (*instanceIt)->launchType(),
@@ -1229,7 +1229,7 @@ void ApplicationService::handleUnitRemoved(const QString &systemdUnitPath, const
             logInfo = QString::fromUtf8(logProc.readAllStandardOutput());
         }
 
-        EventReporter::reportAppAbnormalExit(eventAppId(),
+        EventReporter::instance().reportAppAbnormalExit(eventAppId(),
                                              (*instanceIt)->launchType(),
                                              unitName,
                                              logInfo,

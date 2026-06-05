@@ -3,49 +3,78 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "eventreporter.h"
+#include "config.h"
+#include "constant.h"
+#include "global.h"
 
 #ifdef HAVE_DDE_API_EVENTLOGGER
 #include <dde-api/eventlogger.hpp>
 #endif
+#include <DConfig>
+
 #include <QLoggingCategory>
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
 #include <QHash>
+#include <algorithm>
+#include <memory>
 
 Q_LOGGING_CATEGORY(amEventReporter, "dde.am.event.reporter")
 
-namespace {
-QHash<QString, QString> &versionCache()
+EventReporter &EventReporter::instance()
 {
-    static QHash<QString, QString> cache;
-    return cache;
+    static EventReporter reporter;
+    return reporter;
 }
 
-QHash<QString, QString> &pakTypeCache()
+void EventReporter::initialize()
 {
-    static QHash<QString, QString> cache;
-    return cache;
-}
+    DCORE_USE_NAMESPACE
+    std::unique_ptr<DConfig> config(DConfig::create(
+        fromStaticRaw(ApplicationServiceID),
+        fromStaticRaw(ApplicationManagerConfig)));
 
-struct AppPackageInfo {
-    QString version;
-    QString pakType;
-};
-
-AppPackageInfo queryAppPackageInfo(const QString &appId, bool isLinglong)
-{
-    auto &vCache = versionCache();
-    auto &pCache = pakTypeCache();
-
-    bool versionCached = vCache.contains(appId);
-    bool pakTypeCached = pCache.contains(appId);
-    if (versionCached && pakTypeCached) {
-        return {vCache.value(appId), pCache.value(appId)};
+    if (!config || !config->isValid()) {
+        qCInfo(amEventReporter) << "DConfig not available, skip event filter disabled.";
+        return;
     }
 
-    AppPackageInfo info{versionCached ? vCache.value(appId) : QString{},
-                        pakTypeCached ? pCache.value(appId) : QString{}};
+    m_skipEventAppIds = config->value(fromStaticRaw(SkipEventAppIds)).toStringList();
+    qCInfo(amEventReporter) << "skip event appIds:" << m_skipEventAppIds;
+}
+
+bool EventReporter::shouldSkip(const QString &appId) const
+{
+    if (appId.isEmpty())
+        return false;
+
+    if (m_skipEventAppIds.contains(appId)) {
+        qCDebug(amEventReporter) << "skip all events for appId:" << appId;
+        return true;
+    }
+
+    return false;
+}
+
+EventReporter::CacheEntry EventReporter::queryAppPackageInfo(const QString &appId, bool isLinglong)
+{
+    auto cacheIt = m_cache.constFind(appId);
+    if (cacheIt != m_cache.constEnd()) {
+        qint64 age = QDateTime::currentMSecsSinceEpoch() - cacheIt->timestamp;
+        if (age < kCacheTimeoutMs) {
+            m_cache[appId].timestamp = QDateTime::currentMSecsSinceEpoch();
+            return *cacheIt;
+        }
+        qCDebug(amEventReporter) << "cache stale for appId:" << appId << "age:" << age << "ms";
+    }
+
+    CacheEntry info;
+    if (cacheIt != m_cache.constEnd()) {
+        info.version = cacheIt->version;
+        info.pakType = cacheIt->pakType;
+    }
 
     qCDebug(amEventReporter) << "query package info for appId:" << appId;
 
@@ -86,16 +115,31 @@ AppPackageInfo queryAppPackageInfo(const QString &appId, bool isLinglong)
         info.pakType = "unknown";
     }
 
-    vCache.insert(appId, info.version);
-    pCache.insert(appId, info.pakType);
+    info.timestamp = QDateTime::currentMSecsSinceEpoch();
 
+    // LRU eviction: if it's a new entry and at capacity, remove the oldest
+    if (cacheIt == m_cache.constEnd() && m_cache.size() >= kMaxCacheSize) {
+        auto oldest = std::min_element(m_cache.constKeyValueBegin(),
+                                       m_cache.constKeyValueEnd(),
+                                       [](const auto &a, const auto &b) {
+                                           return a.second.timestamp < b.second.timestamp;
+                                       });
+        if (oldest != m_cache.constKeyValueEnd()) {
+            qCDebug(amEventReporter) << "evict cache for appId:" << oldest->first;
+            m_cache.remove(oldest->first);
+        }
+    }
+
+    m_cache.insert(appId, info);
     return info;
-}
 }
 
 void EventReporter::reportAppLaunch(const QString &appName, qint64 timeMs, bool isLinglong, const QString &launchType, const QString &uniqueID)
 {
 #ifdef HAVE_DDE_API_EVENTLOGGER
+    if (shouldSkip(appName))
+        return;
+
     auto info = queryAppPackageInfo(appName, isLinglong);
     DDE_EventLogger::EventLogger::instance().writeEventLog({
         1000610001,
@@ -120,6 +164,9 @@ void EventReporter::reportAppLaunch(const QString &appName, qint64 timeMs, bool 
 void EventReporter::reportAppLaunchFailed(const QString &appName, const QString &errors, bool isLinglong, const QString &launchType, const QString &uniqueID)
 {
 #ifdef HAVE_DDE_API_EVENTLOGGER
+    if (shouldSkip(appName))
+        return;
+
     auto info = queryAppPackageInfo(appName, isLinglong);
     DDE_EventLogger::EventLogger::instance().writeEventLog({
         1000610002,
@@ -144,6 +191,9 @@ void EventReporter::reportAppLaunchFailed(const QString &appName, const QString 
 void EventReporter::reportAppAbnormalExit(const QString &appName, const QString &launchType, const QString &exec, const QString &logInfo, bool isLinglong, const QString &uniqueID)
 {
 #ifdef HAVE_DDE_API_EVENTLOGGER
+    if (shouldSkip(appName))
+        return;
+
     auto info = queryAppPackageInfo(appName, isLinglong);
     DDE_EventLogger::EventLogger::instance().writeEventLog({
         1000600012,

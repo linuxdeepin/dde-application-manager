@@ -331,6 +331,8 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
 
     loadHooks();
 
+    EventReporter::instance().initialize();
+
     if (storagePtr) {
         if (!storagePtr->setFirstLaunch(false) || !storagePtr->endBatchUpdate()) {
             qCCritical(DDEAM) << "failed to update state of application manager, some properties may be lost after restart.";
@@ -779,6 +781,9 @@ void ApplicationManager1Service::doReloadApplications()
     updateAutostartStatus();
 
     reloadMimeInfos();
+
+    EventReporter::instance().initialize();
+
     m_isReloading = false;
 
     if (m_pendingReload) {
