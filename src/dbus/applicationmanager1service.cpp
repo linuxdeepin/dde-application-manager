@@ -827,6 +827,13 @@ QString ApplicationManager1Service::addUserApplication(const QVariantMap &deskto
 
     const QDir appDir{getUserApplicationDir()};
     const auto &filePath = appDir.filePath(name);
+
+    // 校验 name 必须是合法文件名，不能包含路径信息
+    if (name.contains(QDir::separator()) || name == QStringLiteral("..")) {
+        safe_sendErrorReply(QDBusError::Failed, QStringLiteral("invalid file name: must be a file name, not a path."));
+        return {};
+    }
+
     QFile file{filePath};
     const auto fileExists = file.exists();
     bool shouldRewrite = false;
@@ -903,6 +910,12 @@ void ApplicationManager1Service::deleteUserApplication(const QString &app_id) no
 
     const QDir appDir{getUserApplicationDir()};
     const auto &filePath = appDir.filePath(app_id % desktopSuffix);
+
+    // 校验 app_id 必须是合法文件名，不能包含路径信息
+    if (app_id.contains(QDir::separator()) || app_id == QStringLiteral("..")) {
+        safe_sendErrorReply(QDBusError::Failed, QStringLiteral("invalid app_id: must be a file name, not a path."));
+        return;
+    }
 
     if (const QFileInfo info{filePath}; !info.exists() || !info.isFile()) {
         safe_sendErrorReply(QDBusError::Failed, QString{"file not exists:%1"}.arg(info.absoluteFilePath()));
