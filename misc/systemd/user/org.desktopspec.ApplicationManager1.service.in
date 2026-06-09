@@ -10,6 +10,8 @@ CollectMode=inactive-or-failed
 PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
+After=treeland-sd.service
+
 [Service]
 Type=dbus
 BusName=org.desktopspec.ApplicationManager1
