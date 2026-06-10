@@ -17,6 +17,26 @@
 DCORE_USE_NAMESPACE
 namespace {
 
+// Whitelist of environment variables that dde-am passes to launched applications.
+// These are safe variables related to Qt, display, and desktop environment.
+constexpr const char *kEnvWhitelist[] = {
+    "XDG_ACTIVATION_TOKEN",
+};
+
+// Collect whitelisted environment variables from the current process.
+// Returns a list of "NAME=VALUE" strings.
+QStringList collectWhitelistedEnvVars()
+{
+    QStringList result;
+    for (const char *name : kEnvWhitelist) {
+        if (qEnvironmentVariableIsSet(name)) {
+            QByteArray value = qgetenv(name);
+            result.append(QString("%1=%2").arg(QString::fromLatin1(name), QString::fromUtf8(value)));
+        }
+    }
+    return result;
+}
+
 QString getAppIdFromInput(const QString &input)
 {
     // Use QUrl::fromUserInput to handle both URIs and file paths
@@ -85,8 +105,18 @@ int handleExecuteCommand(const QCommandLineParser &parser,
         executor.setWorkDir(QDir::currentPath());
     }
 
+    QStringList envVars;
+
+    // Collect whitelisted environment variables from the current process
+    envVars.append(collectWhitelistedEnvVars());
+
+    // Handle environment variables from -e/--env option (overrides whitelisted)
     if (parser.isSet(envOption)) {
-        executor.setEnvironmentVariables(parser.values(envOption));
+        envVars.append(parser.values(envOption));
+    }
+
+    if (!envVars.isEmpty()) {
+        executor.setEnvironmentVariables(envVars);
     }
 
     auto args = parser.positionalArguments();
@@ -113,7 +143,10 @@ int handleLaunchApp(const QCommandLineParser &parser,
     QString action;
     QStringList envVars;
 
-    // Handle environment variables - prioritize -e/--env option
+    // Collect whitelisted environment variables from the current process
+    envVars.append(collectWhitelistedEnvVars());
+
+    // Handle environment variables from -e/--env option (overrides whitelisted)
     if (parser.isSet(envOption)) {
         envVars.append(parser.values(envOption));
     }
