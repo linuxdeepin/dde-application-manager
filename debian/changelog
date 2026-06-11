@@ -1,3 +1,10 @@
+dde-application-manager (1.2.56) unstable; urgency=medium
+
+  * feat: pass whitelisted env vars to launched applications in dde-am
+  * fix: wait for treeland socket before application manager
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 11 Jun 2026 19:45:35 +0800
+
 dde-application-manager (1.2.55) unstable; urgency=medium
 
   * feat(dde-am): use -- separator to pass extra launch arguments
