@@ -406,7 +406,13 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     }();
 
     if (desktopEntry == nullptr) {
-        safe_sendErrorReply(QDBusError::Failed, "This application is not set to autostart.");
+        const QString msg = "This application is not set to autostart.";
+        qWarning() << msg << "app:" << id()
+                   << "isAutostartLaunch:" << isAutostartLaunch
+                   << "desktopSource:" << m_desktopSource.sourcePath()
+                   << "autostartSource:" << m_autostartSource.m_filePath;
+        safe_sendErrorReply(QDBusError::Failed, msg);
+        return {};
     }
 
     // ignore action if it's not supported or autostart launch
