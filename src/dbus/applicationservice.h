@@ -226,7 +226,11 @@ private:
     void updateAfterLaunch(bool isLaunch) noexcept;
     static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
     [[nodiscard]] bool autostartCheck() const noexcept;
+    [[nodiscard]] bool autostartSourceFileExists() const noexcept;
+    [[nodiscard]] bool hasGeneratedAutostartSource() const noexcept;
     void setAutostartSource(AutostartSource &&source) noexcept;
+    bool saveAutostartEntry(const QString &fileName, const DesktopEntry &entry) noexcept;
+    void syncGeneratedAutostartEntry() noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
     [[nodiscard]] LaunchTask processExec(const QString &str, const QStringList& fields, const QString& workingDir) noexcept;

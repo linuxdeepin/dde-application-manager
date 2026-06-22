@@ -941,16 +941,101 @@ bool ApplicationService::autostartCheck() const noexcept
 
 bool ApplicationService::isAutoStart() const noexcept
 {
-    if (m_autostartSource.m_filePath.isEmpty()) {
+    if (!autostartSourceFileExists()) {
         return false;
     }
 
     return autostartCheck();
 }
 
+bool ApplicationService::autostartSourceFileExists() const noexcept
+{
+    return !m_autostartSource.m_filePath.isEmpty() && QFile::exists(m_autostartSource.m_filePath);
+}
+
+bool ApplicationService::hasGeneratedAutostartSource() const noexcept
+{
+    auto group = m_autostartSource.m_entry.group(fromStaticRaw(DesktopFileEntryKey));
+    if (!group.has_value()) {
+        return false;
+    }
+
+    return group->get().contains(fromStaticRaw(DesktopEntryXDeepinGenerateSource));
+}
+
+bool ApplicationService::saveAutostartEntry(const QString &fileName, const DesktopEntry &entry) noexcept
+{
+    const QFileInfo autostartFileInfo{fileName};
+    if (autostartFileInfo.isSymLink()) {
+        qWarning() << "refuse to overwrite symlink autostart file:" << fileName;
+        return false;
+    }
+
+    QFile autostartFile{fileName};
+    if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
+        qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
+        return false;
+    }
+
+    auto content = toString(entry.data()).toLocal8Bit();
+    auto writeBytes = autostartFile.write(content);
+
+    if (writeBytes != content.size() || !autostartFile.flush()) {
+        qWarning() << "incomplete write:" << autostartFile.error();
+        return false;
+    }
+
+    return true;
+}
+
+void ApplicationService::syncGeneratedAutostartEntry() noexcept
+{
+    if (!m_entry || !autostartSourceFileExists()) {
+        return;
+    }
+
+    QFile autostartFile{m_autostartSource.m_filePath};
+    if (!autostartFile.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning() << "open file" << m_autostartSource.m_filePath << "failed:" << autostartFile.error();
+        return;
+    }
+
+    DesktopEntry currentEntry;
+    if (currentEntry.parse(autostartFile) != ParserError::NoError) {
+        qWarning() << "parse autostart file" << m_autostartSource.m_filePath << "failed";
+        return;
+    }
+
+    auto group = currentEntry.group(fromStaticRaw(DesktopFileEntryKey));
+    if (!group.has_value() || !group->get().contains(fromStaticRaw(DesktopEntryXDeepinGenerateSource))) {
+        return;
+    }
+
+    DesktopEntry newEntry = *m_entry;
+    newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource), m_desktopSource.sourcePath());
+
+    auto hidden = currentEntry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryHidden));
+    if (hidden) {
+        auto hiddenValue = hidden->get();
+        newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryHidden), std::move(hiddenValue));
+    }
+
+    if (!saveAutostartEntry(m_autostartSource.m_filePath, newEntry)) {
+        return;
+    }
+
+    setAutostartSource({m_autostartSource.m_filePath, newEntry});
+}
+
 void ApplicationService::setAutoStart(bool autostart) noexcept
 {
     if (isAutoStart() == autostart) {
+        return;
+    }
+
+    if (!m_entry) {
+        qWarning() << "set autostart failed, desktop entry is null:" << id();
+        safe_sendErrorReply(QDBusError::InternalError);
         return;
     }
 
@@ -962,16 +1047,11 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     }
 
     auto fileName = startDir.filePath(m_desktopSource.desktopId() % desktopSuffix);
-    QFile autostartFile{fileName};
-    if (!autostartFile.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
-        qWarning() << "open file" << fileName << "failed:" << autostartFile.error();
-        safe_sendErrorReply(QDBusError::Failed);
-        return;
-    }
-
     DesktopEntry newEntry;
     QString originalSource;
-    if (!m_autostartSource.m_entry.data().isEmpty()) {
+    const bool shouldReuseAutostartEntry = autostartSourceFileExists() && !hasGeneratedAutostartSource()
+        && !m_autostartSource.m_entry.data().isEmpty();
+    if (shouldReuseAutostartEntry) {
         newEntry = m_autostartSource.m_entry;
 
         auto source = newEntry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource));
@@ -988,15 +1068,13 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinGenerateSource), originalSource);
     newEntry.insert(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryHidden), !autostart);
 
-    setAutostartSource({fileName, newEntry});
-
-    auto hideAutostart = toString(newEntry.data()).toLocal8Bit();
-    auto writeBytes = autostartFile.write(hideAutostart);
-
-    if (writeBytes != hideAutostart.size() || !autostartFile.flush()) {
-        qWarning() << "incomplete write:" << autostartFile.error();
+    if (!saveAutostartEntry(fileName, newEntry)) {
+        qWarning() << "set autostart failed:" << id() << "autostart:" << autostart << "file:" << fileName;
+        safe_sendErrorReply(QDBusError::Failed);
+        return;
     }
 
+    setAutostartSource({fileName, newEntry});
     emit autostartChanged();
 }
 

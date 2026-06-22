@@ -526,11 +526,13 @@ void ApplicationManager1Service::updateAutostartStatus() noexcept
             }
 
             app->setAutostartSource({sourcePath, std::move(parsedSource->entry)});
+            app->syncGeneratedAutostartEntry();
             return false;
         }
 
         if (auto existApp = m_applicationList.value(desktopId); existApp) {
             existApp->setAutostartSource({sourcePath, std::move(parsedSource->entry)});
+            existApp->syncGeneratedAutostartEntry();
             return false;
         }
 
@@ -738,6 +740,8 @@ void ApplicationManager1Service::updateApplication(const QSharedPointer<Applicat
     if (destApp->m_desktopSource != desktopFile && destApp->isAutoStart()) {
         destApp->m_desktopSource = std::move(desktopFile);
     }
+
+    destApp->syncGeneratedAutostartEntry();
 }
 
 void ApplicationManager1Service::ReloadApplications()
