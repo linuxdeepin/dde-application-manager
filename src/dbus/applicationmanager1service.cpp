@@ -996,7 +996,19 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     // 1. Property: Description
     properties.append({"Description", QDBusVariant(QString("Run: %1").arg(program))});
 
-    // 2. Property: ExecStart (Type: a(sasb))
+    // 2. Property: Type (Type: s)
+    // 脚本中可能调用会 fork 的子进程（如 deepin-security-loader-exec），导致主进程提前退出，
+    // systemd 在 Type=simple 下会误判服务结束并杀掉子进程，因此脚本使用 Type=forking
+    QFile programFile(program);
+    if (programFile.open(QIODevice::ReadOnly)) {
+        if (programFile.readLine().startsWith("#!")) {
+            properties.append({"Type", QDBusVariant(QStringLiteral("forking"))});
+            qInfo() << "Detected script, using Type=forking for systemd service";
+        }
+        programFile.close();
+    }
+
+    // 3. Property: ExecStart (Type: a(sasb))
     // Systemd 要求 ExecStart 是一个结构体数组，因为一个服务可以有多个 ExecStart 命令
     SystemdExecCommand execCmd;
     execCmd.path = program;      // 二进制路径
@@ -1007,10 +1019,10 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     execStartList << execCmd;
     properties.append({"ExecStart", QDBusVariant(QVariant::fromValue(execStartList))});
 
-    // 3. Property: Environment (Type: as)
+    // 4. Property: Environment (Type: as)
     properties.append({"Environment", QDBusVariant(environment)});
 
-    // 4. Property: WorkingDirectory (Type: s)
+    // 5. Property: WorkingDirectory (Type: s)
     if (!workdir.isEmpty()) {
         properties.append({"WorkingDirectory", QDBusVariant(workdir)});
     }
