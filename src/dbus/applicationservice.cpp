@@ -1476,7 +1476,19 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
                 QList<QUrl> resources;
                 resources.reserve(fields.size());
                 for (const auto &field : fields) {
-                    resources.emplace_back(QUrl::fromUserInput(field, dir, QUrl::AssumeLocalFile));
+                    // Fix: preserve custom URI schemes (e.g. ksowpscloudsvr://)
+                    // QUrl::fromUserInput() treats unknown schemes as HTTP hostnames,
+                    // rewriting "ksowpscloudsvr://x" -> "http://ksowpscloudsvr//x".
+                    // If the field already contains "://", parse it with TolerantMode
+                    // (which accepts non-RFC-compliant host parts like "start=foo")
+                    // and skip fromUserInput entirely.
+                    QUrl url;
+                    if (field.contains(u"://"_s)) {
+                        url = QUrl(field, QUrl::TolerantMode);
+                    } else {
+                        url = QUrl::fromUserInput(field, dir, QUrl::AssumeLocalFile);
+                    }
+                    resources.emplace_back(std::move(url));
                 }
 
                 if (code.isUpper()) {
