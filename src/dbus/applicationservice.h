@@ -233,7 +233,7 @@ private:
     void syncGeneratedAutostartEntry() noexcept;
     void appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept;
     void processCompatibility(const QString &action, QVariantMap &options, QString &execStr);
-    [[nodiscard]] LaunchTask processExec(const QString &str, const QStringList& fields, const QString& workingDir) noexcept;
+    [[nodiscard]] LaunchTask processExec(const QString &str, const QStringList &fields) const noexcept;
     void closeSplashForInstance(const QString &instanceId) noexcept;
     void closeAllSplashes() noexcept;
     [[nodiscard]] ApplicationManager1Service *parent() { return dynamic_cast<ApplicationManager1Service *>(QObject::parent()); }

@@ -492,13 +492,10 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         workingDir = std::move(optionPath);
     }
 
-    if (!workingDir.isEmpty() && QDir::isRelativePath(workingDir)) {
-        qWarning() << "relative working dir is not supported: " << workingDir;
-        workingDir.clear();
-    }
+    optionsMap["path"] = workingDir;
 
     auto cmds = generateCommand(optionsMap);
-    auto task = processExec(execStr, fields, workingDir);
+    auto task = processExec(execStr, fields);
     if (!task) {
         safe_sendErrorReply(QDBusError::InternalError, "Invalid Command.");
         return {};
@@ -557,24 +554,45 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
             QStringList formattedRes;
             if (!value.isNull()) {
-                QList<QUrl> urls;
-                if (value.canConvert<QList<QUrl>>()) {
-                    urls = std::move(value).value<QList<QUrl>>();
+                if (value.canConvert<QStringList>()) {
+                    formattedRes = value.value<QStringList>();
                 } else {
-                    urls.append(std::move(value).value<QUrl>());
+                    formattedRes.append(value.value<QString>());
                 }
 
-                formattedRes.reserve(urls.size());
-                for (const auto &url : std::as_const(urls)) {
-                    if (!task.local) {
-                        formattedRes << url.toString();
-                    } else if (url.isLocalFile()) {
-                        formattedRes << url.toLocalFile();
-                    } else {
-                        // TODO: Remote file handling logic
-                        qWarning() << "Remote file not supported yet, skipping:" << url;
+                auto newLoc = task.argNum;
+                if (task.local) {
+                    for (auto it = formattedRes.begin(); it != formattedRes.end();) {
+                        const QUrl url{*it};
+                        bool shouldErase = false;
+
+                        if (!url.isValid()) {
+                            qWarning() << "Invalid resource URL, skipping:" << *it;
+                            shouldErase = true;
+                        } else {
+                            const auto scheme = url.scheme();
+                            if (scheme == "file" || scheme.isEmpty()) {
+                                *it = url.toLocalFile();
+                            } else {
+                                // TODO: Remote file handling logic
+                                qWarning() << "Remote file not supported yet, skipping:" << *it;
+                                shouldErase = true;
+                            }
+                        }
+
+                        if (shouldErase) {
+                            auto curLoc = std::distance(formattedRes.begin(), it);
+                            if (curLoc < newLoc) {
+                                --newLoc;
+                            }
+                            it = formattedRes.erase(it);
+                        } else {
+                            ++it;
+                        }
                     }
                 }
+
+                task.argNum = newLoc;
             }
 
             int originalIndex{0};
@@ -1488,7 +1506,7 @@ std::optional<QStringList> ApplicationService::splitExecArguments(QStringView st
     return args;
 }
 
-LaunchTask ApplicationService::processExec(const QString &str, const QStringList &fields, const QString &dir) noexcept
+LaunchTask ApplicationService::processExec(const QString &str, const QStringList &fields) const noexcept
 {
     auto args = splitExecArguments(str);
     if (!args) {
@@ -1550,19 +1568,18 @@ LaunchTask ApplicationService::processExec(const QString &str, const QStringList
                 task.fieldLocation = processedArg.size();
                 task.local = (code.toLower() == u'f');
 
-                // respect the original url, replace it to exec directly
-                QList<QUrl> resources;
+                QStringList resources;
                 resources.reserve(fields.size());
                 for (const auto &field : fields) {
-                    resources.emplace_back(QUrl::fromUserInput(field, dir, QUrl::AssumeLocalFile));
+                    resources.emplace_back(field);
                 }
 
                 if (code.isUpper()) {
-                    task.Resources.emplace_back(std::in_place_type<QList<QUrl>>, std::move(resources));
+                    task.Resources.emplace_back(std::in_place_type<QStringList>, std::move(resources));
                 } else {
                     task.Resources.reserve(fields.size());
                     for (auto &&resource : resources) {
-                        task.Resources.emplace_back(std::in_place_type<QUrl>, std::move(resource));
+                        task.Resources.emplace_back(std::in_place_type<QString>, std::move(resource));
                     }
                 }
 
