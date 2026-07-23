@@ -1,3 +1,10 @@
+dde-application-manager (1.2.59) unstable; urgency=medium
+
+  * refactor(launch): drop QUrl intermediary and unused workingDir param
+  * fix(launch): split QUrl scheme check for empty vs file scheme
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 23 Jul 2026 21:47:30 +0800
+
 dde-application-manager (1.2.58) unstable; urgency=medium
 
   * chore: Sync by
