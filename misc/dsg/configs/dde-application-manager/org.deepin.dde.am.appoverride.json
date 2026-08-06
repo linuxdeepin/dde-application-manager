@@ -1,0 +1,36 @@
+{
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "Exec": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Session-specific Exec override",
+            "name[zh_CN]": "会话感知的 Exec 覆盖",
+            "description": "Overrides the Exec field. Supports !AM_FULL! placeholder.",
+            "permissions": "readonly",
+            "visibility": "public"
+        },
+        "TryExec": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Session-specific TryExec override",
+            "name[zh_CN]": "会话感知的 TryExec 覆盖",
+            "description": "Overrides the TryExec field. Empty string forces the app to be shown.",
+            "permissions": "readonly",
+            "visibility": "public"
+        },
+        "Icon": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Session-specific Icon override",
+            "name[zh_CN]": "会话感知的 Icon 覆盖",
+            "description": "Overrides the Icon field.",
+            "permissions": "readwrite",
+            "visibility": "public"
+        }
+    }
+}
