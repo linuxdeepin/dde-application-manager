@@ -28,6 +28,8 @@ target_sources(dde_am_dbus PRIVATE
     ${dde_am_dbus_SOURCE}
 )
 
+add_dependencies(dde_am_dbus am_appoverride_config_generate)
+
 target_link_libraries(
     dde_am_dbus PUBLIC
     Qt6::Core

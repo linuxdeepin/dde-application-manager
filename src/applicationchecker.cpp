@@ -5,6 +5,7 @@
 #include "global.h"
 #include "constant.h"
 #include "applicationchecker.h"
+#include "sessionoverrideconfig.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
@@ -69,8 +70,26 @@ bool ApplicationFilter::hiddenCheck(const DesktopEntry &entry) noexcept
     return hidden;
 }
 
-bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry) noexcept
+bool ApplicationFilter::tryExecCheck(const DesktopEntry &entry, QStringView desktopId, const SessionOverrideConfig *sessionConfig) noexcept
 {
+    // DConfig session-level TryExec override takes highest priority
+    if (sessionConfig) {
+        auto overrideTryExec = sessionConfig->getValue(desktopId.toString(), fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryTryExec));
+        if (overrideTryExec) {
+            auto executable = *overrideTryExec;
+            if (executable.isEmpty()) {
+                qCInfo(DDEAMChecker) << "session override TryExec is empty for" << desktopId << ", treated as shown.";
+                return false;  // empty means force-show
+            }
+
+            if (executable.startsWith(QDir::separator())) {
+                const QFileInfo info{executable};
+                return !(info.exists() && info.isExecutable());
+            }
+            return QStandardPaths::findExecutable(executable).isEmpty();
+        }
+    }
+
     auto tryExecVal = entry.value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryTryExec));
     if (tryExecVal.has_value()) {
         auto executable = toString(tryExecVal.value());

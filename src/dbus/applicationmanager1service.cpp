@@ -137,7 +137,7 @@ void forEachAutostartDesktopFile(T &&func) noexcept
     }
 }
 
-[[nodiscard]] std::optional<ParsedAutostartEntry> parseAutostartDesktopFile(DesktopFile desktopFile) noexcept
+[[nodiscard]] std::optional<ParsedAutostartEntry> parseAutostartDesktopFile(DesktopFile desktopFile, const SessionOverrideConfig *sessionConfig = nullptr) noexcept
 {
     DesktopFileGuard guard{desktopFile};
     if (!guard.try_open()) {
@@ -152,7 +152,7 @@ void forEachAutostartDesktopFile(T &&func) noexcept
         return std::nullopt;
     }
 
-    if (ApplicationFilter::tryExecCheck(entry) || ApplicationFilter::showInCheck(entry) || ApplicationFilter::hiddenCheck(entry)) {
+    if (ApplicationFilter::tryExecCheck(entry, desktopFile.desktopId(), sessionConfig) || ApplicationFilter::showInCheck(entry) || ApplicationFilter::hiddenCheck(entry)) {
         qInfo() << "autostart application" << desktopFile.desktopId() << "couldn't pass check.";
         return std::nullopt;
     }
@@ -227,6 +227,25 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
     if (m_compatibilityManager.reset(new (std::nothrow) CompatibilityManager()); !m_compatibilityManager) {
         qWarning() << "new CompatibilityManager failed.";
     }
+
+    m_sessionOverrideConfig = std::make_unique<SessionOverrideConfig>(this);
+    connect(m_sessionOverrideConfig.get(), &SessionOverrideConfig::configChanged, this, [this]() {
+        qCInfo(DDEAM) << "Session override config changed, rebuilding application list.";
+        doReloadApplications();
+    });
+    connect(m_sessionOverrideConfig.get(), &SessionOverrideConfig::overrideChanged,
+            this, [this](const QString &desktopId, const QString &key) {
+        auto app = m_applicationList.value(desktopId);
+        if (!app)
+            return;
+        if (key == u"Icon"_s) {
+            qCInfo(DDEAM) << "Icon override changed for" << desktopId << ", emitting iconsChanged.";
+            emit app->iconsChanged();
+        } else if (key == u"Exec"_s || key == u"TryExec"_s) {
+            qCInfo(DDEAM) << "Exec/TryExec override changed for" << desktopId << ", emitting execsChanged.";
+            emit app->execsChanged();
+        }
+    });
 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ApplicationManager1Service::ReloadApplications);
 
@@ -482,7 +501,7 @@ void ApplicationManager1Service::scanInstances() noexcept
 void ApplicationManager1Service::updateAutostartStatus() noexcept
 {
     forEachAutostartDesktopFile([this](DesktopFile desktopFile) -> bool {
-        auto parsedSource = parseAutostartDesktopFile(std::move(desktopFile));
+        auto parsedSource = parseAutostartDesktopFile(std::move(desktopFile), m_sessionOverrideConfig.get());
         if (!parsedSource) {
             return false;
         }
@@ -783,6 +802,8 @@ void ApplicationManager1Service::doReloadApplications()
     }
 
     updateAutostartStatus();
+
+    m_sessionOverrideConfig->preload(m_applicationList.keys());
 
     reloadMimeInfos();
 

@@ -224,7 +224,7 @@ private:
     bool m_propertiesForwarderInitialized{false};
     QString m_eventAppId;
     void updateAfterLaunch(bool isLaunch) noexcept;
-    static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept;
+    static bool shouldBeShown(const std::unique_ptr<DesktopEntry> &entry, QStringView desktopId, const SessionOverrideConfig *sessionConfig = nullptr) noexcept;
     [[nodiscard]] bool autostartCheck() const noexcept;
     [[nodiscard]] bool autostartSourceFileExists() const noexcept;
     [[nodiscard]] bool hasGeneratedAutostartSource() const noexcept;

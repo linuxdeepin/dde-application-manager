@@ -156,6 +156,7 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
 
 void ApplicationService::processCompatibility(const QString &action, QVariantMap &options, QString &execStr)
 {
+    const auto originalExec = execStr;
     auto compatibilityManager = parent()->getCompatibilityManager();
 
     auto getExec = [action, compatibilityManager](const QString &desktopID) -> QString {
@@ -192,6 +193,20 @@ void ApplicationService::processCompatibility(const QString &action, QVariantMap
         execStr = std::move(exec);
         addEnv();
         qInfo() << "get compatibility : " << m_desktopSource.desktopId() << " Exec : " << execStr;
+    }
+
+    // Session-specific DConfig overrides (higher priority than compatibility file)
+    auto sessionConfig = parent()->getSessionOverrideConfig();
+    if (!sessionConfig) {
+        return;
+    }
+
+    const auto &groupKey = fromStaticRaw(DesktopFileEntryKey);
+
+    auto overrideExec = sessionConfig->getValue(m_desktopSource.desktopId(), groupKey, fromStaticRaw(DesktopEntryExec));
+    if (overrideExec) {
+        execStr = SessionOverrideConfig::resolveExecValue(*overrideExec, originalExec);
+        qInfo() << "session override for" << m_desktopSource.desktopId() << "Exec:" << execStr;
     }
 }
 
@@ -322,7 +337,7 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
         }
     }
 
-    if (!shouldBeShown(entry)) {
+    if (!shouldBeShown(entry, app->desktopFileSource().desktopId(), parent->getSessionOverrideConfig())) {
         qDebug() << "application shouldn't be shown:" << app->desktopFileSource().sourcePath();
         return nullptr;
     }
@@ -341,14 +356,14 @@ QSharedPointer<ApplicationService> ApplicationService::createApplicationService(
     return app;
 }
 
-bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry) noexcept
+bool ApplicationService::shouldBeShown(const std::unique_ptr<DesktopEntry> &entry, QStringView desktopId, const SessionOverrideConfig *sessionConfig) noexcept
 {
     if (ApplicationFilter::hiddenCheck(*entry)) {
         qDebug() << "hidden check failed.";
         return false;
     }
 
-    if (ApplicationFilter::tryExecCheck(*entry)) {
+    if (ApplicationFilter::tryExecCheck(*entry, desktopId, sessionConfig)) {
         qDebug() << "tryExec check failed";
         return false;
     }
@@ -796,6 +811,16 @@ QStringMap ApplicationService::icons() const noexcept
         ret.insert(fromStaticRaw(DesktopFileEntryKey), mainIcon->get().value<QString>());
     }
 
+    auto sessionConfig = parent()->getSessionOverrideConfig();
+    if (sessionConfig) {
+        auto overrideIcon = sessionConfig->getValue(m_desktopSource.desktopId(),
+                                                     fromStaticRaw(DesktopFileEntryKey),
+                                                     fromStaticRaw(DesktopEntryIcon));
+        if (overrideIcon && !overrideIcon->isEmpty()) {
+            ret.insert(fromStaticRaw(DesktopFileEntryKey), *overrideIcon);
+        }
+    }
+
     return ret;
 }
 
@@ -855,6 +880,16 @@ QStringMap ApplicationService::execs() const noexcept
             continue;
         }
         ret.insert(actionKey, value->get().value<QString>());
+    }
+
+    auto sessionConfig = parent()->getSessionOverrideConfig();
+    if (sessionConfig) {
+        auto overrideExec = sessionConfig->getValue(m_desktopSource.desktopId(),
+                                                     fromStaticRaw(DesktopFileEntryKey),
+                                                     fromStaticRaw(DesktopEntryExec));
+        if (overrideExec && !overrideExec->isEmpty()) {
+            ret.insert(fromStaticRaw(DesktopFileEntryKey), *overrideExec);
+        }
     }
 
     return ret;

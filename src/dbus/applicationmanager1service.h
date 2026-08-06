@@ -21,6 +21,7 @@
 #include "identifier.h"
 #include "compatibilitymanager.h"
 #include "prelaunchsplashhelper.h"
+#include "sessionoverrideconfig.h"
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAM)
 
@@ -90,6 +91,7 @@ public:
     [[nodiscard]] const MimeManager1Service &mimeManager() const noexcept { return *m_mimeManager; }
     [[nodiscard]] const QStringList &systemdPathEnv() const noexcept { return m_systemdPathEnv; }
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
+    [[nodiscard]] SessionOverrideConfig *getSessionOverrideConfig() const noexcept { return m_sessionOverrideConfig.get(); }
     [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.get(); }
     [[nodiscard]] bool isNewSession() const noexcept { return m_isNewSession; }
     [[nodiscard]] bool isStartupPhase() const noexcept { return m_startupPhase; }
@@ -132,6 +134,7 @@ private:
     bool m_pendingReload{false};
     QHash<QString, QSharedPointer<ApplicationService>> m_applicationList;
     QSharedPointer<CompatibilityManager> m_compatibilityManager;
+    std::unique_ptr<SessionOverrideConfig> m_sessionOverrideConfig;
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
 
     void scanMimeInfos() noexcept;

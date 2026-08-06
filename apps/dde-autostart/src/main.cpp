@@ -77,7 +77,7 @@ void scanAndLaunch()
                 continue;
             }
 
-            if (ApplicationFilter::tryExecCheck(tmp) || ApplicationFilter::showInCheck(tmp)
+            if (ApplicationFilter::tryExecCheck(tmp, desktopFile.desktopId()) || ApplicationFilter::showInCheck(tmp)
                 || ApplicationFilter::hiddenCheck(tmp)) {
                 qInfo() << "autostart application " << id << " couldn't pass check:" << desktopFile.sourcePath();
                 continue;

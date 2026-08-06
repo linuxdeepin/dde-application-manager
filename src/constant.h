@@ -63,6 +63,7 @@ constexpr static auto &ApplicationManagerHookDir = u"/deepin/dde-application-man
 constexpr static auto &ApplicationManagerToolsConfig = u"org.deepin.dde.am";
 
 constexpr static auto &ApplicationManagerConfig = u"org.deepin.dde.application-manager";
+constexpr static auto &ApplicationOverrideConfigResource = u"org.deepin.dde.am.appoverride";
 constexpr static auto &AppExtraEnvironments = u"appExtraEnvironments";
 constexpr static auto &AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
 constexpr static auto &SkipEventAppIds = u"skipEventAppIds";

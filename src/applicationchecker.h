@@ -5,14 +5,18 @@
 #ifndef APPLICATIONCHECKER_H
 #define APPLICATIONCHECKER_H
 
+#include <QLoggingCategory>
+
 #include "desktopentry.h"
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAMChecker)
 
+class SessionOverrideConfig;
+
 namespace ApplicationFilter {
 
 bool hiddenCheck(const DesktopEntry &entry) noexcept;
-bool tryExecCheck(const DesktopEntry &entry) noexcept;
+bool tryExecCheck(const DesktopEntry &entry, QStringView desktopId, const SessionOverrideConfig *sessionConfig = nullptr) noexcept;
 bool showInCheck(const DesktopEntry &entry) noexcept;
 
 }  // namespace ApplicationFilter
