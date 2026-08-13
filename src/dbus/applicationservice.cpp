@@ -108,6 +108,22 @@ void unescapeEnvs(QVariantMap &options) noexcept
     options.insert(envKey, result);
 }
 
+static bool isFromSystemApplicationsDir(const QString &sourcePath)
+{
+    const auto cleanSource = QDir::cleanPath(sourcePath);
+    const auto xdgDataHome = getXDGDataHome();
+    for (const auto &dir : getApplicationsDirs()) {
+        if (dir.startsWith(xdgDataHome)) {
+            continue;  // skip user-level directory
+        }
+        const auto cleanDir = QDir::cleanPath(dir) + QLatin1Char('/');
+        if (cleanSource.startsWith(cleanDir)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) const noexcept
@@ -237,7 +253,9 @@ ApplicationService::ApplicationService(DesktopFile source,
         }
     } else {
         if (value.isNull()) {
-            auto newInstalledTime = QDateTime::currentMSecsSinceEpoch();
+            const auto newInstalledTime = isFromSystemApplicationsDir(m_desktopSource.sourcePath())
+                                              ? 0
+                                              : QDateTime::currentMSecsSinceEpoch();
             if (!storagePtr->createApplicationValue(
                     appId, fromStaticRaw(ApplicationPropertiesGroup), fromStaticRaw(InstalledTime), newInstalledTime)) {
                 m_installedTime = -1;
