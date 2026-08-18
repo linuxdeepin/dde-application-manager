@@ -1,3 +1,9 @@
+dde-application-manager (1.2.60) unstable; urgency=medium
+
+  * feat: sessionFieldOverrides for override Exec key in a given session
+
+ -- zhangkun <zhangkun2@uniontech.com>  Tue, 18 Aug 2026 13:24:54 +0800
+
 dde-application-manager (1.2.59) unstable; urgency=medium
 
   * refactor(launch): drop QUrl intermediary and unused workingDir param
