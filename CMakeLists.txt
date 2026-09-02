@@ -28,7 +28,7 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
 endif()
 find_package(Dtk6 REQUIRED COMPONENTS Core)
 find_package(Threads REQUIRED)
-find_package(TreelandProtocols REQUIRED)
+find_package(TreelandProtocols 0.6.0 REQUIRED)
 
 # Check if dde-api provides EventLogger (header-only)
 find_package(DDEAPI QUIET)

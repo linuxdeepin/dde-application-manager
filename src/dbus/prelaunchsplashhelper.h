@@ -13,7 +13,7 @@
 #include <memory>
 #include <vector>
 
-#include "qwayland-treeland-prelaunch-splash-v2.h"
+#include "qwayland-treeland-prelaunch-splash-unstable-v2.h"
 
 // Wayland C types
 struct wl_buffer;
