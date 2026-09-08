@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025-2026 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2025 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -13,7 +13,7 @@
 #include <memory>
 #include <vector>
 
-#include "qwayland-treeland-prelaunch-splash-v2.h"
+#include "qwayland-treeland-prelaunch-splash-unstable-v2.h"
 
 // Wayland C types
 struct wl_buffer;
