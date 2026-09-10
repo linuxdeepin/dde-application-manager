@@ -1,3 +1,12 @@
+dde-application-manager (1.2.61) unstable; urgency=medium
+
+  * chore: harden app-update-notifier systemd service sandbox
+  * fix: fsync autostart file to survive hard reboot
+  * chore(dbus): follow treeland prelaunch splash protocol rename
+  * build: require treeland-protocols (>> 0.5.10) for renamed protocol
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 10 Sep 2026 20:30:22 +0800
+
 dde-application-manager (1.2.60) unstable; urgency=medium
 
   * feat: sessionFieldOverrides for override Exec key in a given session
