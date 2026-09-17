@@ -27,6 +27,8 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <unistd.h>
+#include <fcntl.h>
 
 KeyFile::KeyFile(char separtor)
  : m_fp(nullptr)
@@ -203,7 +205,25 @@ bool KeyFile::saveToFile(const std::string &filePath)
         }
     }
 
+    // Ensure file content is flushed to physical disk so it survives a hard
+    // reboot (BUG-375555). fflush flushes the C library buffer to the OS,
+    // fsync forces the OS to write the page cache to the storage device.
+    fflush(sfp);
+    if (fsync(fileno(sfp)) != 0) {
+        perror("fsync file failed...");
+    }
+
     fclose(sfp);
+
+    // Sync the parent directory so the directory entry of a newly created
+    // file is also persisted to disk.
+    const std::string dirPath = filePath.substr(0, filePath.find_last_of('/'));
+    int dirFd = open(dirPath.c_str(), O_RDONLY | O_DIRECTORY);
+    if (dirFd != -1) {
+        fsync(dirFd);
+        close(dirFd);
+    }
+
     return true;
 }
 
