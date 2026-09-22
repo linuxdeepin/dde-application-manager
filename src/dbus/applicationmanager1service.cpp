@@ -993,7 +993,7 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
         // Escape the program path to create a valid runId
         actualRunId = program;
     }
-    actualRunId = escapeApplicationId(actualRunId);
+    actualRunId = safeEscapeForUnitName(actualRunId);
 
     // Generate random component for systemd unit name
     QString randomComponent = QUuid::createUuid().toString(QUuid::Id128).mid(1, 8);
@@ -1057,7 +1057,7 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
         QVariant::fromValue(QList<SystemdAux>())  // arg4: aux units (empty)
     });
 
-    auto reply = conn.asyncCall(msg);
+    conn.asyncCall(msg);
     qInfo() << "Request sent to start transient unit (Async):" << unitName;
 
     // TODO: the return value is currently empty, it's reserved for future use if we plan to make the spawned process as an
