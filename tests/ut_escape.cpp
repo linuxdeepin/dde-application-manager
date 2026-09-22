@@ -324,3 +324,32 @@ TEST(ApplicationServiceTest, ApplicationId_RoundTrip)
                                  << "\nUnescaped: " << unescaped.toStdString();
     }
 }
+
+TEST(ApplicationServiceTest, SafeEscapeForUnitName_ShortInput_NoHashing)
+{
+    // Short input should not trigger hashing; result equals escapeApplicationId
+    const QString input = "org.example.App";
+    const auto expected = escapeApplicationId(input);
+    const auto result = safeEscapeForUnitName(input);
+    EXPECT_EQ(result, expected) << "Short input should not be hashed";
+}
+
+TEST(ApplicationServiceTest, SafeEscapeForUnitName_LongInput_HashShortened)
+{
+    // Long Chinese path that exceeds 200 chars after escaping should be hashed
+    // Each Chinese char is 3 UTF-8 bytes, each escaped to 4 chars (\xXX)
+    QString longPath = QString::fromUtf8("/home/user/");
+    for (int i = 0; i < 50; ++i) {
+        longPath += QString::fromUtf8("测试目录");
+    }
+    const auto result = safeEscapeForUnitName(longPath);
+    // Hashed result should be 32 hex characters (SHA256 first 16 bytes)
+    EXPECT_EQ(result.length(), 32) << "Long input should be shortened to 32 chars";
+    EXPECT_FALSE(result.contains('\\')) << "Hashed result should be pure hex";
+}
+
+TEST(ApplicationServiceTest, SafeEscapeForUnitName_EmptyInput)
+{
+    const auto result = safeEscapeForUnitName(QString{});
+    EXPECT_TRUE(result.isEmpty()) << "Empty input should return empty string";
+}
