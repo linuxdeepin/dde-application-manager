@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <QDBusAbstractAdaptor>
 #include <DUtil>
+#include <QCryptographicHash>
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAMProf)
 Q_DECLARE_LOGGING_CATEGORY(DDEAMUtils)
@@ -509,6 +510,24 @@ inline QString escapeApplicationId(QByteArrayView utf8)
 inline QString escapeApplicationId(QStringView str)
 {
     return escapeApplicationId(str.toUtf8());
+}
+
+inline QString safeEscapeForUnitName(QStringView str)
+{
+    // Escape the application ID for use in systemd unit names.
+    // If the escaped result is too long for a systemd unit name (max 256 bytes),
+    // use a SHA256 hash to shorten it. The runId is only used for unit name
+    // identification and does not participate in program path passing.
+    // Note: this hash is one-way; processUnitName() cannot reverse it for
+    // long IDs, but desktop file IDs are typically short ASCII strings.
+    auto escaped = escapeApplicationId(str);
+    constexpr int kMaxEscapedRunIdLen = 200;
+    if (escaped.length() > kMaxEscapedRunIdLen) {
+        QByteArray hash = QCryptographicHash::hash(
+            escaped.toUtf8(), QCryptographicHash::Sha256).toHex();
+        escaped = QString::fromLatin1(hash.left(32));
+    }
+    return escaped;
 }
 
 inline QString unescapeApplicationId(QStringView id)

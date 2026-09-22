@@ -564,7 +564,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
             const int estimatedSize = 6 + cmds.size() + task.command.size() + extraArgs.size() + (value.isValid() ? 1 : 0);
             newCommands.reserve(estimatedSize);
             newCommands
-                << QStringLiteral("--unitName=app-DDE-%1@%2.service").arg(escapeApplicationId(this->id()), instanceRandomUUID);
+                << QStringLiteral("--unitName=app-DDE-%1@%2.service").arg(safeEscapeForUnitName(this->id()), instanceRandomUUID);
             newCommands << QStringLiteral("--SyslogIdentifier=%1").arg(this->id());
             newCommands << QStringLiteral("--SourcePath=%1").arg(m_desktopSource.sourcePath());
             newCommands << std::move(cmds);
