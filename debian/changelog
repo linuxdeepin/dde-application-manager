@@ -1,3 +1,9 @@
+dde-application-manager (1.2.62) unstable; urgency=medium
+
+  * fix: shorten long unit name for AppImage in long Chinese path
+
+ -- zhangkun <zhangkun2@uniontech.com>  Wed, 23 Sep 2026 10:31:09 +0800
+
 dde-application-manager (1.2.61) unstable; urgency=medium
 
   * chore: harden app-update-notifier systemd service sandbox
