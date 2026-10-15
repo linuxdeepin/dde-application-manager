@@ -1,3 +1,9 @@
+dde-application-manager (1.2.63) unstable; urgency=medium
+
+  * chore(systemd): remove hardcoded qt logging rule
+
+ -- zhangkun <zhangkun2@uniontech.com>  Thu, 15 Oct 2026 21:34:11 +0800
+
 dde-application-manager (1.2.62) unstable; urgency=medium
 
   * fix: shorten long unit name for AppImage in long Chinese path
