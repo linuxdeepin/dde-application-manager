@@ -16,7 +16,6 @@ After=treeland-sd.service
 Type=dbus
 BusName=org.desktopspec.ApplicationManager1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/dde-application-manager
-Environment=QT_LOGGING_RULES="*.debug=false"
 Slice=session.slice
 Restart=always
 RestartSec=500ms
