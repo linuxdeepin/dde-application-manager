@@ -16,6 +16,8 @@ void registerComplexDbusType()  // FIXME: test shouldn't associate with DBus
     qRegisterMetaType<ObjectMap>();
     qDBusRegisterMetaType<ObjectMap>();
     qDBusRegisterMetaType<QStringMap>();
+    qRegisterMetaType<QStringListMap>();
+    qDBusRegisterMetaType<QStringListMap>();
     qRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<PropMap>();
     qDBusRegisterMetaType<QDBusObjectPath>();

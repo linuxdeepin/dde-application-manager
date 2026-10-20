@@ -58,6 +58,10 @@ public:
     Q_PROPERTY(QStringMap GenericName READ genericName NOTIFY genericNameChanged)
     [[nodiscard]] QStringMap genericName() const noexcept;
 
+    // Expose parsed Keywords by locale so clients can search them without rereading desktop files.
+    Q_PROPERTY(QStringListMap Keywords READ keywords NOTIFY keywordsChanged)
+    [[nodiscard]] QStringListMap keywords() const noexcept;
+
     Q_PROPERTY(QStringMap Icons READ icons NOTIFY iconsChanged)
     [[nodiscard]] QStringMap icons() const noexcept;
 
@@ -183,6 +187,8 @@ Q_SIGNALS:
     void iconsChanged();
     void nameChanged();
     void genericNameChanged();
+    // Notify consumers to refresh their search terms when desktop metadata changes.
+    void keywordsChanged();
     void actionNameChanged();
     void actionsChanged();
     void categoriesChanged();

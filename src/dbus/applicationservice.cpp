@@ -794,6 +794,16 @@ QStringMap ApplicationService::genericName() const noexcept
     return value->get().value<QStringMap>();
 }
 
+QStringListMap ApplicationService::keywords() const noexcept
+{
+    auto value = m_entry->value(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryKeywords));
+    if (!value) {
+        return {};
+    }
+
+    return toKeywordMap(value->get());
+}
+
 QStringMap ApplicationService::icons() const noexcept
 {
     QStringMap ret;
@@ -1457,6 +1467,7 @@ void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
     emit iconsChanged();
     emit nameChanged();
     emit genericNameChanged();
+    emit keywordsChanged();
     emit actionNameChanged();
     emit actionsChanged();
     emit categoriesChanged();

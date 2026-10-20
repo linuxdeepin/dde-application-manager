@@ -117,6 +117,18 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringMap"/>
         </property>
 
+        <property name="Keywords" type="a{sas}" access="read">
+            <annotation
+                name="org.freedesktop.DBus.Description"
+                value="Keywords of this application, keyed by locale. Each value is
+                       the keyword list split and unescaped according to the desktop
+                       entry specification. The unlocalized value is stored under the
+                       key 'default'. Consumers must apply the standard locale fallback
+                       rules; the locale dimension is intentionally preserved."
+            />
+            <annotation name="org.qtproject.QtDBus.QtTypeName" value="QStringListMap"/>
+        </property>
+
         <property name="StartupWMClass" type="s" access="read">
             <annotation
                 name="org.freedesktop.DBus.Description"
