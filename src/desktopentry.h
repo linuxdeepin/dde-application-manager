@@ -6,12 +6,14 @@
 #define DESKTOPENTRY_H
 
 #include <QString>
+#include <QStringList>
 #include <QDebug>
 #include <QLocale>
 #include <optional>
 #include <QFile>
 #include <QFileInfo>
 #include "iniParser.h"
+#include "global.h"
 
 enum class EntryContext : uint8_t { Unknown, EntryOuter, Entry, Done };
 
@@ -162,6 +164,10 @@ QString unescapeValue(QStringView str) noexcept;
 QString toLocaleString(const DesktopEntry::Value &localeEntry, const QLocale &locale) noexcept;
 
 QString toString(const DesktopEntry::Value &value, bool skipUnescape = false) noexcept;
+
+// Unlike toLocaleString(), decode each locale's Keywords list without selecting a locale.
+// Preserve locale keys so consumers can apply their existing fallback policy.
+QStringListMap toKeywordMap(const DesktopEntry::Value &value) noexcept;
 
 bool toBoolean(const DesktopEntry::Value &value, bool &ok) noexcept;
 

@@ -477,6 +477,83 @@ QString toLocaleString(const DesktopEntry::Value &localeEntry, const QLocale &lo
     return {};
 }
 
+namespace {
+
+QStringList parseKeywordList(QStringView rawValue) noexcept
+{
+    QStringList keywords;
+    QString current;
+    bool escaped{false};
+
+    auto flushKeyword = [&keywords, &current]() {
+        const auto keyword = current.trimmed();
+        if (!keyword.isEmpty() && !keywords.contains(keyword, Qt::CaseInsensitive)) {
+            keywords.append(keyword);
+        }
+        current.clear();
+    };
+
+    for (const auto ch : rawValue) {
+        if (escaped) {
+            switch (ch.unicode()) {
+            case 's':
+                current.append(u' ');
+                break;
+            case 'n':
+                current.append(u'\n');
+                break;
+            case 't':
+                current.append(u'\t');
+                break;
+            case 'r':
+                current.append(u'\r');
+                break;
+            case '\\':
+                current.append(u'\\');
+                break;
+            case ';':
+                current.append(u';');
+                break;
+            default:
+                current.append(u'\\');
+                current.append(ch);
+                break;
+            }
+            escaped = false;
+        } else if (ch == u'\\') {
+            escaped = true;
+        } else if (ch == u';') {
+            flushKeyword();
+        } else {
+            current.append(ch);
+        }
+    }
+
+    if (escaped) {
+        current.append(u'\\');
+    }
+    flushKeyword();
+
+    return keywords;
+}
+
+} // namespace
+
+QStringListMap toKeywordMap(const DesktopEntry::Value &value) noexcept
+{
+    QStringListMap keywordMap;
+    if (value.userType() != QMetaTypeId<QStringMap>::qt_metatype_id()) {
+        return keywordMap;
+    }
+
+    const auto &localeMap = *static_cast<const QStringMap *>(value.constData());
+    for (auto it = localeMap.cbegin(); it != localeMap.cend(); ++it) {
+        keywordMap.insert(it.key(), parseKeywordList(it.value()));
+    }
+
+    return keywordMap;
+}
+
 QString toIconString(const DesktopEntry::Value &value) noexcept
 {
     return toString(value);

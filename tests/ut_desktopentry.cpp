@@ -92,6 +92,59 @@ TEST_F(TestDesktopEntry, prase)
     EXPECT_TRUE(localeString == "文本编辑器");
 }
 
+TEST(DesktopFileParser, keywordsKeepLocales)
+{
+    QTemporaryFile file;
+    ASSERT_TRUE(file.open());
+    ASSERT_GT(file.write("[Desktop Entry]\n"
+                         "Type=Application\n"
+                         "Name=Keyword Test\n"
+                         "Keywords=Picture;Slideshow;Graphics;\n"
+                         "Keywords[zh_CN]=图片;幻灯片;\n"),
+              0);
+    ASSERT_TRUE(file.flush());
+    ASSERT_TRUE(file.seek(0));
+
+    DesktopEntry entry;
+    ASSERT_EQ(entry.parse(file), ParserError::NoError);
+
+    auto value = entry.value("Desktop Entry", "Keywords");
+    ASSERT_TRUE(value.has_value());
+    const auto &keywords = value->get().value<QStringMap>();
+    EXPECT_EQ(keywords.value("default"), "Picture;Slideshow;Graphics;");
+    EXPECT_EQ(keywords.value("zh_CN"), QString::fromUtf8("图片;幻灯片;"));
+
+    const auto keywordMap = toKeywordMap(value->get());
+    EXPECT_EQ(keywordMap.size(), 2);
+    EXPECT_EQ(keywordMap.value("default"),
+              QStringList({"Picture", "Slideshow", "Graphics"}));
+    EXPECT_EQ(keywordMap.value("zh_CN"),
+              QStringList({QString::fromUtf8("图片"), QString::fromUtf8("幻灯片")}));
+    EXPECT_FALSE(keywordMap.contains("de"));
+}
+
+TEST(DesktopFileParser, keywordsSplitAndUnescape)
+{
+    const QStringMap keywords{{"default", R"(Semi\;colon;Space\sKeyword;Backslash\\Keyword;)"}};
+    const auto keywordMap = toKeywordMap(QVariant::fromValue(keywords));
+    EXPECT_EQ(keywordMap.value("default"),
+              QStringList({"Semi;colon", "Space Keyword", R"(Backslash\Keyword)"}));
+}
+
+TEST(DesktopFileParser, keywordsPreserveLocaleKeys)
+{
+    const QStringMap keywords{
+        {"default", "scan;flatbed;"},
+        {"de", "einlesen;Flachbett;"},
+        {"zh_CN", QString::fromUtf8("扫描;扫描仪;")},
+    };
+    const auto keywordMap = toKeywordMap(QVariant::fromValue(keywords));
+    EXPECT_EQ(keywordMap.value("default"), QStringList({"scan", "flatbed"}));
+    EXPECT_EQ(keywordMap.value("de"), QStringList({"einlesen", "Flachbett"}));
+    EXPECT_EQ(keywordMap.value("zh_CN"),
+              QStringList({QString::fromUtf8("扫描"), QString::fromUtf8("扫描仪")}));
+}
+
 TEST(DesktopFileParser, desktopEntryMustBeFirstGroup)
 {
     QTemporaryFile file;

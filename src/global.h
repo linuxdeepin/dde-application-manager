@@ -19,6 +19,7 @@
 #include <QMap>
 #include <QMetaClassInfo>
 #include <QString>
+#include <QStringList>
 #include <QUuid>
 #include <csignal>  // IWYU pragma: keep
 #include <optional>
@@ -34,11 +35,15 @@ Q_DECLARE_LOGGING_CATEGORY(DDEAMUtils)
 using ObjectInterfaceMap = QMap<QString, QVariantMap>;
 using ObjectMap = QMap<QDBusObjectPath, ObjectInterfaceMap>;
 using QStringMap = QMap<QString, QString>;
+// Keywords needs a list per locale, unlike QStringMap's single string per locale.
+// Keep locale keys (including "default") so clients can choose their fallback.
+using QStringListMap = QMap<QString, QStringList>;
 using PropMap = QMap<QString, QStringMap>;
 
 Q_DECLARE_METATYPE(ObjectInterfaceMap)
 Q_DECLARE_METATYPE(ObjectMap)
 Q_DECLARE_METATYPE(QStringMap)
+Q_DECLARE_METATYPE(QStringListMap)
 Q_DECLARE_METATYPE(PropMap)
 
 struct SystemdUnitDBusMessage
