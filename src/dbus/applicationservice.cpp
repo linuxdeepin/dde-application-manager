@@ -980,7 +980,7 @@ void ApplicationService::setEnviron(const QString &value) noexcept
     }
 
     m_environ = value;
-    emit environChanged();
+    Q_EMIT environChanged();
 }
 
 bool ApplicationService::autostartCheck() const noexcept
@@ -1156,7 +1156,7 @@ void ApplicationService::setAutoStart(bool autostart) noexcept
     }
 
     setAutostartSource({fileName, newEntry});
-    emit autostartChanged();
+    Q_EMIT autostartChanged();
 }
 
 QStringList ApplicationService::mimeTypes() const noexcept
@@ -1246,7 +1246,7 @@ void ApplicationService::setMimeTypes(const QStringList &value) noexcept
         qWarning() << "error occurred when write mime association to file";
     }
 
-    emit MimeTypesChanged();
+    Q_EMIT MimeTypesChanged();
 }
 
 QList<QDBusObjectPath> ApplicationService::instances() const noexcept
@@ -1285,7 +1285,7 @@ bool ApplicationService::addOneInstance(const QString &instanceId,
     if (!parent()->isStartupPhase()) {
         const auto dbusObjectPath = QDBusObjectPath{objectPath};
         const auto interfaces = getChildInterfacesAndPropertiesFromObject(service);
-        emit InterfacesAdded(dbusObjectPath, interfaces);
+        Q_EMIT InterfacesAdded(dbusObjectPath, interfaces);
         sendObjectManagerSignal(m_applicationPath.path(),
                                 "InterfacesAdded",
                                 dbusObjectPath,
@@ -1300,7 +1300,7 @@ void ApplicationService::removeOneInstance(const QDBusObjectPath &instance) noex
     if (auto it = m_Instances.constFind(instance); it != m_Instances.cend()) {
         closeSplashForInstance(it.value()->instanceId());
         const auto interfaces = getChildInterfacesFromObject(it->data());
-        emit InterfacesRemoved(instance, interfaces);
+        Q_EMIT InterfacesRemoved(instance, interfaces);
         sendObjectManagerSignal(m_applicationPath.path(), "InterfacesRemoved", instance, QVariant::fromValue(interfaces));
         unregisterObjectFromDBus(instance.path());
         m_Instances.remove(instance);
@@ -1456,30 +1456,30 @@ QDBusObjectPath ApplicationService::findInstance(const QString &instanceId) cons
 void ApplicationService::resetEntry(DesktopEntry *newEntry) noexcept
 {
     m_entry.reset(newEntry);
-    emit autostartChanged();
-    emit noDisplayChanged();
-    emit isOnDesktopChanged();
-    emit installedTimeChanged();
-    emit x_FlatpakChanged();
-    emit x_linglongChanged();
-    emit instanceChanged();
-    emit lastLaunchedTimeChanged();
-    emit iconsChanged();
-    emit nameChanged();
-    emit genericNameChanged();
-    emit keywordsChanged();
-    emit actionNameChanged();
-    emit actionsChanged();
-    emit categoriesChanged();
-    emit MimeTypesChanged();
-    emit terminalChanged();
-    emit environChanged();
-    emit launchedTimesChanged();
-    emit startupWMClassChanged();
-    emit xDeepinCreatedByChanged();
-    emit execsChanged();
-    emit xCreatedByChanged();
-    emit desktopSourcePathChanged();
+    Q_EMIT autostartChanged();
+    Q_EMIT noDisplayChanged();
+    Q_EMIT isOnDesktopChanged();
+    Q_EMIT installedTimeChanged();
+    Q_EMIT x_FlatpakChanged();
+    Q_EMIT x_linglongChanged();
+    Q_EMIT instanceChanged();
+    Q_EMIT lastLaunchedTimeChanged();
+    Q_EMIT iconsChanged();
+    Q_EMIT nameChanged();
+    Q_EMIT genericNameChanged();
+    Q_EMIT keywordsChanged();
+    Q_EMIT actionNameChanged();
+    Q_EMIT actionsChanged();
+    Q_EMIT categoriesChanged();
+    Q_EMIT MimeTypesChanged();
+    Q_EMIT terminalChanged();
+    Q_EMIT environChanged();
+    Q_EMIT launchedTimesChanged();
+    Q_EMIT startupWMClassChanged();
+    Q_EMIT xDeepinCreatedByChanged();
+    Q_EMIT execsChanged();
+    Q_EMIT xCreatedByChanged();
+    Q_EMIT desktopSourcePathChanged();
 }
 
 enum class SpliterState : uint8_t { Normal, InSingleQuote, InDoubleQuotes };
@@ -1793,13 +1793,13 @@ void ApplicationService::updateAfterLaunch(bool isLaunch) noexcept
 
         m_lastLaunch = timestamp;
         m_launchedTimes += 1;
-        emit lastLaunchedTimeChanged();
-        emit launchedTimesChanged();
+        Q_EMIT lastLaunchedTimeChanged();
+        Q_EMIT launchedTimesChanged();
     }
 }
 
 void ApplicationService::setAutostartSource(AutostartSource &&source) noexcept
 {
     m_autostartSource = std::move(source);
-    emit autostartChanged();
+    Q_EMIT autostartChanged();
 }

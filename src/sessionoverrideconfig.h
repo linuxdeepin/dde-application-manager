@@ -30,7 +30,7 @@ public:
 
     static QString resolveExecValue(const QString &overrideValue, QStringView originalExec);
 
-signals:
+Q_SIGNALS:
     void configChanged();
     void overrideChanged(const QString &desktopId, const QString &key);
 

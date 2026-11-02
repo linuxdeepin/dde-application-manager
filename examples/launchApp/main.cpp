@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2023-2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
@@ -57,7 +57,7 @@ public:
             for (const auto &app : result) {
                 apps.append(app.value<QString>());
             }
-            emit applicationLaunched(apps);
+            Q_EMIT applicationLaunched(apps);
         });
 
         auto reply =
@@ -73,14 +73,14 @@ public Q_SLOTS:
     {
         qInfo() << "Job New ["
                 << "Job Path:" << job.path() << source.path() << "add this job].";
-        emit amJobNew(job, source);
+        Q_EMIT amJobNew(job, source);
     }
 
     void jobRemovedForward(QDBusObjectPath job, QString status, QVariantList result)
     {
         qInfo() << "Job Removed ["
                 << "Job Path:" << job.path() << "Job Status:" << status << "result:" << result;
-        emit amJobRemoved(job, status, result);
+        Q_EMIT amJobRemoved(job, status, result);
     }
 
 Q_SIGNALS:

@@ -6,6 +6,8 @@ project(dde-application-manager
     LANGUAGES C CXX
 )
 
+add_compile_definitions(QT_NO_KEYWORDS)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
