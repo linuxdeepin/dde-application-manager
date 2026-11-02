@@ -184,13 +184,39 @@ ApplicationManager1Service::ApplicationManager1Service(std::unique_ptr<Identifie
         } else {
             qCInfo(amPrelaunchSplash) << "PrelaunchSplashHelper initialized.";
         }
-    } else {
-        qCInfo(amPrelaunchSplash) << "Skip PrelaunchSplashHelper (not running on Wayland)";
+
+        if (m_splashHelper) {
+            connect(m_splashHelper.get(), &PrelaunchSplashHelper::activeChanged,
+                    this, &ApplicationManager1Service::onPrelaunchSplashActiveChanged);
+            // The splash global may already be active before this connection is
+            // installed (activeChanged would have fired during construction and
+            // been missed). Invoke once to cover that case.
+            onPrelaunchSplashActiveChanged();
+        }
     }
 
     m_reloadTimer.setInterval(500);
     m_reloadTimer.setSingleShot(true);
     connect(&m_reloadTimer, &QTimer::timeout, this, &ApplicationManager1Service::doReloadApplications);
+}
+
+void ApplicationManager1Service::onPrelaunchSplashActiveChanged()
+{
+    if (m_splashHelper && m_splashHelper->isActive()) {
+        if (!m_activationTokenHelper) {
+            m_activationTokenHelper.reset(new (std::nothrow) ActivationTokenHelper());
+            if (!m_activationTokenHelper) {
+                qCWarning(amActivationToken) << "Failed to allocate ActivationTokenHelper.";
+            } else {
+                qCInfo(amActivationToken) << "ActivationTokenHelper initialized (after splash active).";
+            }
+        }
+    } else {
+        if (m_activationTokenHelper) {
+            m_activationTokenHelper.reset();
+            qCInfo(amActivationToken) << "ActivationTokenHelper destroyed (splash inactive).";
+        }
+    }
 }
 
 void ApplicationManager1Service::initService(QDBusConnection &connection) noexcept
@@ -1015,6 +1041,23 @@ QDBusObjectPath ApplicationManager1Service::executeCommand(const QString &progra
     }
     for (auto it = envVars.constBegin(); it != envVars.constEnd(); ++it) {
         environment << QString{"%1=%2"}.arg(it.key(), it.value());
+    }
+
+    // Request an activation token (Wayland only) and inject it as
+    // XDG_ACTIVATION_TOKEN so the launched program can gain focus.
+    if (auto *helper = activationTokenHelper()) {
+        if (helper->isActive()) {
+            // Drop any stale one-shot token carried by the caller before
+            // minting a fresh one for the launched program.
+            environment.removeIf([](const QString &var) {
+                return var.startsWith(u"XDG_ACTIVATION_TOKEN="_s);
+            });
+
+            QString token = helper->requestToken();
+            if (!token.isEmpty()) {
+                environment.append(u"XDG_ACTIVATION_TOKEN=%1"_s.arg(token));
+            }
+        }
     }
 
     QList<SystemdProperty> properties;
