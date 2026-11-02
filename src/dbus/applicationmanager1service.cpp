@@ -240,10 +240,10 @@ void ApplicationManager1Service::initService(QDBusConnection &connection) noexce
             return;
         if (key == u"Icon"_s) {
             qCInfo(DDEAM) << "Icon override changed for" << desktopId << ", emitting iconsChanged.";
-            emit app->iconsChanged();
+            Q_EMIT app->iconsChanged();
         } else if (key == u"Exec"_s || key == u"TryExec"_s) {
             qCInfo(DDEAM) << "Exec/TryExec override changed for" << desktopId << ", emitting execsChanged.";
-            emit app->execsChanged();
+            Q_EMIT app->execsChanged();
         }
     });
 
@@ -460,7 +460,7 @@ void ApplicationManager1Service::reloadMimeInfos() noexcept
 {
     m_mimeManager->reset();
     scanMimeInfos();
-    emit m_mimeManager->MimeInfoReloaded();
+    Q_EMIT m_mimeManager->MimeInfoReloaded();
 }
 
 void ApplicationManager1Service::scanApplications() noexcept
@@ -648,8 +648,8 @@ QSharedPointer<ApplicationService> ApplicationManager1Service::addApplication(De
 
     if (!m_startupPhase) {
         const auto interfaces = getChildInterfacesAndPropertiesFromObject(ptr);
-        emit listChanged();
-        emit InterfacesAdded(application->applicationPath(), interfaces);
+        Q_EMIT listChanged();
+        Q_EMIT InterfacesAdded(application->applicationPath(), interfaces);
         sendObjectManagerSignal(fromStaticRaw(DDEApplicationManager1ObjectPath),
                                 "InterfacesAdded",
                                 application->applicationPath(),
@@ -664,7 +664,7 @@ void ApplicationManager1Service::removeOneApplication(const QString &appId) noex
     auto objectPath = QDBusObjectPath{getObjectPathFromAppId(appId)};
     if (auto it = m_applicationList.constFind(appId); it != m_applicationList.cend()) {
         const auto interfaces = getChildInterfacesFromObject(it->data());
-        emit InterfacesRemoved(objectPath, interfaces);
+        Q_EMIT InterfacesRemoved(objectPath, interfaces);
         sendObjectManagerSignal(fromStaticRaw(DDEApplicationManager1ObjectPath),
                                 "InterfacesRemoved",
                                 objectPath,
@@ -678,7 +678,7 @@ void ApplicationManager1Service::removeOneApplication(const QString &appId) noex
         std::ignore = it->data()->RemoveFromDesktop();
         m_applicationList.erase(it);
 
-        emit listChanged();
+        Q_EMIT listChanged();
     }
 }
 

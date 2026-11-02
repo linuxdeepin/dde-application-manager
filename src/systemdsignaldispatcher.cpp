@@ -63,23 +63,23 @@ void SystemdSignalDispatcher::onPropertiesChanged(const QString &interface,
 
     using namespace Qt::StringLiterals;
     if (auto it = props.constFind(fromStaticRaw(SystemdEnvironment)); it != props.cend()) {
-        emit SystemdEnvironmentChanged(it->toStringList());
+        Q_EMIT SystemdEnvironmentChanged(it->toStringList());
     }
 }
 
 void SystemdSignalDispatcher::onUnitNew(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
-    emit SystemdUnitNew(unitName, systemdUnitPath);
+    Q_EMIT SystemdUnitNew(unitName, systemdUnitPath);
 }
 
 void SystemdSignalDispatcher::onJobNew([[maybe_unused]] uint32_t id,
                                        const QDBusObjectPath &systemdUnitPath,
                                        const QString &unitName)
 {
-    emit SystemdJobNew(unitName, systemdUnitPath);
+    Q_EMIT SystemdJobNew(unitName, systemdUnitPath);
 }
 
 void SystemdSignalDispatcher::onUnitRemoved(const QString &unitName, const QDBusObjectPath &systemdUnitPath)
 {
-    emit SystemdUnitRemoved(unitName, systemdUnitPath);
+    Q_EMIT SystemdUnitRemoved(unitName, systemdUnitPath);
 }

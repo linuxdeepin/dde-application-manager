@@ -45,7 +45,7 @@ public Q_SLOTS:
         if (auto it = changed.constFind(QStringLiteral("Result")); it != changed.constEnd()) {
             auto result = it.value().toString();
             if (!result.isEmpty() && result != QStringLiteral("success")) {
-                emit resultReady(m_unitPath, result);
+                Q_EMIT resultReady(m_unitPath, result);
             }
         }
     }
