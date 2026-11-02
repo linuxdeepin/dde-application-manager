@@ -216,6 +216,13 @@ ParserError DesktopFileParser::addEntry(Groups::iterator group) noexcept
         return ParserError::NoError;
     }
 
+    if (localeBegin != -1 && localeEnd <= localeBegin) {
+        qCDebug(logDesktopFileParser) << "invalid locale bracket order in desktop file, skip this line: " << toUtf8String(m_line);
+        clearLine();
+
+        return ParserError::NoError;
+    }
+
     const bool hasLocaleKey = localeBegin != -1;
     QByteArrayView mainKeyBytes = keyBytes;
     QString localeKey;
