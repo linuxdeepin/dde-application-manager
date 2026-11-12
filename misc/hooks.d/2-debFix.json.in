@@ -1,5 +1,5 @@
 
 {
-    "Exec": "@CMAKE_INSTALL_PREFIX@/@AM_LIBEXEC_DIR@/debFix.sh",
+    "Exec": "@CMAKE_INSTALL_PREFIX@/@HOOKS_LIBEXEC_DIR@/debFix.sh",
     "Args":[]
 }

@@ -68,6 +68,8 @@ install(FILES ${DBUS_APPLICATION_MANAGER_SERVICE_FILE}
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/dpkg/dpkg.cfg.d/am-update-hook
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/dpkg/dpkg.cfg.d)
 
+# Generic launch wrappers must stay outside deepin-security-loader's trusted directory.
+set(HOOKS_LIBEXEC_DIR ${CMAKE_INSTALL_LIBEXECDIR}/dde-application-manager)
 set(HOOKS_DEST_DIR ${CMAKE_INSTALL_DATADIR}/deepin/dde-application-manager/hooks.d)
 configure_file(
     hooks.d/2-debFix.json.in
@@ -79,7 +81,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/hooks.d/2-debFix.json
         DESTINATION ${HOOKS_DEST_DIR})
 
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/hooks.d/debFix.sh
-        DESTINATION ${AM_LIBEXEC_DIR}
+        DESTINATION ${HOOKS_LIBEXEC_DIR}
         PERMISSIONS
             OWNER_READ OWNER_EXECUTE OWNER_WRITE
             GROUP_READ GROUP_EXECUTE
