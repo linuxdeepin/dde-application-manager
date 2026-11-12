@@ -6,6 +6,10 @@
 
 hook 允许系统组件在应用启动前对应用的运行时环境做出配置(如cgroups)。
 
+内置兼容钩子 `2-debFix.json` 默认调用 `/usr/libexec/dde-application-manager/debFix.sh`，用于兼容缺少 shebang 的应用启动脚本。该脚本会执行调用者指定的应用命令，必须放在 deepin-security-loader 信任的 `/usr/libexec/deepin/` 目录之外。
+
+从旧版本手工覆盖安装升级时，须移除旧文件 `/usr/libexec/deepin/application-manager/debFix.sh`，不得在旧路径保留兼容脚本或符号链接。
+
 ## 配置文件
 
 hook 的配置文件需要放在'/usr/share/deepin/dde-application-manager/hooks.d/'下，文件名必须符合以下规范:
