@@ -31,6 +31,16 @@
             "description": "Applications that report events by themselves; application-manager will skip duplicate reporting.",
             "permissions": "readonly",
             "visibility": "public"
+        },
+        "appSingleton": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Declare application as singleton",
+            "name[zh_CN]": "声明应用为单例",
+            "description": "When set to true, Application Manager will suppress the launch splash for the app when an instance is already running. The value must be written under the subpath /<desktop-id> (the application desktop file ID). Intended for third-party applications that cannot modify their desktop files to add the X-Deepin-Singleton field.",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

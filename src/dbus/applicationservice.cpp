@@ -137,7 +137,7 @@ void ApplicationService::appendExtraEnvironments(QVariantMap &runtimeOptions) co
     std::unique_ptr<DConfig> config(DConfig::create(fromStaticRaw(ApplicationServiceID),
                                                     fromStaticRaw(ApplicationManagerConfig),
                                                     u'/' % id()));  // $appid as subpath
-    if (config->isValid()) {
+    if (config && config->isValid()) {
         auto extraEnvs = config->value(fromStaticRaw(AppExtraEnvironments)).toStringList();
         if (!extraEnvs.isEmpty()) {
             envs.append(std::move(extraEnvs));
@@ -404,6 +404,7 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
     QString execStr;
     const auto &supportedActions = actions();
     auto optionsMap = options;
+
     appendExtraEnvironments(optionsMap);
 
     auto *desktopEntry = [this, isAutostartLaunch]() -> DesktopEntry * {
@@ -476,10 +477,25 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         setEventAppId(linglongAppId);
     }
 
-    const bool isSingleton =
-        findEntryValue(fromStaticRaw(DesktopFileEntryKey), fromStaticRaw(DesktopEntryXDeepinSingleton), EntryValueType::Boolean)
-            .toBool();
-    const bool singletonWithInstance = isSingleton && !m_Instances.isEmpty();
+    const bool singletonWithInstance = [this]() {
+        if (m_Instances.isEmpty()) {
+            return false;  // First launch: singleton status doesn't affect any behavior
+        }
+        if (findEntryValue(fromStaticRaw(DesktopFileEntryKey),
+                           fromStaticRaw(DesktopEntryXDeepinSingleton),
+                           EntryValueType::Boolean).toBool()) {
+            return true;   // Desktop declaration takes priority, skip DConfig query
+        }
+        if (!m_dconfigSingleton) {
+            DCORE_USE_NAMESPACE
+            std::unique_ptr<DConfig> config(DConfig::create(fromStaticRaw(ApplicationServiceID),
+                                                            fromStaticRaw(ApplicationManagerConfig),
+                                                            u'/' % id()));
+            m_dconfigSingleton = config && config->isValid()
+                && config->value(fromStaticRaw(AppSingleton)).toBool();
+        }
+        return *m_dconfigSingleton;
+    }();
 
     // Those are internal properties, user shouldn't pass them to Application Manager
     optionsMap.remove(fromStaticRaw(BuiltInAutostartOption));
