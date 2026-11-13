@@ -105,8 +105,8 @@ ApplicationOverrideConfig *SessionOverrideConfig::configFor(const QString &deskt
         if (key == u"Exec"_s || key == u"TryExec"_s || key == u"Icon"_s) {
             qCInfo(logSessionOverride) << "Override changed for" << desktopId << "key:" << key;
             self->updateOverride(desktopId);
-            emit self->overrideChanged(desktopId, key);
-            emit self->configChanged();
+            Q_EMIT self->overrideChanged(desktopId, key);
+            Q_EMIT self->configChanged();
         }
     });
 
