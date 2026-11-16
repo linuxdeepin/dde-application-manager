@@ -10,7 +10,7 @@
             "name[zh_CN]": "启动应用时附加额外环境变量",
             "description": "Launching app with extra environments",
             "permissions": "readwrite",
-            "visibility": "public"
+            "visibility": "private"
         },
         "appEnvironmentsBlacklist": {
             "value": [],
@@ -20,7 +20,7 @@
             "name[zh_CN]": "启动应用时取消某些环境变量",
             "description": "Ignore blacklisted environment variables before launching app",
             "permissions": "readwrite",
-            "visibility": "public"
+            "visibility": "private"
         },
         "skipEventAppIds": {
             "value": ["dde-file-manager"],
@@ -30,7 +30,7 @@
             "name[zh_CN]": "跳过这些应用的埋点上报",
             "description": "Applications that report events by themselves; application-manager will skip duplicate reporting.",
             "permissions": "readonly",
-            "visibility": "public"
+            "visibility": "private"
         }
     }
 }
