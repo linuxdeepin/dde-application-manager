@@ -10,7 +10,7 @@
             "name[zh_CN]": "会话感知的 Exec 覆盖",
             "description": "Overrides the Exec field. Supports !AM_FULL! placeholder.",
             "permissions": "readonly",
-            "visibility": "public"
+            "visibility": "private"
         },
         "TryExec": {
             "value": "",
@@ -20,7 +20,7 @@
             "name[zh_CN]": "会话感知的 TryExec 覆盖",
             "description": "Overrides the TryExec field. Empty string forces the app to be shown.",
             "permissions": "readonly",
-            "visibility": "public"
+            "visibility": "private"
         },
         "Icon": {
             "value": "",
@@ -30,7 +30,7 @@
             "name[zh_CN]": "会话感知的 Icon 覆盖",
             "description": "Overrides the Icon field.",
             "permissions": "readwrite",
-            "visibility": "public"
+            "visibility": "private"
         }
     }
 }
