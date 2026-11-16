@@ -66,6 +66,7 @@ constexpr static auto &ApplicationManagerConfig = u"org.deepin.dde.application-m
 constexpr static auto &ApplicationOverrideConfigResource = u"org.deepin.dde.am.appoverride";
 constexpr static auto &AppExtraEnvironments = u"appExtraEnvironments";
 constexpr static auto &AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
+constexpr static auto &AppThpMode = u"thpMode";
 constexpr static auto &SkipEventAppIds = u"skipEventAppIds";
 
 constexpr static auto &CompatibilityConfigFilePath = u"/var/lib/compatible/compatibleDesktop.json";
