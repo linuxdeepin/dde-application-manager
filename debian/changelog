@@ -1,3 +1,13 @@
+dde-application-manager (6.2.0) unstable; urgency=medium
+
+  * feat: expose localized desktop entry keywords over D-Bus
+  * fix(hooks): move debFix outside loader trust
+  * chore: Sync by
+    https://github.com/linuxdeepin/.github/commit/88d36aea6c90c8d1de4d42
+    c68aebbf72bcb80b1c
+
+ -- zhangkun <zhangkun2@uniontech.com>  Tue, 17 Nov 2026 22:07:43 +0800
+
 dde-application-manager (1.2.63) unstable; urgency=medium
 
   * chore(systemd): remove hardcoded qt logging rule
