@@ -112,7 +112,7 @@ std::optional<QString> controlGroupOfUnit(const QString &unitName)
                                                       unitPath,
                                                       fromStaticRaw(SystemdPropInterfaceName),
                                                       u"Get"_s);
-    propertyMsg << fromStaticRaw(SystemdUnitInterfaceName);
+    propertyMsg << fromStaticRaw(SystemdServiceInterfaceName);
     propertyMsg << u"ControlGroup"_s;
 
     const auto propertyReply = QDBusConnection::sessionBus().call(propertyMsg, QDBus::Block, 5000);
