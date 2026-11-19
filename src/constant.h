@@ -67,6 +67,7 @@ constexpr static auto &ApplicationOverrideConfigResource = u"org.deepin.dde.am.a
 constexpr static auto &AppExtraEnvironments = u"appExtraEnvironments";
 constexpr static auto &AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
 constexpr static auto &SkipEventAppIds = u"skipEventAppIds";
+constexpr static auto &AppSingleton = u"appSingleton";
 
 constexpr static auto &CompatibilityConfigFilePath = u"/var/lib/compatible/compatibleDesktop.json";
 

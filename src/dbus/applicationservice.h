@@ -23,6 +23,7 @@
 #include <QTextStream>
 #include <QUuid>
 #include <memory>
+#include <optional>
 
 struct AutostartSource
 {
@@ -224,6 +225,7 @@ private:
     DesktopFile m_desktopSource;
     QSharedPointer<DesktopEntry> m_entry{nullptr};
     QHash<QDBusObjectPath, QSharedPointer<InstanceService>> m_Instances;
+    std::optional<bool> m_dconfigSingleton;
     QHash<QString, QString> m_pendingLaunchTypes;
     QHash<QString, QString> m_unitResults;
     QSet<QString> m_splashInstanceIds;
