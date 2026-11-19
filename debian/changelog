@@ -1,3 +1,9 @@
+dde-application-manager (6.2.1) unstable; urgency=medium
+
+  * fix: make application manager DConfig internals private
+
+ -- zhaofangxun <zhaofangxun@uniontech.com>  Thu, 19 Nov 2026 20:49:18 +0800
+
 dde-application-manager (6.2.0) unstable; urgency=medium
 
   * feat: expose localized desktop entry keywords over D-Bus
