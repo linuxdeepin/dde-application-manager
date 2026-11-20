@@ -82,7 +82,7 @@ public:
             const QMutexLocker locker{&m_mutex};
             m_jobs.insert(path, job);  // Insertion is always successful
         }
-        emit JobNew(path, QDBusObjectPath{source});
+        Q_EMIT JobNew(path, QDBusObjectPath{source});
 
         auto emitRemove = [this, job, path, future](QVariantList value) {
             if (!removeOneJob(path)) {
@@ -97,7 +97,7 @@ public:
                 }
                 break;
             }
-            emit JobRemoved(path, result, vals);
+            Q_EMIT JobRemoved(path, result, vals);
             return value;
         };
 
