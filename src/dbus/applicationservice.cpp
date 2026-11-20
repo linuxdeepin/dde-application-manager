@@ -511,6 +511,32 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
 
     optionsMap["path"] = workingDir;
 
+    // Request an activation token (Wayland only) and inject it as XDG_ACTIVATION_TOKEN.
+    // Skip autostart launches to avoid stealing focus at login time.
+    if (!isAutostartLaunch) {
+        if (auto *helper = parent()->activationTokenHelper()) {
+            if (helper->isActive()) {
+                const auto &envKey = fromStaticRaw(EnvKey);
+                QStringList envs = optionsMap.value(envKey).toStringList();
+
+                // XDG_ACTIVATION_TOKEN is one-shot and bound to the requesting
+                // client; a token carried by the caller (e.g. dde-launchpad)
+                // cannot be reused for the launched app. Always mint a fresh
+                // token and drop any stale one from the env list.
+                envs.removeIf([](const QString &var) {
+                    return var.startsWith(u"XDG_ACTIVATION_TOKEN="_s);
+                });
+
+                QString token = helper->requestToken();
+                if (!token.isEmpty()) {
+                    envs.append(u"XDG_ACTIVATION_TOKEN=%1"_s.arg(token));
+                }
+
+                optionsMap.insert(envKey, envs);
+            }
+        }
+    }
+
     auto cmds = generateCommand(optionsMap);
     auto task = processExec(execStr, fields);
     if (!task) {
