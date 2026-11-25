@@ -6,6 +6,7 @@
 #include "cgroupsidentifier.h"
 #include "dbus/applicationmanager1service.h"
 #include "global.h"
+#include <DLog>
 #include <QDBusConnection>
 #include <QCoreApplication>
 #include <QGuiApplication>
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
     auto start = std::chrono::high_resolution_clock::now();
 #endif
     const QGuiApplication app{argc, argv};
+    DTK_CORE_NAMESPACE::DLogManager::registerJournalAppender();
 
     auto &bus = ApplicationManager1DBus::instance();
     bus.initGlobalServerBus(DBusType::Session);
