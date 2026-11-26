@@ -29,13 +29,6 @@ void fillConfig(SessionOverrideConfig &config)
     config.m_overrides[u"org.example.forced"_s] = {
         {u"TryExec"_s, u""_s}
     };
-    config.m_loaded = {
-        u"org.example.app"_s,
-        u"org.example.hidden"_s,
-        u"org.example.forced"_s,
-        u"org.example.missing"_s,
-        u"org.example.other"_s
-    };
 }
 
 bool parseDesktopEntry(DesktopEntry &entry, const QString &content)

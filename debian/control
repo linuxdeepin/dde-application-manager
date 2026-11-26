@@ -8,7 +8,7 @@ Build-Depends: debhelper-compat ( =12), cmake,
  pkg-config,
  qt6-base-dev,
  libdtkcommon-dev,
- libdtk6core-dev (>= 6.7.41),
+ libdtk6core-dev (>> 6.7.54),
  treeland-protocols (>> 0.5.10),
  qt6-wayland-dev,
  qt6-base-private-dev,
@@ -20,7 +20,7 @@ Homepage: https://github.com/linuxdeepin/dde-application-manager
 
 Package: dde-application-manager
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, libdtk6core (>> 6.7.54)
 Description:  Application manager for DDE.
   Launch applications by systemd for more caps.
 
