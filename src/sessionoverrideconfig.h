@@ -15,7 +15,6 @@
 #include <map>
 
 #include "am_appoverride_config.hpp"
-#include "sessiontype.h"
 
 class SessionOverrideConfig : public QObject
 {
@@ -36,14 +35,16 @@ signals:
 
 private:
     Q_DISABLE_COPY(SessionOverrideConfig)
+    void applySubpaths(const QStringList &subpaths);
+    void setOverride(const QString &desktopId, const QHash<QString, QVariant> &values);
     void ensureLoaded(const QString &desktopId) const;
     void updateOverride(const QString &desktopId) const;
     ApplicationOverrideConfig *configFor(const QString &desktopId) const;
 
     mutable std::map<QString, std::unique_ptr<ApplicationOverrideConfig>> m_configs;
     mutable QHash<QString, QHash<QString, QVariant>> m_overrides;
-    mutable QSet<QString> m_loaded;
-    SessionType m_sessionType;
+    mutable QSet<QString> m_requested;
+    QSet<QString> m_subpaths;
     QString m_subpathPrefix;
 };
 
