@@ -6,6 +6,7 @@
 #include "APPobjectmanager1adaptor.h"
 #include "applicationchecker.h"
 #include "applicationmanagerstorage.h"
+#include "cgroupthp.h"
 #include "config.h"
 #include "constant.h"
 #include "eventreporter.h"
@@ -560,12 +561,14 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
         m_applicationPath.path(),
         [this, task, instanceRandomUUID = std::move(instanceRandomUUID), cmds = std::move(cmds), launchType, extraArgs = std::move(extraArgs)](
             const QVariant &value) mutable -> QVariant {
+            const auto appId = this->id();
+            const auto unitName = QStringLiteral("app-DDE-%1@%2.service").arg(safeEscapeForUnitName(appId), instanceRandomUUID);
+
             QStringList newCommands;
             const int estimatedSize = 6 + cmds.size() + task.command.size() + extraArgs.size() + (value.isValid() ? 1 : 0);
             newCommands.reserve(estimatedSize);
-            newCommands
-                << QStringLiteral("--unitName=app-DDE-%1@%2.service").arg(safeEscapeForUnitName(this->id()), instanceRandomUUID);
-            newCommands << QStringLiteral("--SyslogIdentifier=%1").arg(this->id());
+            newCommands << QStringLiteral("--unitName=%1").arg(unitName);
+            newCommands << QStringLiteral("--SyslogIdentifier=%1").arg(appId);
             newCommands << QStringLiteral("--SourcePath=%1").arg(m_desktopSource.sourcePath());
             newCommands << std::move(cmds);
 
@@ -656,6 +659,9 @@ QDBusObjectPath ApplicationService::Launch(const QString &action, const QStringL
                 m_pendingLaunchTypes.remove(instanceRandomUUID);
                 return QDBusError::Failed;
             }
+
+            // The helper only returns after the systemd job finished, so the unit's cgroup exists now.
+            CgroupThp::applyForUnit(unitName, appId);
 
             return QString{m_applicationPath.path() % u'/' % instanceRandomUUID};
         },
