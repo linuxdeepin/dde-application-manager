@@ -22,6 +22,16 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "thpMode": {
+            "value": "force_enable",
+            "serial": 0,
+            "flags": [],
+            "name": "Transparent Huge Pages mode for the application cgroup",
+            "name[zh_CN]": "应用 cgroup 的透明大页模式",
+            "description": "Writes memory.thp_mode of the application's cgroup. Valid values: inherit, default, disable, force_enable.",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
         "skipEventAppIds": {
             "value": ["dde-file-manager"],
             "serial": 0,

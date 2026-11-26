@@ -10,6 +10,7 @@
 
 constexpr static auto &SystemdPropInterfaceName = u"org.freedesktop.DBus.Properties";
 constexpr static auto &SystemdUnitInterfaceName = u"org.freedesktop.systemd1.Unit";
+constexpr static auto &SystemdServiceInterfaceName = u"org.freedesktop.systemd1.Service";
 constexpr static auto &DDEApplicationManager1ServiceName =
 #ifdef DDE_AM_USE_DEBUG_DBUS_NAME
     u"org.desktopspec.debug.ApplicationManager1";
@@ -66,6 +67,7 @@ constexpr static auto &ApplicationManagerConfig = u"org.deepin.dde.application-m
 constexpr static auto &ApplicationOverrideConfigResource = u"org.deepin.dde.am.appoverride";
 constexpr static auto &AppExtraEnvironments = u"appExtraEnvironments";
 constexpr static auto &AppEnvironmentsBlacklist = u"appEnvironmentsBlacklist";
+constexpr static auto &AppThpMode = u"thpMode";
 constexpr static auto &SkipEventAppIds = u"skipEventAppIds";
 
 constexpr static auto &CompatibilityConfigFilePath = u"/var/lib/compatible/compatibleDesktop.json";
