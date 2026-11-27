@@ -22,6 +22,7 @@ endif()
 qt_generate_wayland_protocol_client_sources(dde_am_dbus
     FILES
         ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-unstable-v2.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-activation-token-unstable-v1.xml
 )
 
 target_sources(dde_am_dbus PRIVATE

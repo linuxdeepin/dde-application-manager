@@ -21,6 +21,7 @@
 #include "identifier.h"
 #include "compatibilitymanager.h"
 #include "prelaunchsplashhelper.h"
+#include "activationtokenhelper.h"
 #include "sessionoverrideconfig.h"
 
 Q_DECLARE_LOGGING_CATEGORY(DDEAM)
@@ -93,6 +94,7 @@ public:
     [[nodiscard]] QSharedPointer<CompatibilityManager> getCompatibilityManager() const noexcept { return m_compatibilityManager; }
     [[nodiscard]] SessionOverrideConfig *getSessionOverrideConfig() const noexcept { return m_sessionOverrideConfig.get(); }
     [[nodiscard]] PrelaunchSplashHelper *splashHelper() const noexcept { return m_splashHelper.get(); }
+    [[nodiscard]] ActivationTokenHelper *activationTokenHelper() const noexcept { return m_activationTokenHelper.get(); }
     [[nodiscard]] bool isNewSession() const noexcept { return m_isNewSession; }
     [[nodiscard]] bool isStartupPhase() const noexcept { return m_startupPhase; }
 
@@ -118,6 +120,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void doReloadApplications();
+    void onPrelaunchSplashActiveChanged();
 
 private:
     bool m_startupPhase{true};
@@ -136,6 +139,7 @@ private:
     QSharedPointer<CompatibilityManager> m_compatibilityManager;
     std::unique_ptr<SessionOverrideConfig> m_sessionOverrideConfig;
     std::unique_ptr<PrelaunchSplashHelper> m_splashHelper;
+    std::unique_ptr<ActivationTokenHelper> m_activationTokenHelper;
 
     void scanMimeInfos() noexcept;
     void scanApplications() noexcept;
